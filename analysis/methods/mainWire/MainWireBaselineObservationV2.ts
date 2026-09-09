@@ -102,6 +102,27 @@ export function observeMainWireBaselineV2(input: Readonly<{
   completedBeat: MainWireBaselineObservationBeatV2;
 }>): MainWireBaselineObservationV2 {
   const { samples, completedBeat: beat } = input;
+  validateObservationInputV2(samples, beat);
+  return Object.freeze({
+    methodId: MAIN_WIRE_BASELINE_OBSERVATION_V2_ID,
+    timingBasis: "completed-beat-closures-and-observed-flow-zero-crossings" as const,
+    left: observeSideV2(samples, beat, "left"),
+    right: observeSideV2(samples, beat, "right"),
+  });
+}
+
+/** The same native landmarks, without requiring E/A peaks on either side.
+ * This is not a fallback landmark detector: all original timing checks remain. */
+export function observeMainWireVentricularValveTimingV2(input: Readonly<{
+  samples: readonly MainWireBaselineObservationTraceSampleV2[];
+  completedBeat: MainWireBaselineObservationBeatV2; side: SideV2;
+}>) {
+  validateObservationInputV2(input.samples, input.completedBeat);
+  return observeSideTimingV2(input.samples, input.completedBeat, input.side);
+}
+
+function validateObservationInputV2(samples: readonly MainWireBaselineObservationTraceSampleV2[],
+  beat: MainWireBaselineObservationBeatV2) {
   validateTraceV2(samples);
   if (
     !Number.isFinite(beat.startTimeSec) || !Number.isFinite(beat.endTimeSec)
@@ -115,13 +136,6 @@ export function observeMainWireBaselineV2(input: Readonly<{
     unavailableV2("missing-atrial-capture", null,
       "trace must contain the completed beat's ending capture at its accepted time");
   }
-  const observe = (side: SideV2) => observeSideV2(samples, beat, side);
-  return Object.freeze({
-    methodId: MAIN_WIRE_BASELINE_OBSERVATION_V2_ID,
-    timingBasis: "completed-beat-closures-and-observed-flow-zero-crossings" as const,
-    left: observe("left"),
-    right: observe("right"),
-  });
 }
 
 type TransitionV2 = Readonly<{ timeSec: number; kind: "opening" | "closure" }>;
@@ -131,6 +145,22 @@ function observeSideV2(
   beat: MainWireBaselineObservationBeatV2,
   side: SideV2,
 ): MainWireBaselineVentricularObservationV2 {
+  const result = observeSideTimingV2(samples, beat, side);
+  const inlet = side === "left" ? "MV" : "TV";
+  const early = resolvedPhasePeakV2(samples, inlet, result.events.inletOpeningTimeSec, beat.endTimeSec, side, "e");
+  const atrial = resolvedPhasePeakV2(samples, inlet, beat.endTimeSec, result.events.nextInletClosureTimeSec, side, "a");
+  return Object.freeze({ ...result, inletFlow: Object.freeze({
+    basis: "atrial-capture-anchored-native-volumetric-flow" as const,
+    peakEMlPerSec: early.flow, peakAMlPerSec: atrial.flow, peakEToA: early.flow / atrial.flow,
+    peakETimeSec: early.timeSec, peakATimeSec: atrial.timeSec,
+  }) });
+}
+
+function observeSideTimingV2(
+  samples: readonly MainWireBaselineObservationTraceSampleV2[],
+  beat: MainWireBaselineObservationBeatV2,
+  side: SideV2,
+): Pick<MainWireBaselineVentricularObservationV2, "timing" | "events"> {
   const inlet: "MV" | "TV" = side === "left" ? "MV" : "TV";
   const outlet: "AoV" | "PV" = side === "left" ? "AoV" : "PV";
   const landmarks = side === "left"
@@ -180,21 +210,11 @@ function observeSideV2(
     || fillingCaptures[0]!.acceptedEventIdentity.atrialCapturedActivationId !== beat.endAtrialCaptureId) {
     unavailableV2("missing-atrial-capture", side, "filling must contain exactly the expected atrial capture");
   }
-  const early = resolvedPhasePeakV2(samples, inlet, opening.timeSec, beat.endTimeSec, side, "e");
-  const atrial = resolvedPhasePeakV2(samples, inlet, beat.endTimeSec, nextClosure.timeSec, side, "a");
   const ictSec = outletOpeningTimeSec - ed.timeSec;
   const irtSec = opening.timeSec - es.timeSec;
   return Object.freeze({
     timing: Object.freeze({ ictSec, ejectionTimeSec, irtSec,
       teiIndex: (ictSec + irtSec) / ejectionTimeSec }),
-    inletFlow: Object.freeze({
-      basis: "atrial-capture-anchored-native-volumetric-flow" as const,
-      peakEMlPerSec: early.flow,
-      peakAMlPerSec: atrial.flow,
-      peakEToA: early.flow / atrial.flow,
-      peakETimeSec: early.timeSec,
-      peakATimeSec: atrial.timeSec,
-    }),
     events: Object.freeze({
       inletClosureTimeSec: ed.timeSec,
       outletOpeningTimeSec,

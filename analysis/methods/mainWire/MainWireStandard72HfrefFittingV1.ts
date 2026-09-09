@@ -102,7 +102,12 @@ export type MainWireHfrefFittingResultV1 = Awaited<ReturnType<typeof runMainWire
 export function compareMainWireHfrefResultsV1(a: MainWireHfrefFittingResultV1, b: MainWireHfrefFittingResultV1) {
   const aa = a.assessment?.ranking, bb = b.assessment?.ranking;
   if (!aa || !bb) return Number(!aa) - Number(!bb);
-  for (let i = 0; i < aa.length; i++) if (aa[i] !== bb[i]) return aa[i]! - bb[i]!;
+  for (let i = 0; i < aa.length; i++) {
+    // At otherwise equal priorities, unresolved measurements follow resolved
+    // ones. Do not make null equal to every value: that breaks sort transitivity.
+    if (aa[i] === null || bb[i] === null) return Number(aa[i] === null) - Number(bb[i] === null);
+    if (aa[i] !== bb[i]) return aa[i]! - bb[i]!;
+  }
   return 0; // Stable array order, not worker completion time.
 }
 

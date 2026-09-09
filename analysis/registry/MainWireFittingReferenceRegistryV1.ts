@@ -6,6 +6,8 @@ import { MAIN_WIRE_RESTING_REFERENCE_PROFILE_V1_ID } from
   "@/analysis/registry/MainWireRestingReferenceProfileV1";
 import { MAIN_WIRE_HFREF_REFERENCE_V1, MAIN_WIRE_HFREF_REST_POLICY_V1 } from
   "@/analysis/policies/mainWire/MainWireHfrefReferenceV1";
+import { MAIN_WIRE_HFREF_DILATED_REFERENCE_V1, MAIN_WIRE_HFREF_DILATED_REST_POLICY_V1 } from
+  "@/analysis/policies/mainWire/MainWireHfrefDilatedReferenceV1";
 
 /**
  * Targets are separate from launch selection and search seeds. Changing a
@@ -31,6 +33,15 @@ export const MAIN_WIRE_FITTING_REFERENCE_REGISTRY_V1 = Object.freeze({
     label: MAIN_WIRE_HFREF_REFERENCE_V1.label,
     target: Object.freeze({ kind: "source-informed-disease-construction" as const,
       evidence: MAIN_WIRE_HFREF_REFERENCE_V1, policy: MAIN_WIRE_HFREF_REST_POLICY_V1,
+      referenceOutputsAreTargets: false as const }),
+    evidenceRole: "construction" as const,
+    clinicalValidationClaimed: false as const,
+  }),
+  "hfref-chronic-dilated-v1": Object.freeze({
+    referenceId: "hfref-chronic-dilated-v1" as const,
+    label: MAIN_WIRE_HFREF_DILATED_REFERENCE_V1.label,
+    target: Object.freeze({ kind: "source-informed-disease-construction" as const,
+      evidence: MAIN_WIRE_HFREF_DILATED_REFERENCE_V1, policy: MAIN_WIRE_HFREF_DILATED_REST_POLICY_V1,
       referenceOutputsAreTargets: false as const }),
     evidenceRole: "construction" as const,
     clinicalValidationClaimed: false as const,

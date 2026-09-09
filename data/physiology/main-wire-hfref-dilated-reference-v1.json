@@ -1,0 +1,125 @@
+{
+  "registryId": "main-wire-hfref-dilated-reference-v1",
+  "referenceId": "hfref-chronic-dilated-v1",
+  "label": "HFrEF（慢性左室拡大型）",
+  "role": "source-informed-educational-construction",
+  "clinicalValidationClaimed": false,
+  "scope": {
+    "description": "左室が拡大し、収縮後に多くの血液が残る一方、安静時の正味拍出はある程度保たれる慢性期の構成例。圧低下の遅延と左心充満圧上昇も目指すが、HFrEF全例の必要条件とはしない。",
+    "heartRateBpm": 70,
+    "bodySurfaceAreaM2": 1.9,
+    "conditions": "固定制御・洞調律・安静・補助循環なし・重要な弁逆流なし。左室自由壁と共有中隔の張力低下を主な機序とし、静的な拡大構成は別途力学的に検証する。",
+    "limitations": "HFrEFの全体像、AMI、症状、治療状態、慢性化の過程を再現した患者ではない。領域別梗塞、線維化、二次性MR、伝導障害、神経体液性代償、冠血管床の成長はこの症例像から自動的には導入しない。",
+    "registrationContext": "固定形状探索と修正済み8条件の因子比較の結果を見た後に設計した。次の探索の前に固定するが、既存候補への再評価は後向きであり、独立した検証ではない。"
+  },
+  "interpretation": {
+    "sourceStatistics": "各論文の平均・SD・割合は対象集団の記述であり、個人の許容範囲でも、全所見を併せ持つ標準患者でもない。異なる集団の所見頻度を独立な確率として組み合わせない。",
+    "corridors": "区間の端点は教育用の一症例を選ぶ設計値で、診断閾値ではない。文献は方向性・規模・測定法を検討する根拠であり、端点の臨床的な妥当性を検証したものではない。区間内の中央一点への一致は求めない。",
+    "admission": "screenは症例の大枠を選別する。目標未達と数値破綻は区別する。測定できない随伴目標は順位tupleの該当成分をnullとし、他の主要目標を評価できても全目標達成とはしない。cold/細刻み、原波形、静的形状と心膜・冠循環の構成適合性の確認なしにpresetを採択しない。",
+    "dependencies": "EF・EDVI・CIはHR70・非逆流でCI≈0.07×EF×EDVIと結ばれる。平均Ao−平均RAも正味COと血管抵抗に強く依存するが、冠循環等を含むネットワークのため単一抵抗との厳密な恒等式とは扱わない。主要目標の最大規格化区間誤差を先に、随伴目標の最大誤差を次に比較し、独立した尤度として加算しない。",
+    "volumeMethod": "EDV/ESVはMV/AVの流量ゼロ閉鎖点による。画像の最大/最小容積や侵襲計測の端点と完全には一致しない。",
+    "articleUse": "説明では、文献上の傾向、この症例の実測結果、モデルで変更した機序を分ける。expectedFindingは設計意図であり、通過や実測の証拠ではない。未評価のEes/EDPVR/PVA、適合不良のτ、未再現の機序を説明から消さない。"
+  },
+  "reuseSourceIds": ["heidenreich-2022-hf", "carlsson-2012-cmr-flow", "shinke-1999-invasive-pv", "moriwaki-2021-invasive-pv", "patel-2020-timing", "benfari-2019-diastolic"],
+  "sources": [
+    {
+      "sourceId": "kato-1996-dcm-pv",
+      "title": "Correlation between left ventricular contractility and relaxation in patients with idiopathic dilated cardiomyopathy",
+      "url": "https://doi.org/10.1002/clc.4960190516",
+      "locator": "Methods: Data Analysis; Table I; Results and Discussion",
+      "population": "洞調律・安静の特発性DCM38例、NYHA II–III、対照9例。治療で安定後、3日以上休薬。EF実測17–64%で全例が現代のHFrEF分類ではない。",
+      "observations": { "lvefPercent": { "mean": 31, "sd": 11 }, "lvedviMlM2": { "mean": 141, "sd": 38 }, "weissTauMs": { "mean": 54, "sd": 14 }, "raffGlantzTauMs": { "mean": 69, "sd": 17 }, "pawpMmHg": { "mean": 10, "sd": 5 }, "lvedpMmHg": { "mean": 14, "sd": 7 }, "positiveDpDtMmHgSec": { "mean": 1118, "sd": 253 } },
+      "method": "高忠実度LV圧を3 ms間隔で収録。τは最大圧低下速度からEDP+5 mmHgまでのWeissゼロ漸近圧法とRaff–Glantz法。conductance容積、IVC遮断4–8拍のEes。",
+      "limitations": "少数・選択集団。模型の受理stepの時刻重み付き回帰や弁イベントと測定系は同一ではない。Eesとτは相関せず、弛緩が保たれた症例もあった。TL/TDが保たれた割合の対応が本文内で不一致のため、所見頻度の数値は採用しない。"
+    },
+    {
+      "sourceId": "pi-2018-dcm-cmr",
+      "title": "Prognostic value of myocardial strain and late gadolinium enhancement on cardiovascular magnetic resonance imaging in patients with idiopathic dilated cardiomyopathy with moderate to severely reduced ejection fraction",
+      "url": "https://doi.org/10.1186/s12968-018-0466-7",
+      "locator": "Methods; Tables 1–2",
+      "population": "EF<40%の特発性DCM172例。HR83±20、平均動脈圧84±13 mmHg。",
+      "observations": { "meanArterialPressureMmHg": { "mean": 84, "sd": 13 } },
+      "method": "CMRと同時期の臨床測定。LV容積由来COとRV容積由来COは異なる。",
+      "limitations": "MAPとexact Ao node周期平均の部位・方法は同一ではない。LV容積由来CIを正味AV流量の目標に転用せず、群平均の比から正味CIを作らない。"
+    },
+    {
+      "sourceId": "bortone-1989-dcm-stiffness",
+      "title": "Functional and structural abnormalities in patients with dilated cardiomyopathy",
+      "url": "https://doi.org/10.1016/0735-1097(89)90102-2",
+      "locator": "Abstract: Methods and Results",
+      "population": "DCM12例と対照10例。DCMの材料硬さが正常の7例と高い5例で、平均EFは37/36%、平均LVEDPは18/22 mmHg。",
+      "method": "同時左室造影・高忠実度圧、粘弾性モデルによる圧容積／応力ひずみ解析、右心生検。",
+      "limitations": "心室全体の圧容積特性と心筋材料硬さは別物。抄録で確認した小集団の平均を本モデルの材料係数や必須範囲に直変換しない。"
+    },
+    {
+      "sourceId": "ishihara-1994-dcm-energetics",
+      "title": "Relation between ventriculoarterial coupling and myocardial energetics in patients with idiopathic dilated cardiomyopathy",
+      "url": "https://doi.org/10.1016/0735-1097(94)90428-6",
+      "locator": "Abstract: Methods and Results",
+      "population": "特発性DCM23例の侵襲的PV解析、うち16例で冠静脈洞の心筋酸素消費を同時計測。",
+      "observations": { "eaToEes": { "mean": 3.14, "se": 0.28 } },
+      "method": "conductance PV、IVC遮断Ees、冠静脈洞double-thermistor。",
+      "limitations": "数値は平均±SE。Ees/EaをEFから逆算して独立な根拠にしない。SW/PVAとSW/MVO2は違い、モデルの経壁圧仕事だけで効率低下やPVA増加を主張しない。Katoらと施設・著者の重なりがある。"
+    },
+    {
+      "sourceId": "lavine-1989-dcm-filling",
+      "title": "Importance of the left ventricular filling pressure on diastolic filling in idiopathic dilated cardiomyopathy",
+      "url": "https://doi.org/10.1016/0002-9149(89)90654-1",
+      "locator": "Abstract",
+      "population": "対照33例、DCMの充満圧正常14例と高値26例。群分けは平均肺毛細管圧による。",
+      "method": "充満圧と経僧帽弁パルスDopplerを比較し、MRの影響も検討。",
+      "limitations": "高充満圧とMRは流入に異なる影響を持つ。群分けの15 mmHgをmean LAやLVEDPの同一閾値にしない。Doppler速度と本モデルの弁全体の体積流量を混同しない。"
+    },
+    {
+      "sourceId": "david-1989-simultaneous-la-lv",
+      "title": "Comparison of Doppler indexes of left ventricular diastolic function with simultaneous high fidelity left atrial and ventricular pressures in idiopathic dilated cardiomyopathy",
+      "url": "https://doi.org/10.1016/0002-9149(89)90873-4",
+      "locator": "Abstract: simultaneous measurements and amrinone response",
+      "population": "特発性DCMのbaselineとamrinone投与中。今回確認できた抄録には例数が記載されていない。",
+      "method": "LA/LV micromanometer圧、経僧帽弁Doppler、M-mode/2Dエコーの同時計測。",
+      "limitations": "弛緩が改善してもE/Aは低下し得る。介入の各機序は単独には分離されていない。数値目標や薬物モデルの検証としては使わない。"
+    },
+    {
+      "sourceId": "becker-2021-dcm-rv",
+      "title": "Characteristics and prognostic value of right ventricular (dys)function in patients with non-ischaemic dilated cardiomyopathy assessed with cardiac magnetic resonance imaging",
+      "url": "https://doi.org/10.1002/ehf2.13072",
+      "locator": "Methods; Results; Table 1",
+      "population": "非虚血性DCM216例、CMR LVEF<50%、中央値37% [25–44]。RV機能低下38%、MR63%（多くは軽度）。",
+      "method": "単施設・後向きCMR cohort。既存のRV疾患や肺高血圧を除外。",
+      "limitations": "EF≤40%だけの集団ではなく、治療・AF・MRを含む。38%を全HFrEFの頻度や発生確率にしない。LV/RVの関連から原因の向きを確定しない。"
+    }
+  ],
+  "restScreen": [
+    { "metricId": "lvef", "unit": "1", "lower": 0.2, "upper": 0.4, "basis": "historical-definition-and-severity-choice", "sourceIds": ["heidenreich-2022-hf", "patel-2020-timing"], "method": "native-valve-closure-volumes", "rationale": "EF低下を症例の中心とする。20%は選んだ重症度の下端であり疾患の診断下限ではない。" },
+    { "metricId": "lvedvi", "unit": "mL/m2", "lower": 90, "upper": 180, "basis": "source-informed-design", "sourceIds": ["kato-1996-dcm-pv"], "method": "native-valve-closure-volumes", "rationale": "慢性左室拡大型として選ぶ容積帯。全HFrEFの必要条件ではなく、画像由来の診断基準でもない。" },
+    { "metricId": "ci", "unit": "L/min/m2", "lower": 1.8, "upper": 3.5, "basis": "source-informed-design", "sourceIds": ["carlsson-2012-cmr-flow", "moriwaki-2021-invasive-pv"], "method": "exact-beat-aortic-valve-net-flow", "rationale": "低めから保たれた拍出を許容し、EF低下と極端な低拍出を同義にしない。" },
+    { "metricId": "meanLa", "unit": "mmHg", "lower": 3, "upper": 25, "basis": "source-informed-design", "sourceIds": ["kato-1996-dcm-pv", "moriwaki-2021-invasive-pv"], "method": "exact-beat-mean-left-atrial-pressure", "rationale": "極端な充満を避ける既存screenを維持。高値は随伴目標であり必須条件ではない。" },
+    { "metricId": "meanRa", "unit": "mmHg", "lower": 0, "upper": 12, "basis": "source-informed-design", "sourceIds": ["moriwaki-2021-invasive-pv"], "method": "exact-beat-mean-right-atrial-pressure", "rationale": "左室優位例の負荷を選ぶ既存screen。RVEF正常や右心障害なしを意味しない。" },
+    { "metricId": "meanAo", "unit": "mmHg", "lower": 60, "upper": 110, "basis": "source-informed-design", "sourceIds": ["moriwaki-2021-invasive-pv", "pi-2018-dcm-cmr"], "method": "exact-beat-mean-aortic-node-pressure", "rationale": "極端な動脈負荷を避ける既存screen。部位・方法差があり臨床MAP診断ではない。" }
+  ],
+  "fittingTargets": [
+    { "metricId": "lvef", "lower": 0.25, "upper": 0.35, "priority": 0, "sourceIds": ["patel-2020-timing", "kato-1996-dcm-pv"], "basis": "source-informed-design", "rationale": "EFを他の主要目標と同時に満たす。EFだけを最優先する順位付けにはしない。" },
+    { "metricId": "lvedvi", "lower": 110, "upper": 150, "priority": 0, "sourceIds": ["kato-1996-dcm-pv"], "basis": "source-informed-design", "rationale": "左室拡大と残存血液量の多さを説明できる帯を選ぶ。ESVIを重複した目的関数にしない。" },
+    { "metricId": "ci", "lower": 2.2, "upper": 2.8, "priority": 0, "sourceIds": ["carlsson-2012-cmr-flow", "moriwaki-2021-invasive-pv"], "basis": "source-informed-design", "rationale": "安静時の正味拍出がある程度保たれる一例を目指す。CIの疾患正常域ではない。" },
+    { "metricId": "meanAo", "lower": 80, "upper": 100, "priority": 0, "sourceIds": ["pi-2018-dcm-cmr", "moriwaki-2021-invasive-pv"], "basis": "source-informed-design", "rationale": "この症例で選ぶ安静時の動脈圧の目標。心拍出と血管負荷に強く依存する。目標未達はHFrEFとしての不成立を意味せず、既知候補77 mmHgに合わせて下端を変更しない。" },
+    { "metricId": "meanLa", "lower": 12, "upper": 20, "priority": 1, "sourceIds": ["moriwaki-2021-invasive-pv", "kato-1996-dcm-pv", "lavine-1989-dcm-filling"], "basis": "source-informed-design", "rationale": "既存の治療後集団の平均PAWP10–12より高めの充満状態を意図的に選ぶ。Lavineの高圧群は存在の根拠であり頻度の重みにはしない。肺水腫や臨床うっ血を圧だけから診断せず、native LV充満末期圧・経壁圧も併記する。高いほど高評価にはしない。" },
+    { "metricId": "weissTauMs", "unit": "ms", "method": "main-wire-lv-relaxation-tau-v1:Weiss-zero-asymptote-time-weighted-log-linear", "lower": 40, "upper": 75, "priority": 1, "sourceIds": ["kato-1996-dcm-pv"], "basis": "source-informed-design", "rationale": "54±14を参考に選んだ広めの設計値で、正常/異常境界ではない。適合品質を満たすWeiss値だけを使う。測定窓の長さと開始/終了圧、baselineとの差も残す。Ca・架橋速度を固定した比較でのτ変化は形状・張力・負荷・回帰窓から生じ、固有の弛緩機構の変化とは断定しない。Glantzへの置換や長いτへの追加報酬は与えない。" }
+  ],
+  "context": [
+    { "metricIds": ["lvesvi", "svi", "positiveDpDt", "negativeDpDt", "formalEspvr"], "sourceIds": ["kato-1996-dcm-pv", "ishihara-1994-dcm-energetics"], "method": "native-volumes-and-accepted-step-pressure-rates; formal-ESPVR-separately", "interpretation": "大きな収縮末期容積と圧発生の変化を確認する。dP/dtは負荷依存で、張力倍率もEFもEesそのものではない。" },
+    { "metricIds": ["nativeLvEndFillingPressure", "nativeLvEndFillingTransmuralPressure", "glantzTauMs", "flowEToA", "etMs", "ictMs", "irtMs", "tei"], "sourceIds": ["kato-1996-dcm-pv", "lavine-1989-dcm-filling", "david-1989-simultaneous-la-lv", "patel-2020-timing"], "method": "native-closures; main-wire-baseline-observation-v2; main-wire-lv-relaxation-tau-v1", "interpretation": "平均LA、native充満末期圧、経壁圧、ゼロ/自由漸近圧τを区別する。E/Aの一方向変化やTeiの必須異常を要求しない。" },
+    { "metricIds": ["pressureMatchedPassiveVolume", "formalEdpvr"], "sourceIds": ["bortone-1989-dcm-stiffness"], "method": "passive-geometry-comparison-at-overlapping-transmural-pressure", "interpretation": "拡大形状での受け入れ容積と材料の硬さを区別する。動的PV loopの下辺だけでは受動EDPVRを証明できず、未実施なら未評価とする。" },
+    { "metricIds": ["meanPap", "meanRa", "rvef", "rvedvi", "rvesvi"], "sourceIds": ["becker-2021-dcm-rv", "moriwaki-2021-invasive-pv"], "method": "exact-beat-pressure-and-native-valve-closure-volumes", "interpretation": "肺循環と共有中隔を介する右心への影響を観測する。一次性RV張力低下や肺血管抵抗上昇を自動追加せず、RVEF低下も正常維持も強制しない。" },
+    { "metricIds": ["lvTransmuralStrokeWorkJPerM2", "formalPva"], "sourceIds": ["ishihara-1994-dcm-energetics", "shinke-1999-invasive-pv"], "method": "exact-transmural-pv-path-work; formal-PVA-separately", "interpretation": "実PV線積分による外的仕事を記録する。PVAや酸素消費を別途評価するまで、心筋エネルギー効率の低下やPVA増加を実証済みとしない。" },
+    { "metricIds": ["pressureAndPvMorphology", "avMeanGradient", "avPeakGradient", "aoNodePeak", "aoNodeMinimum"], "sourceIds": ["kato-1996-dcm-pv", "moriwaki-2021-invasive-pv"], "method": "accepted-raw-waveform-and-hydraulic-forward-flow-gradient", "interpretation": "原波形を保存し、数値振動と生理的な形状を機序に照らして確認する。Ao nodeと近位ZcQを加えたAoP、hydraulicとDoppler gradientを区別する。" }
+  ],
+  "features": [
+    { "featureId": "dilated-low-ejection", "label": "大きな左室と多い収縮後の残存血液", "role": "required", "metricIds": ["lvef", "lvedvi", "lvesvi"], "sourceIds": ["kato-1996-dcm-pv"], "expectedFinding": "左室の容積が大きく、1拍で送り出す割合は低い。PV loopは容積軸の右側に位置する。", "limitation": "この拡大型の症例選択であり、全HFrEFに拡大を要求しない。時間をかけて拡大した過程は再現しない。" },
+    { "featureId": "resting-forward-output", "label": "低EFでもある程度保たれる安静時拍出", "role": "preferred", "metricIds": ["ci", "svi", "meanAo"], "sourceIds": ["carlsson-2012-cmr-flow", "moriwaki-2021-invasive-pv"], "expectedFinding": "低EFを低COやショックと同一視せず、拡大した容積から正味拍出を確保する一例を示す。", "limitation": "EF・容積・拍出は代数的に結ばれる。症状や臓器灌流の診断はしない。" },
+    { "featureId": "pressure-generation", "label": "圧を発生する能力と循環負荷", "role": "observe", "metricIds": ["positiveDpDt", "negativeDpDt", "ictMs", "etMs", "tei", "formalEspvr"], "sourceIds": ["kato-1996-dcm-pv", "ishihara-1994-dcm-energetics", "patel-2020-timing"], "expectedFinding": "低張力の機序対照と原波形を用いて、圧発生の変化を示す。", "limitation": "dP/dt単独では負荷から独立した収縮力を同定できない。ICTは心電図由来PEPではない。ICT短縮・ET延長・Tei低下も隠さず記録する。ESPVR未測定ならEes低下を実証済みとは書かない。" },
+    { "featureId": "relaxation-and-filling", "label": "圧低下の遅延と高めの左心充満圧", "role": "preferred", "metricIds": ["weissTauMs", "glantzTauMs", "meanLa", "nativeLvEndFillingPressure", "nativeLvEndFillingTransmuralPressure", "flowEToA"], "sourceIds": ["kato-1996-dcm-pv", "moriwaki-2021-invasive-pv", "lavine-1989-dcm-filling", "david-1989-simultaneous-la-lv"], "expectedFinding": "ゆっくりした圧低下と、充満時の圧上昇を伴う一例を目指す。", "limitation": "τは方法と負荷に依存する。高いLA圧と高いLV充満末期圧は同義ではなく、E/Aを一方向に固定しない。" },
+    { "featureId": "passive-accommodation", "label": "拡大した形状と受け入れ容積", "role": "observe", "metricIds": ["pressureMatchedPassiveVolume", "formalEdpvr"], "sourceIds": ["bortone-1989-dcm-stiffness"], "expectedFinding": "同じ経壁圧での容積を比較し、形状と材料硬さの効果を分ける。", "limitation": "未測定のEDPVR右方移動や線維化を、見た目の拡大だけから主張しない。" },
+    { "featureId": "pulmonary-and-right-heart", "label": "肺循環と右心への影響", "role": "observe", "metricIds": ["meanPap", "meanRa", "rvef", "rvedvi"], "sourceIds": ["becker-2021-dcm-rv", "moriwaki-2021-invasive-pv"], "expectedFinding": "左心の変化とともに肺動脈圧・右室容積・拍出がどう変化するかを示す。", "limitation": "右心不全や肺血管病変をこの症例の必須条件にせず、共有中隔の寄与も残す。" },
+    { "featureId": "work-and-efficiency", "label": "外的仕事とエネルギー評価の区別", "role": "observe", "metricIds": ["lvTransmuralStrokeWorkJPerM2", "formalPva"], "sourceIds": ["ishihara-1994-dcm-energetics", "shinke-1999-invasive-pv"], "expectedFinding": "PV loopで実際に行った仕事を記録し、PVAや酸素消費とは分けて説明する。", "limitation": "大きい心室、低EF、あるいはSW低下だけでエネルギー効率の悪化を証明しない。" }
+  ]
+}
