@@ -261,7 +261,8 @@ function ownCandidate(value: Candidate): Candidate {
 
 export { runCycle as collectMainWireStandard72FittingCycleV1 };
 
-function runCycle(session: Session, fixture: ReturnType<typeof createFixture>, cycleIndex: number,
+function runCycle(session: Pick<Session, "currentAcceptedState" | "advanceToPresentationTimeWithSelectedOutputProjectionV1" | "observe">,
+  fixture: Pick<ReturnType<typeof createFixture>, "rhythm" | "profile" | "config" | "cycleLengthSec" | "cold">, cycleIndex: number,
   nominalDtSec: MainWireStandard72FittingNominalDtV1 = .002): readonly FittingSample[] {
   if (nominalDtSec !== .002 && nominalDtSec !== .001) throw new Error("Unsupported fitting step");
   let accepted = session.currentAcceptedState();

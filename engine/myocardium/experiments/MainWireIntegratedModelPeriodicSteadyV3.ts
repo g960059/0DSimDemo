@@ -654,6 +654,8 @@ export function assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3<
       cycleLengthSec: number,
     ) => TCalciumDriveParams;
     createRhythm: (cycleLengthSec: number) => TRhythm;
+    /** Static construction seam; default production occupancy is unchanged. */
+    createPericardium?: () => ReturnType<typeof createMainWireCommonPericardiumWithResearchInputsV1>;
   }>,
 ) {
   const {
@@ -681,7 +683,7 @@ export function assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3<
       mechanismResearchInputs.valveAreas,
     ),
   });
-  const pericardium = createMainWireCommonPericardiumWithResearchInputsV1(
+  const pericardium = fixedAssembly.createPericardium?.() ?? createMainWireCommonPericardiumWithResearchInputsV1(
     mechanismResearchInputs.pericardium,
   );
   const coronaryDisease = createMainWireCoronaryDiseaseInputV2(
