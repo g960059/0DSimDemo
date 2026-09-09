@@ -14,6 +14,7 @@ import { NON_CORONARY_NODE_NAMES_V1 } from "@/engine/core/nonCoronaryCirculation
 import { CORONARY_CONSERVED_VOLUME_NODE_IDS_V2 } from "@/engine/coronary/typesV2";
 
 export type MainWireFittingNominalDtV1 = .002 | .001;
+export const MAIN_WIRE_FITTING_OBSERVATION_WINDOW_V1_ID = "main-wire-fitting-observed-native-beat-prefix-and-real-lookahead-v1";
 type FittingSample = Sample & Readonly<{ numerical: Readonly<{
   globalVolumeErrorMl: number; coronaryLedgerErrorMl: number;
 }> }>;
@@ -45,12 +46,14 @@ export async function settleMainWireFittingSessionV1<T>(request: Readonly<{
   const observations: CycleObservation[] = [];
   let classification = classify(observations, periodicPolicy);
   let terminalTrace: readonly FittingSample[] = [];
+  let previousTrace: readonly FittingSample[] = [];
   const cycleEvidence: { cycleIndex: number; acceptedStepCount: number;
     atrialCaptureCount: number; ventricularCaptureCount: number;
     maximumGlobalVolumeErrorMl: number; maximumCoronaryLedgerErrorMl: number }[] = [];
   let completedCycleCount = 0;
   for (let cycleIndex = 1; cycleIndex <= periodicPolicy.maximumCycleCount; cycleIndex++) {
     if (abortSignal?.aborted) return { status: "operational-interrupted" as const, message: "Evaluation interrupted" };
+    previousTrace = terminalTrace;
     terminalTrace = collectMainWireFittingCycleV1(session, fixture, cycleIndex, nominalDtSec);
     const accepted = session.currentAcceptedState(), previous = boundaries.at(-1)!;
     const evidence = { cycleIndex, acceptedStepCount: terminalTrace.length,
@@ -79,11 +82,21 @@ export async function settleMainWireFittingSessionV1<T>(request: Readonly<{
   const completedBeat = session.observe().completedBeatMetrics;
   if (completedBeat === null || completedBeat.endTimeSec <= initial.acceptedTimeSec)
     throw new Error("Candidate produced no fresh complete beat");
+  // Controller windows need not start at the atrial capture defining a beat.
+  // Retain actual preceding endpoints so an early inlet reflow cannot hide
+  // before terminalTrace. Keep terminalTrace's one-window statistics unchanged.
+  const availableTrace = [...previousTrace, ...terminalTrace];
+  const firstBeatIndex = availableTrace.findIndex(sample => sample.acceptedTimeSec >= completedBeat.startTimeSec);
+  if (firstBeatIndex < 0 || availableTrace[0]!.acceptedTimeSec > completedBeat.startTimeSec
+    || terminalTrace.at(-1)!.acceptedTimeSec < completedBeat.endTimeSec)
+    throw new Error("Fitting observation must cover the entire actual completed beat");
+  const timingAndInletPrecedingTrace = Object.freeze(previousTrace.slice(Math.max(0, firstBeatIndex - 1)));
   // The launch checkpoint precedes actual same-grid filling-phase lookahead.
   const timing = completeTiming({ terminalTrace, completedBeatEndTimeSec: completedBeat.endTimeSec,
     runLookaheadCycle: () => collectMainWireFittingCycleV1(session, fixture, completedCycleCount + 1, nominalDtSec) });
   return { status: "accepted" as const, completedCycleCount, classification, checkpoint,
-    diagnostics: { completedBeat, terminalTrace, ...timing, periodicObservations: observations, cycleEvidence,
+    diagnostics: { completedBeat, terminalTrace, ...timing, timingAndInletPrecedingTrace,
+      periodicObservations: observations, cycleEvidence,
       invariantPolicyId: numericalPolicy.policyId, allOffAndOwnerClocksCheckedEveryStep: true as const } };
 }
 

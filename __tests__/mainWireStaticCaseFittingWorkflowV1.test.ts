@@ -9,6 +9,7 @@ import { createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as release,
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1 as template } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
 import { MAIN_WIRE_STATIC_CASE_FIXTURE_SCHEMA_ID_V1 as fixtureSchema } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseIdentityV1";
 import { MainWireStaticCaseSessionV1 as Session } from "@/engine/vnext/MainWireStaticCaseSessionV1";
+import { mainWireStandard70TimingAndInletObservationTraceV1 as observationTrace } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
 
 // Test token, not a source-authenticated research run. The CLI owns real snapshots.
 const sourceSha256 = "a".repeat(64), hfref = "hfref-chronic-dilated-v1";
@@ -37,6 +38,15 @@ describe("one finite-case fitting path with independent reference assessment", (
       expect(result.qualification).toMatchObject({ pairedGrid: "not-evaluated", preloadReserve: "not-evaluated", publicPromotionAuthorized: false });
       expect(result.execution.diagnostics.completedBeat).toEqual(result.execution.checkpoint.base.completedBeatMetrics);
       expect(result.execution.diagnostics.timingAndInletTrace.at(-1)!.acceptedTimeSec).toBeGreaterThan(result.execution.checkpoint.base.acceptedTimeSec);
+      const { completedBeat, terminalTrace } = result.execution.diagnostics;
+      const timingAndInletTrace = observationTrace(result.execution.diagnostics);
+      expect(timingAndInletTrace[0]!.acceptedTimeSec).toBeLessThanOrEqual(completedBeat.startTimeSec);
+      expect(terminalTrace[0]!.acceptedTimeSec).toBeGreaterThan(completedBeat.startTimeSec);
+      expect(timingAndInletTrace.some(s => s.acceptedEventIdentity.atrialCapturedActivationId === completedBeat.startAtrialCaptureId)).toBe(true);
+      for (let i = 1; i < timingAndInletTrace.length; i++) {
+        expect(timingAndInletTrace[i]!.acceptedTimeSec - timingAndInletTrace[i - 1]!.acceptedTimeSec)
+          .toBeCloseTo(timingAndInletTrace[i]!.acceptedDtSec, 12);
+      }
     }
   });
   it("reopens and reconfirms an own-anatomy checkpoint for three fresh cycles", async () => {
@@ -49,6 +59,15 @@ describe("one finite-case fitting path with independent reference assessment", (
     expect(rerun.result.rest.status).toBe("passed");
     expect(JSON.stringify(disease)).toBe(before);
   }, 20_000);
+  it("does not miss inlet reflow in the native beat before the last controller window", () => {
+    const d = disease.execution.diagnostics, ed = d.completedBeat.rightVentricularValveEventMetrics.endDiastolic!.timeSec;
+    const preceding = d.timingAndInletPrecedingTrace;
+    const index = preceding.findIndex(s => s.acceptedTimeSec > ed && s.valveFlowMlPerSec.TV === 0);
+    expect(index).toBeGreaterThanOrEqual(0);
+    const changed = preceding.map((s, i) => i === index ? { ...s, valveFlowMlPerSec: { ...s.valveFlowMlPerSec, TV: .01 } } : s);
+    expect(assess(hfref, { diagnostics: { ...d, timingAndInletPrecedingTrace: changed } }))
+      .toMatchObject({ status: "unavailable", issue: { code: "overlapping-valve-flow", side: "right" } });
+  });
   it("owns request inputs and warm-starts nearby parameters without mutating the anchor", async () => {
     const candidateInputs = { ...structuredClone(disease.candidateInputs),
       hemodynamicResearchInputs: { ...disease.candidateInputs.hemodynamicResearchInputs } }, before = JSON.stringify(disease);

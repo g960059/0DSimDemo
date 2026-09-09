@@ -25,7 +25,7 @@ import { validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3 as own
 import { validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3 as ownMechanism } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
 import { assertMainWireUnextendedFiveWallMechanicsDomainV1 as assertOriginalDomain } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
 import { assertUnaliasedMainWireFittingCandidateV1, type MainWireBaselineCalibrationCandidateInputsV1 as Candidate } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
-import { settleMainWireFittingSessionV1 } from "./MainWireFittingCycleV1";
+import { settleMainWireFittingSessionV1, MAIN_WIRE_FITTING_OBSERVATION_WINDOW_V1_ID } from "./MainWireFittingCycleV1";
 
 export const MAIN_WIRE_STANDARD72_BASELINE_CALIBRATION_EVALUATOR_V1_ID = "main-wire-standard72-baseline-calibration-evaluator-v1";
 const evaluatorId = MAIN_WIRE_STANDARD72_BASELINE_CALIBRATION_EVALUATOR_V1_ID;
@@ -169,6 +169,7 @@ export async function buildMainWireStandard72FittingPolicyIdentityV1() {
     observationBounds, rightHeartBounds, gateRoles: gateEvidence.checkGroups,
     executionPath: "standard72-selected-output-projection", hotPathIntegrityTier: "hot-path-lean",
     analysisSchedule: "explicit-2ms-or-1ms-with-same-grid-lookahead-and-conservation-v1",
+    observationWindowId: MAIN_WIRE_FITTING_OBSERVATION_WINDOW_V1_ID,
     observationMethodId: MAIN_WIRE_BASELINE_OBSERVATION_V2_ID, gateRolesId: MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID });
 }
 

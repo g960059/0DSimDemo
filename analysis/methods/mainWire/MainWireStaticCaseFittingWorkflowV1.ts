@@ -11,11 +11,13 @@ import { validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3 as hem
 import { validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3 as mechanism } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
 import { MAIN_WIRE_STANDARD71_BASELINE_MECHANISM_INPUTS_V1 as referenceMechanism } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
 import { assertUnaliasedMainWireFittingCandidateV1, type MainWireBaselineCalibrationCandidateInputsV1 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
-import { settleMainWireFittingSessionV1 as settle, type MainWireFittingNominalDtV1 as Dt } from "./MainWireFittingCycleV1";
+import { settleMainWireFittingSessionV1 as settle, MAIN_WIRE_FITTING_OBSERVATION_WINDOW_V1_ID as observationWindowId,
+  type MainWireFittingNominalDtV1 as Dt } from "./MainWireFittingCycleV1";
 import { resolveMainWireFittingReferenceV1 as resolveReference } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
 import { MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1 as baselinePolicy, assessMainWireProspectiveRestV1 as assessBaseline } from "@/analysis/policies/mainWire/MainWireProspectiveBaselineAdmissionV1";
 import { buildMainWireProspectiveBaselineChecksV1 as buildChecks } from "@/analysis/policies/mainWire/MainWireProspectiveBaselineChecksV1";
-import { measureMainWireIntegratedModelStandard70CandidateEvidenceV1 as measure } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
+import { measureMainWireIntegratedModelStandard70CandidateEvidenceV1 as measure,
+  mainWireStandard70TimingAndInletObservationTraceV1 as observationTrace } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
 import { observeMainWireStandard70TimingAndInletV2 as timing } from "./MainWireStandard70BaselineAssessmentV2";
 import { MAIN_WIRE_BASELINE_OBSERVATION_V2_ID, MainWireBaselineObservationUnavailableErrorV2 } from "./MainWireBaselineObservationV2";
 import { observeMainWireHfrefCaseV2 as observeHfref, MAIN_WIRE_HFREF_CASE_OBSERVATION_V2_ID } from "./MainWireHfrefCaseObservationV2";
@@ -59,7 +61,7 @@ export function assessMainWireStaticCaseRestV1(referenceId: MainWireCaseReferenc
   const d = execution.diagnostics;
   try {
     if (referenceId === "hfref-chronic-dilated-v1") {
-      const observation = observeHfref(d.completedBeat, d.timingAndInletTrace);
+      const observation = observeHfref(d.completedBeat, observationTrace(d));
       const assessment = assessHfref(observation);
       return { referenceId, status: assessment.screenPassed ? "passed" as const : "held" as const, observation, assessment };
     }
@@ -111,7 +113,7 @@ export async function runMainWireStaticCaseFittingV1(request: MainWireStaticCase
       kind: canonical(sourceInputs) === canonical(candidateInputs) ? "exact-checkpoint" as const : "parameter-continuation" as const,
       sourceResultSha256: saved.resultSha256, checkpointSha256: saved.execution.checkpoint.checkpointSha256,
       sourceCandidateInputs: sourceInputs, sourceNominalDtSec: saved.nominalDtSec };
-    const policyIdentitySha256 = await hash({ periodic, numerical, scales, referenceContext, methodId: MAIN_WIRE_STATIC_CASE_FITTING_V1_ID });
+    const policyIdentitySha256 = await hash({ periodic, numerical, scales, referenceContext, observationWindowId, methodId: MAIN_WIRE_STATIC_CASE_FITTING_V1_ID });
     const identity = { modelId, sourceSha256, candidateInputs, nominalDtSec, initialization, policyIdentitySha256 };
     const requestIdentitySha256 = await hash(identity);
     phase = "initialization";

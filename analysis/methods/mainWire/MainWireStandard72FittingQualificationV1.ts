@@ -7,7 +7,8 @@ import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3 as periodic,
 import { MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1 as restPolicy,
   assessMainWireProspectiveRestV1 as assessRest } from "@/analysis/policies/mainWire/MainWireProspectiveBaselineAdmissionV1";
 import { classifyMainWireIntegratedModelPeriodicityV3 as classify } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClassifierV3";
-import { measureMainWireIntegratedModelStandard70CandidateEvidenceV1 as measure } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
+import { measureMainWireIntegratedModelStandard70CandidateEvidenceV1 as measure,
+  mainWireStandard70TimingAndInletObservationTraceV1 as observationTrace } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
 import { buildMainWireProspectiveBaselineChecksV1 as buildChecks } from "@/analysis/policies/mainWire/MainWireProspectiveBaselineChecksV1";
 import { observeMainWireStandard70TimingAndInletV2 as observeTiming } from "./MainWireStandard70BaselineAssessmentV2";
 import { MAIN_WIRE_PRELOAD_RESERVE_ADMISSION_V1 as reservePolicy,
@@ -50,7 +51,7 @@ export async function runMainWireStandard72QualificationGridV1(request: Readonly
   }
   const d = evaluation.diagnostics;
   const issues: string[] = [];
-  const samples = d.timingAndInletTrace ?? d.terminalTrace;
+  const samples = observationTrace(d);
   const native = observeNative({ samples, completedBeat: d.completedBeat });
   const tau = measureTau(samples, native.left.events);
   try { assertTau(tau); assertRelaxation(tau); }
@@ -126,7 +127,7 @@ export async function assessMainWireStandard72FittingQualificationV1(input: Read
     require(grid.checkpointRoundtripVerified
       && canonicalJsonStringify(e.checkpoint.baseStandardCheckpointV2.completedBeatMetrics) === canonicalJsonStringify(d.completedBeat)
       && e.checkpoint.acceptedTimeSec === d.terminalTrace.at(-1)?.acceptedTimeSec, `${key}:checkpoint-beat-binding`);
-    const samples = d.timingAndInletTrace ?? d.terminalTrace;
+    const samples = observationTrace(d);
     const native = observeNative({ samples, completedBeat: d.completedBeat });
     const tau = measureTau(samples, native.left.events);
     try { assertTau(tau); assertRelaxation(tau); }

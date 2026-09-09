@@ -8,6 +8,7 @@ import { MainWireIntegratedModelStandard72TypedAuthoritySessionV1 as Session } f
 import { createMainWireIntegratedModelStandard71FixtureV1 as fixture } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
 import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
 import { observeMainWireHfrefV1 as observeHfref } from "@/analysis/methods/mainWire/MainWireHfrefObservationV1";
+import { mainWireStandard70TimingAndInletObservationTraceV1 as observationTrace } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
 import { MAIN_WIRE_FITTING_SEED_V1 as fittingSeed } from "@/analysis/registry/MainWireFittingSeedV1";
 import { evaluateMainWireStandard72BaselineCalibrationCandidateV1 as evaluate, collectMainWireStandard72FittingCycleV1 as collect,
   executeMainWireStandard72FittingCandidateV1 as execute } from "@/analysis/methods/mainWire/MainWireStandard72BaselineCalibrationEvaluatorV1";
@@ -105,6 +106,7 @@ describe("current exact72 fitting workflow", () => {
       && c.maximumGlobalVolumeErrorMl <= 1e-8 && c.maximumCoronaryLedgerErrorMl <= 1e-8)).toBe(true);
     expect(d.completedBeat).toEqual(result.checkpoint.baseStandardCheckpointV2.completedBeatMetrics);
     expect(d.terminalTrace.at(-1)!.acceptedTimeSec).toBe(result.checkpoint.acceptedTimeSec);
+    expect(observationTrace(d)[0]!.acceptedTimeSec).toBeLessThanOrEqual(d.completedBeat.startTimeSec);
     expect(d.timingAndInletTrace.at(-1)!.acceptedTimeSec).toBeGreaterThan(result.checkpoint.acceptedTimeSec);
   }, 20_000);
 

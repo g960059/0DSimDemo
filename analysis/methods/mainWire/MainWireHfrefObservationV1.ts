@@ -3,7 +3,8 @@ import type { executeMainWireStandard72FittingCandidateV1 as evaluate } from "./
 import { readMainWireBaselinePressureFlowV1 as readFlow } from "./MainWireBaselinePressureFlowReadbackV1";
 import { observeMainWireBaselineV2 as observe, MainWireBaselineObservationUnavailableErrorV2 } from "./MainWireBaselineObservationV2";
 import { measureMainWireRelaxationTauV1 as measureTau } from "./MainWireRelaxationTauV1";
-import { measureMainWireIntegratedModelStandard70CandidateEvidenceV1 as measure } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
+import { measureMainWireIntegratedModelStandard70CandidateEvidenceV1 as measure,
+  mainWireStandard70TimingAndInletObservationTraceV1 as observationTrace } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
 import { observeMainWireStandard70TimingAndInletV2 as timing } from "./MainWireStandard70BaselineAssessmentV2";
 import { MAIN_WIRE_HFREF_REFERENCE_V1 as reference } from "@/analysis/policies/mainWire/MainWireHfrefReferenceV1";
 import { canonicalJsonStringify } from "@/engine/integrity";
@@ -62,7 +63,7 @@ export function observeMainWireHfrefV1(e: Accepted) {
     throw new Error("HFrEF assessment requires fresh exact terminal evidence");
   }
   const raw = readMainWireHfrefBeatV1(d.completedBeat);
-  const samples = d.timingAndInletTrace ?? d.terminalTrace;
+  const samples = observationTrace(d);
   const context = observeMainWireHfrefTimingContextV1(samples, d.completedBeat);
   const observation = context.observation;
   const tau = observation === null ? null : measureTau(samples, observation.left.events);

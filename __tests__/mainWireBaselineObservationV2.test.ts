@@ -7,7 +7,8 @@ import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import { observeMainWireStandard70QualificationV2, observeMainWireStandard70TimingAndInletV2 } from
   "@/analysis/methods/mainWire/MainWireStandard70BaselineAssessmentV2";
 import { measureMainWireIntegratedModelStandard70CandidateEvidenceV1,
-  completeMainWireStandard70TimingAndInletTraceV1 } from
+  completeMainWireStandard70TimingAndInletTraceV1,
+  mainWireStandard70TimingAndInletObservationTraceV1 as observationTrace } from
   "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
 import {
   MAIN_WIRE_BASELINE_OBSERVATION_V2_ID,
@@ -19,6 +20,15 @@ import {
 } from "@/analysis/methods/mainWire/MainWireBaselineObservationV2";
 
 describe("baseline observation V2", () => {
+  it("joins an actual preceding context without replacing the terminal window", () => {
+    const samples = fixtureV2().samples;
+    const input = { terminalTrace: samples.slice(2) as never, timingAndInletPrecedingTrace: samples.slice(0, 2) as never };
+    expect(observationTrace(input)).toEqual(samples);
+    expect(observationTrace({ terminalTrace: input.terminalTrace })).toEqual(samples.slice(2));
+    for (const preceding of [samples.slice(0, 1), samples.slice(0, 3), [...samples.slice(0, 2)].reverse()]) {
+      expect(() => observationTrace({ ...input, timingAndInletPrecedingTrace: preceding as never })).toThrow(/contiguously/);
+    }
+  });
   it("uses one zero-flow ET for the reported timing and Tei on both sides", () => {
     const observed = observeMainWireBaselineV2(fixtureV2());
     expect(observed.methodId).toBe(MAIN_WIRE_BASELINE_OBSERVATION_V2_ID);
