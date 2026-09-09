@@ -10,6 +10,11 @@ import { createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as release,
 import { MAIN_WIRE_STATIC_CASE_FIXTURE_SCHEMA_ID_V1 as fixtureSchema } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseIdentityV1";
 import { MainWireStaticCaseSessionV1 as Session } from "@/engine/vnext/MainWireStaticCaseSessionV1";
 import { mainWireStandard70TimingAndInletObservationTraceV1 as observationTrace } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
+import { runMainWireStaticBaselineQualificationGridV1 as qualifyGrid,
+  assessMainWireStaticBaselineQualificationV1 as qualifyPair,
+  type MainWireStaticBaselineQualificationGridV1 as QualificationGrid } from "@/analysis/methods/mainWire/MainWireStaticBaselineQualificationV1";
+import { observeMainWireBaselineV2 as observeNative } from "@/analysis/methods/mainWire/MainWireBaselineObservationV2";
+import { measureMainWireRelaxationTauV1 as measureTau } from "@/analysis/methods/mainWire/MainWireRelaxationTauV1";
 
 // Test token, not a source-authenticated research run. The CLI owns real snapshots.
 const sourceSha256 = "a".repeat(64), hfref = "hfref-chronic-dilated-v1";
@@ -26,6 +31,33 @@ beforeAll(async () => {
 afterAll(() => selectHotPathIntegrityTierV1(originalTier));
 
 describe("one finite-case fitting path with independent reference assessment", () => {
+  it("does not use healthy final qualification for disease anatomy or promote failed grids", async () => {
+    await expect(qualifyGrid({ candidateInputs: seed(hfref), sourceSha256, nominalDtSec: .002 }))
+      .rejects.toThrow(/disease anatomy/);
+    const failed = await qualifyGrid({ candidateInputs: seed("baseline"), sourceSha256, nominalDtSec: .002,
+      abortSignal: AbortSignal.abort() });
+    expect(failed.status).toBe("grid-failed");
+    const result = await qualifyPair({ coarse: failed, fine: failed });
+    expect(result).toMatchObject({ status: "held", publicPromotionAuthorized: false, clinicalNormalityClaimed: false });
+    expect(result.issues).toEqual(expect.arrayContaining(["coarse:execution-failed", "fine:execution-failed", "paired-preload-reserve"]));
+  });
+  it("rejects relabeled coarse traces, stale policies and a request not bound to its numerical grid", async () => {
+    const d = baseline.execution.diagnostics, samples = observationTrace(d);
+    const relaxation = measureTau(samples, observeNative({ samples, completedBeat: d.completedBeat }).left.events);
+    const grid = (result: Result): Extract<QualificationGrid, { status: "grid-evaluated" }> => ({
+      qualifierId: "main-wire-static-baseline-paired-qualification-v1", modelId: result.modelId,
+      status: "grid-evaluated", result, relaxation, preloadReserve: null, issues: [],
+      checkpointRoundtripVerified: true, sourceUnchangedByReserve: true, wallTimeMs: 0 });
+    const { resultSha256: _, ...body } = { ...baseline, nominalDtSec: .001 as const };
+    const fakeFine = { ...body, resultSha256: await hash(body) };
+    const recheck = await qualifyPair({ coarse: grid(baseline), fine: grid(fakeFine) });
+    expect(recheck.status).toBe("held");
+    expect(recheck.issues).toEqual(expect.arrayContaining(["fine:request-identity", "fine:native-grid-record"]));
+    const { resultSha256: __, ...oldBody } = { ...baseline, policyIdentitySha256: "f".repeat(64) };
+    const old = { ...oldBody, resultSha256: await hash(oldBody) };
+    const stale = await qualifyPair({ coarse: grid(old), fine: grid(old) });
+    expect(stale.issues).toContain("coarse:current-policy-binding");
+  });
   it("screens both references without imposing the healthy EF corridor on HFrEF", () => {
     expect(baseline.rest).toMatchObject({ referenceId: "baseline", status: "passed" });
     expect(disease.rest).toMatchObject({ referenceId: hfref, status: "passed" });

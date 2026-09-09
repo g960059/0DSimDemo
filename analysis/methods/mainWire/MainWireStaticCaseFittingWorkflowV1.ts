@@ -52,6 +52,10 @@ function context(referenceId: MainWireCaseReferenceIdV1) {
   return { reference, methodId: referenceId === "baseline" ? MAIN_WIRE_BASELINE_OBSERVATION_V2_ID : MAIN_WIRE_HFREF_CASE_OBSERVATION_V2_ID,
     assessmentPolicy: referenceId === "baseline" ? { policy: baselinePolicy, evidence: baselineEvidence } : reference.target };
 }
+export async function buildMainWireStaticCaseFittingPolicyIdentityV1(referenceId: MainWireCaseReferenceIdV1) {
+  return hash({ periodic, numerical, scales, referenceContext: context(referenceId), observationWindowId,
+    methodId: MAIN_WIRE_STATIC_CASE_FITTING_V1_ID });
+}
 type Settled = Extract<Awaited<ReturnType<typeof settle<Awaited<ReturnType<Session["checkpoint"]>>>>>, { status: "accepted" }>;
 
 /** Assessment is a separate operation: applying a different reference cannot
@@ -113,7 +117,7 @@ export async function runMainWireStaticCaseFittingV1(request: MainWireStaticCase
       kind: canonical(sourceInputs) === canonical(candidateInputs) ? "exact-checkpoint" as const : "parameter-continuation" as const,
       sourceResultSha256: saved.resultSha256, checkpointSha256: saved.execution.checkpoint.checkpointSha256,
       sourceCandidateInputs: sourceInputs, sourceNominalDtSec: saved.nominalDtSec };
-    const policyIdentitySha256 = await hash({ periodic, numerical, scales, referenceContext, observationWindowId, methodId: MAIN_WIRE_STATIC_CASE_FITTING_V1_ID });
+    const policyIdentitySha256 = await buildMainWireStaticCaseFittingPolicyIdentityV1(referenceId);
     const identity = { modelId, sourceSha256, candidateInputs, nominalDtSec, initialization, policyIdentitySha256 };
     const requestIdentitySha256 = await hash(identity);
     phase = "initialization";

@@ -27,6 +27,14 @@ type ExecutionCounts = {
   maximumRequestedDtSec: number;
 };
 
+/** Only the exact owner's structural operations are needed. In particular,
+ * a finite-anatomy case must fork its own owner, not a baseline-only factory. */
+type ReserveSource = Pick<Session, "currentAcceptedState" | "observe" | "projectCurrentAcceptedValuesV1"
+  | "advanceToPresentationTime" | "advanceToPresentationTimeWithSelectedOutputProjectionV1"> & {
+  forkAtFixedGlobalTotalBloodVolume(tbv: number): ReserveSource;
+  forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(tbv: number): ReserveSource;
+};
+
 export type MainWireStandard72PreloadReserveMeasurementV1 = MainWireIntegratedModelFormalPreloadReserveMeasurementV2 & Readonly<{
   execution: Readonly<ExecutionCounts & {
     adapterId: typeof MAIN_WIRE_STANDARD72_PRELOAD_RESERVE_V1_ID;
@@ -75,7 +83,7 @@ export async function measureMainWireStandard72PreloadReserveV1(
 
 /** Analysis owns the requested numerical resolution across every ephemeral fork. */
 export function wrapMainWireStandard72PreloadReserveSessionV1(
-  source: Session, nominalDtSec: .002 | .001, abortSignal?: AbortSignal,
+  source: ReserveSource, nominalDtSec: .002 | .001, abortSignal?: AbortSignal,
 ): MainWireIntegratedModelStructuralAnalysisSessionV3 {
   validateDt(nominalDtSec);
   return wrapSession(source, nominalDtSec, abortSignal, executionCounts());
@@ -87,7 +95,7 @@ function executionCounts(): ExecutionCounts {
 }
 
 function wrapSession(
-  source: Session, nominalDtSec: .002 | .001, abortSignal: AbortSignal | undefined,
+  source: ReserveSource, nominalDtSec: .002 | .001, abortSignal: AbortSignal | undefined,
   execution: ExecutionCounts,
 ): MainWireIntegratedModelStructuralAnalysisSessionV3 {
   const advance = (targetTimeSec: number): MainWireIntegratedModelPresentationAdvanceV3 => {

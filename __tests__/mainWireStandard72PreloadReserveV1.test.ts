@@ -3,6 +3,8 @@ import { canonicalJsonStringify } from "@/engine/integrity";
 import { hotPathIntegrityTierV1, selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { MainWireIntegratedModelStandard72TypedAuthoritySessionV1 as Session } from "@/engine/vnext/MainWireIntegratedModelStandard72TypedAuthoritySessionV1";
 import { MAIN_WIRE_FITTING_SEED_V1 as fittingSeed } from "@/analysis/registry/MainWireFittingSeedV1";
+import { MainWireStaticCaseSessionV1 as StaticSession } from "@/engine/vnext/MainWireStaticCaseSessionV1";
+import { mainWireStaticCaseFittingSeedV1 as staticSeed } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
 import * as protocol from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 import {
   measureMainWireStandard72PreloadReserveV1 as measure,
@@ -28,6 +30,23 @@ async function warm() {
 }
 
 describe("Standard72 preload reserve numerical adapter", () => {
+  it.each([.002, .001] as const)("preserves a static disease anatomy recursively at %s s without a baseline factory", async dt => {
+    const c = staticSeed("hfref-chronic-dilated-v1");
+    const source = StaticSession.create(c.anatomyId, c.hemodynamicResearchInputs, 1, c.mechanismResearchInputs);
+    source.advanceToPresentationTimeWithSelectedOutputProjectionV1(.01, []);
+    const before = await source.checkpoint();
+    const fixedFork = vi.spyOn(StaticSession.prototype, "forkAtFixedGlobalTotalBloodVolume");
+    const responsiveFork = vi.spyOn(StaticSession.prototype, "forkResponsiveStarlingAtFixedGlobalTotalBloodVolume");
+    const selected = vi.spyOn(StaticSession.prototype, "advanceToPresentationTimeWithSelectedOutputProjectionV1");
+    const branch = wrap(source, dt).forkAtFixedGlobalTotalBloodVolume(4850)
+      .forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(4900);
+    expect(branch.advanceToPresentationTime(.02).status).toBe("advanced");
+    for (const result of [...fixedFork.mock.results, ...responsiveFork.mock.results]) {
+      expect((await result.value.checkpoint()).construction.anatomy).toEqual(before.construction.anatomy);
+    }
+    expect(selected).toHaveBeenCalledTimes(.01 / dt);
+    expect(await source.checkpoint()).toEqual(before);
+  });
   it.each([.002, .001] as const)("uses %s s selected steps recursively in both forks without changing the source", async dt => {
     const source = await warm();
     const saved = await source.checkpointStandard72Exact();
