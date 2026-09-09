@@ -35,10 +35,9 @@ import {
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledPredictorV1";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_CHECKPOINT_V1_ID =
-  "circleheart.main-wire-integrated-model-research-hfref-domain-checkpoint.v1" as const;
+  "circleheart.main-wire-integrated-model-standard72-exact-checkpoint.v1" as const;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_IDENTITY_V1 = deepFreezeV1({
-  researchInputDomain: "lv-free-wall-and-shared-septum-active-0p25-to-1p33-v1",
   numericalContinuation: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID,
   fixtureId:
     MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_ID,

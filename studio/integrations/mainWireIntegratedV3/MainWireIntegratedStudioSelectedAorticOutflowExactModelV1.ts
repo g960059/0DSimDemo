@@ -5,12 +5,13 @@ import { createMainWireIntegratedModelStaticCaseFixtureV1 } from "@/engine/myoca
 import { resolveMainWireStaticCaseAnatomyV1, type MainWireStaticCaseAnatomyIdV1 } from "@/engine/myocardium/mechanics/MainWireStaticCaseAnatomyV1";
 import { MAIN_WIRE_STATIC_CASE_MODEL_ID_V1, MAIN_WIRE_STATIC_CASE_FIXTURE_SCHEMA_ID_V1 } from "./MainWireIntegratedStudioStaticCaseIdentityV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_CHECKPOINT_V1_ID, type MainWireIntegratedModelStandard72CheckpointV1 } from "@/engine/myocardium/MainWireIntegratedModelStandard72CheckpointV1";
-import { MAIN_WIRE_INTEGRATED_STUDIO_HFREF_RESEARCH_MODEL_ID_V1 } from "@/domain/model/MainWireStandardIdentityV1";
+import { assertMainWireUnextendedFiveWallMechanicsDomainV1 as assertOriginalDomain } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
 import { MainWireIntegratedModelStandard72TypedAuthoritySessionV1,
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_TYPED_AUTHORITY_SESSION_V1_ID } from "@/engine/vnext/MainWireIntegratedModelStandard72TypedAuthoritySessionV1";
 import { createMainWireIntegratedModelStandard71FixtureV1, MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_ID,
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_CLAIM } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
 import { MAIN_WIRE_STANDARD71_CONTROL_CATALOG_V1, MAIN_WIRE_STANDARD71_CONTROL_BY_ID_V1 } from "./MainWireIntegratedStudioStandard71ControlsV1";
+import { MAIN_WIRE_STATIC_CASE_CONTROL_CATALOG_V1, MAIN_WIRE_STATIC_CASE_CONTROL_BY_ID_V1 } from "./MainWireIntegratedStudioStaticCaseControlsV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
@@ -391,13 +392,13 @@ const ALGEBRAIC_PULMONARY_ROOT_STANDARD70_EXACT_VARIANT_V1 = Object.freeze({
 
 // Reuses the fixed71 physical construction; no71 executable is installed.
 const STANDARD72_EXACT_VARIANT_V1 = Object.freeze({
-  generation: 68 as const, label: "LV domain research" as const,
-  modelId: MAIN_WIRE_INTEGRATED_STUDIO_HFREF_RESEARCH_MODEL_ID_V1,
+  generation: 68 as const, label: "Standard72" as const,
+  modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1,
   fixtureId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_ID,
   fixtureClaim: MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_CLAIM,
   numericalSessionId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_TYPED_AUTHORITY_SESSION_V1_ID,
   checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_CHECKPOINT_V1_ID,
-  checkpointCodecId: "circleheart.main-wire-integrated-studio-hfref-lv-domain-research-checkpoint-codec-v1",
+  checkpointCodecId: "circleheart.main-wire-integrated-studio-standard72-checkpoint-codec-v1",
   runtimeScope: "fixed-reference-material-calcium-algebraic-roots-regular-sinus-all-off" as const,
   checkpointFixturePairing: "standard72-complete-fixture-fixed-profile-and-predictor-history" as const,
   proximalArterialRootsProfileId: null,
@@ -407,6 +408,13 @@ const STANDARD72_EXACT_VARIANT_V1 = Object.freeze({
 const STATIC_CASE_EXACT_VARIANT_V1 = Object.freeze({ ...STANDARD72_EXACT_VARIANT_V1,
   label: "Static case research" as const, modelId: MAIN_WIRE_STATIC_CASE_MODEL_ID_V1,
   fixtureId: "main-wire-integrated-model-static-case-fixture-v1",
+  fixtureClaim: Object.freeze({ ...MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_CLAIM,
+    fixtureId: "main-wire-integrated-model-static-case-fixture-v1",
+    anatomy: "two-resolved-static-geometries-with-current-tissue-mass",
+    pericardium: "current-tissue-occupancy-in-shared-reference-bag",
+    coronaryBed: "unchanged-reference-bed-not-current-mass-normalized",
+  }),
+  runtimeScope: "finite-static-anatomy-fixed-material-calcium-algebraic-roots-regular-sinus-all-off",
   numericalSessionId: "main-wire-static-case-session-v1",
   checkpointId: MAIN_WIRE_STATIC_CASE_CHECKPOINT_V1_ID,
   checkpointCodecId: "circleheart.main-wire-static-case-studio-checkpoint-codec-v1",
@@ -423,7 +431,7 @@ function selectedFixtureSchemaIdV1(variant: SelectedExactModelVariantV1) {
     : MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1;
 }
 function isStandard72VariantV1(variant: SelectedExactModelVariantV1): variant is typeof STANDARD72_EXACT_VARIANT_V1 {
-  return variant.modelId === MAIN_WIRE_INTEGRATED_STUDIO_HFREF_RESEARCH_MODEL_ID_V1;
+  return variant.modelId === MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1;
 }
 
 type SelectedExactModelVariantV1 =
@@ -565,11 +573,17 @@ const SELECTED_CONTROL_CATALOG_V1 = Object.freeze([
 function selectedControlCatalogV1(
   variant: SelectedExactModelVariantV1,
 ): readonly ControlDefinitionV2[] {
-  return isStandard71FamilyV1(variant)
+  return isStaticCaseVariantV1(variant) ? MAIN_WIRE_STATIC_CASE_CONTROL_CATALOG_V1
+    : isStandard72VariantV1(variant)
     ? MAIN_WIRE_STANDARD71_CONTROL_CATALOG_V1
     : variant.generation === 68
     ? MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1
     : SELECTED_CONTROL_CATALOG_V1;
+}
+
+function selectedControlByIdV1(variant: SelectedExactModelVariantV1) {
+  return isStaticCaseVariantV1(variant) ? MAIN_WIRE_STATIC_CASE_CONTROL_BY_ID_V1
+    : isStandard72VariantV1(variant) ? MAIN_WIRE_STANDARD71_CONTROL_BY_ID_V1 : undefined;
 }
 
 function selectedOutputCatalogV1(variant: SelectedExactModelVariantV1) {
@@ -1221,7 +1235,7 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
           scenario.fixture,
           controlId,
           value,
-          isStandard71FamilyV1(this.#variant) ? MAIN_WIRE_STANDARD71_CONTROL_BY_ID_V1 : undefined,
+          selectedControlByIdV1(this.#variant),
         ),
         this.#variant,
       );
@@ -2343,7 +2357,7 @@ function selectedExecutableBundleV1(
           fixture,
           input.action.controlId,
           input.action.value,
-          isStandard71FamilyV1(variant) ? MAIN_WIRE_STANDARD71_CONTROL_BY_ID_V1 : undefined,
+          selectedControlByIdV1(variant),
         );
       }
       if (
@@ -2623,6 +2637,7 @@ function validateAndOwnSelectedFixtureV1(
     validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(
       record.mechanismResearchInputs,
     );
+  if (!isStaticCaseVariantV1(variant)) assertOriginalDomain(mechanismResearchInputs.chamberMechanics);
   for (const [wallId, scale] of Object.entries(
     mechanismResearchInputs.chamberMechanics.calciumDecayTimeScaleByWall,
   )) {

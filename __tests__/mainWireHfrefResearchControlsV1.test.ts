@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { MAIN_WIRE_STANDARD71_CONTROL_CATALOG_V1 as catalog, MAIN_WIRE_STANDARD71_CONTROL_BY_ID_V1 as controls } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard71ControlsV1";
+import { MAIN_WIRE_STATIC_CASE_CONTROL_CATALOG_V1 as catalog, MAIN_WIRE_STATIC_CASE_CONTROL_BY_ID_V1 as controls } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseControlsV1";
 import { applyMainWireIntegratedStudioRoundedEjectionControlV1 as apply, reduceMainWireIntegratedStudioRoundedEjectionControlV1 as patch } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionControlsV1";
 import { mainWireIntegratedStudioControlValueFromFixtureV3 as project } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
-import { MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1 as template, createMainWireIntegratedStudioStandard72CoreReleaseV1 as release } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
+import { MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1 as template, createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as release } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
 import { MAIN_WIRE_STANDARD71_BASELINE_HEMODYNAMIC_INPUTS_V1 as hemodynamicResearchInputs, MAIN_WIRE_STANDARD71_BASELINE_MECHANISM_INPUTS_V1 as mechanismResearchInputs } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
 import { validateAndOwnMainWireFiveWallMechanicsResearchInputsV1 as validate } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
-import { validateMainWireIntegratedModelStandard72CheckpointV1 as checkpoint } from "@/engine/myocardium/MainWireIntegratedModelStandard72CheckpointV1";
+import { MainWireStaticCaseSessionV1 as StaticSession } from "@/engine/vnext/MainWireStaticCaseSessionV1";
 import oldCheckpoint from "@/studio/integrations/mainWireIntegratedV3/standard72-settled-baseline-checkpoint.json";
-import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioHfrefResearchSurfaceV1";
+import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import inherited from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72SurfaceV1";
 import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurface";
 import { resolveMainWireAnalysisMethodsForSurfaceV1 as analyses } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
@@ -46,17 +46,18 @@ describe("bounded research LV domain and atomic workbench operation", () => {
     expect(project(JSON.parse(JSON.stringify(target)), group)).toEqual({ status: "mixed" });
     expect(project(apply(target, group, .35, controls), group)).toEqual({ status: "value", value: .35 });
   });
-  it("accepts the public endpoints and rejects malformed or off-lattice operations", () => {
+  it("parses declared research endpoints and rejects malformed or off-lattice operations", () => {
     for (const value of [.25, 1.33]) expect(() => apply(baseline, group, value, controls)).not.toThrow();
     for (const value of [.24, 1.34, .355, NaN, Infinity]) expect(() => apply(baseline, group, value, controls)).toThrow();
     expect(catalog).toHaveLength(53);
   });
   it("rejects the released model checkpoint, without a legacy-label bypass", async () => {
-    await expect(checkpoint(oldCheckpoint)).rejects.toThrow(/identity|checkpoint/);
+    await expect(StaticSession.restore(oldCheckpoint, "baseline-v1", hemodynamicResearchInputs, 1, mechanismResearchInputs)).rejects.toThrow(/identity|checkpoint/);
   });
   it("inherits all analysis and graph items, with the LV group in the default pane", () => {
-    for (const key of ["exposedExactOutputIds", "derivedOutputCatalog", "graphCatalog"] as const)
+    for (const key of ["exposedExactOutputIds", "graphCatalog"] as const)
       expect(surface[key]).toEqual(inherited[key]);
+    expect(surface.derivedOutputCatalog.map(o => o.outputId)).toEqual(inherited.derivedOutputCatalog.map(o => o.outputId));
     expect(surface.surfaceReleaseId).not.toEqual(inherited.surfaceReleaseId);
     const contract = composeStandardModelContractV1(release().manifest, surface, analyses(surface).capabilities).contract;
     expect(contract.controlCatalog).toHaveLength(53);

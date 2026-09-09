@@ -15,7 +15,6 @@ import { observeMainWireHfrefCaseV2 as observe } from "@/analysis/methods/mainWi
 import { MAIN_WIRE_FITTING_SEED_V1 as seed } from "@/analysis/registry/MainWireFittingSeedV1";
 import type { MainWireIntegratedModelCompletedBeatMetricsV3 as Beat } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 import { resolveMainWireFittingReferenceV1 as resolve } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
-import { compareMainWireHfrefResultsV1 as compare } from "@/analysis/methods/mainWire/MainWireStandard72HfrefFittingV1";
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import { readHfrefRemodelingAssessmentBatchV1 as reobserve } from "../tools/scientific/reassessHfrefRemodelingV1";
 
@@ -86,12 +85,6 @@ describe("a coherent source-backed chronic dilated case, not all HFrEF", () => {
     }
     expect(assess({ ...o, values: { ...o.values, weissTauMs: 88 } }).ranking).toEqual([0, 0, 0, null]);
     expect(assess({ ...o, values: { ...o.values, ci: null } })).toMatchObject({ status: "unresolved", screenPassed: false, ranking: null });
-  });
-  it("orders availability only after earlier priorities and keeps the comparator transitive", () => {
-    const result = (main: number, soft: number | null) => ({ assessment: { ranking: [0, 0, main, soft] } }) as Parameters<typeof compare>[0];
-    const unknown = result(0, null), worse = result(0, .5), better = result(0, .1), worsePrimary = result(.1, 0);
-    expect([unknown, worse, better, worsePrimary].sort(compare)).toEqual([better, worse, unknown, worsePrimary]);
-    expect(compare(unknown, unknown)).toBe(0);
   });
   it("keeps the intended story separate from actual findings and unmeasured facts", () => {
     const o = observation(), baseline = observation(.065), r = assess(o, baseline);

@@ -4,6 +4,7 @@ import {
 import {
   type MainWireIntegratedModelMechanismResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
+import { assertMainWireUnextendedFiveWallMechanicsDomainV1 as assertOriginalDomain } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
 import {
   checkpointMainWireIntegratedModelStandard72V1,
   restoreMainWireIntegratedModelStandard72V1,
@@ -65,9 +66,7 @@ export type MainWireIntegratedModelStandard72SelectedOutputProjectionAdvanceV1 =
     outputProjectionDurationMs: number;
   }>;
 
-/** Same physical construction as71; distinct, history-preserving checkpoint.
- * Unregistered candidate: creating this owner does not mint a release.
- */
+/** Released72's fixed physical construction and history-preserving checkpoint. */
 export class MainWireIntegratedModelStandard72TypedAuthoritySessionV1 extends
   MainWireIntegratedTypedAuthoritySessionV1 {
   readonly standard72SessionId =
@@ -85,6 +84,7 @@ export class MainWireIntegratedModelStandard72TypedAuthoritySessionV1 extends
       typeof forkMainWireIntegratedModelAtFixedTbvV3
     > | null = null,
   ) {
+    assertOriginalDomain(runtime.mechanismResearchInputs.chamberMechanics);
     super(
       asSourceTopologyRuntimeV3(runtime),
       analysisForkAcceptedState

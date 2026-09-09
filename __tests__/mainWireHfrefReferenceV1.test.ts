@@ -5,10 +5,6 @@ import { resolveMainWireFittingReferenceV1 as reference } from "@/analysis/regis
 import { validateMainWireHfrefReferenceV1 as validate, assessMainWireHfrefRestV1 as assess } from "@/analysis/policies/mainWire/MainWireHfrefReferenceV1";
 import { readMainWireHfrefBeatV1 as readBeat, observeMainWireHfrefTimingContextV1 as context } from "@/analysis/methods/mainWire/MainWireHfrefObservationV1";
 import { observeMainWireBaselineV2 as observe } from "@/analysis/methods/mainWire/MainWireBaselineObservationV2";
-import { applyMainWireHfrefPointV1 as apply, mainWireHfrefInitialPointsV1 as points,
-  mainWireHfrefNeighborPointsV1 as neighbors, runMainWireStandard72HfrefCaseV1 as run } from "@/analysis/methods/mainWire/MainWireStandard72HfrefFittingV1";
-import { reassessMainWireStandard72HfrefResultV1 as reassess } from "@/analysis/methods/mainWire/MainWireStandard72HfrefFittingV1";
-import { canonicalJsonStringify, sha256CanonicalJsonHex } from "@/engine/integrity";
 import type { MainWireIntegratedModelCompletedBeatMetricsV3 as Beat } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 
 type Mutable<T> = { -readonly [K in keyof T]: Mutable<T[K]> };
@@ -97,47 +93,5 @@ describe("source-backed HFrEF construction, separate from healthy adoption", () 
     expect(assess({ ...values, flowEToA: null }).screenPassed).toBe(true);
     samples[4]!.valveFlowMlPerSec.MV = NaN;
     expect(() => context(samples, b)).toThrow(/invalid|nonfinite/);
-  });
-  it("changes only the three declared coordinates, with SEP shared and RVFW untouched", () => {
-    const original = canonicalJsonStringify(seed.candidateInputs);
-    const c = apply({ lvActive: .75, tbv: 5200, resistance: 1.1 });
-    expect(c.mechanismResearchInputs.chamberMechanics.activeTensionScaleByWall)
-      .toEqual({ ...seed.candidateInputs.mechanismResearchInputs.chamberMechanics.activeTensionScaleByWall, LVFW: .75, SEP: .75 });
-    const reverted = { ...c, hemodynamicResearchInputs: seed.candidateInputs.hemodynamicResearchInputs,
-      mechanismResearchInputs: { ...c.mechanismResearchInputs, chamberMechanics: {
-        ...c.mechanismResearchInputs.chamberMechanics, activeTensionScaleByWall:
-          seed.candidateInputs.mechanismResearchInputs.chamberMechanics.activeTensionScaleByWall } } };
-    expect(reverted).toEqual(seed.candidateInputs);
-    expect(canonicalJsonStringify(seed.candidateInputs)).toBe(original);
-    expect(() => apply({ lvActive: .35, tbv: 4935, resistance: 1.04 })).not.toThrow();
-    expect(() => apply({ lvActive: .24, tbv: 5000, resistance: 1 })).toThrow(/scope/);
-    expect(() => apply({ lvActive: NaN, tbv: 5000, resistance: 1 })).toThrow(/scope/);
-    expect(() => apply({ lvActive: .8, tbv: 5000, resistance: 1, ca: 1.2 } as never)).toThrow(/exactly/);
-  });
-  it("has bounded reproducible points and never expands exact domains", () => {
-    const initial = points(), visited = new Set(initial.map(canonicalJsonStringify));
-    expect(initial).toHaveLength(27); expect(visited.size).toBe(27);
-    for (const p of initial) expect(() => apply(p)).not.toThrow();
-    const adjacent = neighbors(initial[0]!, .125, visited);
-    expect(adjacent.length).toBeGreaterThan(0); expect(adjacent.length).toBeLessThanOrEqual(6);
-    for (const p of adjacent) { expect(() => apply(p)).not.toThrow(); expect(visited.has(canonicalJsonStringify(p))).toBe(false); }
-  });
-  it("rejects a stale reference before execution and never upgrades interrupted numerical evidence", async () => {
-    const point = { lvActive: .75, tbv: 4935, resistance: 1.04 };
-    await expect(run({ point, expectedReferenceSha256: "f".repeat(64) })).rejects.toThrow(/reference changed/);
-    const r = await run({ point }, AbortSignal.abort());
-    expect(r).toMatchObject({ status: "execution-failed", assessment: null, observation: null,
-      evaluation: { status: "operational-interrupted" }, publicPromotionAuthorized: false });
-    const { resultSha256, ...body } = r;
-    expect(resultSha256).toBe(await sha256CanonicalJsonHex(body));
-    const reobserved = await reassess(r);
-    expect(reobserved.reobservedFromResultSha256).toBe(resultSha256);
-    expect(reobserved.evaluation).toEqual(r.evaluation);
-    expect(reobserved.assessment).toBeNull();
-    await expect(reassess({ ...r, point: { ...r.point, tbv: 5000 } })).rejects.toThrow(/digest/);
-    const mutable = { ...r, point: { ...r.point } };
-    const replay = reassess(mutable);
-    mutable.point.tbv = 5000;
-    expect((await replay).point).toEqual(point);
   });
 });

@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { canonicalJsonStringify, sha256CanonicalJsonHex } from "@/engine/integrity";
 import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
 import { MAIN_WIRE_FITTING_SEED_V1 as fittingSeed } from "@/analysis/registry/MainWireFittingSeedV1";
-import { MAIN_WIRE_INTEGRATED_STUDIO_HFREF_RESEARCH_MODEL_ID_V1 as evaluatorModelId } from "@/domain/model/MainWireStandardIdentityV1";
+import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 as evaluatorModelId } from "@/domain/model/MainWireStandardIdentityV1";
+import { MAIN_WIRE_STATIC_CASE_MODEL_ID_V1 as foreignModelId } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseIdentityV1";
 import { MAIN_WIRE_RESTING_REFERENCE_PROFILE_V1 as profile } from "@/analysis/registry/MainWireRestingReferenceProfileV1";
 import { MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1 as admission } from "@/analysis/policies/mainWire/MainWireProspectiveBaselineAdmissionV1";
 import { resolveMainWireStandard72FittingSearchPlanV1 as plan, scoreMainWireStandard72FittingRestV1 as score,
@@ -89,14 +90,14 @@ describe("bounded Standard72 search policy", () => {
 });
 
 describe("bounded pattern search decisions", () => {
-  it("does not confuse a production seed vector with the research evaluator identity", async () => {
+  it("rejects a research result in the production evaluator even with the same input vector", async () => {
     await expect(search({ seed: { candidateInputs: candidate }, options: { parameters: onlyTbv, maximumEvaluations: 1 } }, async tasks =>
       Promise.all(tasks.map(async task => {
         const result = await synthetic(task.candidateInputs);
         if (result.status !== "saved-result-ready") throw new Error("fixture result missing");
         // Deliberately violate the evaluator's literal identity at the runtime
         // boundary; this is the malformed result this rejection test supplies.
-        return { ...result, result: { ...result.result, evaluation: { ...result.result.evaluation, modelId: fittingSeed.modelId } } } as unknown as Result;
+        return { ...result, result: { ...result.result, evaluation: { ...result.result.evaluation, modelId: foreignModelId } } } as unknown as Result;
       })),
     )).rejects.toThrow(/current evaluator/);
   });

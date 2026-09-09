@@ -1,6 +1,6 @@
 import { canonicalJsonStringify, cloneAndFreezeCanonicalJson, sha256CanonicalJsonHex } from "@/engine/integrity";
 import { hotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
-import { MAIN_WIRE_INTEGRATED_STUDIO_HFREF_RESEARCH_MODEL_ID_V1 as modelId } from "@/domain/model/MainWireStandardIdentityV1";
+import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 as modelId } from "@/domain/model/MainWireStandardIdentityV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_IDENTITY_V1 as exactIdentity,
   type MainWireIntegratedModelStandard72CheckpointV1 as Checkpoint } from "@/engine/myocardium/MainWireIntegratedModelStandard72CheckpointV1";
 import { MainWireIntegratedModelStandard72TypedAuthoritySessionV1 as Session } from "@/engine/vnext/MainWireIntegratedModelStandard72TypedAuthoritySessionV1";
@@ -30,6 +30,7 @@ import { MAIN_WIRE_RESTING_REFERENCE_PROFILE_V1 as referenceProfile } from "@/an
 import { MAIN_WIRE_FITTING_SEED_V1 as fittingSeed } from "@/analysis/registry/MainWireFittingSeedV1";
 import { validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3 as ownHemodynamics } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import { validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3 as ownMechanism } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
+import { assertMainWireUnextendedFiveWallMechanicsDomainV1 as assertOriginalDomain } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
 import { assertUnaliasedMainWireFittingCandidateV1, type MainWireBaselineCalibrationCandidateInputsV1 as Candidate } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 import { NON_CORONARY_NODE_NAMES_V1 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import { CORONARY_CONSERVED_VOLUME_NODE_IDS_V2 } from "@/engine/coronary/typesV2";
@@ -244,6 +245,7 @@ function ownCandidate(value: Candidate): Candidate {
   assertUnaliasedMainWireFittingCandidateV1(value);
   const candidate = Object.freeze({ hemodynamicResearchInputs: ownHemodynamics(value.hemodynamicResearchInputs),
     ventricularContractilityScale: value.ventricularContractilityScale, mechanismResearchInputs: ownMechanism(value.mechanismResearchInputs) });
+  assertOriginalDomain(candidate.mechanismResearchInputs.chamberMechanics);
   if (![60, 70].includes(candidate.hemodynamicResearchInputs.heartRateBpm)
     || candidate.hemodynamicResearchInputs.peepCmH2O !== 0
     || !(candidate.ventricularContractilityScale > 0) || !Number.isFinite(candidate.ventricularContractilityScale)) {

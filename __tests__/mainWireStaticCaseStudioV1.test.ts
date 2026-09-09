@@ -3,7 +3,7 @@ import { createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as release,
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1 as template } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
 import { MAIN_WIRE_STATIC_CASE_FIXTURE_SCHEMA_ID_V1 as schemaId } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseIdentityV1";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
-import inherited from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioHfrefResearchSurfaceV1";
+import inherited from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72SurfaceV1";
 import { MAIN_WIRE_STANDARD71_BASELINE_HEMODYNAMIC_INPUTS_V1 as hemo, MAIN_WIRE_STANDARD71_BASELINE_MECHANISM_INPUTS_V1 as mechanism } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
 import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurface";
 import { resolveMainWireAnalysisMethodsForSurfaceV1 as methods } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
@@ -20,12 +20,14 @@ const fixture = (dilated: boolean) => ({ ...template, schemaId, anatomyId: dilat
 
 describe("static case exact adapter and inherited Surface", () => {
   it("keeps every inherited pane/item/control contract except the explicitly versioned mass-aware derivation", () => {
-    const changed = new Set(["surfaceReleaseId", "surfaceSeriesId", "displayName", "derivedOutputCatalog"]);
+    const changed = new Set(["surfaceReleaseId", "surfaceSeriesId", "displayName", "derivedOutputCatalog", "controlCatalog", "predecessorSurfaceReleaseId"]);
     for (const [key, value] of Object.entries(inherited)) if (!changed.has(key)) expect(surface[key as keyof typeof surface]).toEqual(value);
     const exact = release(), contract = composeStandardModelContractV1(exact.manifest, surface, methods(surface).capabilities).contract;
     expect(contract.modelId).toContain("research-static-case");
     expect(exact.manifest.fixtureSchema.fixtureSchemaId).toBe(schemaId);
     expect(exact.manifest.primitiveControlCatalog.length).toBeGreaterThan(20);
+    expect(surface.controlCatalog.slice(0, -1)).toEqual(inherited.controlCatalog);
+    expect(surface.controlCatalog.at(-1)?.controlId).toBe("myocardium.lv-contractility");
     expect(surface.derivedOutputCatalog.map(o => o.outputId)).toEqual(inherited.derivedOutputCatalog.map(o => o.outputId));
   });
 

@@ -1,5 +1,8 @@
 # HFrEF domain and workbench reachability: consolidated review
 
+Archive note: checkout locations below use portable worktree names. The
+original machine-local paths remain in Git history; review content is unchanged.
+
 Please form your own scientific and engineering view. Disagree freely; neither
 the provisional proposal below nor earlier AI advice is a constraint. Inspect
 code, traces, references, and other relevant files as you choose. Do not edit
@@ -20,10 +23,10 @@ Approval here concerns the concrete scope, not every future preset or mint.
 ## Independent evidence available
 
 Implementation worktree (released 72 remains unchanged):
-`/Users/hirakawa/.codex/worktrees/standard72-baseline-adoption/0DSimDemo`
+`standard72-baseline-adoption/0DSimDemo`
 
 Isolated, UNADOPTED research derivative:
-`/Users/hirakawa/.codex/worktrees/hfref-domain-experiment/0DSimDemo`
+`hfref-domain-experiment/0DSimDemo`
 
 Both start at commit `145430f41eee322acf7ca4cce9b641cb0a52d147`.
 

@@ -1159,3 +1159,112 @@ mean LAは約−0.00155 mmHg。主要血行指標はほぼ変わらず、遅い�
 先行する`static-case-lab-001/`はimport名の修正のため中断、`002/`はdriverが退役済み
 runtime IDを再利用して失敗した。モデルの不収束とは区別し、失敗結果・sourceも残す。
 `static-case-lab-smoke-001/`はcold 2周期だけのsmokeで、定常検証には数えない。
+
+## 20. 公開境界の復旧と固定形状での操作確認（2026-09-09）
+
+### production72と研究用の拡張を分離
+
+Standard72という名前のsourceが研究用model／codec IDを返していた不整合を解消した。
+公開済みのartifact、baseline checkpoint、admission lockの改名・再署名はしていない。
+source側のcodec、factory、baseline fitting／qualificationを元のproduction72へ戻した。
+復元後にcheckpointを取り直しても、元の公開checkpointと全体が一致することを検査した。
+
+公開側のcontrollerは元の52項目・元の範囲に戻し、LVFW／SEP張力0.25〜1.33と
+二壁を同時に動かすLV収縮性controllerは、固定形状研究構成の53項目にだけ残した。
+共有parserの受理範囲だけで公開モデルの表現範囲が広がらないよう、production72の
+create／restore／warm startとexact fixture受理にも元の入力領域を適用する。
+不正な入力を拒否した後に元のsessionが使えること、異なるcodecを混用できないことも確認した。
+
+旧非拡大型HFrEF専用のfitting runner、起動bundle生成、exact entry／Surfaceを退役した。
+現在の固定形状fittingと汎用baseline fitting、共通の症例reference／観測は残す。
+削除した実装と研究artifactはGitの`a20316ed`以前および既存研究archiveから回収できる。
+過去の実験スクリプトが退役済みsourceを参照するため、`artifacts/`等の生成・履歴領域は
+現在の型検査対象から除いた。現行のengine、analysis、Studio、tools、testsは検査対象のまま。
+
+### 候補の数値を変えていないことの確認
+
+`static-case-lab-004/`で独立coldのbaseline 2 ms・HFrEF 2／1 ms、追加周期、
+コンパイルartifactとの3経路比較、局所操作、8本のPV／Starling解析分岐を再実行した。
+全項目が成功し、wall timeは213.98秒。source SHAは
+`ef60c0de29c6b0808bb7ab8fc32207447be5310b5a207b9d93a21b4864633f27`。
+
+HFrEFは2／1 msとも、以前の採用候補の**受理step原traceとexact completed beat全体が一致**した。
+丸めたEFやCIだけの一致ではない。候補パラメータ、弁・Ca/Land・形状・心膜・冠血管床、
+生理referenceとその範囲は変更していない。2 msのLVEF28.455%、CI2.25799、
+mean Ao storage node81.043、mean LA16.610 mmHgもそのままである。
+
+型検査、対象77テスト、suite登録audit 6件、fast 100ファイル1178件、
+PR smoke 60ファイル866件、canonical 75ファイル498件が通過した。
+fast／PR／canonicalには対象が重なるので、合計を独立テスト数とはしない。
+suite登録時の重複所有をauditが検出した一件は、primary suiteを一つにして解消した。
+前節に残したregistry-admission／fitting-workflowの失敗は今回解消している。
+
+### 6つの重要な操作を確認
+
+`static-case-controls-001/`では選定HFrEF checkpointから、LV収縮性0.25／0.75／1.33、
+TBV4200／7000 mL、HR60を一条件ずつ変更し、6並列で計算した。
+実際のcompiled exact adapterによる操作、2秒間の継続、保存・復元、P1判定3回連続、
+別の追加周期を確認し、同じ条件の独立coldと比較した。
+比較許容はEF差0.005、容積・CI差1%、平均圧差0.5 mmHg。疾患の正常域ではなく、
+経路依存性を調べる設計上の許容差である。全controllerの組合せを検査したわけではない。
+
+| 単独の変更 | 操作後の2 ms継続・定常化 | 独立cold | 比較結果 |
+|---|---|---|---|
+| LV収縮性0.25 | 成立、177周期 | 2 ms成立、223周期 | 許容内 |
+| LV収縮性0.75 | 成立、210周期 | 2 ms成立、149周期 | 許容内 |
+| LV収縮性1.33 | 成立、218周期 | 2 ms成立、173周期 | 許容内 |
+| TBV4200 mL | 成立、142周期 | 2 ms成立、201周期 | 許容内 |
+| TBV7000 mL | 成立、95周期 | 2 msでcold初期化中にNewton line search不成立 | 下記で切り分け |
+| HR60 | 計算・追加周期は完了、HR70専用の集計関数で拒否 | 初回は未実行 | 下記で再確認 |
+
+初回のwall timeは226.07秒。不正なLV収縮性0.24は全操作の前に拒否され、frameは不変だった。
+TBV7000 mLでのwarm継続は成立しており、今回の失敗を「TBV操作でWorkbenchが停止した」
+とは扱わない。一方、初期条件からの数値頑健性まで通過したことにもしていない。
+
+`static-case-controls-002/`では4条件を並列実行した。HR60の計測はHRに依存しない既存の
+exact pressure／flow／native closure容積の読み出しに変更し、HR70の症例referenceは緩和しない。
+HR60はwarm 93周期／cold 170周期で成立。両者のCI差は0.0034%、平均圧の最大差は
+0.0075 mmHg未満だった。EFは約31.22%、CI2.1207、mean LA16.47 mmHg。
+
+TBV7000 mLは1 msの独立coldで148周期、2 msで収束済みの状態から1 msで再確認した
+warmでは14周期で成立。CI差0.0113%、平均圧差は最大0.0231 mmHg未満だった。
+2 msのwarmに対してもEF・CI・圧の差は小さい。ただし、この結果で2 ms cold失敗を消したり、
+automatic fallbackを実装済みとしたりはしない。最小刻みの変更やsolverの閾値変更はしていない。
+
+操作後に元のHFrEF目標を満たすことは要求しない。張力1.33ではEF56.56%、CI3.026、
+mean Ao106.63 mmHgまで変わり、AV mean gradientも5.32 mmHgとなる。
+TBV7000 mLではmean LA約39.9、mean RA約18.5 mmHgであり、安静の採用症例ではない。
+これらを対象症例の生理gate通過や、一般的な臨床状態の検証済みpresetとは呼ばない。
+
+### 説明に使える根拠の集約
+
+`adoption-boundary-001/selected-case-evidence.json`に、6つの実行archiveと結果hashを
+再照合した上で、選定症例の2／1 ms、baseline比較、位相別の流入・弁イベント、τの
+fit品質、原波形の形態測定、formal PV解析、条件付き受動形状比較をまとめた。
+referenceの設計意図と実測結果を別々に保存し、元の未評価フラグを上書きしない。
+同一traceから形態を再測定すると、LV／RVとも両刻みで有意peakは1個、
+LV peakは駆出区間の約71%だった。これはこの形態抽出法による記録であり、
+「全患者でこの位置が正常」「任意の操作で二峰性が出ない」というgateではない。
+
+この集約の初回は、実lookaheadに必要なwindow bindingを渡さず検証で拒否された。
+検証を省略せず、既存のwindow構築関数に保存済みの連続した受理stepを渡して修正した。
+追加計算や周期traceの複製、平滑化、再サンプリングは行っていない。
+
+臨床的なEes、固有の弛緩速度、線維化、実際の心筋酸素需給は同定していない。
+Weissの短いfit窓とGlantz未適合も保持する。静的受動比較と、動的な表示EDPVRを
+同一視しない。正式採用の無条件review票はまだ追加取得しておらず、公開登録・mintも未実施。
+次はこの記録を再利用する説明とrelease／Surfaceの登録内容を揃え、まとめて1/2 reviewへ進む。
+
+### 実ブラウザで見つかった開発用計測の停止
+
+通常のVite開発画面ではReactの`logComponentRender`内の`performance.measure`が
+`DataCloneError: Data cannot be cloned, out of memory`で失敗し、Pane設定が反応しなくなった。
+exact workerの数値エラーではない。[Reactの説明](https://react.dev/reference/dev-tools/react-performance-tracks)
+に沿い、通常のproduction Reactを使ったローカル確認用snapshotを構築し、アプリの研究用
+Model Lab経路だけを残した。通常のdeployment設定やdependenciesは変えていない。
+これは開発用計測の恒久修正ではなく、視覚チェックを続けるための一時的なpreviewである。
+
+`http://127.0.0.1:4190/ja/dev/model-lab?research=hfref`で同じexact artifactを読み、
+baselineから候補を追加し、Pane設定からPE／PVAを追加できることを確認した。
+PV loop、ESPVR/EDPVR、Starling、圧波形と既存controllerは表示され、最終browser errorは0件。
+比較画面は明示的に再生を停止して残した。手順と制約は`adoption-boundary-001/BROWSER.md`。

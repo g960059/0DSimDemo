@@ -1,5 +1,5 @@
-import inherited from "./MainWireIntegratedStudioHfrefResearchSurfaceV1";
-import { derivationCapabilityV1, type ModelSurfaceReleaseManifestV1 } from "@/studio/contracts/v2/modelSurface";
+import inherited from "./MainWireIntegratedStudioStandard72SurfaceV1";
+import { controlCapabilityV1, derivationCapabilityV1, type ModelSurfaceReleaseManifestV1 } from "@/studio/contracts/v2/modelSurface";
 import { MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 
 /** Same controls, panes and measured PV displays. Only the mass-dependent
@@ -7,7 +7,12 @@ import { MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V14
 export default Object.freeze({ ...inherited,
   surfaceReleaseId: "circleheart.main-wire.surface.static-case.research-v1",
   surfaceSeriesId: "circleheart.main-wire.surface.static-case.research",
+  predecessorSurfaceReleaseId: null,
   displayName: "Static anatomy case research",
+  controlCatalog: Object.freeze([...inherited.controlCatalog, Object.freeze({
+    controlId: "myocardium.lv-contractility", preferredPresentation: "slider" as const,
+    requiredCapabilities: Object.freeze([controlCapabilityV1("myocardium.lv-contractility")]),
+  })]),
   derivedOutputCatalog: Object.freeze(inherited.derivedOutputCatalog.map(output =>
     output.derivationId !== MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID ? output : Object.freeze({ ...output,
       derivationId: MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID,

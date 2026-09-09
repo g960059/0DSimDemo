@@ -4,7 +4,6 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "fit:scientific:hfref-v1": "vite-node --script tools/scientific/runMainWireStandard72HfrefFittingV1.ts",
     "search:scientific:main-wire-standard72-v1": "vite-node --script tools/scientific/runMainWireStandard72FittingSearchV1.ts",
     "qualify:scientific:main-wire-standard72-v1": "vite-node --script tools/scientific/runMainWireStandard72QualificationV1.ts",
     "fit:scientific:main-wire-standard72-v1": "vite-node --script tools/scientific/runMainWireStandard72FittingV1.ts",

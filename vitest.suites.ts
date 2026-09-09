@@ -5,10 +5,12 @@
  * The manifest rejects every unowned or stale test.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 98;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 58;
+export const FAST_SUITE_FILE_BUDGET = 100;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 60;
 
 export const fastTests = [
+  "__tests__/mainWireStandard72ProductionBoundaryV1.test.ts",
+  "__tests__/mainWireStaticCaseAnatomyV1.test.ts",
   "__tests__/mainWireHfrefReferenceV1.test.ts",
   "__tests__/fittingJsonWorkersV1.test.ts",
   "__tests__/mainWireStandard72FittingSearchV1.test.ts",
@@ -118,6 +120,8 @@ export const fastTests = [
  * on a two-core runner.
  */
 export const prSmokeTests = [
+  "__tests__/mainWireStandard72ProductionBoundaryV1.test.ts",
+  "__tests__/mainWireStaticCaseAnatomyV1.test.ts",
   "__tests__/mainWireHfrefReferenceV1.test.ts",
   "__tests__/fittingJsonWorkersV1.test.ts",
   "__tests__/mainWireStandard72FittingSearchV1.test.ts",
@@ -224,7 +228,6 @@ export const regressionTests = [
 
 /** Current canonical scientific lane. This exact inventory is its source of truth. */
 export const canonicalScientificTests = [
-  "__tests__/mainWireStaticCaseAnatomyV1.test.ts",
   "__tests__/mainWireStaticCaseContinuationV1.test.ts",
   "__tests__/mainWireStaticCaseStudioV1.test.ts",
   "__tests__/mainWireHfrefDilatedReferenceV1.test.ts",

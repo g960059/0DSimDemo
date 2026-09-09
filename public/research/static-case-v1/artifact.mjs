@@ -1,3 +1,9 @@
+const MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.selected-aortic-outflow.standard-66";
+const MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.algebraic-proximal-roots.standard-67";
+const MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.algebraic-pulmonary-root.standard-70";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.reference-baseline.standard-72";
+const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
+const MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-selected-aortic-outflow-fixture.standard-v1";
 function clamp$3(x, lo, hi) {
   return Math.min(hi, Math.max(lo, x));
 }
@@ -17144,6 +17150,17 @@ function mainWireFiveWallMechanicsResearchRangeV1(kind, wallId) {
   return kind === "activeTensionScaleByWall" && (wallId === "LVFW" || wallId === "SEP") ? MAIN_WIRE_LV_ACTIVE_TENSION_RESEARCH_RANGE_V1 : MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_SCALE_RANGES_V1[kind];
 }
 const UNIT_WALL_SCALES_V1 = wallRecordV1(() => 1);
+function assertMainWireUnextendedFiveWallMechanicsDomainV1(input) {
+  for (const kind of MAIN_WIRE_FIVE_WALL_MECHANICS_SCALE_KINDS_V1) {
+    const range = MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_SCALE_RANGES_V1[kind];
+    for (const wall of MAIN_WIRE_FIVE_WALL_IDS_V1) {
+      const value = input[kind][wall];
+      if (!Number.isFinite(value) || value < range.minimum || value > range.maximum) {
+        throw new Error(`Original mechanics domain: ${kind}.${wall} must be within [${range.minimum}, ${range.maximum}]`);
+      }
+    }
+  }
+}
 const MAIN_WIRE_FIVE_WALL_DEFAULT_MECHANICS_RESEARCH_INPUTS_V1 = Object.freeze({
   inputId: MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_INPUT_V1_ID,
   activeTensionScaleByWall: UNIT_WALL_SCALES_V1,
@@ -48239,9 +48256,8 @@ class MainWireStaticCaseSessionV1 {
 }
 const MAIN_WIRE_STATIC_CASE_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.research-static-case-v1";
 const MAIN_WIRE_STATIC_CASE_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-studio-static-case-fixture.v1";
-const MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_CHECKPOINT_V1_ID = "circleheart.main-wire-integrated-model-research-hfref-domain-checkpoint.v1";
+const MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_CHECKPOINT_V1_ID = "circleheart.main-wire-integrated-model-standard72-exact-checkpoint.v1";
 const MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_IDENTITY_V1 = deepFreezeV1$4({
-  researchInputDomain: "lv-free-wall-and-shared-septum-active-0p25-to-1p33-v1",
   numericalContinuation: MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID,
   fixtureId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_ID,
   ventricularMaterialProfileId: MAIN_WIRE_STANDARD71_MATERIAL_PROFILE_V1_ID,
@@ -48395,14 +48411,10 @@ function detachedFrozenCheckpointSnapshotV1$4(input) {
   }
   return deepFreezeV1$4(decodeCanonicalFlatDataV1(encoded));
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.selected-aortic-outflow.standard-66";
-const MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.algebraic-proximal-roots.standard-67";
-const MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.algebraic-pulmonary-root.standard-70";
-const MAIN_WIRE_INTEGRATED_STUDIO_HFREF_RESEARCH_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.research-hfref-domain-v1";
-const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_TYPED_AUTHORITY_SESSION_V1_ID = "main-wire-integrated-model-standard72-typed-authority-session-v1";
 class MainWireIntegratedModelStandard72TypedAuthoritySessionV1 extends MainWireIntegratedTypedAuthoritySessionV1 {
   constructor(runtime, executionPlanInitialization, restored = null, analysisForkAcceptedState = null) {
+    assertMainWireUnextendedFiveWallMechanicsDomainV1(runtime.mechanismResearchInputs.chamberMechanics);
     super(
       asSourceTopologyRuntimeV3$2(runtime),
       analysisForkAcceptedState ?? restored?.acceptedState ?? runtime.cold.acceptedState,
@@ -48695,7 +48707,7 @@ const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1 = Object.f
       return definitionV1(
         `${prefix}.${wallId}`,
         "1",
-        mainWireFiveWallMechanicsResearchRangeV1(kind, wallId),
+        MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_SCALE_RANGES_V1[kind],
         MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1.chamberMechanics[kind][wallId]
       );
     })
@@ -49215,14 +49227,7 @@ const baseline = {
   mechanismResearchInputs: MAIN_WIRE_STANDARD71_BASELINE_MECHANISM_INPUTS_V1
 };
 const MAIN_WIRE_STANDARD71_CONTROL_CATALOG_V1 = Object.freeze(
-  [...MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1, {
-    controlId: "myocardium.lv-contractility",
-    valueType: "number",
-    unit: "1",
-    ...MAIN_WIRE_LV_ACTIVE_TENSION_RESEARCH_RANGE_V1,
-    defaultValue: 1,
-    changeSemantics: "accepted-state-warm-start"
-  }].map((definition2) => {
+  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1.map((definition2) => {
     const value = mainWireIntegratedStudioControlValueFromFixtureV3(baseline, definition2.controlId);
     if (value.status !== "value") throw new Error(`Standard71 baseline control missing: ${definition2.controlId}`);
     return Object.freeze({
@@ -49233,8 +49238,20 @@ const MAIN_WIRE_STANDARD71_CONTROL_CATALOG_V1 = Object.freeze(
   })
 );
 const MAIN_WIRE_STANDARD71_CONTROL_BY_ID_V1 = new Map(MAIN_WIRE_STANDARD71_CONTROL_CATALOG_V1.map((definition2) => [definition2.controlId, definition2]));
-if (MAIN_WIRE_STANDARD71_CONTROL_CATALOG_V1.length !== 53 || MAIN_WIRE_STANDARD71_CONTROL_BY_ID_V1.size !== 53)
-  throw new Error("Research LV domain requires all 52 inherited controls and one atomic LV group");
+const MAIN_WIRE_STATIC_CASE_CONTROL_CATALOG_V1 = Object.freeze([
+  ...MAIN_WIRE_STANDARD71_CONTROL_CATALOG_V1.map((control) => ["myocardium.active-tension-scale.LVFW", "myocardium.active-tension-scale.SEP"].includes(control.controlId) ? Object.freeze({ ...control, ...MAIN_WIRE_LV_ACTIVE_TENSION_RESEARCH_RANGE_V1 }) : control),
+  Object.freeze({
+    controlId: "myocardium.lv-contractility",
+    valueType: "number",
+    unit: "1",
+    ...MAIN_WIRE_LV_ACTIVE_TENSION_RESEARCH_RANGE_V1,
+    defaultValue: 1,
+    changeSemantics: "accepted-state-warm-start"
+  })
+]);
+const MAIN_WIRE_STATIC_CASE_CONTROL_BY_ID_V1 = new Map(
+  MAIN_WIRE_STATIC_CASE_CONTROL_CATALOG_V1.map((control) => [control.controlId, control])
+);
 const MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID = "main-wire-integrated-v3-guyton-starling-structural-orientation-v1";
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID = "main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1";
 const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3 = "hypovolemic";
@@ -54333,7 +54350,6 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-selected-aortic-outflow-fixture.standard-v1";
 const schemaId = "circleheart-execution-plan-descriptor-v1";
 const definitionId = "main-wire-hemodynamic-model-definition-v1";
 const policyId = "main-wire-static-condensed-be-policy-v1";
@@ -54416,13 +54432,13 @@ Object.freeze({
 });
 const STANDARD72_EXACT_VARIANT_V1 = Object.freeze({
   generation: 68,
-  label: "LV domain research",
-  modelId: MAIN_WIRE_INTEGRATED_STUDIO_HFREF_RESEARCH_MODEL_ID_V1,
+  label: "Standard72",
+  modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1,
   fixtureId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_ID,
   fixtureClaim: MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_CLAIM,
   numericalSessionId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_TYPED_AUTHORITY_SESSION_V1_ID,
   checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_CHECKPOINT_V1_ID,
-  checkpointCodecId: "circleheart.main-wire-integrated-studio-hfref-lv-domain-research-checkpoint-codec-v1",
+  checkpointCodecId: "circleheart.main-wire-integrated-studio-standard72-checkpoint-codec-v1",
   runtimeScope: "fixed-reference-material-calcium-algebraic-roots-regular-sinus-all-off",
   checkpointFixturePairing: "standard72-complete-fixture-fixed-profile-and-predictor-history",
   proximalArterialRootsProfileId: null,
@@ -54433,6 +54449,14 @@ const STATIC_CASE_EXACT_VARIANT_V1 = Object.freeze({
   label: "Static case research",
   modelId: MAIN_WIRE_STATIC_CASE_MODEL_ID_V1,
   fixtureId: "main-wire-integrated-model-static-case-fixture-v1",
+  fixtureClaim: Object.freeze({
+    ...MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_CLAIM,
+    fixtureId: "main-wire-integrated-model-static-case-fixture-v1",
+    anatomy: "two-resolved-static-geometries-with-current-tissue-mass",
+    pericardium: "current-tissue-occupancy-in-shared-reference-bag",
+    coronaryBed: "unchanged-reference-bed-not-current-mass-normalized"
+  }),
+  runtimeScope: "finite-static-anatomy-fixed-material-calcium-algebraic-roots-regular-sinus-all-off",
   numericalSessionId: "main-wire-static-case-session-v1",
   checkpointId: MAIN_WIRE_STATIC_CASE_CHECKPOINT_V1_ID,
   checkpointCodecId: "circleheart.main-wire-static-case-studio-checkpoint-codec-v1",
@@ -54448,7 +54472,7 @@ function selectedFixtureSchemaIdV1(variant) {
   return isStaticCaseVariantV1(variant) ? MAIN_WIRE_STATIC_CASE_FIXTURE_SCHEMA_ID_V1 : MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1;
 }
 function isStandard72VariantV1(variant) {
-  return variant.modelId === MAIN_WIRE_INTEGRATED_STUDIO_HFREF_RESEARCH_MODEL_ID_V1;
+  return variant.modelId === MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1;
 }
 async function warmSelectedSessionV1(session, inputs, multiplier, plan, mechanism) {
   if (session instanceof MainWireStaticCaseSessionV1) {
@@ -54515,7 +54539,10 @@ const SELECTED_CONTROL_CATALOG_V1 = Object.freeze([
   })
 ]);
 function selectedControlCatalogV1(variant) {
-  return isStandard71FamilyV1(variant) ? MAIN_WIRE_STANDARD71_CONTROL_CATALOG_V1 : variant.generation === 68 ? MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1 : SELECTED_CONTROL_CATALOG_V1;
+  return isStaticCaseVariantV1(variant) ? MAIN_WIRE_STATIC_CASE_CONTROL_CATALOG_V1 : isStandard72VariantV1(variant) ? MAIN_WIRE_STANDARD71_CONTROL_CATALOG_V1 : variant.generation === 68 ? MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1 : SELECTED_CONTROL_CATALOG_V1;
+}
+function selectedControlByIdV1(variant) {
+  return isStaticCaseVariantV1(variant) ? MAIN_WIRE_STATIC_CASE_CONTROL_BY_ID_V1 : isStandard72VariantV1(variant) ? MAIN_WIRE_STANDARD71_CONTROL_BY_ID_V1 : void 0;
 }
 function selectedOutputCatalogV1(variant) {
   return isStandard71FamilyV1(variant) || isStandard70VariantV1(variant) ? MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_OUTPUT_CATALOG_V1 : variant.generation === 68 ? MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_OUTPUT_CATALOG_V1 : MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_CATALOG_V1;
@@ -54934,7 +54961,7 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
           scenario.fixture,
           controlId,
           value,
-          isStandard71FamilyV1(this.#variant) ? MAIN_WIRE_STANDARD71_CONTROL_BY_ID_V1 : void 0
+          selectedControlByIdV1(this.#variant)
         ),
         this.#variant
       );
@@ -55677,7 +55704,7 @@ function selectedExecutableBundleV1(host, variant) {
           fixture,
           input.action.controlId,
           input.action.value,
-          isStandard71FamilyV1(variant) ? MAIN_WIRE_STANDARD71_CONTROL_BY_ID_V1 : void 0
+          selectedControlByIdV1(variant)
         );
       }
       if (input.action.controlId !== MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_CONTROL_IDS_V1.heartRateBpm) {
@@ -55884,6 +55911,7 @@ function validateAndOwnSelectedFixtureV1(value, variant) {
   const mechanismResearchInputs = validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(
     record.mechanismResearchInputs
   );
+  if (!isStaticCaseVariantV1(variant)) assertMainWireUnextendedFiveWallMechanicsDomainV1(mechanismResearchInputs.chamberMechanics);
   for (const [wallId, scale] of Object.entries(
     mechanismResearchInputs.chamberMechanics.calciumDecayTimeScaleByWall
   )) {
