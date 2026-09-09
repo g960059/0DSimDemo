@@ -1,7 +1,8 @@
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 
-import { homeHref, myExperimentsHref } from "@/homeLinks";
+import { homeHref, myExperimentsHref, modelDocumentationHref } from "@/homeLinks";
+import hfrefDocument from "@/studio/presentation/modelDocumentation/packages/hfref-static-case-document-v4.index.json";
 import { isLocale } from "@/localeRouting";
 import { isOpaqueExperimentIdV3 } from "@/studio/infrastructure/browser/StudioExperimentIdentityV3";
 import { WorkbenchSession } from "@/components/workbench/WorkbenchSession";
@@ -43,6 +44,11 @@ export function WorkbenchModelLabPage() {
           ? "「Presetから追加」で定常化済みのHFrEF候補を選べます。LV自由壁と共有中隔の収縮性低下に、参照形状・心筋量の変更を組み合わせた一例です。LV収縮性だけを下げても同じ症例にはなりません。右室自由壁の設定は同じですが、中隔や循環を介して右室の動きも変わります。慢性期の状態を表すための研究候補で、リモデリングの進行過程やAMIは再現していません。冠血管床と酸素需要の基準はbaselineのままで、増えた心筋への灌流や酸素供給の十分さは未検証です。Glantz τは推定不良のため未確定。正式採用前であり、操作後すぐの値は定常値ではありません。"
           : "Add the settled HFrEF candidate from Presets. This case combines reduced LV free-wall and shared-septal contractility with changed reference geometry and tissue mass; lowering contractility alone does not reproduce it. RV free-wall inputs are unchanged, but septal and circulatory coupling affect RV behavior. It represents one chronic state, not evolving remodeling or AMI. The coronary bed and reference oxygen demand remain at baseline: perfusion and oxygen adequacy for the larger mass are unvalidated. Glantz tau is unresolved. Formal adoption is pending, and values immediately after an edit are transient."}</p>
       </details>}
+      {hfrefResearch && !import.meta.env.PROD && <a target="_blank" rel="noreferrer"
+        className="text-wb-accent underline underline-offset-2"
+        href={modelDocumentationHref({ locale: ja ? "ja" : "en", ...hfrefDocument.identity, documentId: hfrefDocument.documentId })}>
+        {ja ? "症例の説明・検証" : "Case explanation and evidence"}
+      </a>}
       {!hfrefResearch && <label className="cursor-pointer underline underline-offset-2">
         {loading ? (ja ? "確認中…" : "Checking…") : (ja ? "候補JSONから新規起動" : "New session from candidate JSON")}
         <input type="file" accept=".json,application/json" className="sr-only" disabled={loading}

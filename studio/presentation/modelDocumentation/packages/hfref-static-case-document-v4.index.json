@@ -1,0 +1,13 @@
+{
+  "schemaId": "circleheart.saved-model-document.v1",
+  "documentId": "hfref-static-case-document-v4",
+  "identity": {
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.research-static-case-v1",
+    "surfaceReleaseId": "circleheart.main-wire.surface.static-case.research-v1",
+    "surfaceSeriesId": "circleheart.main-wire.surface.static-case.research",
+    "baselineId": "research/hfref-chronic-dilated-v1",
+    "title": "HFrEF · 慢性左室拡大型",
+    "releaseStatus": "local-candidate-not-registered"
+  },
+  "contentSha256": "d0fc600fcc72054b312ec79e3c154b213eebcdb8a9963fe5216b6a7be26dbcf5"
+}

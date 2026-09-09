@@ -3,14 +3,14 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import { homeHref } from "@/homeLinks";
 import type { Locale } from "@/localeRouting";
-import { MAIN_WIRE_MODEL_MODULES_V1 } from "@/studio/presentation/modelDocumentation/MainWireModelModulesV1";
+import { MainWireModuleExplanationsV1 } from "./MainWireModuleExplanationsV1";
 import { mainWireBaselineRowsV1, type MainWireBaselineSnapshotV1,
   baselineNumberV1 as number, baselineUnitV1 as unit, BASELINE_ROLE_LABELS_V1,
   BASELINE_STATUS_LABELS_V1, type BaselineDocumentationRowV1 } from "@/studio/presentation/modelDocumentation/MainWireBaselineDocumentationV1";
 import { baselineDocumentationGroupV1 } from "@/studio/presentation/modelDocumentation/MainWireBaselineDocumentationV1";
 import { resolveStudioItemPresentationV1 } from "@/studio/presentation/StudioItemPresentationCatalogV1";
-import { MainWireDetailedCircuitV1, MainWireModuleEquationDetailsV1, MainWireAssemblyAndInitialStateV1, type MainWireEquationDataV1 } from "./MainWireEquationDetailsV1";
-import { ModelEquationV1 as Equation, ModelInlineMathV1 as InlineMath, ModelMathLabelV1 as MathLabel } from "@/components/model/ModelMathV1";
+import { MainWireDetailedCircuitV1, MainWireAssemblyAndInitialStateV1, type MainWireEquationDataV1 } from "./MainWireEquationDetailsV1";
+import { ModelEquationV1 as Equation, ModelMathLabelV1 as MathLabel } from "@/components/model/ModelMathV1";
 
 const text = (locale: Locale, ja: string, en: string) => locale === "ja" ? ja : en;
 const paragraph = "text-sm leading-7 text-wb-muted";
@@ -184,21 +184,7 @@ const reserveFloor = (field: string) => {
           <div className="flex flex-wrap items-center justify-center gap-3 text-sm">{[text(locale, "興奮・Ca", "Activation / Ca"), text(locale, "筋原線維の張力", "Myofilament tension"), text(locale, "心室形状・圧", "Geometry / pressure"), text(locale, "弁・血流・体積", "Valves / flow / volume")].map((s, i) => <React.Fragment key={s}>{i > 0 && <span aria-hidden="true">{i === 1 ? "→" : "↔"}</span>}<span className="rounded-md bg-wb-panel px-3 py-2">{s}</span></React.Fragment>)}</div>
           <figcaption className="mt-3 text-center text-xs leading-6 text-wb-subtle">{text(locale, "体積が変わると、筋長・短縮速度を通じて張力も変わります。矢印は相互作用を示しています。", "Volume feeds back through length and shortening velocity into tension. Arrows show interactions.")}</figcaption>
         </figure>
-        <div className="space-y-8">{doc.moduleIds.map(id => {
-          const m = MAIN_WIRE_MODEL_MODULES_V1.find(m => m.id === id)!;
-          return <article key={id} id={id}>
-            <h3 className="mb-2 text-base font-semibold">{m.title[locale]}</h3><p className={paragraph}>{m.summary[locale]}</p>
-            <Detail title={text(locale, "数式・仮定を詳しく", "Equations and assumptions")}>
-              <p className={paragraph}>{m.detail[locale]}</p>
-              {m.equation && <><Equation expression={m.equation} /><p className="text-xs leading-6 text-wb-subtle">{m.equationNote?.[locale]}</p></>}
-              {m.symbols && <dl className="model-symbol-definitions mt-5 space-y-4 text-sm leading-7">{m.symbols.map(([symbol, meaning]) => <div key={symbol} className="grid min-w-0 gap-1 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-5"><dt className="text-[15px] text-wb-text"><InlineMath expression={symbol} /></dt><dd className="min-w-0 text-wb-muted">{meaning[locale]}</dd></div>)}</dl>}
-              {m.additionalEquations?.map(e => <div key={e.expression} className="mt-5"><Equation expression={e.expression} /><p className={paragraph}>{e.note[locale]}</p></div>)}
-              <MainWireModuleEquationDetailsV1 data={doc.equations} id={id} locale={locale} Equation={Equation} />
-              {m.references?.map(r => <p key={r.url} className="mt-4 text-xs leading-6 text-wb-muted"><a href={r.url} target="_blank" rel="noreferrer" className="text-wb-accent underline">{r.title}</a><span className="ml-2">{r.context[locale]}</span></p>)}
-              {id === "land-deactivation-v2" && <a href={`https://doi.org/${doc.material.doi}`} className="mt-4 inline-block text-xs text-wb-accent underline" target="_blank" rel="noreferrer">Land et al. 2017 · {text(locale, "基礎となる収縮モデル", "Underlying contraction model")}</a>}
-            </Detail>
-          </article>;
-        })}</div>
+        <MainWireModuleExplanationsV1 moduleIds={doc.moduleIds} equations={doc.equations} locale={locale} />
         <div id="assembly" className="mt-8 scroll-mt-4">
           <h3 className="text-base font-semibold">{text(locale, "方程式を一つの循環モデルに組み立てる", "Assembling the coupled circulation model")}</h3>
           <p className={`mt-2 ${paragraph}`}>{text(locale, "接続・構成式・状態の時間発展を結び、保存されたbaselineから計算を始めるための条件です。", "Coupling the connections, constitutive laws and evolving states, with conditions for starting from the saved baseline.")}</p>

@@ -57,7 +57,7 @@
       "url": "https://doi.org/10.1016/0735-1097(94)90428-6",
       "locator": "Abstract: Methods and Results",
       "population": "特発性DCM23例の侵襲的PV解析、うち16例で冠静脈洞の心筋酸素消費を同時計測。",
-      "observations": { "eaToEes": { "mean": 3.14, "se": 0.28 } },
+      "observations": { "eaToEes": { "mean": 3.24, "se": 0.28 } },
       "method": "conductance PV、IVC遮断Ees、冠静脈洞double-thermistor。",
       "limitations": "数値は平均±SE。Ees/EaをEFから逆算して独立な根拠にしない。SW/PVAとSW/MVO2は違い、モデルの経壁圧仕事だけで効率低下やPVA増加を主張しない。Katoらと施設・著者の重なりがある。"
     },

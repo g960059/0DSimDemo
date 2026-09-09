@@ -2,6 +2,7 @@ import React from "react";
 import type { Locale } from "@/localeRouting";
 import type archivedDocument from "@/studio/presentation/modelDocumentation/packages/standard71-document-v1.json";
 export type MainWireEquationDataV1 = typeof archivedDocument.scientificRecord.equations & {
+  constructionNote?: { ja: string; en: string };
   inputScales?: { hemodynamic: { systemicResistance: number; pulmonaryResistance: number } };
   effectiveWalls?: readonly { wallId: string; activeScale: number; passiveScale: number;
     trefPa: number; slsModulusPa: number; slsTimeSec: number }[];
@@ -130,7 +131,7 @@ function ParameterTables({ data, id, locale }: { data: MainWireEquationDataV1; i
     <Table caption={tr(locale,"心室壁の形状定数","Ventricular wall geometry constants")} headings={[tr(locale,"壁","Wall"),"M (m³)","Aref (m²)"]} rows={(["LVFW","SEP","RVFW"] as const).map(w => [nodeLabel(w,locale),data.anatomy.triSeg.wallGeometryParameters[w].wallMaterialVolumeM3,data.anatomy.triSeg.wallGeometryParameters[w].referenceMidwallAreaM2])} />
     <Table caption={tr(locale,"心房の形状定数","Atrial geometry constants")} headings={[tr(locale,"壁","Wall"),"M (mL)","Vref (mL)"]} rows={(["LA","RA"] as const).map(w => [nodeLabel(w,locale),data.anatomy.atria[w].wallMaterialVolumeMl,data.anatomy.atria[w].inverseUnloadedReferenceCavityVolumeMl])} />
     <Table caption={tr(locale,"心膜の係数","Pericardial constants")} headings={two} rows={[["V0 (m³)",data.pericardium.parameters.referenceHeartVolumeM3],["P* (Pa)",data.pericardium.parameters.exponentialPressureScalePa],["k",data.pericardium.parameters.exponentialStiffness],["Poffset (Pa)",data.pericardium.parameters.prescribedPressureOffsetPa],["Vfluid (m³)",data.pericardium.prescribedPericardialFluidVolumeM3]]} />
-    <p className={prose}>{tr(locale,"体格はBSA 1.9 m²、心筋密度1053 kg/m³です。形状定数は集団の画像・心筋量を組み合わせた構成値で、同一人物の全測定ではありません。基準面積は負荷時の基準伸長比1.1から定めた設計値です。心膜係数も機構検査のための設定であり、ヒト正常範囲として同定したものではありません。","BSA is 1.9 m² and tissue density 1053 kg/m³. Geometry combines population imaging/mass data, not one subject's complete measurements. Reference areas use a construction stretch of 1.1 at the loaded reference. Pericardial constants are mechanism-test choices, not identified human normal intervals.")}</p>
+    <p className={prose}>{data.constructionNote?.[locale] ?? tr(locale,"体格はBSA 1.9 m²、心筋密度1053 kg/m³です。形状定数は集団の画像・心筋量を組み合わせた構成値で、同一人物の全測定ではありません。基準面積は負荷時の基準伸長比1.1から定めた設計値です。心膜係数も機構検査のための設定であり、ヒト正常範囲として同定したものではありません。","BSA is 1.9 m² and tissue density 1053 kg/m³. Geometry combines population imaging/mass data, not one subject's complete measurements. Reference areas use a construction stretch of 1.1 at the loaded reference. Pericardial constants are mechanism-test choices, not identified human normal intervals.")}</p>
   </>;
   if (id === "quasisteady-four-valves-v2") return <Table caption={tr(locale,"四弁の全係数（L＝0）","Four-valve coefficients (L=0)")} headings={[tr(locale,"弁","Valve"),"R (mmHg·s/mL)","Amax (cm²)","Ar (cm²)","ko (mmHg⁻¹)","d (mmHg)","τopen (s)","τclose (s)"]} rows={Object.entries(data.valves).map(([id,p])=>[id==="AoV"?"AV":id,p.backgroundLinearResistanceMmHgSecPerMl,p.maximumForwardEoaCm2,p.closedReverseEroaCm2,p.openingGainPerMmHg,p.openingDriveDeadbandMmHg,p.openingTimeConstantSec,p.closingTimeConstantSec])} />;
   if (id === "lumped-algebraic-roots-v1") return <>

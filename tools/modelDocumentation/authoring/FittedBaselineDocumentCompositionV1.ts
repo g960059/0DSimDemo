@@ -14,6 +14,7 @@ import { mainWireBaselineGateRoleV1 as role } from "@/analysis/policies/mainWire
 import descriptor from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72ExactModelV1.client.json";
 import { mainWireIntegratedStudioFixtureProjectionV3 as projection } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
 import type { MainWireIntegratedModelStandard72CheckpointV1 } from "@/engine/myocardium/MainWireIntegratedModelStandard72CheckpointV1";
+import type { MainWireIntegratedModelStandardCheckpointV2 } from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV2";
 import type { MainWireBaselineCalibrationCandidateInputsV1 as Candidate } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 import type { MainWireEquationDataV1 } from "./MainWireEquationDetailsV1";
 import type { MainWireDocumentContentV1 } from "./MainWireDocumentV1";
@@ -45,8 +46,17 @@ export function fittedBaselineEquationDataV1(candidate: Candidate,
   for (const key of ["valveAreas", "pericardium", "coronaryDisease", "oxygenTransport"] as const) {
     same(candidate.mechanismResearchInputs[key], prior.measurements.fixtureIdentity.mechanismResearchInputs[key], key);
   }
+  return resolvedMainWireEquationDataV1(candidate, launch.baseStandardCheckpointV2, f);
+}
+
+/** Rematerialize shared constitutive coefficients and initial states from an
+ * owned fixture. A geometry-bearing caller must additionally provide its
+ * resolved anatomy; the original baseline document is never a case assessment. */
+export function resolvedMainWireEquationDataV1(candidate: Candidate,
+  checkpoint: MainWireIntegratedModelStandardCheckpointV2,
+  f: Pick<ReturnType<typeof createFixture>, "runtime" | "rhythm" | "pericardium">): MainWireEquationDataV1 {
   const graph = buildNonCoronaryCirculationGraphV1(), d = prior.equations;
-  const numerical = launch.baseStandardCheckpointV2.numericalCheckpoint, base = numerical.coronary.baseCheckpointV2;
+  const numerical = checkpoint.numericalCheckpoint, base = numerical.coronary.baseCheckpointV2;
   return {
     ...d,
     nodes: d.nodes.map(node => ({ ...node, law: node.law === null ? null
@@ -69,7 +79,7 @@ export function fittedBaselineEquationDataV1(candidate: Candidate,
         slsTimeSec: material.sls.relaxationTimeSec };
     }),
     initial: {
-      timeSec: launch.acceptedTimeSec, totalBloodVolumeMl: base.fixedGlobalTotalBloodVolumeMl,
+      timeSec: checkpoint.acceptedTimeSec, totalBloodVolumeMl: base.fixedGlobalTotalBloodVolumeMl,
       volumesMl: base.circulation.state.nodeVolumesMl, valveStates: base.circulation.state.valveStates,
       coronary: base.coronary.acceptedState, mechanics: base.mechanics.materialState,
       rhythm: numerical.composedRhythm.acceptedState, shorteningReference: base.mvcReferenceState,

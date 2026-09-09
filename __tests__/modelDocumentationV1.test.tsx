@@ -18,6 +18,7 @@ import { resolveRegisteredModelLaunchCheckpointV1 } from "@/studio/registry/Regi
 import { resolveSavedModelDocumentIndexV1 } from "@/studio/presentation/modelDocumentation/SavedModelDocumentCatalogV1";
 import { fittedBaselineEquationDataV1, fittedBaselineSettingsV1 } from "@/tools/modelDocumentation/authoring/FittedBaselineDocumentCompositionV1";
 import { MAIN_WIRE_FITTING_SEED_V1 } from "@/analysis/registry/MainWireFittingSeedV1";
+import hfref from "@/studio/presentation/modelDocumentation/packages/hfref-static-case-document-v4.index.json";
 
 function renderRoute(modelId: string, surfaceReleaseId: string, locale: "ja" | "en" = "ja") {
   return new Promise<string>((resolve, reject) => {
@@ -34,6 +35,12 @@ function renderRoute(modelId: string, surfaceReleaseId: string, locale: "ja" | "
 }
 
 describe("current and historical model documentation", () => {
+  it("requires explicit case selection instead of substituting HFrEF for the static model baseline", () => {
+    const { modelId, surfaceReleaseId } = hfref.identity;
+    expect(resolveSavedModelDocumentIndexV1(modelId, surfaceReleaseId)).toBeNull();
+    expect(resolveSavedModelDocumentIndexV1(modelId, surfaceReleaseId, hfref.documentId)?.contentSha256).toBe(hfref.contentSha256);
+    expect(resolveSavedModelDocumentIndexV1(client.manifest.modelId, surface.surfaceReleaseId, hfref.documentId)).toBeNull();
+  });
   it("resolves the exact current model/Surface pair through a compact document index", () => {
     expect(resolveRegisteredModelDocumentationV1(client.manifest.modelId, surface.surfaceReleaseId)).toEqual({
       kind: "saved-model-document", modelId: client.manifest.modelId,
@@ -81,7 +88,7 @@ describe("current and historical model documentation", () => {
     expect(saved.views.en.records[1].label).toContain("inherited");
     expect(historical.identity.releaseStatus).toBe("local-candidate-not-registered");
     expect(resolveRegisteredModelLaunchCheckpointV1(historical.identity.modelId, historical.scientificRecord.measurements.fixtureIdentity)).toBeUndefined();
-    expect(REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1.map(o => o.label)).toEqual(["Standard 72", "Standard 71"]);
+    expect(REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1.map(o => o.label)).toEqual(["Standard 72", "Standard 71", "HFrEF · 慢性左室拡大型"]);
   });
 
   it.each(["ja", "en"] as const)("renders current and historical documents in %s without substituting identities", async locale => {

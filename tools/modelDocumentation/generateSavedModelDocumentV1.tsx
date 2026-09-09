@@ -16,6 +16,9 @@ import { MAIN_WIRE_EQUATION_SPECIFICATION_V1 } from "@/studio/presentation/model
 import { savedDocumentOfflineHtmlV1, type SavedModelDocumentV1 } from "@/studio/presentation/modelDocumentation/SavedModelDocumentV1";
 import { composeFittedBaselineDocumentV1 } from "./authoring/FittedBaselineDocumentCompositionV1";
 import { readBoundFittingQualificationV1 } from "../modelBaselines/ReadBoundFittingQualificationV1";
+import { composeStaticCaseDocumentV1, type StaticCaseDocumentContentV1 } from "./authoring/StaticCaseDocumentCompositionV1";
+import { StaticCaseDocumentV1 } from "./authoring/StaticCaseDocumentV1";
+import type { MainWireDocumentContentV1 } from "./authoring/MainWireDocumentV1";
 
 // Explicit document compiler. Never invoked by a reader, npm build, or model
 // activation. This freezes existing explanations; it neither simulates nor votes.
@@ -23,18 +26,22 @@ const compositions = { "standard72-document-v1": STANDARD72_DOCUMENT_COMPOSITION
 const requested = process.argv.find(arg => arg in compositions);
 const arg = (key: string) => { const index = process.argv.indexOf(key); return index < 0 ? undefined : process.argv[index + 1]; };
 const casePath = arg("--case"), qualificationPath = arg("--qualification"), fittedId = arg("--document-id");
+const staticEvidencePath = arg("--static-case-evidence"), staticBundlePath = arg("--bundle");
 if (process.argv.includes("--help")) {
-  console.log("Pass a registered document ID, or --case CASE_JSON --qualification FINAL_JSON --document-id NEW_DOCUMENT_ID [--output-dir NEW_DIRECTORY]. Generates a self-contained document; never changes the selected baseline or an existing archive.");
+  console.log("Pass a registered document ID, --case CASE_JSON --qualification FINAL_JSON, or --static-case-evidence EVIDENCE_JSON --bundle BUNDLE_JSON; custom compositions require --document-id NEW_ID [--output-dir NEW_DIRECTORY]. Never changes a selected case or existing archive.");
   process.exit(0);
 }
-if (!requested && !(casePath && qualificationPath && fittedId)) throw new Error("Require a composition ID or --case, --qualification and --document-id");
-if (requested && casePath) throw new Error("Choose a fixed composition or a fitted case, not both");
+if (!requested && !(casePath && qualificationPath && fittedId) && !(staticEvidencePath && staticBundlePath && fittedId)) throw new Error("Require a complete document composition");
+if ([!!requested, !!casePath, !!staticEvidencePath].filter(Boolean).length !== 1) throw new Error("Choose one composition");
 const source = qualificationPath ? await readBoundFittingQualificationV1(qualificationPath) : null;
 const caseJson = casePath ? JSON.parse(await readFile(casePath, "utf8")) : null;
 if (source && caseJson.evidence.executionSourceSha256 !== source.executionSourceSha256) throw new Error("Case and qualification execution source differ");
-const composition = casePath ? await composeFittedBaselineDocumentV1({
+const staticComposition = staticEvidencePath ? await composeStaticCaseDocumentV1({
+  evidencePath: staticEvidencePath, bundlePath: staticBundlePath!, documentId: fittedId!,
+}) : null;
+const composition = staticComposition ?? (casePath ? await composeFittedBaselineDocumentV1({
   preparedCase: caseJson, qualification: source!.qualification, documentId: fittedId!,
-}) : compositions[requested as keyof typeof compositions];
+}) : compositions[requested as keyof typeof compositions]);
 const { documentId, measurements, content } = composition;
 const { equations, moduleIds } = content;
 const target = path.join(arg("--output-dir") ?? "studio/presentation/modelDocumentation/packages", `${documentId}.json`);
@@ -48,6 +55,7 @@ const files = [
   "tools/modelDocumentation/generateSavedModelDocumentV1.tsx",
   "tools/modelDocumentation/authoring/MainWireDocumentV1.tsx",
   "tools/modelDocumentation/authoring/MainWireEquationDetailsV1.tsx",
+  "tools/modelDocumentation/authoring/MainWireModuleExplanationsV1.tsx",
   "tools/modelDocumentation/authoring/Standard72DocumentCompositionV1.ts",
   "components/model/ModelMathV1.tsx",
   "studio/presentation/modelDocumentation/MainWireModelModulesV1.ts",
@@ -66,6 +74,19 @@ const files = [
     "studio/presentation/modelDocumentation/packages/standard72-document-v1.json",
     "tools/modelDocumentation/authoring/FittedBaselineDocumentCompositionV1.ts",
     "tools/modelBaselines/ReadBoundFittingQualificationV1.ts"] : []),
+  ...(staticComposition ? [...staticComposition.sourceFiles,
+    "tools/modelDocumentation/authoring/StaticCaseDocumentCompositionV1.ts",
+    "tools/modelDocumentation/authoring/StaticCaseDocumentV1.tsx",
+    "tools/modelDocumentation/authoring/HfrefCaseDocumentTextV1.ts",
+    "tools/modelDocumentation/authoring/FittedBaselineDocumentCompositionV1.ts",
+    "data/physiology/main-wire-hfref-dilated-reference-v1.json",
+    "data/physiology/main-wire-hfref-reference-v1.json",
+    "analysis/policies/mainWire/MainWireHfrefDilatedReferenceV1.ts",
+    "analysis/methods/mainWire/MainWireRelaxationTauV1.ts",
+    "engine/myocardium/mechanics/MainWireStaticCaseAnatomyV1.ts",
+    "engine/myocardium/experiments/MainWireIntegratedModelStaticCaseFixtureV1.ts",
+    "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1.ts",
+  ] : []),
 ];
 const browser = await chromium.launch({ headless: true });
 const classes = new Set<string>(["my-5", "text-sm", "mx-auto", "max-w-4xl", "px-5", "py-8", "text-xs"]);
@@ -75,7 +96,9 @@ try {
   for (const locale of ["ja", "en"] as const) {
     const rendered = [];
     for (const recordIndex of [0, 1] as const) {
-      const html = renderToStaticMarkup(<MemoryRouter><MainWireDocumentV1 document={content} locale={locale} recordIndex={recordIndex} /></MemoryRouter>);
+      const html = renderToStaticMarkup(<MemoryRouter>{staticComposition
+        ? <StaticCaseDocumentV1 document={content as StaticCaseDocumentContentV1} locale={locale} recordIndex={recordIndex} />
+        : <MainWireDocumentV1 document={content as MainWireDocumentContentV1} locale={locale} recordIndex={recordIndex} />}</MemoryRouter>);
       await page.setContent(html);
       const projection = await page.evaluate(() => {
         if (document.querySelector("script,iframe,object,embed,base,form,details details,.katex-error")) throw new Error("Invalid compiled document structure");
