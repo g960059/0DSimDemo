@@ -3,6 +3,9 @@ import { createHfrefRemodelingResearchFixtureV1 as fixture } from "@/tools/scien
 import { MAIN_WIRE_FITTING_SEED_V1 as seed } from "@/analysis/registry/MainWireFittingSeedV1";
 import { createMainWireIntegratedModelStandard71FixtureV1 as baseFixture } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
 import { evaluateMainWireCommonPericardiumBindingV1 as evaluateBag } from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
+import { createHfrefPassiveConstructionV1 as passive,
+  observeHfrefPassivePointV1 as observePassive,
+  matchHfrefPassivePressureV1 as matchPressure } from "@/tools/scientific/runHfrefPassiveAuditV1";
 
 describe("research remodeling construction (not a qualified preset/domain)", () => {
   it("reproduces the unchanged baseline cold construction through the shared assembly", async () => {
@@ -43,5 +46,53 @@ describe("research remodeling construction (not a qualified preset/domain)", () 
   it("does not admit an untested continuous geometry domain", async () => {
     await expect(fixture({ active: .35, referenceArea: 1.3, wallVolume: 1.25 })).rejects.toThrow(/preregistered/);
     await expect(fixture({ active: .35, referenceArea: 1.15, wallVolume: NaN })).rejects.toThrow(/preregistered/);
+  });
+
+  it("changes only the two requested hemodynamic inputs under a distinct research identity", async () => {
+    const point = { active: .35, referenceArea: 1.15, wallVolume: 1.25 };
+    const original = await fixture(point);
+    const explicitControl = await fixture(point, { totalBloodVolumeMl: 4935, systemicResistance: 1.04 });
+    const changed = await fixture(point, { totalBloodVolumeMl: 5035, systemicResistance: 1.12 });
+    expect(explicitControl.candidate).toEqual(original.candidate);
+    expect(explicitControl.protocol).not.toBe(original.protocol);
+    expect(explicitControl.constructionSha256).not.toBe(original.constructionSha256);
+    expect(changed.candidate).toEqual({ ...original.candidate, hemodynamicResearchInputs: {
+      ...original.candidate.hemodynamicResearchInputs, totalBloodVolumeMl: 5035, systemicResistance: 1.12 } });
+    expect(changed.construction.trisegWalls).toEqual(original.construction.trisegWalls);
+    expect(changed.fixture.pericardium.parameters).toEqual(original.fixture.pericardium.parameters);
+    expect(changed.fixture.pericardium.wallMaterialVolumesM3).toEqual(original.fixture.pericardium.wallMaterialVolumesM3);
+    expect(changed.fixture.coronaryStepInput.coronaryPrior).toBe(original.fixture.coronaryStepInput.coronaryPrior);
+    await expect(fixture(point, { totalBloodVolumeMl: 5035, systemicResistance: 1.26 })).rejects.toThrow(/systemicResistance/);
+    await expect(fixture(point, { totalBloodVolumeMl: NaN, systemicResistance: 1.12 })).rejects.toThrow(/totalBloodVolume/);
+    await expect(fixture(point, { totalBloodVolumeMl: 5035, systemicResistance: 1.12, venousTone: .5 } as never)).rejects.toThrow(/exactly/);
+  });
+
+  it("isolates the relaxed passive ventricular law without replacing the source candidate", async () => {
+    const a = await passive({ active: .35, referenceArea: 1.15, wallVolume: 1.25 });
+    const b = await passive({ active: 1, referenceArea: 1.15, wallVolume: 1.25 });
+    const original = await fixture({ active: .35, referenceArea: 1.15, wallVolume: 1.25 });
+    const pa = observePassive(a, 200, 140), pb = observePassive(b, 200, 140);
+    expect(a.candidate).toEqual(original.candidate);
+    expect(a.construction).toEqual(original.construction);
+    expect(a.fixture.provider.parameterIdentityHash).not.toBe(original.fixture.provider.parameterIdentityHash);
+    expect(pa.maximumActivePa).toBe(0); expect(pa.maximumSlsPa).toBe(0);
+    expect(pa.pressuresMmHg).toEqual(pb.pressuresMmHg);
+    expect(pa.passiveParameterHashes).toEqual(pb.passiveParameterHashes);
+    expect(pa.residualNorm).toBeLessThan(1e-8);
+    expect(pa.internalMinimumEigenvalue).toBeGreaterThan(0);
+    expect(pa.formalDynamicEdpvrClaimed).toBe(false);
+  });
+
+  it("matches transmural pressure at fixed RV volume and keeps bag pressure separate", async () => {
+    const base = await passive({ active: .35, referenceArea: 1, wallVolume: 1 });
+    const enlarged = await passive({ active: .35, referenceArea: 1.15, wallVolume: 1.25 });
+    const a = matchPressure(base, 140, 10, 140, 160), b = matchPressure(enlarged, 140, 10, 180, 190);
+    expect(Math.abs(a.pressuresMmHg.LV - 10)).toBeLessThan(1e-7);
+    expect(Math.abs(b.pressuresMmHg.LV - 10)).toBeLessThan(1e-7);
+    expect(b.volumes.LV).toBeGreaterThan(a.volumes.LV);
+    expect(b.volumes.RV).toBe(a.volumes.RV);
+    expect(b.pressuresMmHg.RV).not.toBe(a.pressuresMmHg.RV); // not pressure-matched RV
+    expect(b.cavityPressureWithoutPleuralOffsetMmHg.LV).toBeCloseTo(b.pressuresMmHg.LV + b.pericardium.excessPressureMmHg, 12);
+    expect(() => matchPressure(base, 140, 10, 200, 220)).toThrow(/not bracketed/);
   });
 });

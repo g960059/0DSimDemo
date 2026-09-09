@@ -31,11 +31,14 @@ import { runFittingJsonWorkersV1, readFittingWorkerStdinV1 } from "./runFittingJ
 import { beginFittingSourceSnapshotV1 } from "./FittingSourceSnapshotV1";
 import { evaluateTriSegGeometryV1 } from "@/engine/myocardium/mechanics/energyConjugateTriSegV1";
 import { evaluateMainWireCommonPericardiumBindingV1 as evaluatePericardium } from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
+import { validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3 as ownHemodynamics } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 
 // Research-only static geometry: no growth law, public parameter, exact-model
 // identity, clinical threshold or checkpoint interchange is introduced here.
 type Point = Readonly<{ active: number; referenceArea: number; wallVolume: number }>;
+type HemodynamicCondition = Readonly<{ totalBloodVolumeMl: number; systemicResistance: number }>;
 const protocol = "hfref-static-lv-septal-remodeling-fixed-coronary-bed-v2";
+const fitProtocol = "hfref-static-lv-septal-remodeling-fixed-geometry-hemodynamics-v1";
 const options = { period1NormalizedTolerance: policy.period1NormalizedTolerance,
   period2NormalizedTolerance: policy.period2NormalizedTolerance,
   period2MinimumPeriod1NormalizedDelta: policy.period2MinimumPeriod1NormalizedDelta,
@@ -47,14 +50,21 @@ function validatePoint(point: Point) {
     || ![1, 1.25].includes(point.wallVolume)) throw new Error("Point is outside the preregistered factorial");
 }
 
-export async function createHfrefRemodelingResearchFixtureV1(point: Point) {
+export async function createHfrefRemodelingResearchFixtureV1(point: Point, condition?: HemodynamicCondition) {
   validatePoint(point);
+  if (condition !== undefined && (condition === null || typeof condition !== "object"
+    || Object.keys(condition).sort().join() !== "systemicResistance,totalBloodVolumeMl")) {
+    throw new Error("Research hemodynamic condition must contain exactly TBV and systemic resistance");
+  }
+  const constructionProtocol = condition === undefined ? protocol : fitProtocol;
   const source = seed.candidateInputs, m = source.mechanismResearchInputs;
   const mechanism = { ...m, chamberMechanics: { ...m.chamberMechanics,
     activeTensionScaleByWall: { ...m.chamberMechanics.activeTensionScaleByWall, LVFW: point.active, SEP: point.active } } };
-  const candidate = { ...source, mechanismResearchInputs: mechanism };
+  const candidate = { ...source, mechanismResearchInputs: mechanism,
+    hemodynamicResearchInputs: condition === undefined ? source.hemodynamicResearchInputs
+      : ownHemodynamics({ ...source.hemodynamicResearchInputs, ...condition }) };
   const base = baseFixture(candidate.hemodynamicResearchInputs, candidate.ventricularContractilityScale, mechanism);
-  const constructionSha256 = await sha256CanonicalJsonHex({ protocol, point, candidate });
+  const constructionSha256 = await sha256CanonicalJsonHex({ protocol: constructionProtocol, point, candidate });
   const prepared = prepare(candidate.hemodynamicResearchInputs, candidate.ventricularContractilityScale, mechanism);
   const geometry = prior.anatomy.triSeg, walls = geometry.wallGeometryParameters;
   const resize = (id: "LVFW" | "SEP") => ({ ...walls[id],
@@ -64,7 +74,7 @@ export async function createHfrefRemodelingResearchFixtureV1(point: Point) {
     referenceCavityBloodVolumeM3: prior.anatomy.atria[id].inverseUnloadedReferenceCavityVolumeMl * 1e-6 });
   const trisegWalls = { ...walls, LVFW: resize("LVFW"), SEP: resize("SEP") };
   const pericardium = point.wallVolume === 1 ? base.pericardium : Object.freeze({ ...base.pericardium,
-    parameterSetId: `${protocol}-${constructionSha256}-actual-wall-occupancy`,
+    parameterSetId: `${constructionProtocol}-${constructionSha256}-actual-wall-occupancy`,
     wallMaterialVolumesM3: Object.freeze([atrium("LA").wallMaterialVolumeM3,
       trisegWalls.LVFW.wallMaterialVolumeM3, trisegWalls.SEP.wallMaterialVolumeM3,
       trisegWalls.RVFW.wallMaterialVolumeM3, atrium("RA").wallMaterialVolumeM3] as const) });
@@ -74,16 +84,18 @@ export async function createHfrefRemodelingResearchFixtureV1(point: Point) {
     coronary: { interpretation: "fixed-baseline-reference-bed-and-flow-demand-NOT-current-anatomical-mass",
       referenceBedWallMassG: base.coronaryStepInput.coronaryPrior.construction.perfusedMyocardialMass.wallMassG,
       perGramPerfusionQualified: false, coronaryRemodelingClaimed: false } };
+  const providerParameters = {
+    parameterSetId: `${constructionProtocol}-${constructionSha256}`,
+    materialByWall: kernels(prepared.chamberMechanics, material, coldIterations),
+    atria: { LA: atrium("LA"), RA: atrium("RA") }, trisegWalls,
+    initialTriSegCoordinates: geometry.loadedCoordinates,
+    internalCoordinateScales: { septalMidwallCapVolumeM3: Math.abs(geometry.loadedCoordinates.septalMidwallCapVolumeM3),
+      junctionRadiusM: geometry.loadedCoordinates.junctionRadiusM },
+    fingerprintMaterialStateCanonicalV1: fingerprint,
+  };
   const fixture = assemble(prepared, {
     createProvider: () => point.referenceArea === 1 && point.wallVolume === 1 ? base.provider
-      : provider({ parameterSetId: `${protocol}-${constructionSha256}`,
-      materialByWall: kernels(prepared.chamberMechanics, material, coldIterations),
-      atria: { LA: atrium("LA"), RA: atrium("RA") },
-      trisegWalls,
-      initialTriSegCoordinates: geometry.loadedCoordinates,
-      internalCoordinateScales: { septalMidwallCapVolumeM3: Math.abs(geometry.loadedCoordinates.septalMidwallCapVolumeM3),
-        junctionRadiusM: geometry.loadedCoordinates.junctionRadiusM },
-      fingerprintMaterialStateCanonicalV1: fingerprint }),
+      : provider(providerParameters),
     createVascularRuntime: () => base.runtime.vascular,
     createCalciumDriveParams: () => base.coronaryStepInput.calciumDriveParams,
     createRhythm: () => base.rhythm,
@@ -99,7 +111,7 @@ export async function createHfrefRemodelingResearchFixtureV1(point: Point) {
     && !isDeepStrictEqual(fixture.cold.acceptedState, base.cold.acceptedState)) {
     throw new Error("Research assembly does not reproduce the unmodified production cold control");
   }
-  return { fixture, candidate, constructionSha256, construction };
+  return { fixture, candidate, constructionSha256, construction, providerParameters, protocol: constructionProtocol };
 }
 
 class ResearchSession extends BaseSession {
@@ -110,10 +122,12 @@ class ResearchSession extends BaseSession {
   }
 }
 
-async function run(point: Point, dt: .002 | .001) {
+export async function runHfrefRemodelingConditionV1(point: Point, dt: .002 | .001, condition?: HemodynamicCondition) {
   const started = performance.now(); let phase = "construction";
+  const runProtocol = condition === undefined ? protocol : fitProtocol;
   try {
-    const { fixture, candidate, constructionSha256, construction } = await createHfrefRemodelingResearchFixtureV1(point);
+    if (![.002, .001].includes(dt)) throw new Error("Unsupported time step");
+    const { fixture, candidate, constructionSha256, construction } = await createHfrefRemodelingResearchFixtureV1(point, condition);
     const session = new ResearchSession(fixture), initial = session.currentAcceptedState();
     const boundaries = [initial], observations: Cycle[] = [];
     const cycleEvidence = [];
@@ -173,7 +187,7 @@ async function run(point: Point, dt: .002 | .001) {
     const observation = context.observation;
     const tau = observation ? measureTau(timing.timingAndInletTrace ?? terminalTrace, observation.left.events) : null;
     const morphology = observation ? measure({ completedBeat, terminalTrace, ...timing, timingAndInletObserver: timingObserver }) : null;
-    return { protocol, point, dt, status: "observed" as const, constructionSha256, construction, candidate, cycles, classification,
+    return { protocol: runProtocol, point, dt, status: "observed" as const, constructionSha256, construction, candidate, cycles, classification,
       mechanicsTrace, auditClosure, auditClassification,
       cycleEvidence, terminalPeriodicObservations: observations, wallTimeMs: performance.now() - started,
       values: { ...raw.values, etMs: completedBeat.valveForwardPressureGradients.AoV.forwardFlowDurationSec * 1000,
@@ -185,7 +199,7 @@ async function run(point: Point, dt: .002 | .001) {
       context, tau, morphology, completedBeat, terminalTrace, ...timing,
       acceptedStateResearchOnly: acceptedState, publicCheckpointExported: false, presetQualified: false };
   } catch (error) {
-    return { protocol, point, dt, status: "unresolved" as const, phase, message: error instanceof Error ? error.message : String(error),
+    return { protocol: runProtocol, point, dt, status: "unresolved" as const, phase, message: error instanceof Error ? error.message : String(error),
       wallTimeMs: performance.now() - started, presetQualified: false };
   }
 }
@@ -197,7 +211,7 @@ async function main() {
   if (values.worker) {
     const task = await readFittingWorkerStdinV1() as { point: Point; dt: .002 | .001 };
     if (![.002, .001].includes(task.dt)) throw new Error("Unsupported time step");
-    process.stdout.write(JSON.stringify(await run(task.point, task.dt)) + "\n"); return;
+    process.stdout.write(JSON.stringify(await runHfrefRemodelingConditionV1(task.point, task.dt)) + "\n"); return;
   }
   const workers = Number(values.workers ?? 4), dt = Number(values.dt ?? .002);
   if (!values.output || ![.002, .001].includes(dt) || !Number.isInteger(workers) || workers < 1 || workers > 8) {
@@ -213,7 +227,7 @@ async function main() {
     unchanged: ["RVFW and atrial geometry/material", "Ca source and kinetics", "passive material coefficients", "TBV", "vascular parameters", "valves", "Pericardial capacity/stiffness/fluid volume", "Baseline reference coronary bed and demand"],
     limits: ["Actual tissue volume included in pericardial occupancy", "Coronary reference-bed mass is NOT current anatomical mass; per-gram perfusion and remodeled coronary adequacy unqualified", "Shared septum couples RV", "Reference area changes both passive and active length dependence", "No AMI/regional ischemia/growth process", "No gate or model promotion"] }, null, 2) + "\n", { flag: "wx" });
   process.stderr.write(`Remodeling factorial: ${points.length} independent cold cases, ${workers} workers.\n`);
-  const results = await runFittingJsonWorkersV1<Awaited<ReturnType<typeof run>>>({ scriptPath: fileURLToPath(import.meta.url), concurrency: workers,
+  const results = await runFittingJsonWorkersV1<Awaited<ReturnType<typeof runHfrefRemodelingConditionV1>>>({ scriptPath: fileURLToPath(import.meta.url), concurrency: workers,
     jobs: points.map(point => ({ args: ["--worker"], input: canonicalJsonStringify({ point, dt }) })) });
   for (let i = 0; i < results.length; i++) {
     const result = results[i]!;
