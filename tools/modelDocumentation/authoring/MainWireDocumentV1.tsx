@@ -11,6 +11,7 @@ import { baselineDocumentationGroupV1 } from "@/studio/presentation/modelDocumen
 import { resolveStudioItemPresentationV1 } from "@/studio/presentation/StudioItemPresentationCatalogV1";
 import { MainWireDetailedCircuitV1, MainWireAssemblyAndInitialStateV1, type MainWireEquationDataV1 } from "./MainWireEquationDetailsV1";
 import { ModelEquationV1 as Equation, ModelMathLabelV1 as MathLabel } from "@/components/model/ModelMathV1";
+import { MainWireReadingSettingsV1 } from "./MainWireReadingV1";
 
 const text = (locale: Locale, ja: string, en: string) => locale === "ja" ? ja : en;
 const paragraph = "text-sm leading-7 text-wb-muted";
@@ -126,7 +127,7 @@ export type MainWireDocumentContentV1 = MainWireBaselineSnapshotV1 & {
 };
 
 /** Mint-time authoring only. The reader never imports this template. */
-export function MainWireDocumentV1({ document: doc, locale, recordIndex = 0 }: { document: MainWireDocumentContentV1; locale: Locale; recordIndex?: 0 | 1 }) {
+export function MainWireDocumentV1({ document: doc, locale, recordIndex = 0, reading = false }: { document: MainWireDocumentContentV1; locale: Locale; recordIndex?: 0 | 1; reading?: boolean }) {
 const reserveRules = doc.admission.reserve.responses[0];
 const reserveFloor = (field: string) => {
   const rule = [...reserveRules.margins, ...reserveRules.ratioMargins].find(r => r.field === field);
@@ -134,7 +135,7 @@ const reserveFloor = (field: string) => {
   return rule.floor;
 };
 
-  const root = React.useRef<HTMLElement>(null);
+  const root = React.useRef<HTMLElement | null>(null);
   const grid = recordIndex;
   const o = doc.observations[grid];
   const rows = mainWireBaselineRowsV1(doc, grid, locale);
@@ -149,8 +150,10 @@ const reserveFloor = (field: string) => {
     ["record", text(locale, "変更履歴・再現情報", "History and reproducibility")],
   ];
   const expand = (open: boolean) => root.current?.querySelectorAll("details").forEach(d => { d.open = open; });
-  return <div className="h-full overflow-y-auto bg-wb-app text-wb-text" data-testid="model-documentation-v2">
-    <main ref={root} className="mx-auto max-w-4xl space-y-10 px-5 py-8 sm:px-10 sm:py-12">
+  const Body = reading ? "div" : "main";
+  return <div className={reading ? "" : "h-full overflow-y-auto bg-wb-app text-wb-text"} data-testid="model-documentation-v2">
+    <Body ref={node => { root.current = node; }} className={reading ? "space-y-10" : "mx-auto max-w-4xl space-y-10 px-5 py-8 sm:px-10 sm:py-12"}>
+      {!reading && <>
       <header>
         <Link to={homeHref(locale)} className={`inline-flex items-center gap-2 text-sm text-wb-muted ${focus}`}><ArrowLeft className="h-4 w-4" />{text(locale, "ホーム", "Home")}</Link>
         <p className="mt-7 text-xs uppercase tracking-widest text-wb-subtle">Model documentation</p>
@@ -193,8 +196,9 @@ const reserveFloor = (field: string) => {
           </Detail>
         </div>
       </section>
+      </>}
       <section id="settings" className={section}>
-        <h2 className="mb-4 text-xl font-semibold">{headings[2][1]}</h2>
+        <h2 className="mb-4 text-xl font-semibold">{reading ? text(locale, "設定", "Settings") : headings[2][1]}</h2>
         <p className={paragraph}>{text(locale, "安静・洞調律・補助循環なしの基準作動点です。体格と心拍数は下に示す値で、年齢・性別は特定していません。症例presetや患者デモにこのbaselineの評価範囲をそのまま強制するものではありません。", "A resting, sinus, unassisted operating point at the body size and heart rate shown below, without an assigned age or sex. Its baseline intervals are not automatically imposed on disease presets or patient demos.")}</p>
         <dl className="my-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-wb-line bg-wb-line sm:grid-cols-4">
           {[["HR", `${hemo.heartRateBpm} bpm`], ["TBV", `${hemo.totalBloodVolumeMl} mL`], ["BSA", `${o.rest.comparison.subject.bodySurfaceAreaM2} m²`], [text(locale, "収縮力倍率", "Contractility"), commonActive]].map(([k,v]) => <div key={k} className="bg-wb-panel p-4"><dt className="text-xs text-wb-subtle">{k}</dt><dd className="mt-2 font-medium tabular-nums">{v}</dd></div>)}
@@ -214,6 +218,7 @@ const reserveFloor = (field: string) => {
           <p className="mt-4 text-xs leading-6 text-wb-muted">{text(locale, "心室Caイベント源の採用値（全心室壁共通）：", "Adopted ventricular event-source values (shared by ventricular walls): ")}
             τr = {number(doc.calcium.LVFW.tauRiseSec, "s")} ms, τd = {number(doc.calcium.LVFW.tauDecaySec, "s")} ms, Ca₀ = {doc.calcium.LVFW.calciumRestUM} µM, g = {doc.calcium.LVFW.calciumGainUMPerUnitDrive} µM.</p>
         </Detail>
+        {reading && <MainWireReadingSettingsV1 document={doc} locale={locale} />}
       </section>
       <section id="baseline" className={section}>
         <h2 className="mb-4 text-xl font-semibold">{headings[3][1]}</h2>
@@ -275,7 +280,7 @@ const reserveFloor = (field: string) => {
         </Detail>
       </section>
       <section id="record" className={section}>
-        <h2 className="mb-4 text-xl font-semibold">{headings[4][1]}</h2>
+        <h2 className="mb-4 text-xl font-semibold">{reading ? text(locale, "根拠・再現情報", "Evidence and reproducibility") : headings[4][1]}</h2>
         <Detail title={text(locale, "この版で変わったこと", "Changes in this version")}>
           <p className={paragraph}>{doc.copy.changes[locale]}</p>
         </Detail>
@@ -289,6 +294,6 @@ const reserveFloor = (field: string) => {
           <a href="#document-archive" data-document-action="archive" className="mt-3 block text-sm text-wb-accent underline">{text(locale, "この説明を保存（オフラインHTML）", "Save this explanation (offline HTML)")}</a>
         </Detail>
       </section>
-    </main>
+    </Body>
   </div>;
 }

@@ -46,7 +46,7 @@ export function WorkbenchModelLabPage() {
       </details>}
       {hfrefResearch && !import.meta.env.PROD && <a target="_blank" rel="noreferrer"
         className="text-wb-accent underline underline-offset-2"
-        href={modelDocumentationHref({ locale: ja ? "ja" : "en", ...hfrefDocument.identity, documentId: hfrefDocument.documentId })}>
+        href={modelDocumentationHref({ locale: ja ? "ja" : "en", ...hfrefDocument.identity, documentId: hfrefDocument.documentId, view: "presets" })}>
         {ja ? "症例の説明・検証" : "Case explanation and evidence"}
       </a>}
       {!hfrefResearch && <label className="cursor-pointer underline underline-offset-2">

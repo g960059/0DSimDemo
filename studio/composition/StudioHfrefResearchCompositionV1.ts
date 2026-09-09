@@ -34,5 +34,5 @@ export async function loadStudioHfrefResearchCompositionV1(): Promise<StudioClie
     stage: "dev", analysis: resolveRegisteredAnalysisMethodsV1(bundle.surface) });
   return Object.freeze({ exactModel: Object.freeze({ modelId, stage: "dev", defaultFixture: baseline.capture.fixture,
     defaultCheckpoint: baseline.capture.checkpoint, fixtureProjection: mainWireIntegratedStudioFixtureProjectionV3,
-    workerReleaseTicket: ticket }), modelSurface, presets: Object.freeze(presets) });
+    workerReleaseTicket: ticket }), modelSurface, presets: Object.freeze([baseline, ...presets]) });
 }

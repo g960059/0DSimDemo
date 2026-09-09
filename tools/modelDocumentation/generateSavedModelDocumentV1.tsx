@@ -19,6 +19,7 @@ import { readBoundFittingQualificationV1 } from "../modelBaselines/ReadBoundFitt
 import { composeStaticCaseDocumentV1, type StaticCaseDocumentContentV1 } from "./authoring/StaticCaseDocumentCompositionV1";
 import { StaticCaseDocumentV1 } from "./authoring/StaticCaseDocumentV1";
 import type { MainWireDocumentContentV1 } from "./authoring/MainWireDocumentV1";
+import { compileModelReadingV1 } from "./compileModelReadingV1";
 
 // Explicit document compiler. Never invoked by a reader, npm build, or model
 // activation. This freezes existing explanations; it neither simulates nor votes.
@@ -28,7 +29,7 @@ const arg = (key: string) => { const index = process.argv.indexOf(key); return i
 const casePath = arg("--case"), qualificationPath = arg("--qualification"), fittedId = arg("--document-id");
 const staticEvidencePath = arg("--static-case-evidence"), staticBundlePath = arg("--bundle");
 if (process.argv.includes("--help")) {
-  console.log("Pass a registered document ID, --case CASE_JSON --qualification FINAL_JSON, or --static-case-evidence EVIDENCE_JSON --bundle BUNDLE_JSON; custom compositions require --document-id NEW_ID [--output-dir NEW_DIRECTORY]. Never changes a selected case or existing archive.");
+  console.log("Pass a registered document ID, --case CASE_JSON --qualification FINAL_JSON, or --static-case-evidence EVIDENCE_JSON --bundle BUNDLE_JSON; custom compositions require --document-id NEW_ID [--output-dir NEW_DIRECTORY]. Add --reading to regenerate the reading projection of an existing archive, or --reading --check to verify it. Never changes a selected case or existing scientific archive.");
   process.exit(0);
 }
 if (!requested && !(casePath && qualificationPath && fittedId) && !(staticEvidencePath && staticBundlePath && fittedId)) throw new Error("Require a complete document composition");
@@ -45,6 +46,11 @@ const composition = staticComposition ?? (casePath ? await composeFittedBaseline
 const { documentId, measurements, content } = composition;
 const { equations, moduleIds } = content;
 const target = path.join(arg("--output-dir") ?? "studio/presentation/modelDocumentation/packages", `${documentId}.json`);
+if (process.argv.includes("--reading")) {
+  await compileModelReadingV1({ sourcePath: target, target: target.replace(/\.json$/, ".reading-v1.json"),
+    check: process.argv.includes("--check"), measurements, content, staticCase: !!staticComposition });
+  process.exit(0);
+}
 const archiveDirectory = `artifacts/model-documentation/releases/${documentId}`;
 if (!process.argv.includes("--check") && (existsSync(target) || existsSync(target.replace(/\.json$/, ".index.json"))
   || existsSync(archiveDirectory))) {

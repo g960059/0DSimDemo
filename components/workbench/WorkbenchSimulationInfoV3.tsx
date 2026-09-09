@@ -1,8 +1,8 @@
 import React from "react";
+import { ModelReferenceLinksV1 } from "@/components/model/ModelReferenceLinksV1";
 import { createPortal } from "react-dom";
 import {
   AlertTriangle,
-  ArrowUpRight,
   Check,
   ChevronDown,
   FileText,
@@ -380,16 +380,11 @@ export function WorkbenchSimulationInfoPanelV3({
                 {current.description}
               </p>
               {current.documentationHref !== undefined && (
-                <a
+                <ModelReferenceLinksV1
                   href={current.documentationHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-md text-xs font-semibold text-wb-accent transition-colors hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-                  data-testid="workbench-model-documentation-link-v3"
-                >
-                  {t("workbench.editor.simulationInfo.modelDocumentation")}
-                  <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-                </a>
+                  label={t("workbench.editor.simulationInfo.modelDocumentation")}
+                  testId="workbench-model-documentation-link-v3"
+                />
               )}
             </section>
 

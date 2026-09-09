@@ -1,6 +1,7 @@
 import React from "react";
+import { ModelReferenceLinksV1 } from "@/components/model/ModelReferenceLinksV1";
 import { createPortal } from "react-dom";
-import { ArrowUpRight, Info, X } from "lucide-react";
+import { Info, X } from "lucide-react";
 
 const FOCUSABLE_SELECTOR = [
   "a[href]",
@@ -148,16 +149,11 @@ export function ModelDisclosureDialogV3({
             ))}
           </ul>
           {documentationHref !== undefined && documentationLabel !== undefined && (
-            <a
+            <ModelReferenceLinksV1
               href={documentationHref}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-5 inline-flex min-h-9 items-center gap-1.5 rounded-md text-xs font-semibold text-wb-accent transition-colors hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-              data-testid="model-disclosure-documentation-link-v3"
-            >
-              {documentationLabel}
-              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
-            </a>
+              label={documentationLabel}
+              testId="model-disclosure-documentation-link-v3"
+            />
           )}
         </div>
 

@@ -10,6 +10,8 @@ export type MainWireEquationDataV1 = typeof archivedDocument.scientificRecord.eq
 import { MAIN_WIRE_EQUATION_SPECIFICATION_V1 } from "@/studio/presentation/modelDocumentation/MainWireEquationSpecificationV1";
 import { ModelMathLabelV1 as MathLabel } from "@/components/model/ModelMathV1";
 
+export const MainWireEquationSpecificationContextV1 = React.createContext(MAIN_WIRE_EQUATION_SPECIFICATION_V1);
+
 const tr = (l: Locale, ja: string, en: string) => l === "ja" ? ja : en;
 const prose = "text-sm leading-7 text-wb-muted";
 const fmt = (x: number) => Number(x.toPrecision(12)).toString();
@@ -50,7 +52,7 @@ function Table({ caption, headings, rows }: { caption: string; headings: readonl
   </div>;
 }
 
-export function MainWireDetailedCircuitV1({ data, locale, Equation }: { data: MainWireEquationDataV1; locale: Locale; Equation: Eq }) {
+export function MainWireDetailedCircuitV1({ data, locale, Equation, settingsHref }: { data: MainWireEquationDataV1; locale: Locale; Equation: Eq; settingsHref?: string }) {
   const routes = [
     { title: tr(locale, "体循環", "Systemic path"), nodes: ["LV", "Ao", "SA", "Art", "Cap", "SV", "VC", "RA"] },
     { title: tr(locale, "肺循環", "Pulmonary path"), nodes: ["RV", "PA", "PArt", "PCap", "PVen", "PVein", "LA"] },
@@ -67,7 +69,7 @@ export function MainWireDetailedCircuitV1({ data, locale, Equation }: { data: Ma
       rows={data.nodes.map(n => [nodeLabel(n.id, locale), n.law === null ? tr(locale, "心筋・形状の釣り合い", "Material / geometry balance") : n.law.kind === "arterial" ? tr(locale, "動脈の指数則", "Exponential arterial") : n.law.kind === "linear" ? tr(locale, "線形容量則", "Linear storage") : tr(locale, "静脈型の非線形容量則", "Nonlinear venous-type"), externalLabel(n.external, locale), ({ LV: "LVP", LA: "LAP", RV: "RVP", RA: "RAP / CVP", Ao: "AoP", SA: "ABP", PA: "PAP" } as Record<string, string>)[n.id] ?? "—"])} />
     <p className={prose}>{tr(locale, "AoP・PAPはAo・PA区画の内圧で、表示の段階でZcQを足しません。ABPはSAの代表圧で、上腕カフ圧の再現ではありません。CVPは平均右房圧、PCWPは平均左房圧を代用する表示であり、肺毛細管楔入の手技は計算していません。PV loopは心室経壁圧を使います。", "AoP/PAP are Ao/PA intravascular pressures, with no display-only ZcQ. ABP is SA pressure, not a simulated brachial cuff. CVP uses mean RA; PCWP uses mean LA as a proxy, without simulating catheter wedging. PV loops use ventricular transmural pressure.")}</p>
     <Equation expression={String.raw`\dot V_i=\sum_j N_{ij}Q_j,\qquad N_{ij}=\begin{cases}+1&j\text{ enters }i\\-1&j\text{ leaves }i\\0&\text{otherwise}\end{cases},\qquad\sum_{i=1}^{31}V_i=TBV`} />
-    <p className={prose}>{tr(locale, "接続行列Nは下の接続表から組み立てられます。どの接続も一方から出た量が他方へ入るため、閉回路全体では血液量が保存されます。心筋体積・心嚢液量はこの合計とは別です。TBVを変更しない限り、圧や拍出量を合わせるための血液の追加・削除は行いません。", "The link tables define incidence matrix N. Each flow leaves one compartment and enters another, conserving total blood. Myocardium and pericardial fluid are excluded. Blood is not added or removed to match pressure or output at fixed TBV.")}</p>
+    <p className={prose}>{settingsHref ? <>{tr(locale, "接続行列Nは、", "Construct incidence matrix N from the link tables in ")}<a href={settingsHref} className="text-wb-accent underline underline-offset-4">{tr(locale, "プリセットの接続表", "preset settings")}</a>{tr(locale, "から組み立てられます。", ". ")}</> : tr(locale, "接続行列Nは下の接続表から組み立てられます。", "The link tables define incidence matrix N. ")}{tr(locale, "どの接続も一方から出た量が他方へ入るため、閉回路全体では血液量が保存されます。心筋体積・心嚢液量はこの合計とは別です。TBVを変更しない限り、圧や拍出量を合わせるための血液の追加・削除は行いません。", "Each flow leaves one compartment and enters another, conserving total blood. Myocardium and pericardial fluid are excluded. Blood is not added or removed to match pressure or output at fixed TBV.")}</p>
   </div>;
 }
 
@@ -100,7 +102,7 @@ const landMeanings: Record<string, readonly [string, string, string]> = {
   gammaS: ["γs：強結合の歪み依存離脱", "γs: strong distortion detachment", "s⁻¹"], gammaW: ["γw：弱結合の歪み依存離脱", "γw: weak distortion detachment", "s⁻¹"], phi: ["φ：歪み緩和倍率", "φ: distortion relaxation scale", "1"],
   Aeff: ["Aeff：速度感受性", "Aeff: velocity sensitivity", "1"], beta0: ["β0：張力の長さ依存", "β0: force-length dependence", "1"], beta1: ["β1：Ca感受性の長さ依存", "β1: affinity-length dependence", "µM"], Tref: ["Tref：張力係数", "Tref: tension scale", "Pa"], temperatureK: ["実験温度（速度の可変係数ではない）", "Source temperature (not a variable kinetic factor)", "K"],
 };
-function ParameterTables({ data, id, locale }: { data: MainWireEquationDataV1; id: string; locale: Locale }) {
+export function MainWireParameterTablesV1({ data, id, locale }: { data: MainWireEquationDataV1; id: string; locale: Locale }) {
   const two = [tr(locale, "記号・意味", "Symbol / meaning"), tr(locale, "採用値", "Adopted value")];
   if (id === "event-calcium-v1") { const p = data.rhythm.ventricularIntervalStrength; return <>
     <Table caption={tr(locale, "Ca源の採用係数", "Adopted calcium source")}
@@ -150,8 +152,8 @@ function ParameterTables({ data, id, locale }: { data: MainWireEquationDataV1; i
   return null;
 }
 
-export function MainWireModuleEquationDetailsV1({ data, id, locale, Equation }: { data: MainWireEquationDataV1; id: string; locale: Locale; Equation: Eq }) {
-  const blocks=MAIN_WIRE_EQUATION_SPECIFICATION_V1[id];
+export function MainWireModuleEquationDetailsV1({ data, id, locale, Equation, includeParameters = true }: { data: MainWireEquationDataV1; id: string; locale: Locale; Equation: Eq; includeParameters?: boolean }) {
+  const blocks=React.useContext(MainWireEquationSpecificationContextV1)[id];
   if(!blocks) return null;
   return <div className="mt-6 border-t border-wb-line pt-1" data-equation-module={id}>
     {id==="five-wall-energy-triseg-v1"&&<TriSegFigure locale={locale}/>}
@@ -161,18 +163,21 @@ export function MainWireModuleEquationDetailsV1({ data, id, locale, Equation }: 
       {b.paragraphs.map((p,i)=><p key={i} className={`mt-3 ${prose}`}>{p[locale]}</p>)}
       {b.equations.map(e=><Equation key={e} expression={e}/>)}
     </section>)}
-    <ParameterTables data={data} id={id} locale={locale}/>
+    {includeParameters && <MainWireParameterTablesV1 data={data} id={id} locale={locale}/>}
   </div>;
 }
 
-export function MainWireAssemblyAndInitialStateV1({ data, locale, Equation }: { data: MainWireEquationDataV1; locale: Locale; Equation: Eq }) {
+export function MainWireAssemblyAndInitialStateV1({ data, locale, Equation, part = "all" }: { data: MainWireEquationDataV1; locale: Locale; Equation: Eq; part?: "all" | "equations" | "initial" }) {
   const s=data.initial;
   return <div data-testid="equation-initial-state">
+    {part !== "initial" && <>
     <p className={prose}>{tr(locale,"独立した血液量は31区画に分布し、その総和をTBVに固定します（独立自由度は30）。各壁にLandの6状態・粘性歪み1状態・Ca源2状態、四弁に開口状態を持ちます。さらに冠循環の6トーンと、拍時刻・Ca入力強度・直前の僧帽弁閉鎖時歪みを引き継ぎます。心腔圧・血管圧・流量・中隔位置・接合円半径は、その時点の連立条件で求める量です。","Blood occupies 31 compartments, constrained by fixed TBV (30 independent volume degrees of freedom). Each wall has six Land states, one viscous strain and two calcium states; four valves have opening states. Six coronary tones and event/load/previous-MVC memories are retained. Pressures, flows and internal geometry follow simultaneous algebraic constraints.")}</p>
     <Equation expression={String.raw`\begin{aligned}V_{n+1}-V_n&=\Delta t\,NQ_{n+1},\\z_{n+1}-z_n&=\Delta t\,f(z_{n+1},Ca_{n+1},\lambda_{n+1},\dot\lambda_{n+1}),\\0&=g(V_{n+1},z_{n+1},P_{n+1},Q_{n+1},v_{S,n+1},y_{n+1}).\end{aligned}`} />
     <p className={`mt-3 ${prose}`}>{tr(locale,"zはLand・粘弾性・開口の状態、fは各節の時間発展式、gは圧–容量関係・流量則・力の釣り合いです。全体を後退Eulerで連立し、Ca源はイベント間の指数解を使います。候補容積→形状・筋長→材料応力→圧→流量→容積収支が同時に整合するまで解きます。血管だけを先に更新して古い心腔圧を使い続ける手順ではありません。","z collects Land/viscous/opening states; f is the documented evolution and g the constitutive, hydraulic and force-balance constraints. The coupled system uses backward Euler, with exact inter-event calcium propagation. Candidate volume, geometry, stress, pressure and flow must satisfy continuity together; vascular updates do not keep stale cavity pressures.")}</p>
     <p className={`mt-3 ${prose}`}>{tr(locale,"通常刻みは2 msです。興奮・Ca入力・制御周期の境界ではステップを分けます。冠トーンは完了周期の流量積分を用いて更新します。状態の非負性・有限性・体積保存・非線形残差を満たさない試行は採用しません。別の数値積分法でも同じ連続モデルを組めますが、有限刻みのピーク・弁イベント・保存されたbaselineとの一致は別途検証が必要です。","Nominal step is 2 ms, split at activation, calcium and control-window boundaries. Coronary tone updates from completed-cycle flow integrals. Invalid populations, nonfinite states, volume imbalance or failed nonlinear solves are not accepted. Another integrator may approximate the same continuous equations, but finite-step peaks/events and saved baseline parity require separate checks.")}</p>
-    <h4 className="mt-6 text-sm font-semibold">{tr(locale,"保存されたbaselineの初期条件","Saved baseline initial conditions")}</h4>
+    </>}
+    {part !== "equations" && <>
+    <h4 className="mt-6 text-sm font-semibold">{tr(locale,"保存された設定の初期条件","Saved setting's initial conditions")}</h4>
     <p className={`mt-3 ${prose}`}>{tr(locale,"以下は起動に使う定常化済み状態です。基準時刻t₀＝","The settled launch state below is at t₀=")}{fmt(s.timeSec)} s。{tr(locale,"時刻を0へ移す場合は、興奮予定・最後の興奮・制御周期の時刻も同じだけ移します。容積だけを移して材料やCaを0にすると、同じ初期条件にはなりません。表示は有効数字12桁で、保存値全桁の表をCSVで取得できます。","If shifting time to zero, shift event and control times equally. Keeping volumes but zeroing material/Ca states is not equivalent. Display uses 12 significant digits; CSV retains full stored precision.")}</p>
     <Table caption={tr(locale,"初期血液量（mL）","Initial blood volume (mL)")} headings={[tr(locale,"区画","Compartment"),"V(t₀)" ]} rows={[...Object.entries(s.volumesMl),...Object.entries(s.coronary.volumeMlByNode)].map(([id,v])=>[nodeLabel(id,locale),v])}/>
     <Table caption={tr(locale,"初期Land状態（全て無次元）","Initial Land states (dimensionless)")} headings={[tr(locale,"壁","Wall"),"c","b","W","S","ζw","ζs"]} rows={wallIds.map(w=>[nodeLabel(w,locale),...s.mechanics.wallStateByWall[w].landState])}/>
@@ -189,5 +194,6 @@ export function MainWireAssemblyAndInitialStateV1({ data, locale, Equation }: { 
     ]}/>
     <p className={prose}>{tr(locale,"この時刻に未処理のCa入力・伝導イベントはありません。次のCa入力時刻は、上の次回心房興奮に12 ms（心房）または132 ms（心室）を加えます。冠制御周期は元の時刻0からT＝60/70 sごとです。初期状態から再計算し、少なくとも複数周期の整合を確認してください。収束の一意性や全症例での安定性まで、この状態表が保証するものではありません。","There are no pending calcium/conduction events at this instant. Next calcium deposits follow the next atrial activation by 12 ms (atria) or 132 ms (ventricles). Coronary windows are T=60/70 s from original time zero. Recompute several cycles to verify consistency; this table does not establish uniqueness or stability in every scenario.")}</p>
     <button data-document-action="csv" className="mt-4 text-sm text-wb-accent underline focus-visible:ring-2 focus-visible:ring-wb-accent">{tr(locale,"採用値・初期条件の表を保存（CSV）","Save parameter and initial-state tables (CSV)")}</button>
+    </>}
   </div>;
 }

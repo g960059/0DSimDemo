@@ -1,5 +1,8 @@
 import React from "react";
 import { registeredCurrentBaselinePresentationV1, mainWireBaselineAssessmentPresentationV1 } from "@/studio/presentation/CurrentBaselinePresentationV1";
+import { REGISTERED_CURRENT_MODEL_BASELINE_V1 } from "@/studio/registry/RegisteredCurrentModelBaselineV1";
+import { workbenchReferencePresetsV1 } from "./WorkbenchReferencePresetsV1";
+import { MODEL_READING_ENTRIES_V1 } from "@/studio/presentation/modelDocumentation/ModelReadingCatalogV1";
 import { preparedBaselineLaunchV1, type PreparedBaselineCaseV1 } from "@/studio/registry/PreparedBaselineCaseV1";
 import { loadStudioHfrefResearchCompositionV1 } from "@/studio/composition/StudioHfrefResearchCompositionV1";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
@@ -1017,25 +1020,19 @@ export const WorkbenchSession = ({
       const baseline = capturedScenarios.scenarios.find(
         ({ scenarioId }) => scenarioId === capturedScenarios.activeScenarioId,
       );
-      setScenarioPresets(
-        baseline === undefined
-          ? []
-          : Object.freeze([
-              Object.freeze({
-                schemaId: STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
-                presetId: "preset/workbench-startup-baseline",
-                modelId: composition.exactModel.modelId,
-                title: translationRef.current(
-                  "workbench.editor.scenarioManager.baselinePresetTitle",
-                ),
-                description: translationRef.current(
-                  "workbench.editor.scenarioManager.baselinePresetDescription",
-                ),
-                capture: baseline.capture,
-              }),
-              ...(composition.presets ?? []),
-            ]),
-      );
+      const registered = REGISTERED_CURRENT_MODEL_BASELINE_V1;
+      setScenarioPresets(workbenchReferencePresetsV1({
+        modelId: composition.exactModel.modelId, startup: baseline?.capture,
+        supplied: composition.presets ?? [],
+        baseline: composition.exactModel.modelId === registered.modelId ? {
+          schemaId: STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID, presetId: registered.baselineId,
+          modelId: registered.modelId, title: "baseline",
+          description: translationRef.current("workbench.editor.scenarioManager.baselinePresetDescription"),
+          capture: { fixture: registered.fixture, checkpoint: registered.checkpoint },
+        } : undefined,
+        loadedLabel: translationRef.current("workbench.editor.scenarioManager.loadedStateTitle"),
+        loadedDescription: translationRef.current("workbench.editor.scenarioManager.loadedStateDescription"),
+      }));
       const initial = initialState.frame;
       const initialFrames = runtimeSeeds.map(({ scenarioId }) =>
         runtime!.latestFrame(scenarioId),
@@ -2976,6 +2973,12 @@ export const WorkbenchSession = ({
         visibleScenarioIds={visibleScenarioIds}
         scenarioBaseColors={surface?.scenarioColorSeeds ?? []}
         presets={scenarioPresets}
+        presetDocumentationLinks={Object.fromEntries(scenarioPresets.flatMap(preset => {
+          const entry = MODEL_READING_ENTRIES_V1.find(e => e.identity.modelId === preset.modelId
+            && e.identity.surfaceReleaseId === surfaceReleaseIdRef.current && e.identity.baselineId === preset.presetId);
+          return entry ? [[preset.presetId, { href: modelDocumentationHref({ locale: resolvedLocale,
+            ...entry.identity, documentId: entry.documentId, view: "presets" }), label: resolvedLocale === "ja" ? "設定と検証" : "Settings & checks" }]] : [];
+        }))}
         actionDisabledReasons={
           scenarioOperation === null
             ? undefined

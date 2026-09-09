@@ -1,3 +1,13 @@
+import { createHash } from "node:crypto";
+import hfrefArchive from "@/studio/presentation/modelDocumentation/packages/hfref-static-case-document-v4.json";
+import reading from "@/studio/presentation/modelDocumentation/packages/standard72-document-v1.reading-v1.json";
+import caseReading from "@/studio/presentation/modelDocumentation/packages/hfref-static-case-document-v4.reading-v1.json";
+import { readingMatchesDocumentV1, savedReadingHtmlV1, type SavedModelReadingV1 } from "@/studio/presentation/modelDocumentation/SavedModelReadingV1";
+import { savedDocumentHtmlV1, type SavedModelDocumentV1 } from "@/studio/presentation/modelDocumentation/SavedModelDocumentV1";
+import { MODEL_READING_ENTRIES_V1, compatibleReadingEntriesV1, currentModelReadingEntryV1, modelReadingPresetLabelV1 } from "@/studio/presentation/modelDocumentation/ModelReadingCatalogV1";
+import { workbenchReferencePresetsV1 } from "@/components/workbench/WorkbenchReferencePresetsV1";
+import { STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID, type ScenarioPresetV2 } from "@/studio/contracts/v2/content";
+import { modelLibraryHref } from "@/homeLinks";
 import React from "react";
 import { renderToPipeableStream } from "react-dom/server";
 import { PassThrough } from "node:stream";
@@ -20,7 +30,7 @@ import { fittedBaselineEquationDataV1, fittedBaselineSettingsV1 } from "@/tools/
 import { MAIN_WIRE_FITTING_SEED_V1 } from "@/analysis/registry/MainWireFittingSeedV1";
 import hfref from "@/studio/presentation/modelDocumentation/packages/hfref-static-case-document-v4.index.json";
 
-function renderRoute(modelId: string, surfaceReleaseId: string, locale: "ja" | "en" = "ja") {
+function renderRoute(modelId: string, surfaceReleaseId: string, locale: "ja" | "en" = "ja", view?: "guide" | "presets") {
   return new Promise<string>((resolve, reject) => {
     const output = new PassThrough();
     let html = "";
@@ -28,7 +38,7 @@ function renderRoute(modelId: string, surfaceReleaseId: string, locale: "ja" | "
     output.on("data", chunk => { html += chunk; });
     output.on("end", () => resolve(html));
     output.on("error", reject);
-    const stream = renderToPipeableStream(<MemoryRouter initialEntries={[modelDocumentationHref({ locale, modelId, surfaceReleaseId })]}>
+    const stream = renderToPipeableStream(<MemoryRouter initialEntries={[modelDocumentationHref({ locale, modelId, surfaceReleaseId, view })]}>
       <Routes><Route path="/:locale/models/:modelId" element={<ModelDocumentationPage />} /></Routes>
     </MemoryRouter>, { onAllReady: () => stream.pipe(output), onError: reject });
   });
@@ -95,13 +105,15 @@ describe("current and historical model documentation", () => {
     for (const document of [saved, historical]) {
       const html = await renderRoute(document.identity.modelId, document.identity.surfaceReleaseId, locale);
       expect(html).toContain(`data-saved-document="${document.documentId}"`);
-      expect(html).toContain(document.identity.title);
-      expect(html).toContain('id="documentation-model-version"');
+      expect(html).toContain(document === saved ? "Standard 72" : document.identity.title);
+      expect(html).not.toContain('id="documentation-model-version"');
       expect(html).toContain("katex-mathml");
       expect(html).toContain('data-testid="equation-initial-state"');
-      expect(html.match(/data-control-id=/g)).toHaveLength(52);
+      expect(html.match(/data-control-id=/g) ?? []).toHaveLength(document === saved ? 0 : 52);
     }
-    const current = await renderRoute(saved.identity.modelId, saved.identity.surfaceReleaseId, locale);
+    const current = await renderRoute(saved.identity.modelId, saved.identity.surfaceReleaseId, locale, "presets");
+    expect(current.match(/data-control-id=/g)).toHaveLength(52);
+    expect(current).not.toContain('data-equation-block=');
     expect(current).toContain(launch.checkpointSha256);
     expect(current).toContain("suga-pva-common-isochrone-owner-with-measured-diastolic-load-display-v13");
     expect(current).toContain(locale === "ja" ? "予測履歴" : "predictor history");
@@ -151,5 +163,69 @@ describe("current and historical model documentation", () => {
     expect(b.effectiveWalls!.find(w => w.wallId === "LVFW")!.trefPa).toBe(a.land.ventricular.values.Tref * 1.1);
     expect(b.effectiveWalls!.find(w => w.wallId === "SEP")!.slsModulusPa).toBe(b.sls.ventricular.branchModulusPa * 1.2);
     expect(saved.scientificRecord.measurements.fixtureIdentity.hemodynamicResearchInputs.heartRateBpm).toBe(70);
+  });
+});
+
+describe("separate model and preset reader, bound to preserved records", () => {
+  it.each([[saved, reading], [hfrefArchive, caseReading]])("retains the scientific archive and complete effective settings", (source, projection) => {
+    const archive = source as SavedModelDocumentV1, view = projection as SavedModelReadingV1;
+    const { contentSha256, ...body } = projection;
+    expect(createHash("sha256").update(JSON.stringify(body)).digest("hex")).toBe(contentSha256);
+    expect(readingMatchesDocumentV1(view, archive)).toBe(true);
+    expect(readingMatchesDocumentV1({ ...view, source: { ...view.source, contentSha256: "wrong" } }, archive)).toBe(false);
+    for (const locale of ["ja", "en"] as const) {
+      const guide = savedReadingHtmlV1(view, locale, "guide");
+      expect(guide).not.toContain("data-reading-parameters");
+      expect(guide).not.toContain('data-stored-number=');
+      expect(guide).not.toContain('id="baseline"');
+      expect(guide).toContain("data-equation-block");
+      const numbers = (html: string) => Array.from(html.matchAll(/data-stored-number="([^"]+)"/g), m => m[1]).sort();
+      for (const [i, record] of view.views[locale].preset.records.entries()) {
+        const html = savedReadingHtmlV1(view, locale, "presets", record.recordId);
+        const priorNumbers = numbers(savedDocumentHtmlV1(archive, locale, i));
+        // Standard72 retained these interval coefficients in JSON but omitted
+        // their HTML table. The new reader exposes those same stored values.
+        if (source.documentId === saved.documentId) {
+          const interval = saved.scientificRecord.equations.rhythm.ventricularIntervalStrength;
+          priorNumbers.push(...[interval.recoveryTimeConstantSec, interval.releaseFractionBeta,
+            interval.releasedLoadReturnFractionR, interval.intervalInfluxInhibitionFractionH,
+            interval.referenceCycleLengthSec, interval.referenceRecoveryFractionA,
+            interval.referenceNormalizedSrLoadState, interval.normalizedIntervalInfluxGamma].map(String));
+        }
+        expect(numbers(html)).toEqual(priorNumbers.sort());
+        expect(html).not.toContain("data-equation-block");
+        expect(html).toContain("data-reading-parameters");
+        expect(html).toContain('id="baseline"');
+        for (const entry of view.views[locale].preset.contents) expect(html).toContain(`id="${entry.id}"`);
+      }
+      expect(() => savedReadingHtmlV1(view, locale, "presets", "missing-record")).toThrow();
+    }
+  });
+  it("groups by exact model and Surface, not disease name or creation-time candidate status", () => {
+    const current = currentModelReadingEntryV1()!;
+    expect(current.identity.modelId).toBe(saved.identity.modelId);
+    expect(current.state).toBe("current");
+    expect(saved.identity.releaseStatus).toBe("local-candidate-not-registered");
+    expect(compatibleReadingEntriesV1(current).map(e => e.presetLabel.ja)).toEqual(["baseline"]);
+    expect(modelReadingPresetLabelV1(current, "ja")).toBe("baseline・プリセット");
+    const disease = MODEL_READING_ENTRIES_V1.find(e => e.documentId === hfrefArchive.documentId)!;
+    expect(disease.state).toBe("research");
+    expect(modelReadingPresetLabelV1(disease, "ja")).toBe("プリセット");
+    expect(compatibleReadingEntriesV1(disease).some(e => e.identity.modelId === current.identity.modelId)).toBe(false);
+    expect(modelLibraryHref("ja")).toBe("/ja/models");
+    expect(modelDocumentationHref({ locale: "en", ...current.identity, documentId: current.documentId, view: "presets" })).toContain("&view=presets");
+  });
+  it("does not relabel a loaded case as the registered baseline", () => {
+    const baseline: ScenarioPresetV2 = { schemaId: STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID, presetId: "baseline/registered", modelId: "model/current", title: "baseline", description: "",
+      capture: { fixture: { tbv: 4935 }, checkpoint: { acceptedRevision: 1, acceptedTimeSec: 0, payload: {} } } };
+    const startup = { ...baseline.capture, fixture: { tbv: 6000 } };
+    const entries = workbenchReferencePresetsV1({ modelId: baseline.modelId, baseline, startup, supplied: [], loadedLabel: "読込時の状態", loadedDescription: "" });
+    expect(entries.map(e => e.title)).toEqual(["baseline", "読込時の状態"]);
+    expect(entries[0].capture).toBe(baseline.capture);
+    expect(entries[1].capture).toBe(startup);
+    expect(workbenchReferencePresetsV1({ modelId: baseline.modelId, baseline, startup: baseline.capture, supplied: [], loadedLabel: "loaded", loadedDescription: "" })).toEqual([baseline]);
+    // A research composition supplies its own explicitly identified baseline,
+    // not the selected production model's baseline or a relabeled loaded state.
+    expect(workbenchReferencePresetsV1({ modelId: baseline.modelId, startup: baseline.capture, supplied: [baseline], loadedLabel: "loaded", loadedDescription: "" })).toEqual([baseline]);
   });
 });

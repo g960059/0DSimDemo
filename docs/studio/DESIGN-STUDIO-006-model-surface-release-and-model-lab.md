@@ -98,6 +98,15 @@ Reuse documentation modules when authoring, but freeze self-contained documents
 with their actual model/Surface/analysis and assessment references. Sharing
 equations does not make an older frozen document the successor's specification.
 
+Reference navigation groups presets (including baseline) under their exact
+model/Surface pair. Shared constitutive definitions and each preset's complete
+coefficients, geometry, initial state, and assessment are separate reading
+views; offline archives remain self-contained. Regenerable reading projections
+bind the preserved scientific record, not today's equations or gate results.
+Catalog availability is distinct from the status at archive creation. An
+arbitrary loaded capture is not the registered baseline, and a document link
+must not imply that an edited scenario has passed the preset's assessment.
+
 ## Lifecycle
 
 Registry lifecycle is `dev | stable | retired`. Publishing does not activate a

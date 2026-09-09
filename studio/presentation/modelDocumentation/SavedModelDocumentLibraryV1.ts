@@ -1,5 +1,6 @@
 import { savedDocumentMatchesV1, type SavedModelDocumentV1 } from "./SavedModelDocumentV1";
 import { resolveSavedModelDocumentIndexV1 } from "./SavedModelDocumentCatalogV1";
+import { readingMatchesDocumentV1, type SavedModelReadingV1 } from "./SavedModelReadingV1";
 
 // Each package is a separate chunk. Adding historical documents must not make
 // reading the current model download every earlier document and embedded font.
@@ -23,4 +24,18 @@ export async function resolveSavedModelDocumentV1(modelId: string | undefined,
     throw new Error(`Saved document does not match its registered index: ${index.documentId}`);
   }
   return document;
+}
+
+const readingLoaders: Readonly<Record<string, () => Promise<SavedModelReadingV1>>> = {
+  "standard72-document-v1": () => import("./packages/standard72-document-v1.reading-v1.json").then(m => m.default as SavedModelReadingV1),
+  ...(!import.meta.env.PROD ? {
+    "hfref-static-case-document-v4": () => import("./packages/hfref-static-case-document-v4.reading-v1.json").then(m => m.default as SavedModelReadingV1),
+  } : {}),
+};
+export async function resolveSavedModelReadingV1(document: SavedModelDocumentV1): Promise<SavedModelReadingV1 | null> {
+  const load = readingLoaders[document.documentId];
+  if (!load) return null; // Historical, self-contained archive remains readable.
+  const reading = await load();
+  if (!readingMatchesDocumentV1(reading, document)) throw new Error("Reader and scientific archive do not match");
+  return reading;
 }

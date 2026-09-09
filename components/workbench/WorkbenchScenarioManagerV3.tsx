@@ -109,6 +109,7 @@ type WorkbenchScenarioManagerSharedPropsV3 = Readonly<{
     colorHex: string;
   }>[];
   presets: readonly ScenarioPresetV2[];
+  presetDocumentationLinks?: Readonly<Record<string, { href: string; label: string }>>;
   strings: WorkbenchScenarioManagerStringsV3;
   actionDisabledReasons?: WorkbenchScenarioActionDisabledReasonsV3;
   onSelectScenario: (scenarioId: string) => void;
@@ -651,12 +652,12 @@ export function WorkbenchScenarioManagerV3(
                   </p>
                 ) : (
                   compatiblePresets.map((preset, index) => (
+                    <div key={preset.presetId} className="flex items-start gap-1" role="none">
                     <button
-                      key={preset.presetId}
                       type="button"
                       role="menuitem"
                       autoFocus={index === 0}
-                      className="block min-h-11 w-full rounded-lg px-3 py-2 text-left text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                      className="block min-h-11 min-w-0 flex-1 rounded-lg px-3 py-2 text-left text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                       onClick={() => addPreset(preset)}
                     >
                       <span className="block font-semibold">
@@ -668,6 +669,13 @@ export function WorkbenchScenarioManagerV3(
                         </span>
                       )}
                     </button>
+                    {props.presetDocumentationLinks?.[preset.presetId] && <a
+                      href={props.presetDocumentationLinks[preset.presetId].href} target="_blank" rel="noreferrer" role="menuitem"
+                      aria-label={`${preset.title}: ${props.presetDocumentationLinks[preset.presetId].label}`}
+                      className="inline-flex min-h-11 shrink-0 items-center rounded px-2 text-xs text-wb-accent hover:bg-wb-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent">
+                      {props.presetDocumentationLinks[preset.presetId].label}
+                    </a>}
+                    </div>
                   ))
                 )}
               </div>

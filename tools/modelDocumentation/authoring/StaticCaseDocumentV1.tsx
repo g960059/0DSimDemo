@@ -6,6 +6,7 @@ import { MainWireDetailedCircuitV1, MainWireAssemblyAndInitialStateV1 } from "./
 import type { StaticCaseDocumentContentV1 } from "./StaticCaseDocumentCompositionV1";
 import { resolveStudioItemPresentationV1 as presentation } from "@/studio/presentation/StudioItemPresentationCatalogV1";
 import { hfrefSourceEnglishV1, hfrefRationaleEnglishV1 } from "./HfrefCaseDocumentTextV1";
+import { MainWireReadingSettingsV1 } from "./MainWireReadingV1";
 
 const p = "text-sm leading-7 text-wb-muted";
 const section = "scroll-mt-4 border-t border-wb-line pt-8";
@@ -23,11 +24,17 @@ const labels: Record<string, [string, string]> = {
 const fmt = (x: number | null | undefined) => typeof x === "number" && Number.isFinite(x)
   ? new Intl.NumberFormat("en", { maximumSignificantDigits: 4 }).format(x) : "—";
 const display = (id: string, x: number | null | undefined) => fmt(x == null ? null : id.endsWith("ef") ? x * 100 : x);
+const comparisonDisplay = (id: string, x: number | null | undefined) => {
+  if (typeof x !== "number" || !Number.isFinite(x)) return "—";
+  const digits = id === "positiveDpDt" || id === "negativeDpDt" ? 0
+    : id === "ci" || id === "tei" || id === "flowEToA" ? 2 : 1;
+  return new Intl.NumberFormat("en", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(id.endsWith("ef") ? x * 100 : x);
+};
 
 /** Reusable static-case page, compiled into the same offline document format.
  * The explanatory modules and equation tables are shared with baseline pages. */
-export function StaticCaseDocumentV1({ document: doc, locale, recordIndex = 0 }: {
-  document: StaticCaseDocumentContentV1; locale: Locale; recordIndex?: number;
+export function StaticCaseDocumentV1({ document: doc, locale, recordIndex = 0, reading = false }: {
+  document: StaticCaseDocumentContentV1; locale: Locale; recordIndex?: number; reading?: boolean;
 }) {
   const t = (ja: string, en: string) => locale === "ja" ? ja : en;
   const o = doc.observations[recordIndex]!;
@@ -45,8 +52,10 @@ export function StaticCaseDocumentV1({ document: doc, locale, recordIndex = 0 }:
     ...o.assessment.targets.map(r => ({ ...r, group: "target" as const, role: t("症例の目標", "Case preference") }))];
   const passive = doc.passiveComparison, tail = doc.slowTail.find(r => r.dtSec === o.dtSec)!;
   const active = c.mechanismInputs.chamberMechanics.activeTensionScaleByWall;
-  return <div className="h-full overflow-y-auto bg-wb-app text-wb-text" data-testid="model-documentation-v2">
-    <main className="mx-auto max-w-4xl space-y-9 px-5 py-8 sm:px-10 sm:py-12">
+  const Body = reading ? "div" : "main";
+  return <div className={reading ? "" : "h-full overflow-y-auto bg-wb-app text-wb-text"} data-testid="model-documentation-v2">
+    <Body className={reading ? "space-y-10" : "mx-auto max-w-4xl space-y-9 px-5 py-8 sm:px-10 sm:py-12"}>
+      {!reading && <>
       <header>
         <a href={`/${locale}`} className="text-sm text-wb-accent">{t("ホーム", "Home")}</a>
         <p className="mt-6 text-xs tracking-widest text-wb-subtle">Model & case documentation</p>
@@ -61,23 +70,24 @@ export function StaticCaseDocumentV1({ document: doc, locale, recordIndex = 0 }:
         <button data-document-action="expand">{t("説明をすべて開く", "Expand explanations")}</button>
         <button data-document-action="collapse">{t("すべて閉じる", "Collapse explanations")}</button>
       </div>
+      </>}
       <section id="overview" className={section}>
         <h2 className="mb-4 text-xl font-semibold">{navigation[0]![1]}</h2>
         <p className={p}>{t("HFrEFはEFが低下した心不全の分類であり、慢性期・左室拡大・特定の原因を一括して意味する名前ではありません。ここでは慢性の左室拡大型を選びました。急性心筋梗塞、局所虚血、心室が拡大していく時間経過は再現していません。", "HFrEF identifies heart failure with reduced EF; it does not itself specify chronicity, dilation or etiology. This case selects a chronic LV-dilated phenotype, not acute infarction, regional ischemia or the time course of remodeling.")}</p>
         {sourceLinks(["heidenreich-2022-hf", "kato-1996-dcm-pv"])}
         <p className={`mt-4 ${p}`}>{t("見せたいのは、大きな左室に血液が多く残ること、安静時の拍出は残ること、左房圧が高めになることです。一方、RVや流入波形まで典型的なHFrEF像を必ず示すとは限りません。以下では、意図した特徴と実際に観測した値を分けます。", "The intended lesson is greater residual LV blood, retained resting forward output and elevated left atrial pressure. RV behavior and filling need not match a universal HFrEF pattern. Intentions and observed results are separated below.")}</p>
-        <Detail title={t("回路・圧の位置と読み方", "Circuit and pressure interpretation")}>
+        {!reading && <Detail title={t("回路・圧の位置と読み方", "Circuit and pressure interpretation")}>
           <MainWireDetailedCircuitV1 data={doc.equations} locale={locale} Equation={Equation} />
-        </Detail>
+        </Detail>}
       </section>
-      <section id="mechanisms" className={section}>
+      {!reading && <section id="mechanisms" className={section}>
         <h2 className="mb-4 text-xl font-semibold">{navigation[1]![1]}</h2>
         <p className={`mb-6 ${p}`}>{t("心筋が張力を生み、心室形状と釣り合う圧が血液を動かします。波形を直接指定するモデルではありません。共通の構成則と、この症例で使う係数を併記します。", "Myocardium generates tension; geometry and equilibrium determine pressure and blood flow. Waveforms are not prescribed. Shared equations and this case's effective coefficients follow.")}</p>
         <MainWireModuleExplanationsV1 moduleIds={doc.moduleIds} equations={doc.equations} locale={locale} />
         <Detail title={t("連立方程式と保存された初期状態", "Coupled equations and saved initial state")}>
           <MainWireAssemblyAndInitialStateV1 data={doc.equations} locale={locale} Equation={Equation} />
         </Detail>
-      </section>
+      </section>}
       <section id="settings" className={section}>
         <h2 className="mb-4 text-xl font-semibold">{navigation[2]![1]}</h2>
         <p className={p}>{doc.equations.constructionNote![locale]}</p>
@@ -90,15 +100,15 @@ export function StaticCaseDocumentV1({ document: doc, locale, recordIndex = 0 }:
         <Detail title={t("全入力値・材料係数の来歴", "Complete inputs and material provenance")}>
           <div className="overflow-x-auto"><table className="w-full text-left text-xs leading-6" data-equation-table>
             <caption className="py-3 text-left">{t("保存された入力値", "Saved primitive inputs")}</caption>
-            <thead><tr><th>Parameter</th><th>Value</th><th>Unit</th></tr></thead>
+            <thead><tr><th>{t("項目", "Parameter")}</th><th className="pr-3 text-right">{t("値", "Value")}</th><th>{t("単位", "Unit")}</th></tr></thead>
             <tbody>{doc.settings.map(s => <tr key={s.controlId} className="border-t border-wb-line"><th className="py-2 font-normal">{presentation({ kind: "control", itemId: s.controlId, fallbackEnglishLabel: s.controlId, locale }).label}</th>
-              <td data-stored-number={s.observed.status === "value" ? s.observed.value : undefined}>{s.observed.status === "value" ? fmt(s.observed.value) : t("壁別の値を参照", "See individual walls")}</td><td>{s.unit}</td></tr>)}</tbody>
+              <td className="pr-3 text-right tabular-nums" data-stored-number={s.observed.status === "value" ? s.observed.value : undefined}>{s.observed.status === "value" ? fmt(s.observed.value) : t("壁別の値を参照", "See individual walls")}</td><td>{s.unit}</td></tr>)}</tbody>
           </table></div>
           <p className={`mt-4 ${p}`}>{t("共通の収縮力操作は壁別パラメータを同時に設定する操作で、別の倍率を重ねるものではありません。症例はknob値だけでなく、すべての入力値・固定形状・計算状態を保存します。形状の異なる症例への切替では、その症例自身の保存状態を読み込みます。", "Grouped contractility sets the individual wall inputs; it does not multiply them again. Cases retain primitive inputs, fixed anatomy and state, not only knob positions. Switching geometry loads the target case's own state.")}</p>
           <a className="mt-3 block text-xs text-wb-accent underline" href={`https://doi.org/${doc.material.doi}`}>Land et al. 2017</a>
           <table className="mt-3 w-full text-left text-xs" data-equation-table>
             <caption className="py-2 text-left">{t("基礎モデルからの材料校正（張力倍率を掛ける前）", "Material calibration before case tension scaling")}</caption>
-            <thead><tr><th>Parameter</th><th>Source</th><th>Model reference</th></tr></thead>
+            <thead><tr><th>{t("項目", "Parameter")}</th><th>{t("出典の値", "Source")}</th><th>{t("モデルの基準値", "Model reference")}</th></tr></thead>
             <tbody>{doc.material.sourceParameters.map(s => <tr key={s.parameter} className="border-t border-wb-line">
               <th className="py-2 font-normal">{s.parameter}</th><td>{s.original.value} {s.original.unit}</td><td>{s.runtime.value} {s.runtime.unit}</td></tr>)}</tbody>
           </table>
@@ -106,6 +116,7 @@ export function StaticCaseDocumentV1({ document: doc, locale, recordIndex = 0 }:
         <Detail title={t("心膜と冠循環：この構成で固定したもの", "Fixed pericardial and coronary construction")}>
           <p className={p}>{t("増えた壁体積も、同じ心膜袋の中を占めます。心膜袋を自動で広げる調整はしていません。冠血管床の容量・抵抗の基準と絶対酸素需要はbaselineのままで、現在の心筋量から再設定していません。したがって、拡大心の冠灌流や酸素需給が生理的に十分であるとは主張しません。", "Added tissue occupies the same pericardial bag, without automatic enlargement. Coronary reference storage/resistance and absolute oxygen demand are not rescaled to current mass. Adequate perfusion or oxygen supply in the enlarged heart is not established.")}</p>
         </Detail>
+        {reading && <MainWireReadingSettingsV1 document={doc} locale={locale} />}
       </section>
       <section id="baseline" className={section}>
         <h2 className="mb-4 text-xl font-semibold">{navigation[3]![1]}</h2>
@@ -115,11 +126,13 @@ export function StaticCaseDocumentV1({ document: doc, locale, recordIndex = 0 }:
           </select>
         </label>
         <p className={p}>{t("必須条件と症例の目標は両方の刻みで満たしています。ただし、これは選んだ作動点の適合であり、HFrEFの診断や臨床検証ではありません。文献から得た集団の平均・ばらつきと、症例を選ぶための設計範囲は別です。", "Both grids meet required conditions and case preferences. This qualifies a selected operating point, not a diagnosis or clinical validation. Population statistics and model selection intervals are distinct.")}</p>
-        <div className="my-5 overflow-x-auto"><table className="w-full text-left text-sm">
-          <thead><tr><th className="p-2">Metric</th><th>baseline · 2 ms</th><th>{t("この症例", "This case")}</th><th>Unit</th></tr></thead>
+        <div className="my-5 overflow-x-auto"><table className="w-full min-w-[440px] text-left text-sm">
+          <caption className="sr-only">{t("保存されたbaselineと症例の比較", "Saved baseline and case comparison")}</caption>
+          <thead className="text-xs leading-6"><tr><th className="p-2">{t("指標", "Metric")}</th><th className="p-2 text-right">{t("比較baseline", "Comparator baseline")}<span className="block font-normal text-wb-muted">{t("2 ms 固定", "2 ms, fixed")}</span></th><th className="p-2 text-right">{t("この症例", "This case")}<span className="block font-normal text-wb-muted">{o.dtSec * 1000} ms</span></th><th className="p-2">{t("単位", "Unit")}</th></tr></thead>
           <tbody>{Object.entries(labels).map(([id, [label, u]]) => <tr key={id} className="border-t border-wb-line" data-case-metric={id}>
-            <th className="p-2 font-normal">{label}</th><td>{display(id, doc.baseline[id])}</td><td>{display(id, o.values[id])}</td><td className="text-xs text-wb-muted">{u}</td></tr>)}</tbody>
+            <th scope="row" className="p-2 font-normal">{label}</th><td className="p-2 text-right tabular-nums">{comparisonDisplay(id, doc.baseline[id])}</td><td className="p-2 text-right tabular-nums">{comparisonDisplay(id, o.values[id])}</td><td className="p-2 text-xs text-wb-muted">{u}</td></tr>)}</tbody>
         </table></div>
+        <p className="mb-3 text-xs leading-6 text-wb-muted">{t("比較baselineは保存済みの2 ms記録です。症例を1 msに切り替えても、baselineを再計算した意味にはなりません。丸め前の値はJSONに含まれます。", "The comparator baseline remains its saved 2 ms record; selecting the 1 ms case does not recompute it. Unrounded values are included in the JSON export.")}</p>
         <p className={p}>{t("比較は同じ負荷に揃えた実験ではありません。低いEFでも拍出量はゼロにならず、Teiがbaselineより小さくても収縮力が良いとは言えません。平均左房圧・充満末期LV内圧・経壁圧は異なる値です。E/Aは容積流量の比であり、臨床Doppler速度の比ではありません。", "This is not a load-matched comparison. Reduced EF can coexist with forward output; a smaller Tei than baseline does not demonstrate better contractility. Mean LA, end-filling cavity and transmural pressures differ. E/A uses volumetric flow, not Doppler velocity.")}</p>
         <h3 className="mt-7 text-base font-semibold">{t("範囲とその根拠", "Intervals and rationale")}</h3>
         {rules.map((r, i) => <Detail key={r.metricId + i} title={<span className="flex w-full flex-wrap justify-between gap-3">
@@ -151,9 +164,9 @@ export function StaticCaseDocumentV1({ document: doc, locale, recordIndex = 0 }:
         </Detail>
         <Detail title={t("PV解析と受動的な容量特性", "PV analysis and passive accommodation")}>
           <p className={p}>{t("以下のPV解析は2 msの起動状態に対する別の負荷変更解析です。1 msに切り替えても、この解析を1 msで再実行した意味にはなりません。縦軸は経壁圧です。", "The following separate loading analyses use the 2 ms launch. Selecting the 1 ms record does not rerun or relabel this PV analysis. Pressure is transmural.")}</p>
-          <div className="my-4 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr><th>LV · J/beat</th><th>baseline</th><th>HFrEF</th></tr></thead>
+          <div className="my-4 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr><th>LV · J/beat</th><th className="text-right">baseline</th><th className="text-right">HFrEF</th></tr></thead>
             <tbody>{(["strokeWork", "potentialEnergy", "pva"] as const).map((key, i) => <tr key={key} className="border-t border-wb-line">
-              <th className="py-2 font-normal">{["SW", "PE", "PVA"][i]}</th><td>{fmt(doc.pv.baseline.left[key].joule)}</td><td>{fmt(doc.pv.hfref.left[key].joule)}</td></tr>)}</tbody></table></div>
+              <th className="py-2 font-normal">{["SW", "PE", "PVA"][i]}</th><td className="text-right tabular-nums">{doc.pv.baseline.left[key].joule.toFixed(3)}</td><td className="text-right tabular-nums">{doc.pv.hfref.left[key].joule.toFixed(3)}</td></tr>)}</tbody></table></div>
           <p className={p}>{t("この例ではSWが低下し、PEの寄与が大きくなっています。ESPVR/EDPVRはモデルの負荷変更で得た関係で、臨床カテーテルのEesや純粋な受動材料曲線そのものではありません。PEは低容量側へ接線で延長した部分も含みます。", "SW falls while PE contributes more. Model load-family ESPVR/EDPVR are not catheter Ees or an isolated passive material law. PE includes a low-volume tangent extension.")} {fmt(doc.pv.hfref.left.potentialEnergy.lowVolumeTangentExtensionSpanMl)} mL.</p>
           <p className={`mt-3 ${p}`}>{t(`別の完全受動・粘性緩和後の比較では、RV容積${fmt(passive.rvVolumeMl)} mLを固定し、LV経壁圧${fmt(passive.lvTransmuralPressureMmHg)} mmHgで支えられるLV容積が${fmt(passive.baselineVolumeMl)}→${fmt(passive.caseVolumeMl)} mLになりました。RV圧を合わせた比較でも、動的EDPVRでもありません。`, `A separate fully passive, viscously relaxed comparison at fixed RV volume ${fmt(passive.rvVolumeMl)} mL found ${fmt(passive.baselineVolumeMl)}→${fmt(passive.caseVolumeMl)} mL LV volume at ${fmt(passive.lvTransmuralPressureMmHg)} mmHg LV transmural pressure. It is neither RV-pressure-matched nor a dynamic EDPVR.`)}</p>
           <p className={`mt-3 ${p}`}>{t("PVA由来の酸素消費推定は現在のLV質量で換算しますが、イヌ由来の関係と未校正の収縮性依存切片を用いる参考計算です。疾患の実際の代謝・酸素不足・機械効率を証明しません。", "The PVA-derived oxygen estimate uses current LV mass, but remains illustrative: a canine relation and an uncalibrated contractility-dependent intercept do not validate disease metabolism, ischemia or mechanical efficiency.")}</p>
@@ -186,6 +199,6 @@ export function StaticCaseDocumentV1({ document: doc, locale, recordIndex = 0 }:
           <a href="#document-archive" data-document-action="archive" className="mt-3 block text-sm text-wb-accent underline">{t("説明ページを保存（オフラインHTML）", "Save offline HTML")}</a>
         </Detail>
       </section>
-    </main>
+    </Body>
   </div>;
 }
