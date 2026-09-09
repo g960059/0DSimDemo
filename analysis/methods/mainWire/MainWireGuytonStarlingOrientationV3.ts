@@ -1,6 +1,7 @@
 import {
   buildNonCoronaryCirculationGraphV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
+import type { MainWireStaticCaseAnatomyV1 } from "@/engine/myocardium/mechanics/MainWireStaticCaseAnatomyV1";
 
 import {
   nonValveEdgeLossV1,
@@ -100,7 +101,7 @@ export type MainWireIntegratedModelStarlingPointV3 = Readonly<{
 }>;
 
 export type MainWireIntegratedModelStarlingLocusV3 =
-  | Readonly<{
+  (Readonly<{
       status: "requires-protocol";
       requirement:
         typeof MAIN_WIRE_INTEGRATED_MODEL_STARLING_PROTOCOL_REQUIREMENT_V3;
@@ -138,6 +139,9 @@ export type MainWireIntegratedModelStarlingLocusV3 =
         evidence: "fixed-tone-periodic";
         measurementWindowStatus: "fixed-tone-period1-settled";
       }>)[];
+    }>) & Readonly<{
+      /** Exact construction provenance supplied by an anatomy-bearing owner. */
+      exactAnatomy?: MainWireStaticCaseAnatomyV1;
     }>;
 
 export type MainWireIntegratedModelStructuralReturnOrientationV3 = Readonly<{

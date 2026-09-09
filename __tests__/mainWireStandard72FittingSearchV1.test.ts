@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { canonicalJsonStringify, sha256CanonicalJsonHex } from "@/engine/integrity";
 import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
 import { MAIN_WIRE_FITTING_SEED_V1 as fittingSeed } from "@/analysis/registry/MainWireFittingSeedV1";
+import { MAIN_WIRE_INTEGRATED_STUDIO_HFREF_RESEARCH_MODEL_ID_V1 as evaluatorModelId } from "@/domain/model/MainWireStandardIdentityV1";
 import { MAIN_WIRE_RESTING_REFERENCE_PROFILE_V1 as profile } from "@/analysis/registry/MainWireRestingReferenceProfileV1";
 import { MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1 as admission } from "@/analysis/policies/mainWire/MainWireProspectiveBaselineAdmissionV1";
 import { resolveMainWireStandard72FittingSearchPlanV1 as plan, scoreMainWireStandard72FittingRestV1 as score,
@@ -24,7 +25,7 @@ async function synthetic(input: Candidate = candidate, margin = .2): Promise<Res
     status: i === 0 && margin < 0 ? "failed" : "passed" }));
   const entries = profile.entries.filter(e => e.role === "demographic-comparison").map(r => ({ ...r,
     actual: (Math.max(...r.comparisons.map(c => c.range.lower!)) + Math.min(...r.comparisons.map(c => c.range.upper!))) / 2 }));
-  const evaluation = { modelId: fittingSeed.modelId, status: "accepted", candidateInputs: input,
+  const evaluation = { modelId: evaluatorModelId, status: "accepted", candidateInputs: input,
     policyIdentitySha256: await evaluatorHash(), completedCycleCount: 3, wallTimeMs: 1,
     classification: { status: "period1-converged" },
     rest: { status: margin < 0 ? "failed" : "passed", operating, comparison: { entries },
@@ -88,6 +89,17 @@ describe("bounded Standard72 search policy", () => {
 });
 
 describe("bounded pattern search decisions", () => {
+  it("does not confuse a production seed vector with the research evaluator identity", async () => {
+    await expect(search({ seed: { candidateInputs: candidate }, options: { parameters: onlyTbv, maximumEvaluations: 1 } }, async tasks =>
+      Promise.all(tasks.map(async task => {
+        const result = await synthetic(task.candidateInputs);
+        if (result.status !== "saved-result-ready") throw new Error("fixture result missing");
+        // Deliberately violate the evaluator's literal identity at the runtime
+        // boundary; this is the malformed result this rejection test supplies.
+        return { ...result, result: { ...result.result, evaluation: { ...result.result.evaluation, modelId: fittingSeed.modelId } } } as unknown as Result;
+      })),
+    )).rejects.toThrow(/current evaluator/);
+  });
   it("searches toward an interval interior, keeps a feasible set, and binds every poll to one incumbent", async () => {
     const p = plan(candidate, { parameters: onlyTbv });
     const x = (c: Candidate) => (Math.log(c.hemodynamicResearchInputs.totalBloodVolumeMl) - p.coordinates[0]!.lowerTransformed)

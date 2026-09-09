@@ -38,10 +38,10 @@ export function WorkbenchModelLabPage() {
   return <div className="flex h-full min-h-0 flex-col">
     <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-wb-border bg-wb-panel px-3 py-1.5 text-xs text-wb-text">
       {hfrefResearch && <details className="max-w-3xl">
-        <summary className="cursor-pointer">{ja ? "研究候補：LV収縮能低下" : "Research: LV systolic dysfunction"}</summary>
+        <summary className="cursor-pointer">{ja ? "研究候補：慢性拡大型HFrEF" : "Research: chronic dilated HFrEF"}</summary>
         <p className="py-2">{ja
-          ? "baselineのLV収縮性を1から0.35にすると、同じ設定の症例に到達します。シナリオの追加から、定常化済みのHFrEFデモも選べます。LV自由壁と共有中隔の能動張力のみを変え、右室自由壁は変えていません。うっ血と右室への波及を含むデモで、慢性リモデリングやAMIの再現ではありません。EDVIの推奨目標は未達です。Tei等の変化は一般的なHFrEFの方向と一致するとは限らず、Glantz τは短い観測区間で推定不良のため未確定です。操作後の過渡応答を定常値とは解釈しないでください。PV解析が時間上限に達した場合は、波形が落ち着いてからエラー詳細の「現在の状態で再計算」を使えます。"
-          : "Set LV contractility from 1 to 0.35 to reach the same input configuration, or add the settled HFrEF demo from Scenarios. Only LV free-wall and shared-septal active tension changes. This congested systolic-dysfunction demo includes RV interaction, not chronic remodeling or AMI. Preferred EDVI is missed; timing changes are not universal HFrEF behavior and free-asymptote tau is unresolved. Outputs immediately after a change are transient. If PV analysis reaches its settlement limit, let the waveforms settle and use Recalculate from current state in the error details."}</p>
+          ? "「Presetから追加」で定常化済みのHFrEF候補を選べます。LV自由壁と共有中隔の収縮性低下に、参照形状・心筋量の変更を組み合わせた一例です。LV収縮性だけを下げても同じ症例にはなりません。右室自由壁の設定は同じですが、中隔や循環を介して右室の動きも変わります。慢性期の状態を表すための研究候補で、リモデリングの進行過程やAMIは再現していません。冠血管床と酸素需要の基準はbaselineのままで、増えた心筋への灌流や酸素供給の十分さは未検証です。Glantz τは推定不良のため未確定。正式採用前であり、操作後すぐの値は定常値ではありません。"
+          : "Add the settled HFrEF candidate from Presets. This case combines reduced LV free-wall and shared-septal contractility with changed reference geometry and tissue mass; lowering contractility alone does not reproduce it. RV free-wall inputs are unchanged, but septal and circulatory coupling affect RV behavior. It represents one chronic state, not evolving remodeling or AMI. The coronary bed and reference oxygen demand remain at baseline: perfusion and oxygen adequacy for the larger mass are unvalidated. Glantz tau is unresolved. Formal adoption is pending, and values immediately after an edit are transient."}</p>
       </details>}
       {!hfrefResearch && <label className="cursor-pointer underline underline-offset-2">
         {loading ? (ja ? "確認中…" : "Checking…") : (ja ? "候補JSONから新規起動" : "New session from candidate JSON")}

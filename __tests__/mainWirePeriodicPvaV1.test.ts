@@ -12,6 +12,7 @@ import {
   buildMainWirePeriodicPvaMethodV9,
   buildMainWirePeriodicPvaMethodV10,
   buildMainWirePeriodicPvaMethodV13,
+  buildMainWirePeriodicPvaMethodV14,
   buildMainWireSystolicPressureEnvelopeV1,
   buildMainWireDiastolicLoadRelationV1,
   mainWirePvaLowVolumeTangentPressureV1,
@@ -21,6 +22,9 @@ import {
   MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import { evaluateMainWireIntegratedModelLvMvo2EstimateV1 } from "@/analysis/methods/mainWire/MainWireMvo2ReferenceV1";
+import { evaluateMainWireLvMvo2EstimateV2 } from "@/analysis/methods/mainWire/MainWireMvo2ReferenceV2";
+import { resolveMainWireStaticCaseAnatomyV1 as anatomy } from "@/engine/myocardium/mechanics/MainWireStaticCaseAnatomyV1";
+import staticCaseSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_ABSOLUTE_TBV_ML_V3,
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3,
@@ -52,6 +56,33 @@ import * as canvasRuntime from "@/components/workbench/presentation/WorkbenchCan
 import * as chartTraceStyle from "@/components/workbench/presentation/WorkbenchChartTraceStyleV3";
 
 describe("settled hot-start PVA V1", () => {
+  it("uses the exact case mass only in V14 MVO2, retaining every PV relation and numerical area", () => {
+    const locus = formalLocusV1(settledPointsV1());
+    const old = buildMainWirePeriodicPvaMethodV13(locus, "LV");
+    const base = buildMainWirePeriodicPvaMethodV14({ ...locus, exactAnatomy: anatomy("baseline-v1") }, "LV");
+    const enlarged = buildMainWirePeriodicPvaMethodV14({ ...locus, exactAnatomy: anatomy("dilated-lv-v1") }, "LV");
+    const missing = buildMainWirePeriodicPvaMethodV14(locus, "LV");
+    for (const value of [base, enlarged, missing]) {
+      if (old.status !== "available" || value.status !== "available") throw new Error("Expected PVA");
+      for (const key of ["pva", "potentialEnergy", "espvr", "edpvr", "strokeWork", "loadRelations", "areaDisplay"] as const) expect(value[key]).toEqual(old[key]);
+    }
+    if (old.status !== "available" || base.status !== "available" || enlarged.status !== "available" || missing.status !== "available"
+      || old.estimatedMvo2?.status !== "available" || base.estimatedMvo2?.status !== "available" || enlarged.estimatedMvo2?.status !== "available") throw new Error("Expected mass estimates");
+    expect(base.estimatedMvo2.oxygenDemand.totalMlO2PerBeat).toBeCloseTo(old.estimatedMvo2.oxygenDemand.totalMlO2PerBeat, 14);
+    expect(enlarged.estimatedMvo2.massReference.myocardialMassG).toBeCloseTo(135.375, 10);
+    expect(enlarged.estimatedMvo2.oxygenDemand.pvaDependentMlO2PerBeat).toBe(old.estimatedMvo2.oxygenDemand.pvaDependentMlO2PerBeat);
+    expect(enlarged.estimatedMvo2.oxygenDemand.unloadedMlO2PerBeat).toBeCloseTo(base.estimatedMvo2.oxygenDemand.unloadedMlO2PerBeat * 1.25, 14);
+    expect(missing.estimatedMvo2?.status).toBe("unavailable");
+    expect(enlarged.estimatedMvo2.interpretation.modelSpecificCalibrationEstablished).toBe(false);
+    expect(enlarged.estimatedMvo2.limitations).toEqual(old.estimatedMvo2.limitations);
+    expect(resolveMainWireAnalysisMethodsForSurfaceV1(staticCaseSurface).periodicPvaDerivation?.build).toBe(buildMainWirePeriodicPvaMethodV14);
+  });
+  it("does not silently supply baseline mass for missing, malformed or relabeled anatomy", () => {
+    const input = { pvaOutputId: "PVA", pvaMethodId: "test", pvaEstimateJ: .8, heartRateBpm: 70 };
+    for (const value of [undefined, null, {}, { ...anatomy("dilated-lv-v1"), lvMassG: 108.3 },
+      { ...anatomy("dilated-lv-v1"), caseId: "baseline-v1" }]) expect(evaluateMainWireLvMvo2EstimateV2(input, value).status).toBe("unavailable");
+    expect(evaluateMainWireLvMvo2EstimateV2({ ...input, pvaEstimateJ: NaN }, anatomy("baseline-v1")).status).toBe("unavailable");
+  });
   it.each([1, 3])("accounts for an isolated envelope load beside rejected index %i", (rejectedIndex) => {
     const points = isovolumicEnvelopePointsV1([40, 50, 60, 70, 80], [30, 50, 70, 90, 110]);
     const source = formalLocusV1(points);

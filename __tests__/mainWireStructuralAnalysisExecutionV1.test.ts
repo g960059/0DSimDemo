@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { resolveMainWireStaticCaseAnatomyV1 as anatomy } from "@/engine/myocardium/mechanics/MainWireStaticCaseAnatomyV1";
 
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
@@ -86,6 +87,22 @@ describe("Main Wire Integrated V3 analysis execution", () => {
         analysisV3("hypervolemic", 5.6),
       ]),
     ).toThrow(/duplicate Starling point/);
+  });
+
+  it("preserves exact anatomy and rejects partition mass/geometry mismatches", () => {
+    const withAnatomy = (partition: "hypovolemic" | "hypervolemic", caseId: "baseline-v1" | "dilated-lv-v1") => {
+      const result = analysisV3(partition), payload = result.payload as any;
+      return { ...result, payload: { ...payload,
+        left: { ...payload.left, starlingLocus: { ...payload.left.starlingLocus, exactAnatomy: anatomy(caseId) } },
+        right: { ...payload.right, starlingLocus: { ...payload.right.starlingLocus, exactAnatomy: anatomy(caseId) } },
+      } } as StudioSimulationAnalysisV2;
+    };
+    const low = withAnatomy("hypovolemic", "dilated-lv-v1"), high = withAnatomy("hypervolemic", "dilated-lv-v1");
+    expect((mergeMainWireStructuralAnalysesV1([low, high]).payload as any).left.starlingLocus.exactAnatomy)
+      .toEqual(anatomy("dilated-lv-v1"));
+    expect(() => mergeMainWireStructuralAnalysesV1([low, withAnatomy("hypervolemic", "baseline-v1")]))
+      .toThrow(/Starling contracts/);
+    expect(() => mergeMainWireStructuralAnalysesV1([low, analysisV3("hypervolemic")])).toThrow(/Starling contracts/);
   });
 
   it("reports the measured union as complete after both directions finish", () => {

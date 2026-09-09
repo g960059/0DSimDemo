@@ -1033,3 +1033,129 @@ MVO2の質量対応と実Workbench経路をまとめて確認してから、正�
 
 関連10ファイル79テスト、型検査、差分検査が通過した。全PR smokeの既知8失敗は
 今回の変更対象ではなく、全体がgreenになったとの主張はしていない。
+
+## 19. 固定形状候補のWorkbench・解析統合（2026-09-09）
+
+選んだ症例条件は変更せず、有限形状を持つexact sessionを研究用Workbenchへ接続した。
+baselineと拡大型はそれぞれ自分のfixture・checkpointから起動する。症例を追加しても
+baselineの状態に別形状のラベルを付け直さず、形状だけを途中変更する操作は拒否する。
+公開registryと番号付きmodel IDはまだ更新していない。
+
+### 実装したこと
+
+- 既存の最新互換Surfaceからcontroller、output、graph、解析方法を継承した。
+  解析workerの低容量・高容量の分岐にも、解決済みの形状と現心筋量を引き継ぐ。
+  分岐を統合する際に形状が異なる、または片側で欠落した場合は拒否する。
+- 形状変更で影響を受けるPVA由来のMVO2推定だけをversion化した。PVA、PE、
+  ESPVR/EDPVRの計算・表示方法は変えていない。旧方法は従来のSurfaceに残る。
+- 現心筋量をMとして、文献参照式の絶対量は `a×PVA + b×M/100`、100 gあたりは
+  その値をM/100で割る。PVA依存項を余分に質量倍しない。完全な有限形状記述が
+  確認できないときは、この推定だけを利用不可にし、baseline質量へ代用しない。
+- このMVO2は犬の参照式による例示であり、変更した収縮状態に合わせて切片を
+  校正したものではない。実際の代謝、酸素供給の十分さ、疾患別の効率を保証しない。
+- 研究ページの説明を「収縮性を下げるだけの候補」から「固定した拡大型の候補」へ
+  修正した。現在の起動captureは**2 ms**で、1 msは数値感度の比較条件である。
+
+### 定常化、刻み依存、保存・解析の統合検証
+
+`static-case-lab-003/`は、baseline 2 ms、HFrEF 2 ms、HFrEF 1 msを独立coldから
+定常化した。既存P1判定3回連続と、その後の追加audit周期をすべて通過した。
+判定までの周期数は54／156／155。閾値・候補パラメータ・生理referenceは変更していない。
+
+| 指標 | baseline・2 ms | HFrEF・2 ms（起動用） | HFrEF・1 ms |
+|---|---:|---:|---:|
+| LVEF (%) | 55.752 | 28.455 | 28.476 |
+| LVEDVI (mL/m²) | 75.637 | 113.360 | 113.416 |
+| LVESVI (mL/m²) | 33.468 | 81.103 | 81.120 |
+| CI (L/min/m²) | 2.9518 | 2.2580 | 2.2607 |
+| mean Ao storage node (mmHg) | 93.589 | 81.043 | 81.130 |
+| mean LA (mmHg) | 8.403 | 16.610 | 16.597 |
+| mean RA (mmHg) | 3.080 | 4.261 | 4.253 |
+| mean PAP (mmHg) | 17.892 | 23.868 | 23.864 |
+| qualified Weiss τ (ms) | 32.037 | 51.307 | 50.809 |
+
+HFrEFの1 msではET 279 ms、ICT 48 ms、IRT 130 ms、Tei 0.638、E/A 0.858。
+AV mean/peak gradientは2.207／3.446 mmHg、LV +dP/dtは1125.6、−dP/dtは
+−828.1 mmHg/sだった。Weissのfit windowは約26 msと短く、Glantzは未確定のまま。
+Ca/Land kineticsを変更していないので、Weiss延長を独立に同定した弛緩速度低下とはしない。
+内圧・経壁圧、平均LA圧・充満末期LV圧、native弁イベント・Doppler時間を区別する。
+上表のbaseline比較は負荷を揃えた原因分離実験ではない。
+
+事前に定めた2/1 msの差の許容条件は全て満たした。さらに、コンパイルしたexact artifactと
+sourceを、baseline→HFrEF→baselineそれぞれ1000ステップずつ比較し、出力・時計が一致した。
+JSON保存再開、Rsysの小変更と復帰、TBV +100 mLと復帰、LV収縮性の小変更と復帰、
+HR 60→70を各症例で実行した。これは局所的な継続操作の確認であり、拡大型に対する
+LV張力0.25〜1.33の全範囲や全controllerの定常・数値頑健性の証明ではない。
+
+両症例それぞれのformal PV／responsive Starlingを低容量・高容量に分け、8分岐を
+4並列で完了した。解析中にlive sessionの時計・状態が進んでいないことも確認した。
+3 cold条件、artifact比較、局所操作、8解析分岐を含む全体のwall timeは**179.126秒**。
+source SHAは`39e55c559a267d887c0089dca317d422e9998e228bb73461da5df67afb0fbff1`。
+
+formal PVのLV SW／PE／PVAは、baselineで1.079588／0.381936／1.461524 J、
+HFrEFで0.626527／0.907376／1.533902 Jだった。現LVFW+SEP質量はそれぞれ
+108.3／135.375 gを使用する。RVのPV解析も利用可能だが、RV MVO2を新設していない。
+測定された負荷族と接線延長の限界は保持し、SW/PVAを真の代謝効率とは呼ばない。
+
+### 実ブラウザ
+
+`http://127.0.0.1:4189/ja/dev/model-lab?research=hfref`で、Presetから候補を追加し、
+baselineと並べてPV loop、ESPVR/EDPVR、Starling、LVP/AoP/LAPを表示した。
+HRのみでなく、既存のparameter controllerと項目追加も保持している。
+実際のoutput pickerからPEとPVAを追加し、症例の選択に応じて数値が切り替わることを確認した。
+
+UIではHFrEFのPE 916 mJ、PVA 1540 mJ、baselineのPE 375 mJ、PVA 1450 mJ。
+liveのsource時点と適応的な負荷族がofflineと異なり、上記の封印された数値とbit一致する
+という検証ではない。baselineのPE/PVAにはゼロ圧交点の探索境界に関する警告も残る。
+利用可能になったことと、外挿の制約がなくなったことは別である。
+LVP/AoPには一つの主な山を視認したが、これを全操作範囲の形状gateとはしない。
+詳細は`static-case-runtime-review/BROWSER.md`。最終確認時のbrowser errorは0件だった。
+
+### 独立レビューと採択
+
+同じbriefをCodex 6 Astra xhighとClaude Code経由のFable 5.1 xhighへ渡し、
+相手の見解を知らせずにレビューを依頼した。全文・実行情報・採択判断は
+`static-case-runtime-review/`に保存した。
+
+| 判断対象 | Astra | Fable | 採択 |
+|---|---|---|---|
+| 固定形状を持つ研究用runtimeと質量対応解析 | 賛成 | 賛成 | 2/2。今回の局所実装を採択 |
+| 公開preset／modelの正式採用 | 条件付き | 条件付き | 無条件賛成0。未採用 |
+
+Astraは関連71テストと604 source file・25結果fileのhashを独自に確認した。
+Fableはread-onlyのコード・JSON確認であり、テストを実行したとは主張していない。
+私の対象テストは9ファイル110件と型検査が通過した。テスト用の意図的な不正IDが
+型検査に引っかかった一件は、テストデータだけ明示的に型を崩して修正した。
+numerical validatorやsealed sourceを緩和したわけではない。
+
+正式採用に残る主要課題は、①production72と旧研究用codec/factory/fittingの識別不整合、
+②拡大型で保証する操作範囲、③選んだ症例の最終検証記録と再利用可能な説明、公開登録。
+旧研究ownerを退役し、現production72の境界を戻しつつ、新研究構成だけに拡張範囲を
+持たせる方針を採る。古いcheckpointの改名・再署名や、検証を無効化する修正は行わない。
+広い境界テストはまだgreenではなく、registry-admissionの5失敗とfitting-workflowの
+setup失敗を残している。全PR/canonical laneが通過したとの主張はしない。
+
+FableのE/A・Teiに関する意見は、症例の説明を慎重にする理由として扱う。一方、native
+event-based指標を臨床Dopplerの平均値と直接比較しただけで、新しい異常gateにはしない。
+心膜容量の自動拡大、心筋の薄壁化、Ca/Land kineticsの変更、追加の広域fittingも採用しない。
+
+### 冠血管トーンの残差に対する60拍の延長
+
+Fableの指摘を受け、同じ2 ms・1 ms checkpointから60拍を追加計算した。2並列の各wall
+timeは24.75／44.44秒。最悪の周期差は全拍でLAD subendocardial toneにあり、符号は全て
+同方向、その大きさは単調に低下した。最初の約0.000960から最後は約0.000564／0.000563へ
+減少した。少なくともこの延長区間でトーンの反転・振動は見られなかった。
+
+ただし、トーンの絶対値は2 msで0.69296→0.64841、1 msで0.69705→0.65251とさらに
+変化しており、「完全にplateauへ到達した」とは言えない。60拍後のCI変化はそれぞれ
++0.000458／+0.000463 L/min/m²、mean Aoは−0.01326／−0.01312 mmHg、
+mean LAは約−0.00155 mmHg。主要血行指標はほぼ変わらず、遅い冠血管調節が残っている。
+この結果は酸素需要や冠血管床の妥当性を新たに保証するものではない。
+
+保存先は`static-case-slow-tail-001/`。既存の収束基準を変更せず、延長後のcheckpointで
+起動captureを上書きしていない。この追加測定によって、条件付きreviewを正式採用の
+無条件賛成に読み替えることもしない。
+
+先行する`static-case-lab-001/`はimport名の修正のため中断、`002/`はdriverが退役済み
+runtime IDを再利用して失敗した。モデルの不収束とは区別し、失敗結果・sourceも残す。
+`static-case-lab-smoke-001/`はcold 2周期だけのsmokeで、定常検証には数えない。
