@@ -12,7 +12,7 @@ import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegrat
 import { resolveMainWireAnalysisMethodsForSurfaceV1 as methods } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import { mainWireIntegratedStudioFixtureProjectionV3 as projection } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
 import type { ScenarioPresetV2 } from "@/studio/contracts/v2/content";
-import { resolvedMainWireEquationDataV1 } from "./FittedBaselineDocumentCompositionV1";
+import { resolvedMainWireEquationDataV1 } from "./ResolvedMainWireEquationDataV1";
 import saved from "@/studio/presentation/modelDocumentation/packages/standard72-document-v1.json";
 import { measureMainWireIntegratedModelStandard70CandidateEvidenceV1 as measure,
   completeMainWireStandard70TimingAndInletTraceV1 as completeWindow } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";

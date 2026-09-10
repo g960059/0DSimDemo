@@ -1,12 +1,11 @@
 import type { Locale } from "@/localeRouting";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import { isRegisteredCurrentBaselineFixtureV1, REGISTERED_CURRENT_MODEL_BASELINE_V1 as adopted } from "@/studio/registry/RegisteredCurrentModelBaselineV1";
-import type eligibility from "@/data/model-baselines/standard72-reviewed-eligibility-v1.json";
-import type checkpoint from "@/studio/integrations/mainWireIntegratedV3/standard72-launch-checkpoint.json";
+import type { MainWireBaselineObservationV2 } from "@/analysis/methods/mainWire/MainWireBaselineObservationV2";
 import { baselineMetricLabelV1, baselineMeasurementSummaryV1 } from "./modelDocumentation/MainWireBaselineDocumentationV1";
 
 type Item = Readonly<{ itemId: string; label: string; value: string; detail: string; status?: "reference" | "warning" }>;
-export type MainWireBaselineAssessmentReadbackV1 = Readonly<{
+type MainWireBaselineAssessmentReadbackV1 = Readonly<{
   rest: Readonly<{
     status: string; unavailable: readonly unknown[]; invalidOrFailedRetained: readonly unknown[];
     historicalWarnings: readonly Readonly<{ checkId: string }>[];
@@ -14,10 +13,17 @@ export type MainWireBaselineAssessmentReadbackV1 = Readonly<{
     comparison: Readonly<{ entries: readonly Readonly<{ metricId: string; actual: number; unit: string;
       comparisons: readonly Readonly<{ status: string }>[] }>[] }>;
   }>;
-  native: Pick<(typeof eligibility.observations)[number]["native"], "left" | "right">;
+  native: Readonly<Record<"left" | "right", Readonly<{
+    timing: MainWireBaselineObservationV2["left"]["timing"];
+    inletFlow: Pick<MainWireBaselineObservationV2["left"]["inletFlow"], "peakEToA">;
+  }>>>;
   tau: Readonly<{ weiss: Readonly<{ tauMs: number }>; glantz: Readonly<{ tauMs: number }> }>;
-  beat: Pick<typeof checkpoint.baseStandardCheckpointV2.completedBeatMetrics,
-    "ventricularAbsolutePressureRateExtrema" | "valveForwardPressureGradients">;
+  beat: Readonly<{
+    ventricularAbsolutePressureRateExtrema: Readonly<Record<"LV" | "RV",
+      Readonly<{ maximumMmHgPerSec: number; minimumMmHgPerSec: number }>>>;
+    valveForwardPressureGradients: Readonly<Record<"AoV" | "PV",
+      Readonly<{ timeWeightedMeanMmHg: number; peakMmHg: number }>>>;
+  }>;
   reserveVerified: boolean;
 }>;
 
@@ -25,12 +31,11 @@ export type MainWireBaselineAssessmentReadbackV1 = Readonly<{
 export function registeredCurrentBaselinePresentationV1(modelId: string | null | undefined,
   fixture: StudioJsonValueV2 | null | undefined, locale: Locale) {
   if (!isRegisteredCurrentBaselineFixtureV1(modelId, fixture)) return undefined;
-  return mainWireBaselineAssessmentPresentationV1(adopted.assessment, locale, "adopted");
+  return mainWireBaselineAssessmentPresentationV1(adopted.assessment, locale);
 }
 
-/** Same readback for a checked-in baseline or a local qualified candidate. */
-export function mainWireBaselineAssessmentPresentationV1(record: MainWireBaselineAssessmentReadbackV1,
-  locale: Locale, stage: "adopted" | "candidate") {
+function mainWireBaselineAssessmentPresentationV1(record: MainWireBaselineAssessmentReadbackV1,
+  locale: Locale) {
   const say = (ja: string, en: string) => locale === "ja" ? ja : en;
   const reference = say("参考比較であり、正常性を保証する合否判定ではありません。", "Contextual comparison, not a normality verdict.");
   const observation = record, { rest, beat } = record;
@@ -85,9 +90,7 @@ export function mainWireBaselineAssessmentPresentationV1(record: MainWireBaselin
     status: record.reserveVerified ? undefined : "warning",
     detail: say("この設定の低容量・高容量条件で、CO・EDV・充満圧・経壁圧の応答と時間刻みへの感度を確認した記録です。臨床的な輸液反応性の正常範囲ではありません。", "Recorded low/high-volume CO, EDV, filling and transmural pressure responses for these settings with two-grid sensitivity checks; not a clinical fluid-responsiveness reference range.") }));
   return Object.freeze({
-    summary: stage === "adopted"
-      ? say("baseline採用時の記録です。✓は採用条件の確認、ⓘは参考値、△は比較上の注意を示します。正常性の一括判定ではありません。", "Recorded at baseline adoption: checks denote adoption criteria, information icons contextual values, triangles comparison cautions—not a blanket normality claim.")
-      : say("読み込んだ候補の最終検証記録です。baselineへの採用・公開はしていません。✓は採用条件の確認、ⓘは参考値、△は比較上の注意を示します。正常性の一括判定ではありません。", "Local candidate qualification, not baseline adoption or publication. Checks denote criteria, information icons contextual values, triangles cautions—not a blanket normality claim."),
+    summary: say("baseline採用時の記録です。✓は採用条件の確認、ⓘは参考値、△は比較上の注意を示します。正常性の一括判定ではありません。", "Recorded at baseline adoption: checks denote adoption criteria, information icons contextual values, triangles comparison cautions—not a blanket normality claim."),
     items: Object.freeze(items),
   });
 }

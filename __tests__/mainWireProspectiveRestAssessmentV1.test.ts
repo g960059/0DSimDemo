@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
-import reviewed from "@/data/model-baselines/standard72-reviewed-eligibility-v1.json";
+import reviewed from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.json";
 import evidence from "@/data/physiology/main-wire-prospective-reference-evidence-v1.json";
-import checkpoint from "@/studio/integrations/mainWireIntegratedV3/standard72-settled-baseline-checkpoint.json";
+import bundle from "@/data/model-releases/standard73/bundle.json";
 import { MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1 as policy, assessMainWireProspectiveRestV1 as assess } from "@/analysis/policies/mainWire/MainWireProspectiveBaselineAdmissionV1";
 import { mainWireBaselineGateRoleV1 as role } from "@/analysis/policies/mainWire/MainWireProspectiveBaselineGateRolesV1";
 import type { MainWireIntegratedModelStandard70BaselineCheckV1 as Check } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineValidationV1";
 import type { MainWireIntegratedModelCompletedBeatMetricsV3 as Beat } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 
-const beat = () => structuredClone(checkpoint.baseStandardCheckpointV2.completedBeatMetrics) as unknown as Beat;
+const beat = () => structuredClone(bundle.baseline.capture.checkpoint.payload.base.completedBeatMetrics) as unknown as Beat;
 const checks = () => evidence.checkGroups.flatMap(group => group.checkIds).map(checkId => ({ checkId,
   actual: checkId.endsWith("minimum-dpdt") ? -.5 : .5, minimum: -1, maximum: 1, status: "passed", unit: "synthetic" })) as Check[];
 
 describe("reviewed current resting policy", () => {
   it("retains the already reviewed policy verbatim and its warning roles", () => {
-    expect(policy).toEqual(reviewed.policy);
+    expect(policy).toEqual(reviewed.scientificRecord.measurements.admission.policy);
     expect(evidence.evaluationPolicyId).toBe("main-wire-standard70-baseline-evaluation-roles-v3");
     expect(role("waveform.LVP.rounded-not-plateau")).toBe("reference-warning");
     expect(role("timing.ict")).toBe("reference-warning");

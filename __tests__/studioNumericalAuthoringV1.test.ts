@@ -20,12 +20,12 @@ import {
   validateExecutableBundleV2,
 } from "@/studio/infrastructure/model/ExactModelExecutableValidationV1";
 import {
-  createCircleHeartExactModelReleaseV1,
-} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
+  createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as createCircleHeartExactModelReleaseV1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
 import standardDescriptorV1 from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
+  "@/data/model-releases/CurrentModelReleaseV1";
 import standardSurfaceReleaseV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import {
   createDefaultExperimentSurfaceV3,
   reconcileWorkbenchPressureVolumeCapabilityV3,

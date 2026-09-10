@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import launch from "@/data/model-baselines/standard70-launch-baseline.json";
+import launch from "@/data/model-releases/standard73/bundle.json";
+import document from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.json";
 import { assessMainWireProspectiveRestV1 as rest, MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1 as policy } from "@/analysis/policies/mainWire/MainWireProspectiveBaselineAdmissionV1";
 import { qualifyMainWirePreloadReserveAdmissionV1 as reserve } from "@/analysis/policies/mainWire/MainWirePreloadReserveAdmissionV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
@@ -9,7 +10,7 @@ import type { MainWireIntegratedModelCompletedBeatMetricsV3 as Beat } from "@/en
 import type { MainWireIntegratedModelStandard70BaselineCheckV1 as Check } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineValidationV1";
 type Mutable<T> = { -readonly [K in keyof T]: Mutable<T[K]> };
 function beat(): Mutable<Beat> {
-  const b = structuredClone(launch.qualificationCheckpoint.baseStandardCheckpointV2.completedBeatMetrics) as Mutable<Beat>;
+  const b = structuredClone(launch.baseline.capture.checkpoint.payload.base.completedBeatMetrics) as Mutable<Beat>;
   for (const v of [b.leftVentricularValveEventMetrics, b.rightVentricularValveEventMetrics]) {
     v.endDiastolic!.volumeMl = 140; v.endSystolic!.volumeMl = 60;
     v.endDiastolic!.absolutePressureMmHg = 11; v.endDiastolic!.transmuralPressureMmHg = 11;
@@ -20,7 +21,7 @@ function beat(): Mutable<Beat> {
   for (const id of ["AoV", "PV"] as const) b.valveFlowVolumes[id] = { forwardVolumeMl: 85, reverseVolumeMl: 0, netVolumeMl: 85, sameValveRegurgitantFraction: 0 };
   return b;
 }
-const checks = () => launch.validationReport.checks.map(c => ({ ...c, actual: (c.minimum + c.maximum) / 2, status: "passed" })) as Check[];
+const checks = () => document.scientificRecord.measurements.observations[0].checks.map(c => ({ ...c, actual: (c.minimum + c.maximum) / 2, status: "passed" })) as Check[];
 function measurement(): Mutable<Reserve> {
   const response = (direction: "hypovolemic" | "hypervolemic") => {
     const s = direction === "hypovolemic" ? -1 : 1;

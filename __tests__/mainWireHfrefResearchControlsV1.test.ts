@@ -6,7 +6,7 @@ import { MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1 as temp
 import { MAIN_WIRE_STANDARD71_BASELINE_HEMODYNAMIC_INPUTS_V1 as hemodynamicResearchInputs, MAIN_WIRE_STANDARD71_BASELINE_MECHANISM_INPUTS_V1 as mechanismResearchInputs } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
 import { validateAndOwnMainWireFiveWallMechanicsResearchInputsV1 as validate } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
 import { MainWireStaticCaseSessionV1 as StaticSession } from "@/engine/vnext/MainWireStaticCaseSessionV1";
-import oldCheckpoint from "@/studio/integrations/mainWireIntegratedV3/standard72-settled-baseline-checkpoint.json";
+const oldCheckpoint = { checkpointId: "circleheart.main-wire-integrated-model-standard72-exact-checkpoint.v1" };
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import inherited from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72SurfaceV1";
 import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurface";

@@ -33,15 +33,11 @@ const forbiddenPathRules = [
 // files. IDs, formulas, releases, and worker mechanics remain discoverable
 // from their owning source and tests.
 const requiredBoundaryPaths = [
-  "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.artifact.mjs",
-  "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json",
-  "studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json",
-  "studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json",
-  "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.artifact.mjs",
-  "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.client.json",
-  "studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json",
-  "studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json",
-  "studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json",
+  "data/model-releases/CurrentModelReleaseV1.ts",
+  "data/model-baselines/CurrentBaselineV1.ts",
+  "tools/registry/CurrentModelRegistryAdmissionV1.ts",
+  "analysis/registry/RegisteredAnalysisMethodsV1.ts",
+  "studio/presentation/modelDocumentation/SavedModelDocumentLibraryV1.ts",
 ];
 const portableTextExtensions = new Set([
   ".css",
@@ -114,7 +110,7 @@ const machineLocalPathPatterns = [
 const failures = [];
 const trackedPathSet = new Set(trackedPaths);
 for (const requiredPath of requiredBoundaryPaths) {
-  if (!trackedPathSet.has(requiredPath)) {
+  if (!trackedPathSet.has(requiredPath) || !existsSync(path.join(repositoryRoot, requiredPath))) {
     failures.push(
       `${requiredPath}: required Studio foundation source is not tracked`,
     );

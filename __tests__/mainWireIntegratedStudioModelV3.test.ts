@@ -1,82 +1,25 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
-import {
-  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
-  MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
-  validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
-} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
-import { buildNodes } from "@/engine/core/topology";
-import {
-  EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
-  EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
-  assertBoundExecutionPlanV1,
-  bindExecutionPlanV1,
-  prepareBoundExecutionPlanSolveGroupV1,
-} from "@/runtime/executionPlan/BoundExecutionPlanV1";
-import {
-  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-} from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
+import { EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY, assertBoundExecutionPlanV1 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
+import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import type { ExperimentSurfaceV2 } from "@/studio/contracts/v2/content";
 import { STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1 } from "@/studio/contracts/v2/simulation";
-import type { StudioSimulationFrameV2 } from "@/studio/contracts/v2/simulation";
-import {
-  assertAdditiveModelSurfaceUpgradeV1,
-  assertExactModelKernelManifestV3,
-  assertModelSurfaceReleaseManifestV1,
-  assertModelSurfaceReleaseLineageV1,
-  composeStandardModelContractV1,
-  derivationCapabilityV1,
-  outputCapabilityV1,
-} from "@/studio/contracts/v2/modelSurface";
-import {
-  STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
-  validateStudioModelWorkerReleaseTicketV2,
-} from "@/studio/contracts/v2/release";
-import {
-  DynamicExactModelRuntimeLoaderV2,
-  fetchImmutableExactModelArtifactV2,
-} from "@/studio/infrastructure/model/DynamicExactModelRuntimeLoaderV2";
-import mainWireIntegratedStudioStandardArtifactV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.artifact.mjs?raw";
-import generatedExecutionPlanV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedExecutionPlanV1.generated.json";
-import mainWireIntegratedStudioStandardClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
-import mainWireIntegratedStudioAlgebraicPulmonaryRootClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
-import selectedLaunchBaseline from "@/data/model-baselines/standard70-launch-baseline.json";
-import {
-  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
-  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-  MainWireIntegratedStudioStandardRuntimeHostV1,
-  applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1,
-  createCircleHeartExactModelReleaseV1,
-} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
-import {
-  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
-  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
-  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
-  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
-  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
-} from
-  "@/domain/model/MainWireStandardIdentityV1";
-import { resolveRegisteredExactModelFixtureProjectionV1 } from
-  "@/studio/registry/RegisteredExactModelFixtureProjectionV1";
-import { mainWireIntegratedStudioFixtureProjectionV3 } from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
-import { resolveExactModelControlValueV1 } from
-  "@/studio/application/model/ExactModelControlValuesV1";
-import {
-  MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
-  buildMainWirePeriodicPvaMethodV8,
-} from "@/analysis/methods/mainWire/MainWireStructuralAnalysisExecutionV1";
+
+import { assertAdditiveModelSurfaceUpgradeV1, assertExactModelKernelManifestV3, assertModelSurfaceReleaseManifestV1, assertModelSurfaceReleaseLineageV1, composeStandardModelContractV1, derivationCapabilityV1, outputCapabilityV1 } from "@/studio/contracts/v2/modelSurface";
+import { STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID, validateStudioModelWorkerReleaseTicketV2 } from "@/studio/contracts/v2/release";
+import { DynamicExactModelRuntimeLoaderV2, fetchImmutableExactModelArtifactV2 } from "@/studio/infrastructure/model/DynamicExactModelRuntimeLoaderV2";
+import mainWireIntegratedStudioStandardArtifactV1 from "@/data/model-releases/standard73/artifact.mjs.txt?raw";
+
+import mainWireIntegratedStudioStandardClientV1 from "@/data/model-releases/CurrentModelReleaseV1";
+
+import { MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1, MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1, MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1, MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1, MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 } from "@/domain/model/MainWireStandardIdentityV1";
+
 import { MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
-import {
-  MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
-  resolveMainWireAnalysisMethodsForSurfaceV1,
-} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
-import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
-import mainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
-import mainWireIntegratedStudioStandardRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
-import mainWireIntegratedStudioAlgebraicPulmonaryRootRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-registry-admission-lock.json";
-import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
+import { MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1, resolveMainWireAnalysisMethodsForSurfaceV1 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
+import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
+
+import mainWireIntegratedStudioStandardRegistryLockV1 from "@/data/model-releases/standard73/publication.json";
+
 import { materializeStudioSimulationPresentationFramesV2 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
 
 const EMPTY_SURFACE_V2: ExperimentSurfaceV2 = Object.freeze({
@@ -92,396 +35,6 @@ afterEach(() => {
 });
 
 describe("Standard Main Wire Integrated Studio exact model", () => {
-  it("projects all shared controls and registers only the current model", () => {
-    const projection = mainWireIntegratedStudioFixtureProjectionV3;
-    const controls = createCircleHeartExactModelReleaseV1()
-      .manifest.primitiveControlCatalog;
-
-    expect(controls).toHaveLength(57);
-    for (const definition of controls) {
-      const increased = definition.defaultValue + definition.step;
-      const value = increased <= definition.maximum
-        ? increased
-        : definition.defaultValue - definition.step;
-      expect(value).toBeGreaterThanOrEqual(definition.minimum);
-      expect(value).not.toBe(definition.defaultValue);
-      const fixture =
-        applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1(
-          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-          [{ controlId: definition.controlId, value }],
-        );
-      expect(
-        projection.controlValue(fixture, definition.controlId),
-        definition.controlId,
-      ).toEqual({ status: "value", value });
-    }
-
-    expect(projection.controlValue({
-      hemodynamicResearchInputs: {
-        heartRateBpm: 72,
-        totalBloodVolumeMl: 5_100,
-      },
-    }, "rhythm.heart-rate-bpm")).toEqual({ status: "value", value: 72 });
-    expect(projection.controlValue({
-      hemodynamicResearchInputs: { heartRateBpm: 72 },
-    }, "unknown-control")).toEqual({ status: "unsupported" });
-
-    const divergentWalls =
-      applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1(
-        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-        [{
-          controlId: "myocardium.active-tension-scale.LVFW",
-          value: 1.2,
-        }],
-      );
-    expect(projection.controlValue(
-      divergentWalls,
-      "myocardium.contractility",
-    )).toEqual({ status: "mixed" });
-
-    const aggregateContractility = controls.find(
-      ({ controlId }) => controlId === "myocardium.contractility",
-    );
-    expect(aggregateContractility).toBeDefined();
-    expect(() => resolveExactModelControlValueV1(
-      aggregateContractility!,
-      { ventricularContractilityScale: 1.35 },
-      projection,
-    )).toThrow(/cannot project registered control/);
-
-    const current = mainWireIntegratedStudioAlgebraicPulmonaryRootClientV1;
-    expect(resolveRegisteredExactModelFixtureProjectionV1({
-      modelId: current.manifest.modelId,
-      fixtureSchemaId: current.manifest.fixtureSchema.fixtureSchemaId,
-    })).toBe(projection);
-    expect(projection.controlValue(
-      current.defaultFixture,
-      "hemodynamics.systemic-resistance",
-    )).toEqual({ status: "value", value: 0.99 });
-    for (const control of current.manifest.primitiveControlCatalog) {
-      expect(projection.controlValue(current.defaultFixture, control.controlId))
-        .toEqual({ status: "value", value: control.defaultValue });
-    }
-
-    for (const modelId of [
-      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
-      MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
-      MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
-      MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
-      MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
-      "model/unknown",
-    ]) {
-      expect(() => resolveRegisteredExactModelFixtureProjectionV1({
-        modelId,
-        fixtureSchemaId: current.manifest.fixtureSchema.fixtureSchemaId,
-      })).toThrow(/No exact fixture projection is registered/);
-    }
-    expect(() => resolveRegisteredExactModelFixtureProjectionV1({
-      modelId: current.manifest.modelId,
-      fixtureSchemaId: "fixture/unknown",
-    })).toThrow(/No exact fixture projection is registered/);
-  });
-
-  it("keeps the exact current frame identical to the accepted batch boundary", async () => {
-    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
-    const runtimeSessionId = "session/standard-current-frame-repeatability";
-    const scenarioId = "scenario/baseline";
-    await host.createSession(runtimeSessionId, [
-      {
-        scenarioId,
-        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-      },
-    ]);
-    const first = host.currentFrame(runtimeSessionId, scenarioId);
-    const second = host.currentFrame(runtimeSessionId, scenarioId);
-    expect(second).toEqual(first);
-    const batchFrames = materializeStudioSimulationPresentationFramesV2(
-      host.advancePresentationBatch(runtimeSessionId, scenarioId, 16, [
-        "hemodynamics.pressure.absolute.LV",
-      ]),
-    );
-    expect(host.currentFrame(runtimeSessionId, scenarioId)).toEqual(
-      batchFrames.at(-1),
-    );
-    host.closeSession(runtimeSessionId);
-  });
-
-  it("owns an isolated plan workspace for each Scenario and control boundary", async () => {
-    const release = createCircleHeartExactModelReleaseV1();
-    expect(release.manifest.capabilities).toContain(
-      EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
-    );
-    const simulation = release.executables.simulationAdapter;
-    const executionPlan = release.executables.executionPlan;
-    const baselineBound = executionPlan.bind();
-    const lowVolumeBound = executionPlan.bind();
-    assertBoundExecutionPlanV1(baselineBound, executionPlan.descriptor);
-    assertBoundExecutionPlanV1(lowVolumeBound, executionPlan.descriptor);
-    const runtimeSessionId = "session/standard-plan-scenario-authority";
-    const baselineScenarioId = "scenario/baseline";
-    const lowVolumeScenarioId = "scenario/low-volume";
-    const lowVolumeFixture = Object.freeze({
-      ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-      hemodynamicResearchInputs: Object.freeze({
-        ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1.hemodynamicResearchInputs,
-        totalBloodVolumeMl: 4_200,
-      }),
-    });
-    await executionPlan.createSession({
-      runtimeSessionId,
-      scenarios: [
-        {
-          scenarioId: baselineScenarioId,
-          fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-        },
-        {
-          scenarioId: lowVolumeScenarioId,
-          fixture: lowVolumeFixture,
-        },
-      ],
-      boundExecutionPlans: new Map([
-        [baselineScenarioId, baselineBound],
-        [lowVolumeScenarioId, lowVolumeBound],
-      ]),
-    });
-    const baselineWorkspace = prepareBoundExecutionPlanSolveGroupV1(
-      baselineBound,
-      "coupled-hemodynamics",
-    );
-    await simulation.advanceOnePresentationStep({
-      runtimeSessionId,
-      scenarioId: baselineScenarioId,
-    });
-    expect(baselineWorkspace.jacobian.some((value) => value !== 0)).toBe(true);
-    expect(baselineWorkspace.pivots.some((value) => value !== 0)).toBe(true);
-    const lowVolumeWorkspace = prepareBoundExecutionPlanSolveGroupV1(
-      lowVolumeBound,
-      "coupled-hemodynamics",
-    );
-    expect(lowVolumeWorkspace.jacobian.every((value) => value === 0)).toBe(
-      true,
-    );
-    await simulation.advanceOnePresentationStep({
-      runtimeSessionId,
-      scenarioId: lowVolumeScenarioId,
-    });
-    expect(lowVolumeWorkspace.jacobian.some((value) => value !== 0)).toBe(true);
-    expect(lowVolumeWorkspace.jacobian.buffer).not.toBe(
-      baselineWorkspace.jacobian.buffer,
-    );
-
-    await simulation.applyControl({
-      runtimeSessionId,
-      scenarioId: baselineScenarioId,
-      controlId:
-        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.totalBloodVolumeMl,
-      value: 6_000,
-      expectedInputEpoch: 0,
-    });
-    const retiredWorkspaceSnapshot = new Float64Array(
-      baselineWorkspace.jacobian,
-    );
-    await simulation.advanceOnePresentationStep({
-      runtimeSessionId,
-      scenarioId: baselineScenarioId,
-    });
-    expect(baselineWorkspace.jacobian).toEqual(retiredWorkspaceSnapshot);
-    simulation.disposeSession(runtimeSessionId);
-  });
-
-  it("rejects a compiled multirate schedule until the model implements it", async () => {
-    const release = createCircleHeartExactModelReleaseV1();
-    const executionPlan = release.executables.executionPlan;
-    const runtimeSessionId = "session/standard-multirate-rejection";
-    const scenarioId = "scenario/baseline";
-    const driftedDescriptor = {
-      ...generatedExecutionPlanV1,
-      updateSchedule: {
-        ...generatedExecutionPlanV1.updateSchedule,
-        groups: generatedExecutionPlanV1.updateSchedule.groups.map((group) => ({
-          ...group,
-          periodTicks: 2,
-          effectiveStepSec: 0.004,
-        })),
-      },
-    };
-    const boundExecutionPlan = bindExecutionPlanV1(driftedDescriptor, {
-      componentKernelIds: [
-        ...new Set(
-          generatedExecutionPlanV1.stateLayout.blocks.map(
-            ({ kernelId }) => kernelId,
-          ),
-        ),
-      ],
-      hydraulicPathKernelIds: [
-        ...new Set(generatedExecutionPlanV1.hydraulicGraph.pathKernelIds),
-      ],
-      solveSystemKernelIds: [
-        ...new Set(
-          generatedExecutionPlanV1.solveGroups.map(
-            ({ systemKernelId }) => systemKernelId,
-          ),
-        ),
-      ],
-    });
-
-    await expect(
-      executionPlan.createSession({
-        runtimeSessionId,
-        scenarios: [
-          {
-            scenarioId,
-            fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-          },
-        ],
-        boundExecutionPlans: new Map([[scenarioId, boundExecutionPlan]]),
-      }),
-    ).rejects.toThrow(/update schedule drifted/);
-  });
-
-  it("rejects one bound plan shared by equal Scenario IDs in different sessions", async () => {
-    const release = createCircleHeartExactModelReleaseV1();
-    const executionPlan = release.executables.executionPlan;
-    const bound = executionPlan.bind();
-    assertBoundExecutionPlanV1(bound, executionPlan.descriptor);
-    const scenarioId = "scenario/shared-name";
-    await executionPlan.createSession({
-      runtimeSessionId: "session/first",
-      scenarios: [
-        {
-          scenarioId,
-          fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-        },
-      ],
-      boundExecutionPlans: new Map([[scenarioId, bound]]),
-    });
-    await expect(
-      executionPlan.createSession({
-        runtimeSessionId: "session/second",
-        scenarios: [
-          {
-            scenarioId,
-            fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-          },
-        ],
-        boundExecutionPlans: new Map([[scenarioId, bound]]),
-      }),
-    ).rejects.toThrow(/cannot be shared between Scenarios/);
-    release.executables.simulationAdapter.disposeSession("session/first");
-  });
-
-  it("exposes hemorrhage reserve without moving the canonical baseline", () => {
-    const ranges = MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3;
-    expect(ranges.venousTone).toEqual({
-      minimum: 0,
-      maximum: 1,
-      step: 0.01,
-    });
-    expect(ranges.totalBloodVolumeMl).toEqual({
-      minimum: 4_200,
-      maximum: 7_000,
-      step: 50,
-    });
-
-    const baselineTone =
-      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3.venousTone;
-    const nodes = buildNodes();
-    const systemicVein = nodes.find(({ name }) => name === "SV");
-    const venaCava = nodes.find(({ name }) => name === "VC");
-    expect(systemicVein).toMatchObject({ Vu: 1_653.909, venousToneGain: 770 });
-    expect(venaCava).toMatchObject({ Vu: 169.591, venousToneGain: 130 });
-    expect(
-      systemicVein!.Vu! - systemicVein!.venousToneGain! * baselineTone,
-    ).toBeCloseTo(1_590.909 - 350 * baselineTone, 12);
-    expect(
-      venaCava!.Vu! - venaCava!.venousToneGain! * baselineTone,
-    ).toBeCloseTo(159.091 - 60 * baselineTone, 12);
-
-    expect(() =>
-      validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3({
-        ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
-        venousTone: 1,
-        totalBloodVolumeMl: 4_200,
-      }),
-    ).not.toThrow();
-    expect(() =>
-      validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3({
-        ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
-        venousTone: 1.01,
-      }),
-    ).toThrow(/venousTone/);
-    expect(() =>
-      validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3({
-        ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
-        totalBloodVolumeMl: 4_199,
-      }),
-    ).toThrow(/totalBloodVolumeMl/);
-  });
-
-  it("rejects a structurally valid fixture outside the coupled SV/VC PV support before session construction", async () => {
-    const release = createCircleHeartExactModelReleaseV1();
-    const unsupportedFixture = Object.freeze({
-      ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-      hemodynamicResearchInputs: Object.freeze({
-        systemicResistance: 1.25,
-        pulmonaryResistance: 0.8,
-        venousTone: 1,
-        arterialStiffness: 1,
-        heartRateBpm: 100,
-        totalBloodVolumeMl: 7_000,
-        peepCmH2O: 20,
-      }),
-    });
-    const context = Object.freeze({
-      scenarioId: "scenario/high-tone-hypervolemia",
-      modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
-    });
-
-    expect(() => release.executables.fixtureAdapter.validateCompleteFixture({
-      context,
-      fixture: unsupportedFixture,
-    })).toThrow(/exceeds SV\/VC PV-law support/);
-    await expect(release.executables.simulationAdapter.createSession({
-      runtimeSessionId: "session/high-tone-hypervolemia",
-      scenarios: Object.freeze([Object.freeze({
-        scenarioId: context.scenarioId,
-        fixture: unsupportedFixture,
-      })]),
-    })).rejects.toThrow(/exceeds SV\/VC PV-law support/);
-
-    const adjacentGridFixture = Object.freeze({
-      ...unsupportedFixture,
-      hemodynamicResearchInputs: Object.freeze({
-        ...unsupportedFixture.hemodynamicResearchInputs,
-        totalBloodVolumeMl: 6_900,
-      }),
-    });
-    expect(() => release.executables.fixtureAdapter.validateCompleteFixture({
-      context,
-      fixture: adjacentGridFixture,
-    })).not.toThrow();
-  });
-
-  it("cold-starts a portable fixture at the advertised hypovolemic boundary", async () => {
-    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
-    const runtimeSessionId = "session/standard-hypovolemic-cold-start";
-    const scenarioId = "scenario/hypovolemia-4200";
-    const fixture = Object.freeze({
-      ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-      hemodynamicResearchInputs: Object.freeze({
-        ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1.hemodynamicResearchInputs,
-        totalBloodVolumeMl: 4_200,
-      }),
-    });
-    await expect(
-      host.createSession(runtimeSessionId, [{ scenarioId, fixture }]),
-    ).resolves.toBeUndefined();
-    expect(host.currentFrame(runtimeSessionId, scenarioId)).toMatchObject({
-      scenarioId,
-      acceptedTimeSec: 0,
-    });
-    host.closeSession(runtimeSessionId);
-  });
 
   it("requires the complete Standard kernel catalog contract", () => {
     const { modelMetricCatalog: _removed, ...withoutMetricCatalog } =
@@ -510,7 +63,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       const current = (await import("@/data/model-releases/CurrentModelReleaseV1")).default;
       const currentLock = (await import("@/data/model-releases/standard73/publication.json")).default;
       const surface = (await import("@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1")).default;
-      const revisioned = composition.localAlgebraicPulmonaryRootArtifactRevisionUrlV1(
+      const revisioned = composition.localCurrentArtifactRevisionUrlV1(
         new URL("http://127.0.0.1:4176/standard72.artifact.mjs?keep=1"),
       );
       expect(revisioned.searchParams.get("revision")).toBe(
@@ -518,7 +71,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       );
       expect(revisioned.searchParams.get("keep")).toBe("1");
       expect(composition.DEFAULT_STUDIO_MODEL_ID_V2).toBe(current.manifest.modelId);
-      const local = await composition.loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1();
+      const local = await composition.loadStudioLocalCurrentClientCompositionV1();
       expect(local).toMatchObject({
         exactModel: {
           modelId: current.manifest.modelId,
@@ -766,9 +319,9 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     const first = loader.load(ticket);
     expect(loader.load(ticket)).toBe(first);
     await expect(first).resolves.toMatchObject({
-      contract: { modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 },
+      contract: { modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId },
       simulationAdapter: {
-        modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+        modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
       },
     });
     const loaded = await first;
@@ -795,7 +348,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     expect(coldMeasured.timing.contractValidationMs).toBeGreaterThanOrEqual(0);
     expect(coldMeasured.timing.totalMs).toBeGreaterThanOrEqual(0);
     expect(loaded.executionPlan).toMatchObject({
-      modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+      modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
     });
     const boundExecutionPlan = loaded.executionPlan.bind();
     assertBoundExecutionPlanV1(
@@ -819,7 +372,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       scenarios: [
         {
           scenarioId,
-          fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+          fixture: mainWireIntegratedStudioStandardClientV1.defaultFixture,
         },
       ],
       boundExecutionPlans: new Map([[scenarioId, boundExecutionPlan]]),
@@ -866,7 +419,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
           "https://registry.example/model-releases/next/standard.mjs",
       }),
     ).resolves.toMatchObject({
-      contract: { modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 },
+      contract: { modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId },
     });
     expect(fetchArtifact).toHaveBeenCalledTimes(2);
 
@@ -939,413 +492,6 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     }
   }, 60_000);
 
-  it("warm-starts Standard controls at the accepted clock", async () => {
-    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
-    const runtimeSessionId = "session/standard-control-warm-start";
-    const scenarioId = "scenario/baseline";
-    await host.createSession(runtimeSessionId, [
-      {
-        scenarioId,
-        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-      },
-    ]);
-    let before = host.currentFrame(runtimeSessionId, scenarioId);
-    for (let ordinal = 0; ordinal < 50; ordinal += 1) {
-      before = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
-    }
-    const warmed = await host.applyControl(
-      runtimeSessionId,
-      scenarioId,
-      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.ventricularContractilityScale,
-      1.2,
-      0,
-    );
-    expect(warmed).toMatchObject({
-      inputEpoch: 1,
-      acceptedRevision: before.acceptedRevision,
-      acceptedTimeSec: before.acceptedTimeSec,
-    });
-    expect(
-      host.advanceOnePresentationStep(runtimeSessionId, scenarioId),
-    ).toMatchObject({ inputEpoch: 1 });
-    host.closeSession(runtimeSessionId);
-  }, 120_000);
-
-  it("preflights a 4400-to-4200 mL TBV transition and keeps the live Scenario advancing", async () => {
-    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
-    const runtimeSessionId = "session/standard-control-tbv-preflight";
-    const scenarioId = "scenario/baseline";
-    await host.createSession(runtimeSessionId, [
-      {
-        scenarioId,
-        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-      },
-    ]);
-    let before = host.currentFrame(runtimeSessionId, scenarioId);
-    for (let ordinal = 0; ordinal < 500; ordinal += 1) {
-      before = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
-    }
-    await host.applyControl(
-      runtimeSessionId,
-      scenarioId,
-      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.totalBloodVolumeMl,
-      4_400,
-      0,
-    );
-    for (let ordinal = 0; ordinal < 500; ordinal += 1) {
-      before = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
-    }
-    const low = await host.applyControl(
-      runtimeSessionId,
-      scenarioId,
-      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.totalBloodVolumeMl,
-      4_200,
-      1,
-    );
-    expect(low).toMatchObject({
-      inputEpoch: 2,
-      acceptedRevision: before.acceptedRevision,
-      acceptedTimeSec: before.acceptedTimeSec,
-    });
-    for (let ordinal = 0; ordinal < 1_500; ordinal += 1) {
-      before = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
-    }
-    expect(before).toMatchObject({ inputEpoch: 2 });
-    host.closeSession(runtimeSessionId);
-  }, 120_000);
-
-  it("batch-projects selected outputs without changing exact samples", async () => {
-    const singleHost = new MainWireIntegratedStudioStandardRuntimeHostV1();
-    const batchHost = new MainWireIntegratedStudioStandardRuntimeHostV1();
-    const singleSessionId = "session/standard-presentation-parity";
-    const batchSessionId = singleSessionId;
-    const scenarioId = "scenario/baseline";
-    const seed = [
-      {
-        scenarioId,
-        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-      },
-    ] as const;
-    await singleHost.createSession(singleSessionId, seed);
-    await batchHost.createSession(batchSessionId, seed);
-
-    const selectedOutputIds = [
-      "hemodynamics.pressure.absolute.LV",
-      "hemodynamics.pressure.absolute.LA",
-      "hemodynamics.pressure.absolute.Ao",
-      "hemodynamics.volume.LV",
-      "hemodynamics.pressure.transmural.LV",
-      "rhythm.phase.regular-sinus",
-      "hemodynamics.output.native-left",
-    ] as const;
-    const singleFrames = Array.from({ length: 1_024 }, () =>
-      singleHost.advanceOnePresentationStep(singleSessionId, scenarioId),
-    );
-    const batchFrames = Array.from({ length: 4 }, () =>
-      materializeStudioSimulationPresentationFramesV2(
-        batchHost.advancePresentationBatch(
-          batchSessionId,
-          scenarioId,
-          256,
-          selectedOutputIds,
-        ),
-      ),
-    ).flat();
-
-    expect(batchFrames).toHaveLength(singleFrames.length);
-    for (let index = 0; index < singleFrames.length; index += 1) {
-      const single = singleFrames[index]!;
-      const batch = batchFrames[index]!;
-      expect(batch).toMatchObject({
-        acceptedRevision: single.acceptedRevision,
-        acceptedTimeSec: single.acceptedTimeSec,
-        inputEpoch: single.inputEpoch,
-      });
-      for (const outputId of selectedOutputIds) {
-        expect(batch.outputs[outputId]).toEqual(single.outputs[outputId]);
-      }
-      expect(Object.keys(batch.outputs).sort()).toEqual(
-        (index + 1) % 256 === 0
-          ? Object.keys(single.outputs).sort()
-          : [...selectedOutputIds].sort(),
-      );
-    }
-    expect(batchFrames.at(-1)).toEqual(singleFrames.at(-1));
-    expect(batchHost.currentFrame(batchSessionId, scenarioId)).toEqual(
-      singleHost.currentFrame(singleSessionId, scenarioId),
-    );
-    expect(
-      batchFrames[0]?.outputs["hemodynamics.output.native-left"]?.value,
-    ).toBeNull();
-    expect(
-      batchFrames.some(
-        (frame) =>
-          typeof frame.outputs["hemodynamics.output.native-left"]?.value ===
-          "number",
-      ),
-    ).toBe(true);
-
-    singleHost.closeSession(singleSessionId);
-    batchHost.closeSession(batchSessionId);
-  }, 120_000);
-
-  it("composes the complete Workbench catalog and emits beat metrics", async () => {
-    const analysisMethods = resolveMainWireAnalysisMethodsForSurfaceV1(
-      mainWireIntegratedStudioStandardSurfaceV1,
-    );
-    const composed = composeStandardModelContractV1(
-      mainWireIntegratedStudioStandardClientV1.manifest,
-      mainWireIntegratedStudioStandardSurfaceV1,
-      analysisMethods.capabilities,
-    );
-    expect(
-      composed.contract.controlCatalog.map(({ controlId }) => controlId),
-    ).toEqual(
-      Object.values(MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1),
-    );
-    expect(
-      composed.contract.outputCatalog.map(({ outputId }) => outputId),
-    ).toEqual([
-      ...MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
-      ...MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
-    ]);
-    expect(
-      composed.contract.graphCatalog.map(({ graphId }) => graphId),
-    ).toEqual([
-      "hemodynamics.pressure.waveform",
-      "hemodynamics.flow.waveform",
-      "hemodynamics.pressure.waveform.comprehensive-v1",
-      "hemodynamics.flow.waveform.comprehensive-v1",
-      "hemodynamics.pressure-volume",
-      "hemodynamics.guyton-starling",
-    ]);
-
-    const workbenchSurface = createDefaultExperimentSurfaceV3(
-      composed.contract,
-    );
-    expect(workbenchSurface.graphPanes.map(({ graphId }) => graphId)).toEqual([
-      "hemodynamics.pressure-volume",
-      "hemodynamics.guyton-starling",
-      "hemodynamics.pressure.waveform.comprehensive-v1",
-    ]);
-    expect(
-      workbenchSurface.outputPanes[0]?.items.map(({ outputId }) => outputId),
-    ).toEqual([
-      "rhythm.heart-rate.instantaneous",
-      "hemodynamics.pressure.systolic.Ao",
-      "hemodynamics.pressure.diastolic.Ao",
-      "hemodynamics.pressure.mean.Ao",
-      "hemodynamics.pressure.systolic.PA",
-      "hemodynamics.pressure.diastolic.PA",
-      "hemodynamics.pressure.mean.PA",
-      "hemodynamics.pressure.mean.LA",
-      "hemodynamics.pressure.mean.RA",
-      "hemodynamics.volume.end-diastolic.LV-at-MV-closure",
-      "hemodynamics.pressure.absolute.end-diastolic.LV-at-MV-closure",
-      "hemodynamics.volume.end-systolic.LV-at-AoV-closure",
-      "hemodynamics.pressure.absolute.end-systolic.LV-at-AoV-closure",
-      "hemodynamics.stroke-volume.LV-event-defined",
-      "hemodynamics.ejection-fraction.LV-event-defined",
-      "hemodynamics.valve-volume.net.AoV",
-      "hemodynamics.output.effective-native-left",
-      "myocardium.work.stroke.LV",
-      "oxygen.delivery.systemic",
-    ]);
-
-    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
-    const runtimeSessionId = "session/standard-workbench-parity";
-    const scenarioId = "scenario/baseline";
-    await host.createSession(runtimeSessionId, [
-      {
-        scenarioId,
-        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-      },
-    ]);
-    let frame = host.currentFrame(runtimeSessionId, scenarioId);
-    for (let ordinal = 0; ordinal < 1_700; ordinal += 1) {
-      frame = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
-      if (frame.outputs["hemodynamics.output.native-left"]?.value !== null)
-        break;
-    }
-    for (const outputId of [
-      "hemodynamics.output.native-left",
-      "hemodynamics.valve-volume.net.AoV",
-      "hemodynamics.pressure.mean.Ao",
-      "hemodynamics.ejection-fraction.LV-event-defined",
-      "hemodynamics.pressure.mean.LA",
-      "oxygen.delivery.systemic",
-    ]) {
-      expect(frame.outputs[outputId]).toMatchObject({
-        outputId,
-        availability: "available",
-        quality: "accepted-derived",
-        value: expect.any(Number),
-      });
-    }
-    host.closeSession(runtimeSessionId);
-  }, 120_000);
-
-  it("admits a captured Standard checkpoint without discarding beat state", async () => {
-    const release = createCircleHeartExactModelReleaseV1();
-    const model = composeStandardModelContractV1(
-      release.manifest,
-      mainWireIntegratedStudioStandardSurfaceV1,
-    ).contract;
-    const simulation = release.executables.simulationAdapter;
-    const executionPlan = release.executables.executionPlan;
-    const sourceBoundExecutionPlan = executionPlan.bind();
-    assertBoundExecutionPlanV1(
-      sourceBoundExecutionPlan,
-      executionPlan.descriptor,
-    );
-    const runtimeSessionId = "session/standard-snapshot-admission";
-    const scenarioId = "scenario/baseline";
-    await executionPlan.createSession({
-      runtimeSessionId,
-      scenarios: [
-        {
-          scenarioId,
-          fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-        },
-      ],
-      boundExecutionPlans: new Map([[scenarioId, sourceBoundExecutionPlan]]),
-    });
-    for (let ordinal = 0; ordinal < 500; ordinal += 1) {
-      await simulation.advanceOnePresentationStep({
-        runtimeSessionId,
-        scenarioId,
-      });
-    }
-    const captured =
-      await release.executables.experimentCapture.captureAcceptedCandidate({
-        experimentId: "experiment/standard-snapshot-admission",
-        model,
-        desiredContent: {
-          modelId: release.manifest.modelId,
-          surfaceSeriesId:
-            mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
-          scenarios: [
-            {
-              scenarioId,
-              label: "Baseline",
-              fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-            },
-          ],
-          surface: EMPTY_SURFACE_V2,
-        },
-        correlation: {
-          runtimeSessionId,
-          scenarios: [{ scenarioId, expectedInputEpoch: 0 }],
-        },
-      });
-    const checkpoint = captured.content.scenarios[0]!.capture.checkpoint;
-    const sourceFrame = simulation.currentFrame({
-      runtimeSessionId,
-      scenarioId,
-    });
-    expect(checkpoint.payload).toMatchObject({
-      checkpointId:
-        "circleheart.main-wire-integrated-model-standard-exact-checkpoint.v2",
-      numericalCheckpoint: expect.objectContaining({
-        revision: checkpoint.acceptedRevision,
-        acceptedTimeSec: checkpoint.acceptedTimeSec,
-      }),
-    });
-    await expect(
-      release.executables.captureAdapter.validateCapture({
-        model,
-        capture: {
-          ...captured.content.scenarios[0]!.capture,
-          fixture: {
-            ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-            mechanismResearchInputs: {
-              ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1.mechanismResearchInputs,
-              oxygenTransport: {
-                ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1
-                  .mechanismResearchInputs.oxygenTransport,
-                hemoglobinGPerDl: 10,
-              },
-            },
-          },
-        },
-      }),
-    ).rejects.toThrow("mechanism research input SHA-256 identity mismatch");
-    await expect(
-      release.executables.snapshotGate.admitFrozenCandidate({
-        model,
-        content: {
-          ...captured.content,
-          surfaceSeriesId:
-            mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
-        },
-      }),
-    ).resolves.toEqual({ status: "passed" });
-    expect(captured.content.scenarios[0]!.capture.checkpoint).toEqual(
-      checkpoint,
-    );
-    const restoredRuntimeSessionId = `${runtimeSessionId}/restored`;
-    const restoredBoundExecutionPlan = executionPlan.bind();
-    assertBoundExecutionPlanV1(
-      restoredBoundExecutionPlan,
-      executionPlan.descriptor,
-    );
-    await executionPlan.createSession({
-      runtimeSessionId: restoredRuntimeSessionId,
-      scenarios: [
-        {
-          scenarioId,
-          fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-          checkpoint,
-        },
-      ],
-      boundExecutionPlans: new Map([[scenarioId, restoredBoundExecutionPlan]]),
-    });
-    const restoredFrame = simulation.currentFrame({
-      runtimeSessionId: restoredRuntimeSessionId,
-      scenarioId,
-    });
-    expect(restoredFrame).toMatchObject({
-      acceptedRevision: sourceFrame.acceptedRevision,
-      acceptedTimeSec: sourceFrame.acceptedTimeSec,
-      inputEpoch: sourceFrame.inputEpoch,
-    });
-    for (let ordinal = 0; ordinal < 128; ordinal += 1) {
-      const uninterrupted = await simulation.advanceOnePresentationStep({
-        runtimeSessionId,
-        scenarioId,
-      });
-      const restored = await simulation.advanceOnePresentationStep({
-        runtimeSessionId: restoredRuntimeSessionId,
-        scenarioId,
-      });
-      expectStudioFramesScientificallyEquivalent(restored, uninterrupted);
-    }
-    simulation.disposeSession(restoredRuntimeSessionId);
-    simulation.disposeSession(runtimeSessionId);
-  }, 120_000);
-
-  it("owns analysis output semantics in the current Surface series", () => {
-    assertModelSurfaceReleaseManifestV1(
-      mainWireIntegratedStudioStandardSurfaceV1,
-    );
-    const implicitExposure = structuredClone(
-      mainWireIntegratedStudioStandardSurfaceV1,
-    ) as Record<string, unknown>;
-    delete implicitExposure.exposedExactOutputIds;
-    expect(() => assertModelSurfaceReleaseManifestV1(
-      implicitExposure,
-    )).toThrow(/exposedExactOutputIds/);
-    expect(mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId).toBe(
-      "circleheart.main-wire.surface.workbench-analysis-v1",
-    );
-    expect(
-      mainWireIntegratedStudioStandardSurfaceV1.predecessorSurfaceReleaseId,
-    ).toBeNull();
-    expect(mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId).toBe(
-      "circleheart.main-wire.surface.workbench-analysis",
-    );
-  });
-
   it("pins derived analysis methods in Surface without expanding exact identity", () => {
     const exact = mainWireIntegratedStudioStandardClientV1.manifest;
     const exactOutputIds = new Set([
@@ -1364,17 +510,14 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     );
     expect(methods.capabilities).toContain(
       derivationCapabilityV1(
-        MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
+        MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID,
       ),
     );
     expect(methods.resolveExecutionPlan(
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
     )).not.toBeNull();
     expect(methods.periodicPvaDerivation?.methodId).toBe(
-      MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
-    );
-    expect(methods.periodicPvaDerivation?.build).toBe(
-      buildMainWirePeriodicPvaMethodV8,
+      MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID,
     );
     const composition = composeStandardModelContractV1(
       exact,
@@ -1390,7 +533,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
     );
 
-    const unsupported = structuredClone(
+    const unsupported = mutableClone(
       mainWireIntegratedStudioStandardSurfaceV1,
     );
     unsupported.derivedOutputCatalog = unsupported.derivedOutputCatalog.map(
@@ -1408,7 +551,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       unsupported,
     )).toThrow(/Client does not support analysis derivation/);
 
-    const wrongUnit = structuredClone(
+    const wrongUnit = mutableClone(
       mainWireIntegratedStudioStandardSurfaceV1,
     );
     wrongUnit.derivedOutputCatalog[0]!.unit = "kJ";
@@ -1459,7 +602,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       mainWireIntegratedStudioStandardSurfaceV1.displayName,
     );
 
-    const incompatibleExactExposure = structuredClone(
+    const incompatibleExactExposure = mutableClone(
       mainWireIntegratedStudioStandardSurfaceV1,
     );
     incompatibleExactExposure.exposedExactOutputIds.push(
@@ -1481,7 +624,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       validatedCurrentSurface,
       validatedCurrentSurface,
     )).toThrow(/root Surface release must not supply a predecessor/);
-    const incompatibleSuccessor = structuredClone(
+    const incompatibleSuccessor: any = mutableClone(
       mainWireIntegratedStudioStandardSurfaceV1,
     );
     incompatibleSuccessor.surfaceReleaseId =
@@ -1513,7 +656,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       ).capabilities,
     );
     expect(composition.contract.modelId).toBe(
-      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+      mainWireIntegratedStudioStandardClientV1.manifest.modelId,
     );
     expect(
       composition.contract.controlCatalog.map(
@@ -1533,42 +676,8 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
   });
 });
 
-function expectStudioFramesScientificallyEquivalent(
-  actual: StudioSimulationFrameV2,
-  expected: StudioSimulationFrameV2,
-): void {
-  expect(actual).toMatchObject({
-    modelId: expected.modelId,
-    scenarioId: expected.scenarioId,
-    inputEpoch: expected.inputEpoch,
-    acceptedRevision: expected.acceptedRevision,
-    acceptedTimeSec: expected.acceptedTimeSec,
-  });
-  expect(Object.keys(actual.outputs)).toEqual(Object.keys(expected.outputs));
-  for (const outputId of Object.keys(expected.outputs)) {
-    const actualOutput = actual.outputs[outputId];
-    const expectedOutput = expected.outputs[outputId];
-    expect(actualOutput).toMatchObject({
-      outputId: expectedOutput?.outputId,
-      availability: expectedOutput?.availability,
-      quality: expectedOutput?.quality,
-    });
-    const actualValue = actualOutput?.value;
-    const expectedValue = expectedOutput?.value;
-    if (actualValue === null || expectedValue === null) {
-      expect(actualValue).toBe(expectedValue);
-      continue;
-    }
-    if (typeof actualValue !== "number" || typeof expectedValue !== "number") {
-      expect(actualValue).toEqual(expectedValue);
-      continue;
-    }
-    const scale = Math.max(1, Math.abs(actualValue), Math.abs(expectedValue));
-    expect(Math.abs(actualValue - expectedValue)).toBeLessThanOrEqual(
-      1e-9 + 1e-6 * scale,
-    );
-  }
-}
+type Mutable<T> = { -readonly [K in keyof T]: Mutable<T[K]> };
+function mutableClone<T>(value: T): Mutable<T> { return structuredClone(value) as Mutable<T>; }
 
 function standardExecutableArtifactBytesV3(): Uint8Array {
   return new TextEncoder().encode(mainWireIntegratedStudioStandardArtifactV1);

@@ -1,22 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
-import { createHash } from "node:crypto";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+
 import raw from "@/data/physiology/main-wire-hfref-dilated-reference-v1.json";
 import oldRaw from "@/data/physiology/main-wire-hfref-reference-v1.json";
-import { MAIN_WIRE_HFREF_REFERENCE_V1 as oldReference,
-  assessMainWireHfrefRestV1 as oldAssess } from "@/analysis/policies/mainWire/MainWireHfrefReferenceV1";
-import { MAIN_WIRE_HFREF_DILATED_REFERENCE_V1 as reference,
-  composeMainWireHfrefDilatedReferenceV1 as compose,
-  assessMainWireHfrefDilatedRestV1 as assess } from "@/analysis/policies/mainWire/MainWireHfrefDilatedReferenceV1";
+import { MAIN_WIRE_HFREF_REFERENCE_V1 as oldReference, assessMainWireHfrefRestV1 as oldAssess } from "@/analysis/policies/mainWire/MainWireHfrefReferenceV1";
+import { MAIN_WIRE_HFREF_DILATED_REFERENCE_V1 as reference, composeMainWireHfrefDilatedReferenceV1 as compose, assessMainWireHfrefDilatedRestV1 as assess } from "@/analysis/policies/mainWire/MainWireHfrefDilatedReferenceV1";
 import { measureMainWireRelaxationTauV1 as measure } from "@/analysis/methods/mainWire/MainWireRelaxationTauV1";
 import { observeMainWireHfrefCaseV2 as observe } from "@/analysis/methods/mainWire/MainWireHfrefCaseObservationV2";
-import { MAIN_WIRE_FITTING_SEED_V1 as seed } from "@/analysis/registry/MainWireFittingSeedV1";
+import bundle from "@/data/model-releases/standard73/bundle.json";
 import type { MainWireIntegratedModelCompletedBeatMetricsV3 as Beat } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 import { resolveMainWireFittingReferenceV1 as resolve } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
-import { sha256CanonicalJsonHex } from "@/engine/integrity";
-import { readHfrefRemodelingAssessmentBatchV1 as reobserve } from "../tools/scientific/reassessHfrefRemodelingV1";
 
 const events = { inletClosureTimeSec: .01, outletOpeningTimeSec: .02, outletClosureTimeSec: .1,
   inletOpeningTimeSec: .25, nextInletClosureTimeSec: .3, atrialCaptureTimeSec: .27, atrialCaptureId: "a" };
@@ -109,59 +101,12 @@ describe("a coherent source-backed chronic dilated case, not all HFrEF", () => {
     expect(() => observe(beat, samples.map((s, i) => i === 20
       ? { ...s, valveFlowMlPerSec: { ...s.valveFlowMlPerSec, MV: NaN } } : s))).toThrow();
   });
-  it("reobserves sealed traces without changing them and rejects changed or unrepaired inputs", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "hfref-reassessment-test-"));
-    try {
-      const fixture = await sealedFixture(directory);
-      const bytesBefore = await readFile(join(directory, "case-7.json"));
-      const batch = await reobserve(directory);
-      expect(batch.cases).toHaveLength(8);
-      expect(batch.cases[7]!.assessment.referenceId).toBe(reference.referenceId);
-      expect(await readFile(join(directory, "case-7.json"))).toEqual(bytesBefore);
-      await writeFile(join(directory, "case-7.json"), Buffer.concat([bytesBefore, Buffer.from(" ")]));
-      await expect(reobserve(directory)).rejects.toThrow("Unbound remodeling output: case-7.json");
-      await writeFile(join(directory, "case-7.json"), bytesBefore);
-      await fixture.bindPlan("unrepaired-remodeling-v1");
-      await expect(reobserve(directory)).rejects.toThrow("Not the repaired, sealed remodeling factorial");
-    } finally { await rm(directory, { recursive: true, force: true }); }
-  });
 });
-
-/** Synthetic sealed trace inventory exercises provenance checks, not physiology. */
-async function sealedFixture(directory: string) {
-  const hash = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
-  const protocol = "hfref-static-lv-septal-remodeling-fixed-coronary-bed-v2", dt = .002;
-  const points = [1, .35].flatMap(active => [1, 1.15].flatMap(referenceArea => [1, 1.25].map(wallVolume => ({ active, referenceArea, wallVolume }))));
-  const { beat, samples } = timingFixture(), results: { filename: string; sha256: string }[] = [];
-  const files: unknown[] = [], sourceSha256 = hash(JSON.stringify(files));
-  const bind = async (filename: string, value: unknown) => {
-    const bytes = JSON.stringify(value);
-    await writeFile(join(directory, filename), bytes);
-    const i = results.findIndex(r => r.filename === filename);
-    if (i !== -1) results.splice(i, 1);
-    results.push({ filename, sha256: hash(bytes) });
-  };
-  for (const [i, point] of points.entries()) {
-    const candidate = { synthetic: true };
-    const body = { protocol, dt, point, candidate, status: "observed", classification: { status: "period1-converged" },
-      auditClassification: { status: "period1-converged" }, constructionSha256: await sha256CanonicalJsonHex({ protocol, point, candidate }),
-      completedBeat: beat, terminalTrace: samples };
-    await bind(`case-${i}.json`, { ...body, resultSha256: await sha256CanonicalJsonHex(body) });
-  }
-  const archive = { filename: "execution.source.tar.gz", sha256: hash("opaque-test-source-archive") };
-  await writeFile(join(directory, archive.filename), "opaque-test-source-archive");
-  const bindPlan = async (planProtocol: string) => {
-    await bind("plan.json", { protocol: planProtocol, dt, points, sourceSha256 });
-    await writeFile(join(directory, "execution.source.json"), JSON.stringify({ files, sourceSha256, archive, results }));
-  };
-  await bindPlan(protocol);
-  return { bindPlan };
-}
 
 /** Synthetic analysis fixture at HR70, not simulated physiology. */
 function timingFixture() {
   type Mutable<T> = { -readonly [K in keyof T]: Mutable<T[K]> };
-  const beat = structuredClone(seed.checkpoint.baseStandardCheckpointV2.completedBeatMetrics) as Mutable<Beat>;
+  const beat = structuredClone(bundle.baseline.capture.checkpoint.payload.base.completedBeatMetrics) as Mutable<Beat>;
   const end = 6 / 7;
   beat.startTimeSec = 0; beat.endTimeSec = end; beat.durationSec = end; beat.endAtrialCaptureId = "end";
   for (const v of [beat.leftVentricularValveEventMetrics, beat.rightVentricularValveEventMetrics]) {

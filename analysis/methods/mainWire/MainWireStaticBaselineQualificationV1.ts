@@ -4,7 +4,7 @@ import { runMainWireStaticCaseFittingV1 as fit, readMainWireStaticCaseFittingRes
   assessMainWireStaticCaseRestV1 as assessRest, buildMainWireStaticCaseFittingPolicyIdentityV1 as policyIdentity,
   type MainWireStaticCaseCandidateV1 as Candidate } from "./MainWireStaticCaseFittingWorkflowV1";
 import { MAIN_WIRE_STATIC_CASE_MODEL_ID_V1 as modelId } from "@/domain/model/MainWireStaticCaseIdentityV1";
-import { wrapMainWireStandard72PreloadReserveSessionV1 as wrap } from "./MainWireStandard72PreloadReserveV1";
+import { wrapMainWirePreloadReserveSessionV1 as wrap } from "./MainWirePreloadReserveSessionV1";
 import { measureMainWireIntegratedModelFormalPreloadReserveV2 as reserve,
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1 as reserveProtocol } from "./MainWirePressureVolumeProtocolsV3";
 import { MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2 as reserveSettlement } from "./MainWireFixedToneSettlementV2";

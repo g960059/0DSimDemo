@@ -15,7 +15,7 @@ import { assessMainWireHfrefDilatedRestV1 as assess, MAIN_WIRE_HFREF_DILATED_REF
 import { measureMainWireIntegratedModelStandard70CandidateEvidenceV1 as measure,
   mainWireStandard70TimingAndInletObservationTraceV1 as trace } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
 import { observeMainWireStandard70TimingAndInletV2 as timing } from "@/analysis/methods/mainWire/MainWireStandard70BaselineAssessmentV2";
-import { resolvedMainWireEquationDataV1 as equationsFor } from "./FittedBaselineDocumentCompositionV1";
+import { resolvedMainWireEquationDataV1 as equationsFor } from "./ResolvedMainWireEquationDataV1";
 import type { StaticCaseDocumentContentV1 } from "./StaticCaseDocumentCompositionV1";
 import saved from "@/studio/presentation/modelDocumentation/packages/hfref-static-case-document-v4.json";
 import shared from "@/studio/presentation/modelDocumentation/packages/standard72-document-v1.json";

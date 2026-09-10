@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import raw from "@/data/physiology/main-wire-hfref-reference-v1.json";
-import { MAIN_WIRE_FITTING_SEED_V1 as seed } from "@/analysis/registry/MainWireFittingSeedV1";
+import bundle from "@/data/model-releases/standard73/bundle.json";
 import { resolveMainWireFittingReferenceV1 as reference } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
 import { validateMainWireHfrefReferenceV1 as validate, assessMainWireHfrefRestV1 as assess } from "@/analysis/policies/mainWire/MainWireHfrefReferenceV1";
 import { readMainWireHfrefBeatV1 as readBeat, observeMainWireHfrefTimingContextV1 as context } from "@/analysis/methods/mainWire/MainWireHfrefObservationV1";
@@ -8,7 +8,7 @@ import { observeMainWireBaselineV2 as observe } from "@/analysis/methods/mainWir
 import type { MainWireIntegratedModelCompletedBeatMetricsV3 as Beat } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 
 type Mutable<T> = { -readonly [K in keyof T]: Mutable<T[K]> };
-const beat = () => structuredClone(seed.checkpoint.baseStandardCheckpointV2.completedBeatMetrics) as Mutable<Beat>;
+const beat = () => structuredClone(bundle.baseline.capture.checkpoint.payload.base.completedBeatMetrics) as Mutable<Beat>;
 const values = { lvef: .3, lvedvi: 120, ci: 2.52, meanLa: 14, meanRa: 5, meanAo: 80 };
 
 describe("source-backed HFrEF construction, separate from healthy adoption", () => {

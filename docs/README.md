@@ -14,7 +14,7 @@ Open only the area needed for the task:
 - [Literature traceability](scientific-runtime/INTEGRATED-MODEL-0002-literature-traceability.md):
   source roles, held-out evidence, and non-claims.
 - [Calibration and identifiability](scientific-runtime/CALIBRATION-0001-identifiability-first-fitting.md):
-  frozen-study, parameter-role, fitting, and model-form boundaries.
+  baseline/preset references, parameter roles, qualification, and model-form boundaries.
 - [AI-assisted authoring](../tools/authoring/README.md): machine discovery and
   authoring trust boundaries.
 - [Supabase boundary](../supabase/README.md): backend trust, registry, and

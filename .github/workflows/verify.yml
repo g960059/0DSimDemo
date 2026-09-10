@@ -55,37 +55,7 @@ jobs:
       - name: Build
         run: npm run build
 
-  retained-package:
-    name: Active retained package integrity
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      # Source regressions and Workbench smoke still exercise active code.
-      # Retained 70 bytes must remain unchanged, not be rebuilt or re-certified
-      # because the candidate modifies a shared host. 65-69 are not active.
-      - name: Verify immutable retained package
-        run: npm run verify:registry:retained-exact-package
-        env:
-          CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
-      - name: Verify retained-package guard regressions
-        run: npx vitest run __tests__/retainedExactModelPackageV1.test.ts
-
-  standard72:
+  current-model:
     name: Current model registry admission
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -96,27 +66,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Bind retained scientific assessment and qualify deterministic executable
+      - name: Verify reviewed artifact, own captures and scientific bindings
         run: npm run verify:registry:current
-      - name: Verify admission, checkpoint, fitting and qualification contracts
+      # Cold-to-periodic fitting belongs to the canonical/nightly lane. The PR
+      # gate verifies current artifact/captures above and qualification rules here.
+      - name: Verify pressure-rate numerical quality guards
         run: >-
-          npx vitest run
-          __tests__/mainWireStaticCaseStudioV1.test.ts
-          __tests__/registeredModelLaunchBaselineV1.test.ts
-          __tests__/mainWireStandard72RegistryAdmissionV1.test.ts
-          __tests__/mainWireStandard72CheckpointContinuationV1.test.ts
-          __tests__/mainWireStandard72ConstructionV1.test.ts
-          __tests__/mainWireStandard72StudioBindingV1.test.ts
-          __tests__/mainWireStandard72FittingWorkflowV1.test.ts
-          __tests__/mainWireStandard72PreloadReserveV1.test.ts
-          __tests__/mainWireStandard72FittingQualificationV1.test.ts
-          __tests__/mainWireStandard72FittingSearchV1.test.ts
-          __tests__/fittingJsonWorkersV1.test.ts
-          __tests__/mainWireProspectiveRestAssessmentV1.test.ts
-          __tests__/mainWireProspectiveBaselineAdmissionV1.test.ts
-          __tests__/mainWirePreloadReserveResearchScreenV2.test.ts
+          npx vitest run --config vitest.canonical.config.ts
           __tests__/mainWireBaselinePressureRateQualityV1.test.ts
-          __tests__/mainWireRelaxationTauV1.test.ts
           --minWorkers=1 --maxWorkers=2
 
   test:
@@ -151,30 +108,6 @@ jobs:
           # this remains a runaway-process guard rather than a performance gate.
           CIRCLEHEART_FAST_TEST_BUDGET_MS: 300000
 
-      - name: Verify Standard66 exact and Surface boundaries
-        if: github.event_name == 'pull_request'
-        run: >-
-          node node_modules/vitest/vitest.mjs run
-          --config vitest.config.ts
-          --testTimeout=10000
-          __tests__/mainWireSelectedAorticPortSessionExtensionV1.test.ts
-          __tests__/mainWireIntegratedTypedAuthoritySelectedAorticExtensionV1.test.ts
-          __tests__/mainWireIntegratedModelStandard66CheckpointV1.test.ts
-          __tests__/mainWireIntegratedModelStandard66OutputRegistryV1.test.ts
-          __tests__/mainWireIntegratedModelStandard66TypedAuthoritySessionV1.test.ts
-          __tests__/mainWireIntegratedModelStandard66ModelSurfaceV1.test.ts
-          __tests__/mainWireIntegratedStudioSelectedAorticOutflowV1.test.ts
-          __tests__/mainWireIntegratedModelStandard66ProductionRouteParityV1.test.ts
-
-      - name: Verify exact V3 snapshot qualification
-        if: github.event_name == 'pull_request'
-        # Keep the cold-to-P1 gate outside the parallel smoke worker pool. The
-        # test yields only at accepted cycle boundaries so Vitest RPC stays live.
-        run: >-
-          node node_modules/vitest/vitest.mjs run
-          --config vitest.canonical.config.ts
-          __tests__/mainWireIntegratedModelSnapshotQualificationV3.test.ts
-
   browser:
     name: Workbench browser smoke
     runs-on: ubuntu-latest
@@ -193,7 +126,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Chromium
+      - name: Install Chromium and WebKit
         run: npx playwright install --with-deps chromium webkit
 
       - name: Build
@@ -274,8 +207,7 @@ jobs:
       - build
       - browser
       - supabase
-      - retained-package
-      - standard72
+      - current-model
       - test
       - whitespace
     if: always()
@@ -289,8 +221,7 @@ jobs:
           BUILD_RESULT: ${{ needs.build.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
           SUPABASE_RESULT: ${{ needs.supabase.result }}
-          RETAINED_PACKAGE_RESULT: ${{ needs.retained-package.result }}
-          STANDARD72_RESULT: ${{ needs.standard72.result }}
+          CURRENT_MODEL_RESULT: ${{ needs.current-model.result }}
           TEST_RESULT: ${{ needs.test.result }}
           WHITESPACE_RESULT: ${{ needs.whitespace.result }}
         run: |
@@ -300,8 +231,7 @@ jobs:
             "Build:$BUILD_RESULT" \
             "Workbench browser smoke:$BROWSER_RESULT" \
             "Supabase schema and policy tests:$SUPABASE_RESULT" \
-            "Active retained package integrity:$RETAINED_PACKAGE_RESULT" \
-            "Standard72 registry admission:$STANDARD72_RESULT" \
+            "Current model registry admission:$CURRENT_MODEL_RESULT" \
             "Test:$TEST_RESULT" \
             "Check diff whitespace:$WHITESPACE_RESULT"
           do

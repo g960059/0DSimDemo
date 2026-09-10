@@ -10,12 +10,9 @@ import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { MainWireDocumentV1 } from "./authoring/MainWireDocumentV1";
-import { STANDARD72_DOCUMENT_COMPOSITION_V1 } from "./authoring/Standard72DocumentCompositionV1";
 import { MAIN_WIRE_MODEL_MODULES_V1 } from "@/studio/presentation/modelDocumentation/MainWireModelModulesV1";
 import { MAIN_WIRE_EQUATION_SPECIFICATION_V1 } from "@/studio/presentation/modelDocumentation/MainWireEquationSpecificationV1";
 import { savedDocumentOfflineHtmlV1, type SavedModelDocumentV1 } from "@/studio/presentation/modelDocumentation/SavedModelDocumentV1";
-import { composeFittedBaselineDocumentV1 } from "./authoring/FittedBaselineDocumentCompositionV1";
-import { readBoundFittingQualificationV1 } from "../modelBaselines/ReadBoundFittingQualificationV1";
 import { composeStaticCaseDocumentV1, type StaticCaseDocumentContentV1 } from "./authoring/StaticCaseDocumentCompositionV1";
 import { StaticCaseDocumentV1 } from "./authoring/StaticCaseDocumentV1";
 import type { MainWireDocumentContentV1 } from "./authoring/MainWireDocumentV1";
@@ -25,25 +22,20 @@ import { composeBoundStaticCaseDocumentV1 } from "./authoring/BoundStaticCaseDoc
 
 // Explicit document compiler. Never invoked by a reader, npm build, or model
 // activation. This freezes existing explanations; it neither simulates nor votes.
-const compositions = { "standard72-document-v1": STANDARD72_DOCUMENT_COMPOSITION_V1 };
-const requested = process.argv.find(arg => arg in compositions);
 const arg = (key: string) => { const index = process.argv.indexOf(key); return index < 0 ? undefined : process.argv[index + 1]; };
-const casePath = arg("--case"), qualificationPath = arg("--qualification"), fittedId = arg("--document-id");
+const fittedId = arg("--document-id");
 const staticEvidencePath = arg("--static-case-evidence"), staticBundlePath = arg("--bundle");
 const staticBaselinePath = arg("--static-baseline-qualification");
 const boundCasePath = arg("--bound-case-coarse"), boundCaseFine = arg("--bound-case-fine");
 if (process.argv.includes("--help")) {
-  console.log("Pass a registered document ID, --case CASE_JSON --qualification FINAL_JSON, --static-case-evidence EVIDENCE_JSON --bundle BUNDLE_JSON, or --static-baseline-qualification FINAL_JSON --bundle BUNDLE_JSON; custom compositions require --document-id NEW_ID [--output-dir NEW_DIRECTORY]. Add --reading to regenerate the reading projection of an existing archive, or --reading --check to verify it. Never changes a selected case or existing scientific archive.");
+  console.log("Pass --static-case-evidence EVIDENCE_JSON --bundle BUNDLE_JSON, or --static-baseline-qualification FINAL_JSON --bundle BUNDLE_JSON; custom compositions require --document-id NEW_ID [--output-dir NEW_DIRECTORY]. Add --reading to regenerate the reading projection of an existing archive, or --reading --check to verify it. Never changes a selected case or existing scientific archive.");
   process.exit(0);
 }
-if (!requested && !(casePath && qualificationPath && fittedId) && !(staticEvidencePath && staticBundlePath && fittedId)
+if (!(staticEvidencePath && staticBundlePath && fittedId)
   && !(staticBaselinePath && staticBundlePath && fittedId)) throw new Error("Require a complete document composition");
-if ([!!requested, !!casePath, !!staticEvidencePath, !!staticBaselinePath].filter(Boolean).length !== 1) throw new Error("Choose one composition");
+if ([!!staticEvidencePath, !!staticBaselinePath].filter(Boolean).length !== 1) throw new Error("Choose one composition");
 if (boundCasePath && (!boundCaseFine || !staticBaselinePath || !staticBundlePath || !fittedId)
   || boundCaseFine && !boundCasePath) throw new Error("Bound case requires coarse/fine results, baseline qualification, bundle and new document ID");
-const source = qualificationPath ? await readBoundFittingQualificationV1(qualificationPath) : null;
-const caseJson = casePath ? JSON.parse(await readFile(casePath, "utf8")) : null;
-if (source && caseJson.evidence.executionSourceSha256 !== source.executionSourceSha256) throw new Error("Case and qualification execution source differ");
 const staticComposition = boundCasePath ? await composeBoundStaticCaseDocumentV1({ qualificationPath: staticBaselinePath!,
   coarsePath: boundCasePath, finePath: boundCaseFine!, bundlePath: staticBundlePath!, documentId: fittedId! }) : staticEvidencePath ? await composeStaticCaseDocumentV1({
   evidencePath: staticEvidencePath, bundlePath: staticBundlePath!, documentId: fittedId!,
@@ -51,9 +43,7 @@ const staticComposition = boundCasePath ? await composeBoundStaticCaseDocumentV1
 const baselineComposition = staticBaselinePath && !boundCasePath ? await composeStaticBaselineDocumentV1({
   qualificationPath: staticBaselinePath, bundlePath: staticBundlePath!, documentId: fittedId!,
 }) : null;
-const composition = baselineComposition ?? staticComposition ?? (casePath ? await composeFittedBaselineDocumentV1({
-  preparedCase: caseJson, qualification: source!.qualification, documentId: fittedId!,
-}) : compositions[requested as keyof typeof compositions]);
+const composition = baselineComposition ?? staticComposition!;
 const { documentId, measurements, content } = composition;
 const { equations, moduleIds } = content;
 const target = path.join(arg("--output-dir") ?? "studio/presentation/modelDocumentation/packages", `${documentId}.json`);
@@ -74,29 +64,18 @@ const files = [
   "tools/modelDocumentation/authoring/MainWireDocumentV1.tsx",
   "tools/modelDocumentation/authoring/MainWireEquationDetailsV1.tsx",
   "tools/modelDocumentation/authoring/MainWireModuleExplanationsV1.tsx",
-  "tools/modelDocumentation/authoring/Standard72DocumentCompositionV1.ts",
   "components/model/ModelMathV1.tsx",
   "studio/presentation/modelDocumentation/MainWireModelModulesV1.ts",
   "studio/presentation/modelDocumentation/MainWireEquationSpecificationV1.ts",
   "studio/presentation/modelDocumentation/MainWireBaselineDocumentationV1.ts",
   "studio/presentation/modelDocumentation/packages/standard71-document-v1.json",
-  "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72ExactModelV1.client.json",
-  "studio/integrations/mainWireIntegratedV3/standard72-baseline-binding-evidence.json",
-  "studio/integrations/mainWireIntegratedV3/standard72-launch-checkpoint.json",
-  "studio/integrations/mainWireIntegratedV3/standard72-registry-admission-lock.json",
-  "data/model-baselines/standard72-reviewed-eligibility-v1.json",
-  "data/model-baselines/standard72-reviewed-executable-v1.json",
   "studio/presentation/StudioItemPresentationCatalogV1.ts",
   "locales/ja/translation.json", "locales/en/translation.json", "index.css",
-  ...(casePath ? [casePath, qualificationPath!, `${qualificationPath}.source.json`,
-    "studio/presentation/modelDocumentation/packages/standard72-document-v1.json",
-    "tools/modelDocumentation/authoring/FittedBaselineDocumentCompositionV1.ts",
-    "tools/modelBaselines/ReadBoundFittingQualificationV1.ts"] : []),
   ...(staticComposition ? [...staticComposition.sourceFiles,
     "tools/modelDocumentation/authoring/StaticCaseDocumentCompositionV1.ts",
     "tools/modelDocumentation/authoring/StaticCaseDocumentV1.tsx",
     "tools/modelDocumentation/authoring/HfrefCaseDocumentTextV1.ts",
-    "tools/modelDocumentation/authoring/FittedBaselineDocumentCompositionV1.ts",
+    "tools/modelDocumentation/authoring/ResolvedMainWireEquationDataV1.ts",
     "data/physiology/main-wire-hfref-dilated-reference-v1.json",
     "data/physiology/main-wire-hfref-reference-v1.json",
     "analysis/policies/mainWire/MainWireHfrefDilatedReferenceV1.ts",
@@ -107,7 +86,7 @@ const files = [
   ] : []),
   ...(baselineComposition ? [...baselineComposition.sourceFiles,
     "tools/modelDocumentation/authoring/StaticBaselineDocumentCompositionV1.ts",
-    "tools/modelDocumentation/authoring/FittedBaselineDocumentCompositionV1.ts",
+    "tools/modelDocumentation/authoring/ResolvedMainWireEquationDataV1.ts",
     "analysis/methods/mainWire/MainWireStaticBaselineQualificationV1.ts",
     "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1.ts",
   ] : []),

@@ -37,6 +37,8 @@ import { StudioArticleDataValidationErrorV2 } from
   "@/studio/application/authoring/StudioArticleDataV2";
 import { parseActiveModelBundleArgumentsV1 } from
   "@/tools/registry/activateModelBundleV1";
+import { LocalTrustedAuthoringRuntimeLoaderV1 } from "@/tools/authoring/LocalTrustedAuthoringRuntimeLoaderV1";
+import { STANDARD_TEST_RELEASE_TICKET_V1 } from "./helpers/standardReleaseTicketV1";
 
 const SESSION_V1: StudioAuthoringAuthSessionV1 = Object.freeze({
   access_token: "access-token",
@@ -61,6 +63,12 @@ const HEADLESS_SESSION_V1: StudioAuthoringAuthSessionV1 = Object.freeze({
 });
 
 describe("Studio authoring and release CLIs", () => {
+  it("loads the current checked-in artifact without fetching remote executable code", async () => {
+    const runtime = await new LocalTrustedAuthoringRuntimeLoaderV1().load(STANDARD_TEST_RELEASE_TICKET_V1);
+    expect(runtime.contract.modelId).toBe(STANDARD_TEST_RELEASE_TICKET_V1.modelId);
+    expect(runtime.contract.checkpointCodecId).toBe(STANDARD_TEST_RELEASE_TICKET_V1.manifest.checkpointCodec.checkpointCodecId);
+  });
+
   it("accepts only a publishable key for user-authorized authoring", () => {
     expect(readStudioAuthoringEnvironmentProjectV1({
       CIRCLEHEART_SUPABASE_URL: "https://example.supabase.co/path",

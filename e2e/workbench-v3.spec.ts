@@ -96,7 +96,7 @@ test("@desktop selector stays ID-less until the first explicit Save", async ({
   await expect(page.getByRole("button", { name: /書き出/ })).toHaveCount(0);
 });
 
-test("@desktop current Standard72 inherits the complete analysis Surface", async ({
+test("@desktop current model inherits the complete analysis Surface", async ({
   page,
 }) => {
   const root = page.getByTestId("v3-dockview-workbench");
@@ -807,7 +807,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
   ).toBeLessThanOrEqual(0.25);
 
   // Mutating the restored copy remains branch-local after the durable
-  // round-trip. Standard70 warm-starts only that branch from its accepted
+  // round-trip. The current model warm-starts only that branch from its accepted
   // state and clock; the baseline fixture and trajectory remain untouched.
   const restoredCopyEpoch = await inputEpoch(page);
   const restoredCopyTimeBeforeMutation = await modelTime(root);
@@ -870,12 +870,10 @@ test("@desktop simulation information stays human-facing", async ({
   const documentationPageOpened = page.context().waitForEvent("page");
   await documentationLink.click();
   const documentationPage = await documentationPageOpened;
-  await expect(
-    documentationPage.getByTestId("model-documentation-v2"),
-  ).toBeVisible();
+  await expect(documentationPage).toHaveURL(new RegExp(`/ja/models/${DEFAULT_EXACT_MODEL_ID.replaceAll(".", "\\.")}\\?`));
   await expect(documentationPage.getByRole("heading", {
-    name: "Main Wire Standard 72",
-    exact: true,
+    name: /^Standard \d+のしくみ$/,
+    level: 1,
   })).toBeVisible();
   await documentationPage.close();
 });

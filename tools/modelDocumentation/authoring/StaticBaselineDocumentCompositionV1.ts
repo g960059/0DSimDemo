@@ -9,7 +9,7 @@ import { createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as release } from
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import { resolveMainWireAnalysisMethodsForSurfaceV1 as methods } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import { mainWireIntegratedStudioFixtureProjectionV3 as projection } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
-import { resolvedMainWireEquationDataV1 as equationsFor } from "./FittedBaselineDocumentCompositionV1";
+import { resolvedMainWireEquationDataV1 as equationsFor } from "./ResolvedMainWireEquationDataV1";
 import { measureMainWireIntegratedModelStandard70CandidateEvidenceV1 as measure,
   mainWireStandard70TimingAndInletObservationTraceV1 as trace } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
 import { observeMainWireStandard70TimingAndInletV2 as timing } from "@/analysis/methods/mainWire/MainWireStandard70BaselineAssessmentV2";

@@ -39,11 +39,11 @@ import {
   MAIN_WIRE_STATIC_CASE_MODEL_ID_V1,
 } from
   "@/domain/model/MainWireStaticCaseIdentityV1";
-import algebraicPulmonaryRootClientDescriptorV1, { CURRENT_MODEL_PRESETS_V1 } from
+import currentClientDescriptorV1, { CURRENT_MODEL_PRESETS_V1 } from
   "@/data/model-releases/CurrentModelReleaseV1";
-import algebraicPulmonaryRootSurfaceReleaseV1 from
+import currentSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
-import algebraicPulmonaryRootRegistryAdmissionLockV1 from
+import currentRegistryAdmissionLockV1 from
   "@/data/model-releases/standard73/publication.json";
 
 export const DEFAULT_STUDIO_MODEL_ID_V2:
@@ -76,7 +76,7 @@ const browserSnapshotCompositionPromisesV2 = new Map<
   string,
   Promise<StudioClientCompositionV2>
 >();
-const browserLocalAlgebraicPulmonaryRootCompositionPromisesV1 = new Map<
+const browserLocalCurrentCompositionPromisesV1 = new Map<
   string,
   Promise<StudioClientCompositionV2>
 >();
@@ -104,17 +104,17 @@ async function createRegistryClientCompositionV2(
   const resolver = studioSupabaseModelReleaseResolverV1();
   if (resolver === null) {
     if (modelId === undefined) {
-      return loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1();
+      return loadStudioLocalCurrentClientCompositionV1();
     }
     if (
-      modelId === algebraicPulmonaryRootClientDescriptorV1.manifest.modelId
+      modelId === currentClientDescriptorV1.manifest.modelId
       && surfacePin !== undefined
       && localSurfacePinMatchesV1(
-        algebraicPulmonaryRootSurfaceReleaseV1,
+        currentSurfaceReleaseV1,
         surfacePin,
       )
     ) {
-      return loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1();
+      return loadStudioLocalCurrentClientCompositionV1();
     }
     throw new Error(
       "Unconfigured local registry cannot resolve the requested exact model and Surface pin",
@@ -127,39 +127,39 @@ async function createRegistryClientCompositionV2(
 }
 
 /** Local current-model composition; the inherited Surface keeps its identity. */
-export function loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1():
+export function loadStudioLocalCurrentClientCompositionV1():
 Promise<StudioClientCompositionV2> {
-  return loadStudioLocalAlgebraicPulmonaryRootClientCompositionForSurfaceV1(
-    algebraicPulmonaryRootSurfaceReleaseV1,
+  return loadStudioLocalCurrentClientCompositionForSurfaceV1(
+    currentSurfaceReleaseV1,
   );
 }
 
-function loadStudioLocalAlgebraicPulmonaryRootClientCompositionForSurfaceV1(
+function loadStudioLocalCurrentClientCompositionForSurfaceV1(
   surfaceRelease: unknown,
 ): Promise<StudioClientCompositionV2> {
   assertModelSurfaceReleaseManifestV1(surfaceRelease);
   const key = surfaceRelease.surfaceReleaseId;
-  const cached = browserLocalAlgebraicPulmonaryRootCompositionPromisesV1.get(key);
+  const cached = browserLocalCurrentCompositionPromisesV1.get(key);
   if (cached !== undefined) return cached;
   const pending = Promise.resolve().then(() => {
     if (
-      algebraicPulmonaryRootClientDescriptorV1.schemaId
+      currentClientDescriptorV1.schemaId
       !== "circleheart-standard-exact-model-client-descriptor-v1"
     ) {
       throw new Error("Current client descriptor identity mismatch");
     }
     assertExactModelKernelManifestV3(
-      algebraicPulmonaryRootClientDescriptorV1.manifest,
+      currentClientDescriptorV1.manifest,
     );
     const workerReleaseTicket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
-      modelId: algebraicPulmonaryRootClientDescriptorV1.manifest.modelId,
+      modelId: currentClientDescriptorV1.manifest.modelId,
       artifactRevisionId:
-        algebraicPulmonaryRootRegistryAdmissionLockV1.artifactRevisionId,
-      manifest: algebraicPulmonaryRootClientDescriptorV1.manifest,
+        currentRegistryAdmissionLockV1.artifactRevisionId,
+      manifest: currentClientDescriptorV1.manifest,
       surfaceRelease,
       moduleAbi: "circleheart-exact-model-esm-v1",
-      artifactUrl: localAlgebraicPulmonaryRootArtifactUrlV1(),
+      artifactUrl: localCurrentArtifactUrlV1(),
     });
     return composeStudioClientCompositionV2(Object.freeze({
       defaultFixture: REGISTERED_CURRENT_MODEL_BASELINE_V1.fixture,
@@ -168,16 +168,16 @@ function loadStudioLocalAlgebraicPulmonaryRootClientCompositionForSurfaceV1(
       surfaceStage: "dev" as const,
     }));
   });
-  browserLocalAlgebraicPulmonaryRootCompositionPromisesV1.set(key, pending);
+  browserLocalCurrentCompositionPromisesV1.set(key, pending);
   void pending.catch(() => {
-    if (browserLocalAlgebraicPulmonaryRootCompositionPromisesV1.get(key) === pending) {
-      browserLocalAlgebraicPulmonaryRootCompositionPromisesV1.delete(key);
+    if (browserLocalCurrentCompositionPromisesV1.get(key) === pending) {
+      browserLocalCurrentCompositionPromisesV1.delete(key);
     }
   });
   return pending;
 }
 
-function localAlgebraicPulmonaryRootArtifactUrlV1(): string {
+function localCurrentArtifactUrlV1(): string {
   const loopbackBase = "http://127.0.0.1/";
   const resolved = new URL(
     "../../data/model-releases/standard73/artifact.mjs.txt",
@@ -188,16 +188,16 @@ function localAlgebraicPulmonaryRootArtifactUrlV1(): string {
         "__circleheart_local_standard73_artifact__.mjs",
         loopbackBase,
       ).href
-    : localAlgebraicPulmonaryRootArtifactRevisionUrlV1(resolved).href;
+    : localCurrentArtifactRevisionUrlV1(resolved).href;
 }
 
-export function localAlgebraicPulmonaryRootArtifactRevisionUrlV1(
+export function localCurrentArtifactRevisionUrlV1(
   resolved: URL,
 ): URL {
   const revisioned = new URL(resolved);
   revisioned.searchParams.set(
     "revision",
-    algebraicPulmonaryRootRegistryAdmissionLockV1.artifactRevisionId,
+    currentRegistryAdmissionLockV1.artifactRevisionId,
   );
   return revisioned;
 }

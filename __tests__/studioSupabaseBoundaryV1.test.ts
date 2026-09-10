@@ -27,9 +27,9 @@ import {
   STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID,
 } from "@/studio/contracts/v2/modelSurface";
 import standardClientDescriptorV1 from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
+  "@/data/model-releases/CurrentModelReleaseV1";
 import standardSurfaceReleaseV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import {
   uploadImmutableExactModelArtifactV1,
 } from "@/tools/registry/ImmutableExactModelArtifactStorageV1";
@@ -66,7 +66,7 @@ describe("Studio Supabase boundary V1", () => {
     expect(prepared.defaultFixture).toEqual(currentClient.defaultFixture);
     expect(prepared.artifactSha256).toBe(prepared.lock.artifactSha256);
     await expect(prepareMainWireModelPublicationV1({
-      ...input, expectedModelId: standardClientDescriptorV1.manifest.modelId,
+      ...input, expectedModelId: "model/retired",
     })).rejects.toThrow(/modelId/);
     await expect(prepareMainWireModelPublicationV1({
       ...input,
@@ -91,7 +91,7 @@ describe("Studio Supabase boundary V1", () => {
     expect(() => parseMainWireModelPublishArgumentsV3(args.slice(0, 4)))
       .toThrow(/explicit current/);
     expect(() => parseMainWireModelPublishArgumentsV3([
-      ...args.slice(0, 5), standardClientDescriptorV1.manifest.modelId,
+      ...args.slice(0, 5), "model/retired",
     ])).toThrow(/explicit current/);
     for (const extra of [["--dry-run", "--dry-run"], ["--stage", "dev"], ["--unknown"]]) {
       expect(() => parseMainWireModelPublishArgumentsV3([...args, ...extra]))
@@ -106,8 +106,6 @@ describe("Studio Supabase boundary V1", () => {
     expect(await loadModelSurfacePublicationManifestV1(directory
       + "MainWireIntegratedStudioStaticCaseSurfaceV1.ts"))
       .toEqual(currentSurface);
-    expect(await loadModelSurfacePublicationManifestV1(directory
-      + "model-surface-workbench-analysis-v1.json")).toEqual(standardSurfaceReleaseV1);
     await expect(loadModelSurfacePublicationManifestV1("../outside.json"))
       .rejects.toThrow(/inside the repository/);
     await expect(loadModelSurfacePublicationManifestV1("AGENTS.md"))
@@ -115,7 +113,7 @@ describe("Studio Supabase boundary V1", () => {
     await expect(loadModelSurfacePublicationManifestV1("package.json"))
       .rejects.toThrow();
     await expect(loadModelSurfacePublicationManifestV1(
-      "tools/registry/generateMainWireIntegratedStudioStandard70BaselineV1.ts",
+      "tools/registry/verifyCurrentModelPublicationV1.ts",
     )).rejects.toThrow(/Only the current Model Surface/);
     expect(fetchV1).not.toHaveBeenCalled();
   });

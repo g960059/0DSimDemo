@@ -89,7 +89,6 @@ import {
 } from "@/components/workbench/ExperimentPanePresentationV3";
 import { WorkbenchMobileStageDeckV3 } from "@/components/workbench/WorkbenchMobileStageDeckV3";
 import { WorkbenchSimulationInfoPanelV3 } from "@/components/workbench/WorkbenchSimulationInfoV3";
-import selectedLaunchBaseline from "@/data/model-baselines/standard70-launch-baseline.json";
 import {
   DEFAULT_WORKBENCH_SCENARIO_MANAGER_STRINGS_V3,
   WorkbenchScenarioManagerV3,
@@ -125,7 +124,7 @@ import {
 } from "@/components/workbench/WorkbenchAreaLayoutV3";
 import {
   loadStudioDefaultClientCompositionV2,
-  loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1,
+  loadStudioLocalCurrentClientCompositionV1,
 } from "@/studio/composition/StudioDefaultCompositionV2";
 import { modelLimitationsAcknowledgementKey } from "@/components/ModelLimitations";
 import {
@@ -1302,7 +1301,7 @@ describe("V3 Dockview Workbench", () => {
 
   it("selects every analysis-backed pane that retains visual history", async () => {
     const composition =
-      await loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1();
+      await loadStudioLocalCurrentClientCompositionV1();
     const original = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
     const structural = composition.modelSurface.contract.graphCatalog.find(
       ({ renderer }) => renderer === "structural-return",
@@ -1997,7 +1996,7 @@ describe("V3 Dockview Workbench", () => {
 
   it("constructs four unit-safe graph families with one circulation per structural pane", async () => {
     const composition =
-      await loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1();
+      await loadStudioLocalCurrentClientCompositionV1();
     const original = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
     const constructorGraphIds = [
       ...new Set(WORKBENCH_GRAPH_PANE_OPTIONS_V3.map(({ graphId }) => graphId)),
