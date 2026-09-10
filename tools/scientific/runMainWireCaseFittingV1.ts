@@ -8,6 +8,8 @@ import { runMainWireStaticCaseFittingV1 as run, readMainWireStaticCaseFittingRes
 import { mainWireStaticCaseFittingSeedV1 as seed } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
 import { beginFittingSourceSnapshotV1 } from "./FittingSourceSnapshotV1";
 import { readFittingWorkerStdinV1, runFittingJsonWorkersV1 } from "./runFittingJsonWorkersV1";
+import { searchMainWireCaseFittingV1 as search, MAIN_WIRE_CASE_FITTING_COORDINATES_V1 as coordinates,
+  type MainWireCaseFittingCoordinateIdV1 as CoordinateId } from "@/analysis/methods/mainWire/MainWireCaseFittingSearchV1";
 
 type Job = { id: string; referenceId: Reference; candidateInputs?: Request["candidateInputs"]; reuseFile?: string; nominalDtSec?: Request["nominalDtSec"] };
 async function main() {
@@ -19,18 +21,28 @@ async function main() {
   }
   const { values } = parseArgs({ options: { output: { type: "string" }, reference: { type: "string" },
     candidate: { type: "string" }, reuse: { type: "string" }, dt: { type: "string" },
-    plan: { type: "string" }, workers: { type: "string" }, help: { type: "boolean" } } });
+    plan: { type: "string" }, workers: { type: "string" }, help: { type: "boolean" }, optimize: { type: "boolean" },
+    budget: { type: "string" }, minutes: { type: "string" }, coordinates: { type: "string" } } });
   if (values.help) {
     process.stdout.write("Usage: npm run fit:case -- --output NEW_DIRECTORY --reference baseline|hfref-chronic-dilated-v1 [--candidate FILE] [--reuse RESULT_FILE] [--dt 0.002|0.001]\n"
       + "Batch: --output NEW_DIRECTORY --plan JOB_ARRAY_JSON [--workers 1..8]\n"
       + "Each job contains id, referenceId, optional candidateInputs/reuseFile/nominalDtSec. Results retain input order.\n"
       + "Uses Standard73 finite static anatomy, NOT retained Standard72. Reference selection changes assessment, not equations.\n"
-      + "Rest screening only: no automatic optimization, paired-grid qualification, reserve, mint or preset adoption.\n"); return;
+      + "Search: --reference REFERENCE --optimize [--budget 25] [--minutes 10] [--workers 4] [--coordinates tbv,systemic-resistance,arterial-stiffness,lv-active]\n"
+      + "Search uses current registry intervals, not invented normal ranges or a unique patient estimate.\n"
+      + "Rest screening/search only: no paired-grid qualification, reserve, mint or preset adoption.\n"); return;
   }
   if (!values.output || Boolean(values.plan) === Boolean(values.reference)
     || (values.plan && [values.candidate, values.reuse, values.dt].some(Boolean))) throw new Error("Choose --reference or --plan and a new --output directory");
   const concurrency = Number(values.workers ?? 4);
   if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 8) throw new Error("Workers must be 1–8");
+  if (values.optimize && values.plan || !values.optimize && [values.budget, values.minutes, values.coordinates].some(Boolean))
+    throw new Error("Search options require --reference and --optimize, not --plan");
+  const budget = Number(values.budget ?? 25), minutes = Number(values.minutes ?? 10);
+  const coordinateIds = values.coordinates ? values.coordinates.split(",") as CoordinateId[] : coordinates.map(d => d.id);
+  if (values.optimize && (!Number.isInteger(budget) || budget < 1 || budget > 128 || !Number.isFinite(minutes) || minutes <= 0 || minutes > 60
+    || !coordinateIds.length || new Set(coordinateIds).size !== coordinateIds.length || coordinateIds.some(id => !coordinates.some(d => d.id === id))))
+    throw new Error("Search requires budget 1–128, minutes >0 and <=60, and distinct supported coordinates");
   const jobs: Job[] = values.plan ? JSON.parse(await readFile(values.plan, "utf8")) : [{ id: "case", referenceId: values.reference as Reference,
     ...(values.candidate ? { candidateInputs: JSON.parse(await readFile(values.candidate, "utf8")) } : {}),
     ...(values.reuse ? { reuseFile: values.reuse } : {}),
@@ -51,8 +63,40 @@ async function main() {
     const path = join(output, name); await writeFile(path, JSON.stringify(value, null, 2) + "\n", { flag: "wx" }); files.push(path);
   };
   await save("plan.json", { jobs, sourceSha256: snapshot.sourceSha256, concurrency,
-    scope: "research-periodic-rest-screen", publicPromotionAuthorized: false });
+    scope: values.optimize ? "research-periodic-rest-search" : "research-periodic-rest-screen",
+    ...(values.optimize ? { budget, minutes, coordinateIds } : {}), publicPromotionAuthorized: false });
   try {
+    if (values.optimize) {
+      const initial = requests[0]!;
+      const signal = AbortSignal.timeout(Math.ceil(minutes * 60_000));
+      const report = await search({ referenceId: initial.referenceId, candidateInputs: initial.candidateInputs,
+        reuse: initial.reuse, maximumEvaluations: budget, maximumWallTimeMs: minutes * 60_000, coordinateIds,
+        evaluateBatch: async jobs => {
+          const results = await runFittingJsonWorkersV1<Awaited<ReturnType<typeof run>>>({
+            scriptPath: fileURLToPath(import.meta.url), concurrency, signal,
+            jobs: jobs.map(job => ({ args: ["--worker"], input: JSON.stringify({ referenceId: initial.referenceId,
+              candidateInputs: job.candidateInputs, ...(job.reuse ? { reuse: job.reuse } : {}),
+              sourceSha256: snapshot.sourceSha256, nominalDtSec: initial.nominalDtSec }) })) });
+          for (const [i, result] of results.entries()) {
+            await save(`${jobs[i]!.id}.json`, result.status === "saved-result-ready" ? result.result : result);
+            if (result.status === "saved-result-ready") await read(result.result);
+            process.stdout.write(JSON.stringify({ id: jobs[i]!.id, status: result.status,
+              ...(result.status === "saved-result-ready" ? { rest: result.result.rest.status, cycles: result.result.execution.completedCycleCount,
+                initialization: result.result.initialization.kind, wallTimeMs: result.result.wallTimeMs } : { message: result.message }) }) + "\n");
+          }
+          return results;
+        } });
+      const { evaluations, ...summary } = report;
+      await save("report.json", { ...summary, sourceSha256: snapshot.sourceSha256, nominalDtSec: initial.nominalDtSec,
+        evaluations: evaluations.map(({ outcome, ...e }) => ({ ...e, file: `${e.id}.json`, status: outcome.status,
+          ...(outcome.status === "saved-result-ready" ? { resultSha256: outcome.result.resultSha256,
+            initialization: outcome.result.initialization.kind, cycles: outcome.result.execution.completedCycleCount,
+            wallTimeMs: outcome.result.wallTimeMs } : { message: outcome.message }) })) });
+      await save("best-candidate.json", report.bestCandidateInputs);
+      process.stdout.write(JSON.stringify({ stopReason: report.stopReason, bestId: report.bestId, bestScore: report.bestScore,
+        evaluationCount: report.evaluationCount, wallTimeMs: report.wallTimeMs, publicPromotionAuthorized: false }) + "\n");
+      return;
+    }
     const results = await runFittingJsonWorkersV1<Awaited<ReturnType<typeof run>>>({
       scriptPath: fileURLToPath(import.meta.url), concurrency, signal: AbortSignal.timeout(1_800_000),
       jobs: requests.map(r => ({ args: ["--worker"], input: JSON.stringify({ ...r, sourceSha256: snapshot.sourceSha256 }) })) });

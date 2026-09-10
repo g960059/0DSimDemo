@@ -59,10 +59,17 @@ preserve input order in reported results. A warm start is not independent cold
 qualification. Finalists use independent starts and refined time steps; any
 required preload-response qualification uses its declared fixed-control protocol.
 
-The current case command performs periodic rest screening and report readback.
-Baseline qualification is a separate command. They do not constitute a general
-automatic optimizer or automatically adopt, publish or select a preset. CLI
-help and executable tests own available operations and budgets.
+The case command supports periodic rest screening and a bounded local search
+against the selected reference. A completed search is not final qualification:
+it does not automatically adopt, publish or select a preset. Retain partial
+polls, unavailable target components, local response ambiguity and bound
+dependence in its report. Baseline qualification remains a separate command.
+CLI help and executable tests own available coordinates, operations and budgets.
+
+Compare measurement methods on the same observed beats and verify their time
+bases before treating differences as physiological residuals. A presentation
+windowed pressure rate and native accepted-step extrema are different estimands;
+neither matching their numbers nor meeting a new display metric is a fitting goal.
 
 Stop tuning and compare model form when structured residuals, unsupported bound
 dependence, loss of response reserve, conservation/solver failure, or strong

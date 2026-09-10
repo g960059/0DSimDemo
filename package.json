@@ -6,6 +6,7 @@
   "scripts": {
     "verify:registry:current": "vite-node --script tools/registry/verifyCurrentModelPublicationV1.ts",
     "fit:case": "vite-node --script tools/scientific/runMainWireCaseFittingV1.ts",
+    "audit:case-metrics": "vite-node --script tools/scientific/auditMainWireWorkbenchMetricsV1.ts",
     "export:model-document": "vite-node --script tools/modelDocumentation/exportSavedDocumentV1.ts",
     "dev": "vite",
     "typecheck": "tsc --noEmit --pretty false",
