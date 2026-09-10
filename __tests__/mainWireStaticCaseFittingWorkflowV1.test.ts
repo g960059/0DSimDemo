@@ -20,6 +20,8 @@ import { measureMainWireRelaxationTauV1 as measureTau } from "@/analysis/methods
 const sourceSha256 = "a".repeat(64), hfref = "hfref-chronic-dilated-v1";
 const originalTier = hotPathIntegrityTierV1();
 let baseline: Result, disease: Result;
+// Two independent cold fits use the canonical suite's existing hook budget;
+// a local-machine timing ceiling is not a scientific acceptance condition.
 beforeAll(async () => {
   selectHotPathIntegrityTierV1("hot-path-lean");
   const a = await run({ referenceId: "baseline", candidateInputs: seed("baseline"), sourceSha256 });
@@ -27,7 +29,7 @@ beforeAll(async () => {
   expect(a.status).toBe("saved-result-ready"); expect(b.status).toBe("saved-result-ready");
   if (a.status !== "saved-result-ready" || b.status !== "saved-result-ready") throw new Error(JSON.stringify({ a, b }));
   baseline = a.result; disease = b.result;
-}, 180_000);
+});
 afterAll(() => selectHotPathIntegrityTierV1(originalTier));
 
 describe("one finite-case fitting path with independent reference assessment", () => {
