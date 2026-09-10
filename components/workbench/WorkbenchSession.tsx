@@ -1,4 +1,5 @@
 import React from "react";
+import { workbenchPresentationAnalysisSelectionV1 } from "./presentation/WorkbenchPresentationOutputSelectionV3";
 import { WorkbenchLastMeasuredOutputsV1 } from "./presentation/WorkbenchLastMeasuredOutputsV1";
 import { registeredCurrentBaselinePresentationV1 } from "@/studio/presentation/CurrentBaselinePresentationV1";
 import { REGISTERED_CURRENT_MODEL_BASELINE_V1 } from "@/studio/registry/RegisteredCurrentModelBaselineV1";
@@ -105,6 +106,7 @@ import {
   loadStudioDefaultClientCompositionV2,
   loadStudioExperimentClientCompositionV2,
   loadStudioLocalCurrentClientCompositionV1,
+  loadStudioLocalBeatMetricsClientCompositionV1,
   loadStudioSnapshotClientCompositionV2,
   type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
@@ -740,7 +742,9 @@ export const WorkbenchSession = ({
                   sourceSnapshot.surfaceReleaseId,
                 )
               : modelLab
-                ? await loadStudioLocalCurrentClientCompositionV1()
+                ? new URLSearchParams(location.search).get("beatMetrics") === "1"
+                  ? await loadStudioLocalBeatMetricsClientCompositionV1()
+                  : await loadStudioLocalCurrentClientCompositionV1()
                 : await loadStudioDefaultClientCompositionV2();
       } catch (error) {
         if (
@@ -936,6 +940,9 @@ export const WorkbenchSession = ({
         releaseTicket: composition.exactModel.workerReleaseTicket,
         backgroundWorkerPool,
         resolveAnalysisExecutionPlan: composition.modelSurface.analysis.resolveExecutionPlan,
+        presentationAnalysisIds: () => surfaceRef.current === null ? []
+          : workbenchPresentationAnalysisSelectionV1(surfaceRef.current, composition.modelSurface.catalog,
+            composition.modelSurface.analysis.presentationMethods),
         presentationOutputIds: () =>
           surfaceRef.current === null
             ? Object.freeze([])
@@ -2906,6 +2913,7 @@ export const WorkbenchSession = ({
       <OutputPaneBodyV3
         contract={contract}
         lastMeasurements={scope.memory}
+        presentationAnalyses={scenarioId === null ? undefined : runtimeRef.current?.presentationAnalyses(scenarioId)}
         frame={frame}
         locale={resolvedLocale}
         onAddItem={() => openPaneSettings(pane.paneId, "items", "add")}

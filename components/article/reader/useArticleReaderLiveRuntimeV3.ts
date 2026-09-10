@@ -28,6 +28,7 @@ export type UseArticleReaderLiveRuntimeResultV3 = Readonly<{
   sampleStore: WorkbenchScenarioPresentationSampleStoreV3;
   fixtureProjection: ExactModelFixtureProjectionV1;
   periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
+  presentationOutput?: ArticleReaderLiveRuntimeV3["presentationOutput"];
   play(): void;
   pause(): Promise<void>;
   setPlaybackRate(rate: number): void;
@@ -62,6 +63,7 @@ export function useArticleReaderLiveRuntimeV3(
   visibleScenarioIds?: readonly string[],
   structuralAnalyses: readonly ArticleReaderStructuralAnalysisRequestV3[] = [],
   presentationOutputIds?: ReadonlySet<string>,
+  presentationAnalysisIds: readonly string[] = [],
 ): UseArticleReaderLiveRuntimeResultV3 {
   const requestedScopeKey = JSON.stringify(visibleScenarioIds ?? null);
   const validatedVisibleScenarioIds = React.useMemo(
@@ -73,6 +75,7 @@ export function useArticleReaderLiveRuntimeV3(
   );
   const visibleScopeKey = JSON.stringify(validatedVisibleScenarioIds);
   const structuralAnalysisKey = JSON.stringify(structuralAnalyses);
+  const presentationAnalysisKey = JSON.stringify(presentationAnalysisIds);
   const presentationOutputKey = JSON.stringify(
     presentationOutputIds === undefined
       ? null
@@ -97,6 +100,7 @@ export function useArticleReaderLiveRuntimeV3(
         : { initialActiveScenarioId }),
       visibleScenarioIds: validatedVisibleScenarioIds,
       structuralAnalyses,
+      presentationAnalysisIds,
       ...(presentationOutputIds === undefined
         ? {}
         : { presentationOutputIds }),
@@ -137,6 +141,7 @@ export function useArticleReaderLiveRuntimeV3(
     sampleStore,
     snapshot,
     structuralAnalysisKey,
+    presentationAnalysisKey,
     presentationOutputKey,
     visibleScopeKey,
     exactModel?.releaseTicket,
@@ -176,11 +181,14 @@ export function useArticleReaderLiveRuntimeV3(
     await controller.applyControl(input);
   }, []);
 
+  const presentationOutput = React.useCallback((scenarioId: string, outputId: string) =>
+    controllerRef.current?.presentationOutput(scenarioId, outputId), []);
   return React.useMemo(() => Object.freeze({
     state,
     sampleStore,
     fixtureProjection: exactModel.fixtureProjection,
     periodicPvaDerivation: exactModel.periodicPvaDerivation,
+    presentationOutput,
     applyControl,
     play,
     pause,
@@ -191,6 +199,7 @@ export function useArticleReaderLiveRuntimeV3(
     applyControl,
     exactModel.fixtureProjection,
     exactModel.periodicPvaDerivation,
+    presentationOutput,
     pause,
     play,
     requestAnalysis,

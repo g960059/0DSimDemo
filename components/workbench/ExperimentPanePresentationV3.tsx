@@ -224,7 +224,7 @@ export function resolveExperimentOutputDisplayV3(
         );
   return Object.freeze({
     value,
-    unit: clinicalPercent ? "%" : item.unit,
+    unit: clinicalPercent ? "%" : item.unit === "1" ? "" : item.unit,
   });
 }
 

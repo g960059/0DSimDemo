@@ -1,6 +1,7 @@
 import {
   DynamicExactModelRuntimeLoaderV2,
 } from "@/studio/infrastructure/model/DynamicExactModelRuntimeLoaderV2";
+import { resolveRegisteredPresentationAnalysisMethodsV1 } from "@/analysis/registry/RegisteredAnalysisMethodsV1";
 import {
   type StudioSimulationWorkerResponseV2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
@@ -26,6 +27,7 @@ let lastRuntimeLoadTiming: Readonly<{
 }> | undefined;
 const workerRuntime = new StudioSimulationWorkerRuntimeV2({
   port: workerPort,
+  resolvePresentationAnalysisMethods: resolveRegisteredPresentationAnalysisMethodsV1,
   async loadExactRuntime(input) {
     if (input.releaseTicket.modelId !== input.expectedModelId) {
       throw new Error("Worker release ticket does not match the requested model");

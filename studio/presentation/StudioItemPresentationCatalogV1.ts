@@ -527,6 +527,76 @@ const OUTPUT_PRESENTATION_V1: Readonly<
     ),
     aliases: ["ET", "ejection time", "LVET", "駆出時間"],
   },
+  "hemodynamics.duration.isovolumic-contraction.flow-event.LV": {
+    category: "myocardium",
+    label: textV1("LV ICT", "LV ICT"),
+    description: textV1(
+      "Time from cessation of forward mitral flow to onset of aortic flow in the latest complete beat. Model flow events, not directly measured valve clicks or tissue Doppler.",
+      "最新の1心拍で、僧帽弁の順行性血流が止まってから大動脈弁血流が始まるまでの時間。モデルの血流から求めた値で、弁の開閉音や組織Dopplerの実測値とは異なります。",
+    ),
+    inlineDisclosure: true,
+    aliases: ["ICT", "IVCT", "isovolumic contraction time", "等容性収縮時間"],
+  },
+  "hemodynamics.duration.isovolumic-relaxation.flow-event.LV": {
+    category: "myocardium",
+    label: textV1("LV IRT", "LV IRT"),
+    description: textV1(
+      "Time from cessation of aortic flow to onset of forward mitral flow in the latest complete beat. Model flow events, not directly measured valve clicks or tissue Doppler.",
+      "最新の1心拍で、大動脈弁血流が止まってから僧帽弁の順行性血流が始まるまでの時間。モデルの血流から求めた値で、弁の開閉音や組織Dopplerの実測値とは異なります。",
+    ),
+    inlineDisclosure: true,
+    aliases: ["IRT", "IVRT", "isovolumic relaxation time", "等容性弛緩時間"],
+  },
+  "hemodynamics.index.myocardial-performance.flow-event.LV": {
+    category: "myocardium",
+    label: textV1("LV Tei", "LV Tei"),
+    description: textV1(
+      "(ICT + IRT) / ejection duration, using flow-event timings from the same completed beat. A modeled Tei-like index; it is not interchangeable with Doppler or tissue-Doppler Tei measurements.",
+      "同じ1心拍の血流から求めた (ICT＋IRT) ÷ 駆出時間。Tei indexに対応するモデル指標ですが、Dopplerや組織Dopplerによる測定値とは同一ではありません。",
+    ),
+    inlineDisclosure: true,
+    aliases: ["Tei index", "MPI", "myocardial performance index", "心筋パフォーマンス指標"],
+  },
+  "hemodynamics.pressure-rate.maximum-windowed-10ms.absolute.LV": {
+    category: "myocardium",
+    label: textV1("LV +dP/dt (10 ms)", "LV +dP/dt (10 ms)"),
+    description: textV1(
+      "Maximum 10-ms average rate of LV cavity-pressure rise in the latest complete beat. Calculated from 2-ms model samples, not an instantaneous maximum, a catheter recording, or MR Doppler dP/dt.",
+      "最新の1心拍で、左室内圧の10 ms区間の平均上昇速度が最大となる値。2 ms間隔のモデル値から求めており、瞬間最大値、カテーテル実測値、MR由来のdP/dtとは異なります。",
+    ),
+    inlineDisclosure: true,
+    aliases: ["LV dP/dt max", "pressure rise", "左室圧上昇速度"],
+  },
+  "hemodynamics.pressure-rate.minimum-windowed-10ms.absolute.LV": {
+    category: "myocardium",
+    label: textV1("LV −dP/dt (10 ms)", "LV −dP/dt (10 ms)"),
+    description: textV1(
+      "Minimum 10-ms average rate of LV cavity-pressure change in the latest complete beat, reported with a negative sign. Calculated from 2-ms model samples; not an instantaneous minimum or catheter recording.",
+      "最新の1心拍で、左室内圧の10 ms区間の平均変化率が最小となる値（負の値）。2 ms間隔のモデル値から求めており、瞬間最小値やカテーテル実測値とは異なります。",
+    ),
+    inlineDisclosure: true,
+    aliases: ["LV dP/dt min", "pressure fall", "左室圧下降速度"],
+  },
+  "hemodynamics.pressure-rate.maximum-windowed-10ms.absolute.RV": {
+    category: "myocardium",
+    label: textV1("RV +dP/dt (10 ms)", "RV +dP/dt (10 ms)"),
+    description: textV1(
+      "Maximum 10-ms average rate of RV cavity-pressure rise in the latest complete beat. Calculated from 2-ms model samples; not an instantaneous maximum or catheter recording.",
+      "最新の1心拍で、右室内圧の10 ms区間の平均上昇速度が最大となる値。2 ms間隔のモデル値から求めており、瞬間最大値やカテーテル実測値とは異なります。",
+    ),
+    inlineDisclosure: true,
+    aliases: ["RV dP/dt max", "右室圧上昇速度"],
+  },
+  "hemodynamics.pressure-rate.minimum-windowed-10ms.absolute.RV": {
+    category: "myocardium",
+    label: textV1("RV −dP/dt (10 ms)", "RV −dP/dt (10 ms)"),
+    description: textV1(
+      "Minimum 10-ms average rate of RV cavity-pressure change in the latest complete beat, reported with a negative sign. Calculated from 2-ms model samples; not an instantaneous minimum or catheter recording.",
+      "最新の1心拍で、右室内圧の10 ms区間の平均変化率が最小となる値（負の値）。2 ms間隔のモデル値から求めており、瞬間最小値やカテーテル実測値とは異なります。",
+    ),
+    inlineDisclosure: true,
+    aliases: ["RV dP/dt min", "右室圧下降速度"],
+  },
   "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.PV": {
     category: "valves",
     label: textV1(

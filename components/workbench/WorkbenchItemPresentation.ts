@@ -8,6 +8,7 @@ import {
   outputLabelV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import type { MainWirePeriodicPvaV1 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
+import { mainWireCardiacCycleOutputValueV1 } from "@/analysis/methods/mainWire/MainWireCardiacCyclePresentationV1";
 import {
   MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
   MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
@@ -19,6 +20,7 @@ import type {
 } from "@/studio/contracts/v2/model";
 import type {
   StudioSimulationFrameV2,
+  StudioSimulationAnalysisV2,
   StudioSimulationOutputValueV2,
 } from "@/studio/contracts/v2/simulation";
 import {
@@ -200,6 +202,7 @@ export function materializeWorkbenchOutputPresentationItemsV3(
     notAssessedNotice: string;
     pane: ExperimentSurfaceOutputPaneV2;
     periodicPva?: MainWirePeriodicPvaV1;
+    presentationAnalyses?: readonly StudioSimulationAnalysisV2[];
     periodicPvaAnalysisError?: string;
   }>,
 ): readonly ExperimentOutputPresentationItemV3[] {
@@ -305,6 +308,7 @@ export function materializeWorkbenchOutputPresentationItemsV3(
     if (definition === undefined) continue;
     const outputValue =
       workbenchPeriodicPvaOutputValueV3(input.periodicPva, item.outputId)
+      ?? mainWireCardiacCycleOutputValueV1(input.presentationAnalyses, input.frame, item.outputId)
       ?? input.frame?.outputs[item.outputId];
     const pvaNotice = WORKBENCH_PERIODIC_PVA_ANALYSIS_OUTPUT_ID_SET_V1.has(
       item.outputId,

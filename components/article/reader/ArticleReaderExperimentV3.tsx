@@ -1,4 +1,5 @@
 import React from "react";
+import { selectPresentationAnalysisIdsV1 } from "@/components/workbench/presentation/WorkbenchPresentationOutputSelectionV3";
 import { createPortal } from "react-dom";
 import {
   ChevronRight,
@@ -471,9 +472,14 @@ function ArticleReaderLiveOwnerV3({
   );
   const presentationOutputIds = React.useMemo(
     () =>
-      articleReaderPresentationOutputSelectionV3(contract, snapshot, briefing),
-    [briefing, contract, snapshot],
+      articleReaderPresentationOutputSelectionV3(contract, snapshot, briefing,
+        runtimeComposition === null ? undefined : new Set(runtimeComposition.modelSurface.catalog.exposedExactOutputIds)),
+    [briefing, contract, snapshot, runtimeComposition],
   );
+  const presentationAnalysisIds = React.useMemo(() => runtimeComposition === null ? []
+    : selectPresentationAnalysisIdsV1(briefing.outputs.map(output => output.outputId),
+      runtimeComposition.modelSurface.catalog, runtimeComposition.modelSurface.analysis.presentationMethods),
+  [briefing, runtimeComposition]);
   const runtime = useArticleReaderLiveRuntimeV3(
     snapshot,
     requiredArticleReaderRuntimeCompositionV3(runtimeComposition),
@@ -481,6 +487,7 @@ function ArticleReaderLiveOwnerV3({
     briefing.scenarioScope.visibleScenarioIds,
     structuralAnalyses,
     presentationOutputIds,
+    presentationAnalysisIds,
   );
   const detail = (
     <ArticleReaderLiveDetailV3
@@ -1623,11 +1630,12 @@ export function ArticleReaderOutputsV3({
                   runtime.periodicPvaDerivation,
                 )
               : undefined;
+          const presentationOutput = runtime?.presentationOutput?.(output.scenarioId, output.outputId);
           const value = ARTICLE_READER_PERIODIC_PVA_OUTPUT_ID_SET_V3.has(
             output.outputId,
           )
             ? articleReaderPeriodicPvaScalarV3(periodicPva, output.outputId)
-            : latest?.values[output.outputId];
+            : presentationOutput === undefined ? latest?.values[output.outputId] : presentationOutput.value;
           const scalar =
             typeof value === "number" && Number.isFinite(value) ? value : null;
           const presentation = resolveWorkbenchOutputPresentationV3({

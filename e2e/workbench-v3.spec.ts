@@ -44,7 +44,9 @@ test.beforeEach(async ({ page }, testInfo) => {
     });
   }
   const modelLab = testInfo.title.includes("@model-lab");
-  await page.goto(modelLab ? "/ja/dev/model-lab" : "/ja/experiments/new");
+  await page.goto(modelLab
+    ? `/ja/dev/model-lab${testInfo.title.includes("@beat-metrics") ? "?beatMetrics=1" : ""}`
+    : "/ja/experiments/new");
   const root = page.getByTestId("v3-dockview-workbench");
   await expect(root).toBeVisible();
   await expect(root).toHaveAttribute(
@@ -245,6 +247,58 @@ test("@desktop @mobile previous outputs remain visibly stale across controls and
   await expect(output).toHaveAttribute("data-output-availability", "available");
   expect(await visibleNumber()).not.toBe("—");
   await expect(root).toHaveAttribute("data-playback", "playing");
+});
+
+test("@desktop @mobile @model-lab @beat-metrics selected beat outputs stay responsive and retain stale values", async ({ page }, testInfo) => {
+  const root = page.getByTestId("v3-dockview-workbench");
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768;
+  const deck = page.getByTestId("workbench-mobile-task-deck");
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  if (mobile) {
+    await deck.getByRole("tab", { name: "出力", exact: true }).click();
+    await deck.locator(".workbench-mobile-pane-group-settings").first().click();
+  } else await openPaneSettings(page, "Outputs");
+  const settings = page.getByRole("dialog", { name: "Pane設定" });
+  await settings.locator(".workbench-pane-add-item").click();
+  const drawer = settings.getByTestId("pane-settings-context-drawer-v3");
+  const labels = ["LV ICT", "LV IRT", "LV Tei", "LV +dP/dt (10 ms)", "LV −dP/dt (10 ms)", "RV +dP/dt (10 ms)", "RV −dP/dt (10 ms)"];
+  for (const label of labels) {
+    await drawer.getByRole("searchbox").fill(label);
+    await drawer.getByRole("button", { name: `項目を追加: ${label}`, exact: true }).click();
+  }
+  await drawer.getByRole("button", { name: "パネルを閉じる" }).click();
+  await settings.getByRole("button", { name: "完了", exact: true }).click();
+  const ids = ["hemodynamics.duration.isovolumic-contraction.flow-event.LV",
+    "hemodynamics.duration.isovolumic-relaxation.flow-event.LV", "hemodynamics.index.myocardial-performance.flow-event.LV",
+    "hemodynamics.pressure-rate.maximum-windowed-10ms.absolute.LV", "hemodynamics.pressure-rate.minimum-windowed-10ms.absolute.LV",
+    "hemodynamics.pressure-rate.maximum-windowed-10ms.absolute.RV", "hemodynamics.pressure-rate.minimum-windowed-10ms.absolute.RV"];
+  for (const id of ids) await expect(page.locator(`[data-output-id="${id}"]`)).toHaveAttribute("data-output-availability", "available");
+  const ict = page.locator(`[data-output-id="${ids[0]}"]`);
+  const playback = page.getByTestId("v3-playback-toggle");
+  await playback.click(); await expect(root).toHaveAttribute("data-playback", "paused");
+  const number = () => ict.locator(".workbench-output-value").evaluate(element => element.firstChild?.textContent ?? "");
+  const prior = await number();
+  const epoch = await inputEpoch(page);
+  if (mobile) await deck.getByRole("tab", { name: "コントロール", exact: true }).click();
+  await page.getByRole("slider", { name: "心拍数 (HR)", exact: true }).press("ArrowRight");
+  await expect.poll(() => inputEpoch(page)).toBeGreaterThan(epoch);
+  if (mobile) await deck.getByRole("tab", { name: "出力", exact: true }).click();
+  await expect(ict).toHaveAttribute("data-output-stale", "true");
+  expect(await number()).toBe(prior);
+  await ict.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("beat-metrics-stale.png") });
+  await playback.click();
+  for (const id of ids) {
+    const output = page.locator(`[data-output-id="${id}"]`);
+    await expect(output).toHaveAttribute("data-output-stale", "false");
+    await expect(output).toHaveAttribute("data-output-availability", "available");
+  }
+  await ict.getByRole("button").click();
+  await expect(page.getByRole("tooltip")).toContainText("モデルの血流");
+  await page.keyboard.press("Escape");
+  await page.screenshot({ path: testInfo.outputPath("beat-metrics-ready.png") });
+  expect(errors).toEqual([]);
 });
 
 test("@desktop @model-lab formal analysis, warm controls, and settings stay live", async ({

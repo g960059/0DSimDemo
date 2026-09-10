@@ -118,6 +118,28 @@ export function materializeStudioSimulationPresentationFramesV2(
   return Object.freeze(frames);
 }
 
+/** Remove Worker-only observation columns before transferring a graph batch. */
+export function projectStudioSimulationPresentationBatchV2(
+  batch: RegisteredModelPresentationBatchV2,
+  outputIds: readonly string[],
+): RegisteredModelPresentationBatchV2 {
+  if (outputIds.length === batch.outputIds.length
+    && outputIds.every((id, index) => id === batch.outputIds[index])) return batch;
+  const columns = outputIds.map(id => batch.outputIds.indexOf(id));
+  if (columns.some(column => column < 0)) throw new Error("presentation projection lacks a requested exact output");
+  const outputStates = new Uint8Array(batch.acceptedRevisions.length * outputIds.length);
+  const outputValues = new Float64Array(outputStates.length);
+  for (let row = 0; row < batch.acceptedRevisions.length; row++) {
+    for (let column = 0; column < columns.length; column++) {
+      const from = row * batch.outputIds.length + columns[column]!;
+      const to = row * columns.length + column;
+      outputStates[to] = batch.outputStates[from]!;
+      outputValues[to] = batch.outputValues[from]!;
+    }
+  }
+  return Object.freeze({ ...batch, outputIds, outputStates, outputValues });
+}
+
 export function studioSimulationPresentationBatchTransferablesV2(
   batch: StudioSimulationPresentationBatchV2,
 ): readonly ArrayBuffer[] {

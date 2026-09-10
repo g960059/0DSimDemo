@@ -13,6 +13,7 @@ import type {
   AnalysisExecutionRequestV1,
   AnalysisExecutorV1,
 } from "@/analysis/contracts/AnalysisExecutionV1";
+import type { PresentationAnalysisCollectorV1, PresentationAnalysisMethodV1, ResolvePresentationAnalysisMethodsV1 } from "@/analysis/contracts/PresentationAnalysisV1";
 import {
   LEGACY_EXACT_ANALYSIS_EXECUTOR_V1,
 } from "@/analysis/runtime/LegacyExactAnalysisExecutorV1";
@@ -76,6 +77,7 @@ import {
   STUDIO_SIMULATION_PRESENTATION_OUTPUT_STATE_COUNT_V2,
   studioSimulationPresentationOutputStateCodeV2,
   studioSimulationPresentationBatchTransferablesV2,
+  projectStudioSimulationPresentationBatchV2,
 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
 import {
   assertBoundExecutionPlanV1,
@@ -121,6 +123,7 @@ export type StudioSimulationWorkerRuntimeDependenciesV2 = Readonly<{
     modelId: string,
   ): ExactModelRuntimeLoadTimingV2 | undefined;
   analysisExecutor?: AnalysisExecutorV1;
+  resolvePresentationAnalysisMethods?: ResolvePresentationAnalysisMethodsV1;
   port: StudioSimulationWorkerPortV2;
   queueCapacity?: number;
   snapshotIds?: ExperimentSnapshotIdFactoryPortV2;
@@ -146,6 +149,9 @@ export class StudioSimulationWorkerRuntimeV2 {
     "takeExactRuntimeLoadTiming"
   ];
   readonly #analysisExecutor: AnalysisExecutorV1;
+  readonly #resolvePresentationAnalysisMethods: ResolvePresentationAnalysisMethodsV1 | undefined;
+  readonly #presentationMethods = new Map<string, PresentationAnalysisMethodV1>();
+  readonly #presentationCollectors = new Map<string, Map<string, PresentationAnalysisCollectorV1>>();
   readonly #port: StudioSimulationWorkerPortV2;
   readonly #queueCapacity: number;
   readonly #snapshotIds: ExperimentSnapshotIdFactoryPortV2;
@@ -229,6 +235,7 @@ export class StudioSimulationWorkerRuntimeV2 {
       dependencies.takeExactRuntimeLoadTiming;
     this.#analysisExecutor = dependencies.analysisExecutor
       ?? LEGACY_EXACT_ANALYSIS_EXECUTOR_V1;
+    this.#resolvePresentationAnalysisMethods = dependencies.resolvePresentationAnalysisMethods;
     this.#port = dependencies.port;
     this.#queueCapacity = queueCapacity;
     this.#snapshotIds = dependencies.snapshotIds
@@ -392,6 +399,9 @@ export class StudioSimulationWorkerRuntimeV2 {
       );
       if (this.#portClosed || this.#state !== "initializing") return;
       assertExactRuntimeV2(exactRuntime);
+      for (const method of this.#resolvePresentationAnalysisMethods?.(
+        request.releaseTicket.surfaceRelease, request.releaseTicket.manifest.runtime,
+      ) ?? []) this.#presentationMethods.set(method.methodId, method);
       if (exactRuntime.contract.modelId !== request.expectedModelId) {
         throw new Error(
           "simulation worker loaded runtime modelId does not match the requested model",
@@ -586,7 +596,15 @@ export class StudioSimulationWorkerRuntimeV2 {
     if (currentFrame === undefined) {
       throw new Error("simulation worker presentation Scenario is unavailable");
     }
-    for (const outputId of request.presentationOutputIds) {
+    const methods = (request.presentationAnalysisIds ?? []).map(id => {
+      const method = this.#presentationMethods.get(id);
+      if (method === undefined) throw new Error(`presentation analysis ${id} is not pinned by this Surface`);
+      return method;
+    });
+    const observedOutputIds = Object.freeze([...new Set([
+      ...request.presentationOutputIds, ...methods.flatMap(method => method.requiredExactOutputIds),
+    ])]);
+    for (const outputId of observedOutputIds) {
       const output = currentFrame.outputs[outputId];
       if (output === undefined) {
         // Invalid presentation projection is a recoverable request error. It
@@ -606,7 +624,7 @@ export class StudioSimulationWorkerRuntimeV2 {
           runtimeSessionId: physicalRuntimeSessionId,
           scenarioId: request.scenarioId,
           stepCount: request.stepCount,
-          presentationOutputIds: request.presentationOutputIds,
+          presentationOutputIds: observedOutputIds,
         });
       const workerAdvanceCompletedAtMs = performance.now();
       const validatedTerminalFrame = this.#validateAdapterFrame(
@@ -614,7 +632,7 @@ export class StudioSimulationWorkerRuntimeV2 {
       );
       const batch = validateAdapterPresentationBatchV2(
         proposedBatch,
-        request.presentationOutputIds,
+        observedOutputIds,
         request.stepCount,
         currentFrame,
         this.#lastFrame,
@@ -623,8 +641,45 @@ export class StudioSimulationWorkerRuntimeV2 {
       const terminalFrame = batch.terminalFrame;
       this.#lastFrame = terminalFrame;
       this.#scenarioFrames.set(request.scenarioId, terminalFrame);
+      for (const id of this.#presentationCollectors.keys()) {
+        if (!this.#scenarioFrames.has(id)) this.#presentationCollectors.delete(id);
+      }
+      const collectors = this.#presentationCollectors.get(request.scenarioId) ?? new Map<string, PresentationAnalysisCollectorV1>();
+      this.#presentationCollectors.set(request.scenarioId, collectors);
+      for (const id of collectors.keys()) if (!methods.some(method => method.methodId === id)) collectors.delete(id);
+      const analyses: StudioSimulationAnalysisV2[] = [];
+      for (const method of methods) {
+        try {
+          let collector = collectors.get(method.methodId);
+          if (collector === undefined) { collector = method.create(); collectors.set(method.methodId, collector); }
+          const result = collector.ingest(batch);
+          if (result !== undefined) {
+            const analysis = validateStudioSimulationAnalysisV2(result);
+            if (analysis.analysisId !== method.methodId || analysis.modelId !== terminalFrame.modelId
+              || analysis.runtimeSessionId !== terminalFrame.runtimeSessionId || analysis.scenarioId !== terminalFrame.scenarioId
+              || analysis.inputEpoch !== terminalFrame.inputEpoch
+              || analysis.sourceAcceptedRevision < currentFrame.acceptedRevision
+              || analysis.sourceAcceptedRevision > terminalFrame.acceptedRevision
+              || analysis.sourceAcceptedTimeSec < currentFrame.acceptedTimeSec
+              || analysis.sourceAcceptedTimeSec > terminalFrame.acceptedTimeSec) {
+              throw new Error("presentation analysis source does not match this accepted batch");
+            }
+            analyses.push(analysis);
+          }
+        } catch {
+          // Observation failure is recoverable, never a numerical step failure.
+          collectors.delete(method.methodId);
+          analyses.push(Object.freeze({
+            modelId: terminalFrame.modelId, runtimeSessionId: terminalFrame.runtimeSessionId,
+            scenarioId: terminalFrame.scenarioId, inputEpoch: terminalFrame.inputEpoch,
+            sourceAcceptedRevision: terminalFrame.acceptedRevision,
+            sourceAcceptedTimeSec: terminalFrame.acceptedTimeSec, analysisId: method.methodId,
+            payload: Object.freeze({ status: "unavailable", reason: "presentation-analysis-rejected" }),
+          }));
+        }
+      }
       const responseBatch: StudioSimulationPresentationBatchV2 = Object.freeze({
-        ...batch,
+        ...projectStudioSimulationPresentationBatchV2(batch, request.presentationOutputIds),
         workerAdvanceMs:
           workerAdvanceCompletedAtMs - workerAdvanceStartedAtMs,
         workerPrepareMs: performance.now() - workerAdvanceCompletedAtMs,
@@ -635,6 +690,7 @@ export class StudioSimulationWorkerRuntimeV2 {
         status: "ok",
         kind: "presentation-advanced",
         batch: responseBatch,
+        ...(analyses.length === 0 ? {} : { analyses: Object.freeze(analyses) }),
       }, [...studioSimulationPresentationBatchTransferablesV2(responseBatch)]);
     } catch (error) {
       throw new FatalWorkerStateErrorV2(
@@ -1805,6 +1861,8 @@ export class StudioSimulationWorkerRuntimeV2 {
     this.#exactRuntime = undefined;
     this.#surfaceSeriesId = undefined;
     this.#surfaceReleaseId = undefined;
+    this.#presentationMethods.clear();
+    this.#presentationCollectors.clear();
     this.#adapter = undefined;
     this.#fixtureReducer = undefined;
     this.#authoring = undefined;

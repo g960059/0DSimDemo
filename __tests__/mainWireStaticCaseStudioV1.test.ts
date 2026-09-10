@@ -16,6 +16,14 @@ import localBundle from "@/data/model-releases/standard73/bundle.json";
 import localPackage from "@/data/model-releases/standard73/package.json";
 import baselineDoc from "@/studio/presentation/modelDocumentation/packages/standard73-document-v1.json";
 import hfrefDoc from "@/studio/presentation/modelDocumentation/packages/standard73-hfref-document-v1.json";
+import cycleSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
+import { MainWireCardiacCycleCollectorV1 } from "@/analysis/methods/mainWire/MainWireCardiacCycleCollectorV1";
+import { buildMainWireCardiacCycleMetricsV1, MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1 as cycleInputs,
+  MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1 as cycleOutputs,
+  type MainWireCardiacCycleAcceptedSampleV1 } from "@/analysis/methods/mainWire/MainWireCardiacCycleMetricsV1";
+import { loadStudioLocalBeatMetricsClientCompositionV1 } from "@/studio/composition/StudioDefaultCompositionV2";
+import { CURRENT_BASELINE_V1 } from "@/data/model-baselines/CurrentBaselineV1";
+import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 
 const originalTier = hotPathIntegrityTierV1();
 beforeEach(() => selectHotPathIntegrityTierV1("hot-path-lean"));
@@ -26,6 +34,47 @@ const fixture = (dilated: boolean) => ({ ...template, schemaId, anatomyId: dilat
     activeTensionScaleByWall: { ...mechanism.chamberMechanics.activeTensionScaleByWall, LVFW: dilated ? .35 : 1, SEP: dilated ? .35 : 1 } } } });
 
 describe("static case exact adapter and inherited Surface", () => {
+  it("launches the additive beat-metric candidate from the same exact baseline capture", async () => {
+    const composition = await loadStudioLocalBeatMetricsClientCompositionV1();
+    expect(composition.modelSurface.identity.surfaceReleaseId).toBe(cycleSurface.surfaceReleaseId);
+    expect(composition.modelSurface.analysis.presentationMethods).toHaveLength(1);
+    expect(composition.modelSurface.analysis.periodicPvaDerivation).toBe(methods(surface).periodicPvaDerivation);
+    expect(composition.exactModel.modelId).toBe(localBundle.manifest.modelId);
+    expect(composition.exactModel.defaultCheckpoint).toEqual(CURRENT_BASELINE_V1.capture.checkpoint);
+    expect(composition.exactModel.workerReleaseTicket.artifactRevisionId).toBe(localPackage.artifactRevisionId);
+  });
+
+  it.each([localBundle.baseline, ...localBundle.presets])("observes full 2-ms beats in $presetId without modifying exact outputs", async preset => {
+    const adapter = release().executables.simulationAdapter;
+    const identity = { runtimeSessionId: "cycle-test", scenarioId: "case" };
+    const collector = new MainWireCardiacCycleCollectorV1();
+    const samples: MainWireCardiacCycleAcceptedSampleV1[] = [];
+    const emissions: StudioSimulationAnalysisV2[] = [];
+    await adapter.createSession({ runtimeSessionId: identity.runtimeSessionId, scenarios: [{ scenarioId: identity.scenarioId, ...preset.capture }] });
+    try {
+      for (let i = 0; i < 75; i++) {
+        const batch = await adapter.advancePresentationBatch({ ...identity, stepCount: 16, presentationOutputIds: cycleInputs });
+        const emission = collector.ingest(batch);
+        if (emission) emissions.push(emission);
+        for (let row = 0; row < batch.acceptedRevisions.length; row++) samples.push({
+          inputEpoch: batch.terminalFrame.inputEpoch, acceptedRevision: batch.acceptedRevisions[row]!,
+          acceptedTimeSec: batch.acceptedTimesSec[row]!, values: Object.fromEntries(cycleInputs.map((id, column) =>
+            [id, batch.outputStates[row * cycleInputs.length + column]! < 2 ? batch.outputValues[row * cycleInputs.length + column]! : null])),
+        });
+      }
+      const reference = buildMainWireCardiacCycleMetricsV1(samples);
+      expect(reference.status).toBe("available");
+      expect(emissions.at(-1)?.payload).toEqual(reference);
+      expect(emissions.length).toBeGreaterThanOrEqual(2);
+      expect(emissions.length).toBeLessThanOrEqual(5);
+      if (reference.status !== "available") return;
+      expect(Object.values(reference.values).every(value => typeof value === "number" && Number.isFinite(value))).toBe(true);
+      const frame = adapter.currentFrame(identity);
+      for (const id of cycleOutputs) expect(frame.outputs[id]).toBeUndefined();
+      expect(reference.source.cycleDurationSec).toBeCloseTo(60 / Number(frame.outputs["rhythm.heart-rate.instantaneous"]?.value), 5);
+    } finally { adapter.disposeSession(identity.runtimeSessionId); }
+  }, 40_000);
+
   it("pins own baseline/case captures, documents and the production-framed executable revision without activating it", async () => {
     const { recordSha256, ...body } = localBundle;
     expect(await hash(body)).toBe(localPackage.bundleSha256); expect(recordSha256).toBe(localPackage.bundleSha256);

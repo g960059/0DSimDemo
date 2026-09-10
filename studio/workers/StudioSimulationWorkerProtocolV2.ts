@@ -86,6 +86,7 @@ export type StudioSimulationWorkerAdvancePresentationInputV2 = Readonly<{
   scenarioId: string;
   stepCount: number;
   presentationOutputIds: readonly string[];
+  presentationAnalysisIds?: readonly string[];
 }>;
 
 export type StudioSimulationWorkerApplyControlInputV2 = Readonly<{
@@ -209,6 +210,7 @@ export type StudioSimulationWorkerRequestV2 =
       scenarioId: string;
       stepCount: number;
       presentationOutputIds: readonly string[];
+      presentationAnalysisIds?: readonly string[];
     }>
   | Readonly<{
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
@@ -359,6 +361,7 @@ export type StudioSimulationWorkerResponseV2 =
       status: "ok";
       kind: "presentation-advanced";
       batch: StudioSimulationPresentationBatchV2;
+      analyses?: readonly StudioSimulationAnalysisV2[];
     }>
   | Readonly<{
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
@@ -489,7 +492,7 @@ export function createStudioSimulationAdvancePresentationRequestV2(
     "runtimeSessionId",
     "scenarioId",
     "stepCount",
-  ], [], "$.advancePresentation");
+  ], ["presentationAnalysisIds"], "$.advancePresentation");
   return validateStudioSimulationWorkerRequestV2({
     protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
     requestId,
@@ -498,6 +501,7 @@ export function createStudioSimulationAdvancePresentationRequestV2(
     scenarioId: input.scenarioId,
     stepCount: input.stepCount,
     presentationOutputIds: input.presentationOutputIds,
+    ...(input.presentationAnalysisIds === undefined ? {} : { presentationAnalysisIds: input.presentationAnalysisIds }),
   }) as Extract<
     StudioSimulationWorkerRequestV2,
     { kind: "advance-presentation" }
@@ -901,7 +905,7 @@ export function validateStudioSimulationWorkerRequestV2(
       "runtimeSessionId",
       "scenarioId",
       "stepCount",
-    ], [], "$.request");
+    ], ["presentationAnalysisIds"], "$.request");
     const stepCount = request.stepCount;
     if (
       typeof stepCount !== "number"
@@ -931,6 +935,9 @@ export function validateStudioSimulationWorkerRequestV2(
         request.presentationOutputIds,
         "$.request.presentationOutputIds",
       ),
+      ...(request.presentationAnalysisIds === undefined ? {} : {
+        presentationAnalysisIds: validatePresentationAnalysisIdsV2(request.presentationAnalysisIds),
+      }),
     });
   }
 
@@ -1462,12 +1469,13 @@ export function validateStudioSimulationWorkerResponseV2(
       "protocol",
       "requestId",
       "status",
-    ], [], "$.response");
+    ], ["analyses"], "$.response");
     return Object.freeze({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId,
       status: "ok",
       kind: "presentation-advanced",
+      ...(response.analyses === undefined ? {} : { analyses: validatePresentationAnalysesV2(response.analyses) }),
       batch: validatePresentationBatchV2(
         response.batch,
         "$.response.batch",
@@ -1646,7 +1654,7 @@ export function validateStudioSimulationWorkerResponseFromTrustedRuntimeV2(
       "protocol",
       "requestId",
       "status",
-    ], [], "$.response");
+    ], ["analyses"], "$.response");
     assertProtocolV2(response.protocol, "$.response.protocol");
     return Object.freeze({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
@@ -1656,6 +1664,7 @@ export function validateStudioSimulationWorkerResponseFromTrustedRuntimeV2(
       ),
       status: "ok",
       kind: "presentation-advanced",
+      ...(response.analyses === undefined ? {} : { analyses: validatePresentationAnalysesV2(response.analyses) }),
       batch: validatePresentationBatchV2(
         response.batch,
         "$.response.batch",
@@ -2195,6 +2204,24 @@ function portableErrorMessageV2(value: unknown, path: string): string {
 }
 
 const MAXIMUM_PRESENTATION_OUTPUT_COUNT_V2 = 512;
+
+function validatePresentationAnalysisIdsV2(value: unknown): readonly string[] {
+  const ids = validatePresentationOutputIdsV2(value, "$.request.presentationAnalysisIds");
+  if (ids.length > 8) throw protocolErrorV2("$.request.presentationAnalysisIds", "at most eight methods are supported");
+  return ids;
+}
+
+function validatePresentationAnalysesV2(value: unknown): readonly StudioSimulationAnalysisV2[] {
+  const values = arrayDataValuesV2(value, "$.response.analyses");
+  if (values.length > 8) throw protocolErrorV2("$.response.analyses", "at most eight methods are supported");
+  const seen = new Set<string>();
+  return Object.freeze(values.map((entry, index) => {
+    const result = validateStudioSimulationAnalysisV2(entry, `$.response.analyses[${index}]`);
+    if (seen.has(result.analysisId)) throw protocolErrorV2("$.response.analyses", "duplicate method result");
+    seen.add(result.analysisId);
+    return result;
+  }));
+}
 
 function validatePresentationOutputIdsV2(
   value: unknown,

@@ -493,7 +493,7 @@ describe("V3 Dockview Workbench", () => {
     ).toBe("94.6/63.8(73.1)");
   });
 
-  it("renders clinical fractions as percentages without changing other ratios", () => {
+  it("renders clinical fractions as percentages and keeps dimensionless ratios unscaled", () => {
     expect(
       resolveExperimentOutputDisplayV3({
         itemId: "hemodynamics.ejection-fraction.LV-event-defined",
@@ -511,7 +511,11 @@ describe("V3 Dockview Workbench", () => {
         unit: "1",
         significantDigits: 3,
       }),
-    ).toEqual({ value: "4.25", unit: "1" });
+    ).toEqual({ value: "4.25", unit: "" });
+    expect(resolveExperimentOutputDisplayV3({
+      itemId: "hemodynamics.index.myocardial-performance.flow-event.LV",
+      label: "LV Tei", value: .702, unit: "1", significantDigits: 3,
+    })).toEqual({ value: "0.702", unit: "" });
   });
 
   it("places the output add action after the final output tile", () => {

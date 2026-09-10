@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ResolvePresentationAnalysisMethodsV1 } from "@/analysis/contracts/PresentationAnalysisV1";
 
 import type {
   AnalysisExecutorV1,
@@ -77,6 +78,22 @@ afterEach(() => {
 });
 
 describe("Studio simulation worker V2 protocol", () => {
+  it("bounds and validates optional beat-analysis requests and summaries", () => {
+    const input = { runtimeSessionId: "runtime/session-1", scenarioId: "scenario/baseline", stepCount: 2,
+      presentationOutputIds: [], presentationAnalysisIds: ["analysis/beat"] };
+    const request = createStudioSimulationAdvancePresentationRequestV2(2, input);
+    expect(validateStudioSimulationWorkerRequestV2(request)).toEqual(request);
+    for (const ids of [["analysis/beat", "analysis/beat"], Array.from({ length: 9 }, (_, i) => `analysis/${i}`)]) {
+      expect(() => createStudioSimulationAdvancePresentationRequestV2(2, { ...input, presentationAnalysisIds: ids })).toThrow();
+    }
+    const response = { protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2, status: "ok", requestId: 2,
+      kind: "presentation-advanced", batch: createStudioSimulationPresentationBatchV2([frameV2()], []),
+      analyses: [analysisV2()] };
+    for (const validate of [validateStudioSimulationWorkerResponseV2, validateStudioSimulationWorkerResponseFromTrustedRuntimeV2]) {
+      expect(validate(response)).toMatchObject({ analyses: [analysisV2()] });
+      expect(() => validate({ ...response, analyses: [analysisV2(), analysisV2()] })).toThrow();
+    }
+  });
   it("detaches and freezes exact portable initialize requests", () => {
     const fixture = {
       controls: { heartRateBpm: 60 },
@@ -1220,6 +1237,54 @@ describe("Studio simulation worker V2 runtime", () => {
     ]);
     expect([...batch.acceptedRevisions]).toEqual([1, 2]);
     expect([...batch.outputValues]).toEqual([80, 80]);
+  });
+
+  it("observes only selected pinned methods; strips private columns and sends summaries only when emitted", async () => {
+    const ingest = vi.fn(batch => ingest.mock.calls.length === 1 ? analysisV2({ analysisId: "analysis/beat",
+      sourceAcceptedRevision: batch.terminalFrame.acceptedRevision, sourceAcceptedTimeSec: batch.terminalFrame.acceptedTimeSec }) : undefined);
+    const create = vi.fn(() => ({ ingest }));
+    const resolve = vi.fn(() => [{ methodId: "analysis/beat", requiredExactOutputIds: ["pressure.lv"], create }]);
+    const harness = runtimeHarnessV2({ resolvePresentationAnalysisMethods: resolve });
+    harness.runtime.enqueue(initializeRequestV2(1)); await harness.runtime.whenIdle();
+    const input = { runtimeSessionId: "runtime/session-1", scenarioId: "scenario/baseline", stepCount: 2, presentationOutputIds: [] };
+    harness.runtime.enqueue(createStudioSimulationAdvancePresentationRequestV2(2, input)); await harness.runtime.whenIdle();
+    expect(create).not.toHaveBeenCalled();
+    for (const requestId of [3, 4]) {
+      harness.runtime.enqueue(createStudioSimulationAdvancePresentationRequestV2(requestId, { ...input, presentationAnalysisIds: ["analysis/beat"] }));
+      await harness.runtime.whenIdle();
+      expect(harness.port.messages.at(-1)).toMatchObject({ status: "ok", batch: { outputIds: [], outputValues: new Float64Array(0) } });
+      const response = harness.port.messages.at(-1) as { analyses?: unknown[] };
+      if (requestId === 3) expect(response.analyses).toHaveLength(1);
+      else expect(response.analyses).toBeUndefined();
+    }
+    expect(create).toHaveBeenCalledOnce();
+    expect(ingest).toHaveBeenCalledTimes(2);
+    expect(ingest.mock.calls[0]?.[0].outputIds).toEqual(["pressure.lv"]);
+    const revision = vi.mocked(harness.adapter.advanceOnePresentationStep).mock.calls.length;
+    harness.runtime.enqueue(createStudioSimulationAdvancePresentationRequestV2(5, { ...input, presentationAnalysisIds: ["analysis/unpinned"] }));
+    await harness.runtime.whenIdle();
+    expect(harness.port.messages.at(-1)).toMatchObject({ status: "error", fatal: false });
+    expect(vi.mocked(harness.adapter.advanceOnePresentationStep).mock.calls.length).toBe(revision);
+    harness.runtime.enqueue(createStudioSimulationAdvancePresentationRequestV2(6, input)); await harness.runtime.whenIdle();
+    harness.runtime.enqueue(createStudioSimulationAdvancePresentationRequestV2(7, { ...input, presentationAnalysisIds: ["analysis/beat"] })); await harness.runtime.whenIdle();
+    expect(create).toHaveBeenCalledTimes(2); // Deselecting discards the bounded collector.
+  });
+
+  it.each(["throw", "wrong-source"])("does not terminate numerical stepping after an observer %s", async fault => {
+    const harness = runtimeHarnessV2({ resolvePresentationAnalysisMethods: () => [{ methodId: "analysis/beat",
+      requiredExactOutputIds: ["pressure.lv"], create: () => ({ ingest: () => {
+        if (fault === "throw") throw new Error("measurement unavailable");
+        return analysisV2({ analysisId: "analysis/beat", scenarioId: "wrong" });
+      } }) }] });
+    harness.runtime.enqueue(initializeRequestV2(1)); await harness.runtime.whenIdle();
+    for (const requestId of [2, 3]) {
+      harness.runtime.enqueue(createStudioSimulationAdvancePresentationRequestV2(requestId, {
+        runtimeSessionId: "runtime/session-1", scenarioId: "scenario/baseline", stepCount: 2,
+        presentationOutputIds: [], presentationAnalysisIds: ["analysis/beat"],
+      })); await harness.runtime.whenIdle();
+      expect(harness.port.messages.at(-1)).toMatchObject({ status: "ok", kind: "presentation-advanced",
+        analyses: [{ payload: { status: "unavailable", reason: "presentation-analysis-rejected" } }] });
+    }
   });
 
   it("uses one model-owned batch projection and retains a complete terminal frame", async () => {
@@ -3332,6 +3397,36 @@ describe("Studio simulation worker V2 client", () => {
     });
   });
 
+  it.each([{}, { inputEpoch: 1 }, { scenarioId: "wrong" }, { runtimeSessionId: "wrong" },
+    { analysisId: "analysis/unrequested" }, { sourceAcceptedRevision: 3 }, { sourceAcceptedTimeSec: .006 }])(
+    "correlates beat summaries separately from exact frames: %j", async override => {
+      const transport = new FakeWorkerTransportV2();
+      const client = createStudioSimulationWorkerClientForTestV2({ transport });
+      const initialized = client.initialize({ expectedModelId: "model/main-wire-v3-r1", releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
+        runtimeSessionId: "runtime/session-1", scenarioId: "scenario/baseline", scenarioLabel: "Baseline", fixture: { value: 1 } });
+      transport.emitMessage(initializedResponseV2(1)); await initialized;
+      const input = { runtimeSessionId: "runtime/session-1", scenarioId: "scenario/baseline", stepCount: 2,
+        presentationOutputIds: [], presentationAnalysisIds: ["analysis/beat"] };
+      const advanced = client.advancePresentation(input);
+      const expected = Object.keys(override).length === 0 ? expect(advanced).resolves.toHaveLength(2) : expect(advanced).rejects.toThrow();
+      const analysis = analysisV2({ analysisId: "analysis/beat", sourceAcceptedRevision: 2, sourceAcceptedTimeSec: .004, ...override });
+      const respond = (requestId: number, revision: number, analyses?: StudioSimulationAnalysisV2[]) => transport.emitMessage({
+        protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2, requestId, status: "ok", kind: "presentation-advanced",
+        batch: createStudioSimulationPresentationBatchV2([frameV2({ acceptedRevision: revision - 1, acceptedTimeSec: (revision - 1) * .002 }),
+          frameV2({ acceptedRevision: revision, acceptedTimeSec: revision * .002 })], []), ...(analyses ? { analyses } : {}),
+      });
+      respond(2, 2, [analysis]); await expected;
+      if (Object.keys(override).length === 0) {
+        expect(client.presentationAnalyses()).toEqual([analysis]);
+        const again = client.advancePresentation(input); respond(3, 4); await again;
+        expect(client.presentationAnalyses()).toEqual([analysis]);
+        const deselect = client.advancePresentation({ ...input, presentationAnalysisIds: [] }); respond(4, 6); await deselect;
+        expect(client.presentationAnalyses()).toEqual([]);
+      } else expect(client.presentationAnalyses()).toEqual([]);
+      client.terminate();
+      expect(client.presentationAnalyses()).toEqual([]);
+    });
+
   it("applies a semantic control and advances the client epoch exactly once", async () => {
     const transport = new FakeWorkerTransportV2();
     const client = createStudioSimulationWorkerClientForTestV2({ transport });
@@ -4417,6 +4512,7 @@ function outputV2(outputId: string, value: number | number[]) {
 }
 
 function runtimeHarnessV2(overrides: Readonly<{
+  resolvePresentationAnalysisMethods?: ResolvePresentationAnalysisMethodsV1;
   analysisExecutor?: AnalysisExecutorV1;
   createSession?: RegisteredModelSimulationAdapterV2["createSession"];
   disposeSession?: RegisteredModelSimulationAdapterV2["disposeSession"];
@@ -4504,6 +4600,7 @@ function runtimeHarnessV2(overrides: Readonly<{
   const loadAdapter = vi.fn(() => Promise.resolve(exactRuntime));
   const runtime = new StudioSimulationWorkerRuntimeV2({
     loadExactRuntime: loadAdapter,
+    ...(overrides.resolvePresentationAnalysisMethods === undefined ? {} : { resolvePresentationAnalysisMethods: overrides.resolvePresentationAnalysisMethods }),
     ...(overrides.analysisExecutor === undefined
       ? {}
       : { analysisExecutor: overrides.analysisExecutor }),

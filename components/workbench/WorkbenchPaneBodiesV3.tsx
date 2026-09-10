@@ -25,7 +25,7 @@ import type {
 import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 import type { ExactModelControlValuesV1 } from
   "@/studio/application/model/ExactModelControlValuesV1";
-import type { StudioSimulationFrameV2 } from "@/studio/contracts/v2/simulation";
+import type { StudioSimulationFrameV2, StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 import type { StudioSimulationWorkerScenarioDescriptorV2 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 
 export type WorkbenchStatusV3 =
@@ -63,6 +63,7 @@ export function OutputPaneBodyV3({
   onOpenBindingSettings,
   pane,
   periodicPva,
+  presentationAnalyses,
   periodicPvaAnalysisError,
   scrollMode = "contained",
   showBinding,
@@ -76,6 +77,7 @@ export function OutputPaneBodyV3({
   onOpenBindingSettings: () => void;
   pane: ExperimentSurfaceOutputPaneV2;
   periodicPva?: MainWirePeriodicPvaV1;
+  presentationAnalyses?: readonly StudioSimulationAnalysisV2[];
   periodicPvaAnalysisError?: string;
   scrollMode?: "contained" | "parent" | "section";
   showBinding: boolean;
@@ -98,6 +100,7 @@ export function OutputPaneBodyV3({
     notAssessedNotice: t("workbench.live.outputNotAssessed"),
     pane,
     periodicPva,
+    presentationAnalyses,
     periodicPvaAnalysisError,
   });
   React.useLayoutEffect(() => { lastMeasurements.remember(selected); }, [lastMeasurements, selected]);

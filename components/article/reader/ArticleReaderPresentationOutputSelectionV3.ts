@@ -16,6 +16,7 @@ export function articleReaderPresentationOutputSelectionV3(
   contract: ModelContractV2,
   snapshot: ExperimentSnapshotV2,
   briefing: ExperimentPlacementBriefingV2,
+  exposedExactOutputIds?: ReadonlySet<string>,
 ): ReadonlySet<string> {
   const scalarOutputIds = new Set(
     contract.outputCatalog
@@ -26,7 +27,7 @@ export function articleReaderPresentationOutputSelectionV3(
   for (const { outputId } of briefing.outputs) {
     // Vector values remain available in each complete terminal frame, but the
     // compact presentation history intentionally transports scalar rows only.
-    if (scalarOutputIds.has(outputId)) outputIds.add(outputId);
+    if (scalarOutputIds.has(outputId) && (exposedExactOutputIds?.has(outputId) ?? true)) outputIds.add(outputId);
   }
   let sweepPresent = false;
   for (const selectedGraph of briefing.graphs) {
