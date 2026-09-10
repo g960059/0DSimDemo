@@ -1,0 +1,13 @@
+{
+  "schemaId": "circleheart.saved-model-document.v1",
+  "documentId": "standard72-document-v1",
+  "identity": {
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.reference-baseline.standard-72",
+    "surfaceReleaseId": "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.measured-diastolic-workbench-v1",
+    "surfaceSeriesId": "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.measured-diastolic-workbench",
+    "baselineId": "standard72-reference-baseline-4935-hr70-v1",
+    "title": "Main Wire Standard 72",
+    "releaseStatus": "local-candidate-not-registered"
+  },
+  "contentSha256": "8d94da6d0c7c7edf88b5c277eda1aaa9cb613cca22fff158ed91f2c8fdcdcdc7"
+}

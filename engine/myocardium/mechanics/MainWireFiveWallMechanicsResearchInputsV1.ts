@@ -50,7 +50,37 @@ export const MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_SCALE_RANGES_V1 =
     >
   >);
 
+/** Bounded research domain, not a biological normal range or viable-mass fraction.
+ * Only LV free wall and the shared septum have been explored below 0.75. */
+export const MAIN_WIRE_LV_ACTIVE_TENSION_RESEARCH_RANGE_V1 = Object.freeze({
+  minimum: 0.25, maximum: 1.33, step: 0.01,
+});
+
+export function mainWireFiveWallMechanicsResearchRangeV1(
+  kind: MainWireFiveWallMechanicsScaleKindV1, wallId: MainWireFiveWallIdV1,
+) {
+  return kind === "activeTensionScaleByWall" && (wallId === "LVFW" || wallId === "SEP")
+    ? MAIN_WIRE_LV_ACTIVE_TENSION_RESEARCH_RANGE_V1
+    : MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_SCALE_RANGES_V1[kind];
+}
+
 const UNIT_WALL_SCALES_V1 = wallRecordV1(() => 1);
+
+/** The shared research parser accepts the extended LV domain. Owners retaining
+ * the original construction must also enforce their unchanged input domain. */
+export function assertMainWireUnextendedFiveWallMechanicsDomainV1(
+  input: MainWireFiveWallMechanicsResearchInputsV1,
+): void {
+  for (const kind of MAIN_WIRE_FIVE_WALL_MECHANICS_SCALE_KINDS_V1) {
+    const range = MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_SCALE_RANGES_V1[kind];
+    for (const wall of MAIN_WIRE_FIVE_WALL_IDS_V1) {
+      const value = input[kind][wall];
+      if (!Number.isFinite(value) || value < range.minimum || value > range.maximum) {
+        throw new Error(`Original mechanics domain: ${kind}.${wall} must be within [${range.minimum}, ${range.maximum}]`);
+      }
+    }
+  }
+}
 
 export const MAIN_WIRE_FIVE_WALL_DEFAULT_MECHANICS_RESEARCH_INPUTS_V1: MainWireFiveWallMechanicsResearchInputsV1 =
   Object.freeze({
@@ -79,8 +109,8 @@ export function validateAndOwnMainWireFiveWallMechanicsResearchInputsV1(
       MAIN_WIRE_FIVE_WALL_IDS_V1,
       `five-wall mechanics ${kind}`,
     );
-    const range = MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_SCALE_RANGES_V1[kind];
     return wallRecordV1((wallId) => {
+      const range = mainWireFiveWallMechanicsResearchRangeV1(kind, wallId);
       const value = values[wallId];
       if (
         typeof value !== "number" ||

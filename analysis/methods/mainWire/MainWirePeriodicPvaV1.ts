@@ -7,6 +7,7 @@ import {
   evaluateMainWireIntegratedModelLvMvo2EstimateV1,
   type MainWireIntegratedModelLvMvo2EstimateV1,
 } from "@/analysis/methods/mainWire/MainWireMvo2ReferenceV1";
+import { evaluateMainWireLvMvo2EstimateV2, type MainWireLvMvo2EstimateV2 } from "./MainWireMvo2ReferenceV2";
 export const MAIN_WIRE_PERIODIC_PVA_V1_ID =
   "main-wire-integrated-model-settled-hot-start-pva-v1" as const;
 export { interpolateLoopAtTimeV1 as sampleMainWirePeriodicPvaLoopAtTimeV1 };
@@ -19,12 +20,17 @@ export const MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID =
   "suga-pva-preload-reduction-owner-with-measured-high-load-common-isochrone-display-v10" as const;
 export const MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID =
   "suga-pva-common-isochrone-owner-with-measured-diastolic-load-display-v13" as const;
+export const MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID =
+  "suga-pva-measured-load-display-exact-anatomy-mvo2-v14" as const;
 
 export type MainWirePeriodicPvaMethodIdV1 =
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID
-  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID;
+  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID
+  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID;
+
+type Mvo2Estimate = MainWireIntegratedModelLvMvo2EstimateV1 | MainWireLvMvo2EstimateV2;
 
 const MMHG_ML_TO_JOULE_V1 = 1.33322e-4;
 const MINIMUM_RELATION_PREVIEW_POINT_COUNT_V1 = 3;
@@ -158,7 +164,7 @@ export type MainWireIntegratedModelPeriodicPvaPreviewV1 = Readonly<{
   edpvr: MainWireIntegratedModelPeriodicPvaEdpvrV1 | null;
   potentialEnergy: PeriodicPvaPotentialEnergyV1 | null;
   pva: PeriodicPvaAreaV1 | null;
-  estimatedMvo2: MainWireIntegratedModelLvMvo2EstimateV1 | null;
+  estimatedMvo2: Mvo2Estimate | null;
 }>;
 
 /** Measured operational ED landmarks, distinct from the fitted energy boundary. */
@@ -252,7 +258,7 @@ export type MainWirePeriodicPvaV1 = (
       edpvr: MainWireIntegratedModelPeriodicPvaEdpvrV1;
       potentialEnergy: PeriodicPvaPotentialEnergyV1;
       pva: PeriodicPvaAreaV1;
-      estimatedMvo2: MainWireIntegratedModelLvMvo2EstimateV1 | null;
+      estimatedMvo2: Mvo2Estimate | null;
       limitations: readonly [
         "settled-preload-reduction-family-not-transient-venous-occlusion",
         "maximum-volume-used-as-end-diastolic-proxy",
@@ -354,8 +360,24 @@ export function buildMainWirePeriodicPvaMethodV13(
   locus: MainWireIntegratedModelStarlingLocusV3,
   ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
 ): MainWirePeriodicPvaV1 {
+  return buildMeasuredLoadPva(locus, ventricleId, MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID);
+}
+
+/** Same PVA, PE and display policy; only the literature MVO2 mass owner changes.
+ * Missing anatomy makes that estimate unavailable, not the PV analysis. */
+export function buildMainWirePeriodicPvaMethodV14(
+  locus: MainWireIntegratedModelStarlingLocusV3,
+  ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
+): MainWirePeriodicPvaV1 {
+  return buildMeasuredLoadPva(locus, ventricleId, MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID);
+}
+
+function buildMeasuredLoadPva(locus: MainWireIntegratedModelStarlingLocusV3,
+  ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
+  methodId: typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID,
+): MainWirePeriodicPvaV1 {
   const pva = buildMainWirePeriodicPvaByPolicyV1(locus, ventricleId, {
-    methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID,
+    methodId,
     systolicLoadDomain: "preload-reduction-through-anchor",
     showMeasuredHighLoadIsochrone: true,
     includeAreaDisplay: true,
@@ -917,14 +939,13 @@ function buildMainWirePeriodicPvaByPolicyV1(
   }
   const outputId = `protocol-analysis.settled-hot-start-pva-v1.${ventricleId}`;
   const pvaJ = pvaMmHgMl * MMHG_ML_TO_JOULE_V1;
+  const mvo2Input = { pvaOutputId: outputId, pvaMethodId: method.methodId,
+    pvaEstimateJ: pvaJ, heartRateBpm: 60 / acceptedBeatDurationSec };
   const estimatedMvo2 =
     ventricleId === "LV"
-      ? evaluateMainWireIntegratedModelLvMvo2EstimateV1({
-          pvaOutputId: outputId,
-          pvaMethodId: method.methodId,
-          pvaEstimateJ: pvaJ,
-          heartRateBpm: 60 / acceptedBeatDurationSec,
-        })
+      ? method.methodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID
+        ? evaluateMainWireLvMvo2EstimateV2(mvo2Input, locus.exactAnatomy)
+        : evaluateMainWireIntegratedModelLvMvo2EstimateV1(mvo2Input)
       : null;
   const potentialEnergy: PeriodicPvaPotentialEnergyV1 = Object.freeze({
     method:

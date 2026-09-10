@@ -1,0 +1,28 @@
+{
+  "schemaId": "circleheart-model-publication-admission-v1",
+  "modelId": "circleheart.main-wire-integrated-transaction-v3.static-anatomy.standard-73",
+  "artifactRevisionId": "38e31e94e7b25e71d0bb99c1a7e9a27dc094985c3920d12c2fdf22afa34abce4",
+  "artifactSha256": "f40388e5918e968ed9db093d7c9cd72467da332212c575d08164958e206f5124",
+  "predecessorArtifactRevisionId": null,
+  "equivalenceReportSha256": null,
+  "reviewedLocalPackageSha256": "bedb4198cf4d15fc31993db5d59e7e8925866b36935484ec951788c2dddc5fc0",
+  "reviewedEvidenceArchiveSha256": "b1701c6f60988805b403ad68d70b1fcb442b0ddd94e9018d83ffbeddc9b34162",
+  "bundleSha256": "38bd2a289ae86f2d13bcfed72a70827e4ce55ab52056c473ec458acaaaf078df",
+  "surfaceReleaseId": "circleheart.main-wire.surface.static-anatomy.standard-73.workbench-v1",
+  "baselineRecordSha256": "7aaebd75ec37b1d9290edab2529ab9083d549f4e1c4cd4c7b826a4b6b30f9fb3",
+  "cases": [
+    {
+      "presetId": "standard73-baseline-v1",
+      "checkpointSha256": "4b881697899904e7a66fa5095db92208270942ef5734d0cbd2d9b964717ea4bf",
+      "documentId": "standard73-document-v2",
+      "documentSha256": "e1f1fdfafb8898d25998fbe537daa8772e5f06f90e534624cc44ef88fc07dcf6"
+    },
+    {
+      "presetId": "standard73-hfref-chronic-dilated-v1",
+      "checkpointSha256": "c97b528ac709354762a2c19f5cf4f52b32b22aa746542146cc8c99e39f102cf3",
+      "documentId": "standard73-hfref-document-v2",
+      "documentSha256": "6b415790ed58874f52141002dedc15dd7612bedf9362f84bf624955f2338dcc4"
+    }
+  ],
+  "scope": "User-authorized publication of the reviewed two-case package; no equations, parameters, numerical state or physiology-policy changes. Clinical validation and full-control-domain qualification are not claimed."
+}

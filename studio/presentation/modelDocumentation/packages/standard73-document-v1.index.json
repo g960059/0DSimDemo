@@ -1,0 +1,13 @@
+{
+  "schemaId": "circleheart.saved-model-document.v1",
+  "documentId": "standard73-document-v1",
+  "identity": {
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.static-anatomy.standard-73",
+    "surfaceReleaseId": "circleheart.main-wire.surface.static-anatomy.standard-73.workbench-v1",
+    "surfaceSeriesId": "circleheart.main-wire.surface.static-anatomy.workbench",
+    "baselineId": "standard73-baseline-v1",
+    "title": "Standard 73",
+    "releaseStatus": "local-candidate-not-registered"
+  },
+  "contentSha256": "ebd302713455e1bc16591bc8fd96d127b511cfb6d8a35fed7067be84ba6ddc9a"
+}

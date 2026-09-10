@@ -82,6 +82,7 @@
     "viewAll": "もっと見る",
     "loading": "公開コンテンツを読み込んでいます…",
     "footerNavigation": "CircleHeartのリンク",
+    "modelDocumentation": "数理モデル・プリセット",
     "noArticles": "公開中の記事はまだありません。",
     "noSimulations": "公開中のシミュレーションはまだありません。",
     "startFirstSimulation": "最初のシミュレーションを始める",
@@ -421,7 +422,9 @@
         "addFromPreset": "Presetから追加",
         "baseColor": "新しいtraceのbase色",
         "baselinePresetTitle": "baseline",
-        "baselinePresetDescription": "このシミュレーションを開いた時点で取得したexact fixtureとcheckpointです。",
+        "baselinePresetDescription": "このモデルに登録された基準設定と保存状態です。",
+        "loadedStateTitle": "読込時の状態",
+        "loadedStateDescription": "このシミュレーションを開いた時点の設定と状態です。登録baselineとは異なります。",
         "busy": "Scenarioを変更しています",
         "close": "Scenario inspectorを閉じる",
         "copySuffix": "のコピー",
@@ -729,6 +732,23 @@
       "formal PVA/ESPVR/EDPVRとGuyton / Starlingはversioned analysisです。非収束点を除外するpreviewを含み、独立した生理学的・臨床的validationではありません。",
       "通常のcontrol変更はaccepted stateとmodel clockを起点にwarm startします。TBV変更はdetached preflightされ、bounded continuationが必要な場合は後続のaccepted boundaryをatomic commitすることがあります。いずれも自律神経反射を再現するものではありません。",
       "baseline mint gate、数値検証、形態チェックは、患者個別または全負荷条件での臨床的正常性を保証しません。"
+    ],
+    "standard71Items": [
+      "0Dモデルの代表圧です。局所ジェット、圧波の伝播・反射、特定のカテーテルやカフの測定位置は再現しません。",
+      "AoP/PAPはAo/PA node圧です。ZcQの表示上の加算や局所pressure recovery補正はなく、Dopplerの最大ジェット勾配とは交換できません。",
+      "baselineはローカル候補です。数値・構造検査に適合しても参考警告が残り、臨床的正常性や患者予測は保証しません。"
+    ],
+    "staticAnatomyItems": [
+      "研究・教育用です。医療機器ではなく、診断・治療や患者個別の判断には使用できません。",
+      "0Dモデルの代表圧です。局所ジェット、圧波の伝播・反射、特定のカテーテルやカフの測定位置は再現しません。",
+      "AoP/PAPはAo/PA node圧です。ZcQの表示上の加算や局所pressure recovery補正はなく、Dopplerの最大ジェット勾配とは交換できません。",
+      "baselineと慢性左室拡大型HFrEFは、それぞれ固定した形状と保存状態を持ちます。リモデリングの進行過程や局所の心筋梗塞は再現しません。",
+      "検証は各presetの条件に対するものです。操作後の全範囲での妥当性や臨床的正常性を保証しません。冠灌流・酸素消費の解釈など、詳細な制約はモデル・症例文書に記載しています。"
+    ],
+    "standard72Items": [
+      "0Dモデルの代表圧です。局所ジェット、圧波の伝播・反射、特定のカテーテルやカフの測定位置は再現しません。",
+      "AoP/PAPはAo/PA node圧です。ZcQの表示上の加算や局所pressure recovery補正はなく、Dopplerの最大ジェット勾配とは交換できません。",
+      "baselineはローカル候補です。数値・構造検査に適合しても参考警告が残り、臨床的正常性や患者予測は保証しません。"
     ],
     "standard70Items": [
       "研究・教育目的のみです。医療機器ではなく、診断、治療、患者個別の判断には使用できません。",

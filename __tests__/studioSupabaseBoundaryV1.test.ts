@@ -27,9 +27,9 @@ import {
   STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID,
 } from "@/studio/contracts/v2/modelSurface";
 import standardClientDescriptorV1 from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
+  "@/data/model-releases/CurrentModelReleaseV1";
 import standardSurfaceReleaseV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import {
   uploadImmutableExactModelArtifactV1,
 } from "@/tools/registry/ImmutableExactModelArtifactStorageV1";
@@ -42,42 +42,42 @@ import {
   parseModelSurfacePublishArgumentsV1,
 } from "@/tools/registry/publishModelSurfaceReleaseV1";
 import currentClient from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
+  "@/data/model-releases/CurrentModelReleaseV1";
 import currentSurface from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 
 const TEST_ARTIFACT_REVISION_ID_V1 = "a".repeat(64);
 
 describe("Studio Supabase boundary V1", () => {
   afterEach(() => vi.unstubAllGlobals());
-  it("binds publication to the current exact model, fixture, lock, artifact and Surface", () => {
+  it("binds publication to the current exact model, fixture, lock, artifact and Surface", async () => {
     const fetchV1 = vi.fn();
     vi.stubGlobal("fetch", fetchV1);
-    const directory = "studio/integrations/mainWireIntegratedV3/";
+    const directory = "data/model-releases/standard73/";
     const input = {
       artifact: readFileSync(directory
-        + "MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.artifact.mjs"),
+        + "artifact.mjs.txt"),
       lockJson: readFileSync(directory
-        + "algebraic-pulmonary-root-standard70-registry-admission-lock.json", "utf8"),
+        + "publication.json", "utf8"),
       expectedModelId: currentClient.manifest.modelId,
     };
-    const prepared = prepareMainWireModelPublicationV1(input);
+    const prepared = await prepareMainWireModelPublicationV1(input);
     expect(prepared.manifest).toEqual(currentClient.manifest);
     expect(prepared.defaultFixture).toEqual(currentClient.defaultFixture);
     expect(prepared.artifactSha256).toBe(prepared.lock.artifactSha256);
-    expect(() => prepareMainWireModelPublicationV1({
-      ...input, expectedModelId: standardClientDescriptorV1.manifest.modelId,
-    })).toThrow(/modelId differ/);
-    expect(() => prepareMainWireModelPublicationV1({
+    await expect(prepareMainWireModelPublicationV1({
+      ...input, expectedModelId: "model/retired",
+    })).rejects.toThrow(/modelId/);
+    await expect(prepareMainWireModelPublicationV1({
       ...input,
       lockJson: JSON.stringify({ ...JSON.parse(input.lockJson), modelId: "wrong" }),
-    })).toThrow(/modelId differ/);
-    expect(() => prepareMainWireModelPublicationV1({
+    })).rejects.toThrow(/complete qualification/);
+    await expect(prepareMainWireModelPublicationV1({
       ...input, artifact: new Uint8Array([1, 2, 3]),
-    })).toThrow(/digest differ/);
-    expect(() => prepareMainWireModelPublicationV1({
+    })).rejects.toThrow(/artifact differs/);
+    await expect(prepareMainWireModelPublicationV1({
       ...input, lockJson: "null",
-    })).toThrow(/lock is invalid/);
+    })).rejects.toThrow(/complete qualification/);
     expect(fetchV1).not.toHaveBeenCalled();
   });
 
@@ -91,7 +91,7 @@ describe("Studio Supabase boundary V1", () => {
     expect(() => parseMainWireModelPublishArgumentsV3(args.slice(0, 4)))
       .toThrow(/explicit current/);
     expect(() => parseMainWireModelPublishArgumentsV3([
-      ...args.slice(0, 5), standardClientDescriptorV1.manifest.modelId,
+      ...args.slice(0, 5), "model/retired",
     ])).toThrow(/explicit current/);
     for (const extra of [["--dry-run", "--dry-run"], ["--stage", "dev"], ["--unknown"]]) {
       expect(() => parseMainWireModelPublishArgumentsV3([...args, ...extra]))
@@ -104,10 +104,8 @@ describe("Studio Supabase boundary V1", () => {
     vi.stubGlobal("fetch", fetchV1);
     const directory = "studio/integrations/mainWireIntegratedV3/";
     expect(await loadModelSurfacePublicationManifestV1(directory
-      + "MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1.ts"))
+      + "MainWireIntegratedStudioStaticCaseSurfaceV1.ts"))
       .toEqual(currentSurface);
-    expect(await loadModelSurfacePublicationManifestV1(directory
-      + "model-surface-workbench-analysis-v1.json")).toEqual(standardSurfaceReleaseV1);
     await expect(loadModelSurfacePublicationManifestV1("../outside.json"))
       .rejects.toThrow(/inside the repository/);
     await expect(loadModelSurfacePublicationManifestV1("AGENTS.md"))
@@ -115,7 +113,7 @@ describe("Studio Supabase boundary V1", () => {
     await expect(loadModelSurfacePublicationManifestV1("package.json"))
       .rejects.toThrow();
     await expect(loadModelSurfacePublicationManifestV1(
-      "tools/registry/generateMainWireIntegratedStudioStandard70BaselineV1.ts",
+      "tools/registry/verifyCurrentModelPublicationV1.ts",
     )).rejects.toThrow(/Only the current Model Surface/);
     expect(fetchV1).not.toHaveBeenCalled();
   });

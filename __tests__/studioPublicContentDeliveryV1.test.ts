@@ -362,6 +362,8 @@ describe("Studio public content delivery V1", () => {
     );
     expect(html).toContain('<div id="root" hidden></div>');
     expect(html.indexOf("</main>")).toBeLessThan(html.indexOf("<footer"));
+    expect(html.slice(html.indexOf("<footer"))).toContain('href="/ja/models"');
+    expect(html.slice(0, html.indexOf("<footer"))).not.toContain('href="/ja/models"');
 
     const etag = response.headers.get("etag") ?? "";
     const cached = await handleStudioPublicContentRequestV1(

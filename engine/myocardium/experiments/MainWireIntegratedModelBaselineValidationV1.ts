@@ -1,5 +1,5 @@
 import type {
-  MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
+  MainWireIntegratedModelHemodynamicTraceSampleV3 as MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import type {
   MainWireIntegratedModelCompletedBeatMetricsV3,

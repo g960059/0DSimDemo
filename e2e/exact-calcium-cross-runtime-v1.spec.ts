@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { pathToFileURL } from "node:url";
 
 type ExactReleaseV1 = Readonly<{
   manifest: Readonly<{ modelId: string }>;
@@ -40,37 +39,26 @@ type ExactArtifactModuleV1 = Readonly<{
 }>;
 
 const artifactPath = new URL(
-  "../studio/integrations/mainWireIntegratedV3/"
-    + "MainWireIntegratedStudioExactModelV1.artifact.mjs",
+  "../data/model-releases/standard73/artifact.mjs.txt",
   import.meta.url,
 );
 const artifactSource = readFileSync(artifactPath, "utf8");
-const client = JSON.parse(readFileSync(new URL(
-  "../studio/integrations/mainWireIntegratedV3/"
-    + "MainWireIntegratedStudioExactModelV1.client.json",
+const bundle = JSON.parse(readFileSync(new URL(
+  "../data/model-releases/standard73/bundle.json",
   import.meta.url,
 ), "utf8")) as Readonly<{
-  defaultFixture: Record<string, unknown>;
+  baseline: Readonly<{ capture: Readonly<{ fixture: Record<string, unknown>; checkpoint: unknown }> }>;
+  presets: readonly Readonly<{ capture: Readonly<{ fixture: Record<string, unknown>; checkpoint: unknown }> }>[];
   manifest: Readonly<{
-    fixtureSchema: Readonly<{
-      definition: Readonly<{
-        hemodynamicResearchInputRanges: Readonly<{
-          heartRateBpm: Readonly<{
-            minimum: number;
-            maximum: number;
-            step: number;
-          }>;
-        }>;
-      }>;
-    }>;
+    primitiveControlCatalog: readonly Readonly<{ controlId: string; minimum: number; maximum: number; step: number }>[];
   }>;
 }>;
 
-test("@desktop @webkit Node checkpoints restore in a browser across the admitted HR domain", async ({
+test("@desktop @webkit current-model Node checkpoints restore across the HR domain and both adopted cases", async ({
   page,
 }) => {
   const artifactModule = (await import(
-    pathToFileURL(artifactPath.pathname).href
+    `data:text/javascript;base64,${Buffer.from(artifactSource).toString("base64")}`
   )) as ExactArtifactModuleV1;
   const release = artifactModule.createCircleHeartExactModelReleaseV1();
   const cases: Array<Readonly<{
@@ -80,35 +68,44 @@ test("@desktop @webkit Node checkpoints restore in a browser across the admitted
     expectedRevision: number;
     expectedTimeSec: number;
   }>> = [];
-  const heartRateRange = client.manifest.fixtureSchema.definition
-    .hemodynamicResearchInputRanges.heartRateBpm;
+  const heartRateRange = bundle.manifest.primitiveControlCatalog
+    .find(control => control.controlId === "rhythm.heart-rate-bpm")!;
   expect(Number.isInteger(heartRateRange.minimum)).toBe(true);
   expect(Number.isInteger(heartRateRange.maximum)).toBe(true);
   expect(Number.isInteger(heartRateRange.step)).toBe(true);
   expect(heartRateRange.step).toBeGreaterThan(0);
   const advancedCheckpointHeartRates = new Set([40, 52, 70, 100]);
 
+  const inputs: Array<{ fixture: Record<string, unknown>; checkpoint?: unknown; advanced: boolean }> = [];
   for (
     let heartRateBpm = heartRateRange.minimum;
     heartRateBpm <= heartRateRange.maximum;
     heartRateBpm += heartRateRange.step
   ) {
-    const runtimeSessionId = `node-calcium-portability-${heartRateBpm}`;
-    const scenarioId = `scenario/hr-${heartRateBpm}`;
-    const defaultHemodynamics = client.defaultFixture
+    const defaultHemodynamics = bundle.baseline.capture.fixture
       .hemodynamicResearchInputs as Record<string, unknown>;
     const fixture = {
-      ...client.defaultFixture,
+      ...bundle.baseline.capture.fixture,
       hemodynamicResearchInputs: {
         ...defaultHemodynamics,
         heartRateBpm,
       },
     };
+    inputs.push({ fixture, advanced: advancedCheckpointHeartRates.has(heartRateBpm) });
+  }
+  for (const preset of [bundle.baseline, ...bundle.presets]) {
+    inputs.push({ ...preset.capture, advanced: true });
+  }
+  for (const [index, input] of inputs.entries()) {
+    const { fixture } = input;
+    const heartRateBpm = (fixture.hemodynamicResearchInputs as { heartRateBpm: number }).heartRateBpm;
+    const runtimeSessionId = `node-calcium-portability-${index}`;
+    const scenarioId = `scenario/${index}`;
     await release.executables.simulationAdapter.createSession({
       runtimeSessionId,
-      scenarios: [{ scenarioId, fixture }],
+      scenarios: [{ scenarioId, fixture, ...(input.checkpoint ? { checkpoint: input.checkpoint } : {}) }],
     });
-    if (advancedCheckpointHeartRates.has(heartRateBpm)) {
+    if (input.advanced) {
       for (let batchIndex = 0; batchIndex < 32; batchIndex += 1) {
         await release.executables.simulationAdapter.advancePresentationBatch({
           runtimeSessionId,
@@ -161,9 +158,9 @@ test("@desktop @webkit Node checkpoints restore in a browser across the admitted
       const browserRelease = browserModule
         .createCircleHeartExactModelReleaseV1();
       const failed: Array<Readonly<{ heartRateBpm: number; error: string }>> = [];
-      for (const input of inputs) {
-        const runtimeSessionId = `browser-calcium-portability-${input.heartRateBpm}`;
-        const scenarioId = `scenario/hr-${input.heartRateBpm}`;
+      for (const [index, input] of inputs.entries()) {
+        const runtimeSessionId = `browser-calcium-portability-${index}`;
+        const scenarioId = `scenario/${index}`;
         let sessionCreated = false;
         try {
           await browserRelease.executables.simulationAdapter.createSession({

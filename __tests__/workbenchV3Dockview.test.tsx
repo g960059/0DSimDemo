@@ -90,12 +90,6 @@ import {
 import { WorkbenchMobileStageDeckV3 } from "@/components/workbench/WorkbenchMobileStageDeckV3";
 import { WorkbenchSimulationInfoPanelV3 } from "@/components/workbench/WorkbenchSimulationInfoV3";
 import {
-  registeredBaselinePressureRatePresentationV1,
-  resolveRegisteredExactModelBaselineValidationV1,
-} from "@/studio/registry/RegisteredExactModelBaselineValidationV1";
-import selectedLaunchBaseline from "@/data/model-baselines/standard70-launch-baseline.json";
-import originalStandard70Descriptor from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
-import {
   DEFAULT_WORKBENCH_SCENARIO_MANAGER_STRINGS_V3,
   WorkbenchScenarioManagerV3,
   suggestWorkbenchScenarioIdV3,
@@ -130,7 +124,7 @@ import {
 } from "@/components/workbench/WorkbenchAreaLayoutV3";
 import {
   loadStudioDefaultClientCompositionV2,
-  loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1,
+  loadStudioLocalCurrentClientCompositionV1,
 } from "@/studio/composition/StudioDefaultCompositionV2";
 import { modelLimitationsAcknowledgementKey } from "@/components/ModelLimitations";
 import {
@@ -823,31 +817,6 @@ describe("V3 Dockview Workbench", () => {
     expect(markup).toContain("Reference warning, not numerical failure");
   });
 
-  it.each([
-    [selectedLaunchBaseline.modelId, originalStandard70Descriptor.defaultFixture],
-  ])("preserves the admitted historical pressure-rate presentation for %s", (modelId, fixture) => {
-    const report = resolveRegisteredExactModelBaselineValidationV1(modelId, fixture);
-    expect(report).not.toBeNull();
-    for (const side of ["left", "right"] as const) {
-      const presentation = registeredBaselinePressureRatePresentationV1(report!, side);
-      expect(presentation.status).toBeUndefined();
-      expect(presentation.detailKey).toContain("baselineHistorical");
-    }
-  });
-
-  it("uses reference and warning presentation only for the selected reference-policy assessment", () => {
-    const report = resolveRegisteredExactModelBaselineValidationV1(
-      selectedLaunchBaseline.modelId, selectedLaunchBaseline.capture.fixture,
-    );
-    expect(report).not.toBeNull();
-    expect(registeredBaselinePressureRatePresentationV1(report!, "left")).toEqual({
-      status: "warning", detailKey: "workbench.editor.simulationInfo.baselineLvDpDtDetail",
-    });
-    expect(registeredBaselinePressureRatePresentationV1(report!, "right")).toEqual({
-      status: "reference", detailKey: "workbench.editor.simulationInfo.baselineRvDpDtDetail",
-    });
-  });
-
   it("keeps pane binding quiet for one Scenario and content-sized for comparison", () => {
     const common = {
       label: "連動：Baseline",
@@ -1332,7 +1301,7 @@ describe("V3 Dockview Workbench", () => {
 
   it("selects every analysis-backed pane that retains visual history", async () => {
     const composition =
-      await loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1();
+      await loadStudioLocalCurrentClientCompositionV1();
     const original = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
     const structural = composition.modelSurface.contract.graphCatalog.find(
       ({ renderer }) => renderer === "structural-return",
@@ -1459,7 +1428,7 @@ describe("V3 Dockview Workbench", () => {
       "hemodynamics.systemic-resistance",
       "hemodynamics.pulmonary-resistance",
       "hemodynamics.venous-tone",
-      "myocardium.active-tension-scale.LVFW",
+      "myocardium.lv-contractility",
       "myocardium.passive-stiffness-scale.LVFW",
     ]);
     expect(controlPane.items.length).toBeGreaterThan(0);
@@ -2027,7 +1996,7 @@ describe("V3 Dockview Workbench", () => {
 
   it("constructs four unit-safe graph families with one circulation per structural pane", async () => {
     const composition =
-      await loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1();
+      await loadStudioLocalCurrentClientCompositionV1();
     const original = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
     const constructorGraphIds = [
       ...new Set(WORKBENCH_GRAPH_PANE_OPTIONS_V3.map(({ graphId }) => graphId)),

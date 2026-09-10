@@ -123,6 +123,15 @@ const CONTROL_PRESENTATION_V1: Readonly<
     ),
     aliases: ["contractility", "inotropy", "収縮性", "心収縮力"],
   },
+  "myocardium.lv-contractility": {
+    category: "myocardium",
+    label: textV1("LV contractility", "LV収縮性"),
+    description: textV1(
+      "Active-tension multiplier for the LV free wall and shared septum (Land Tref). RV free-wall and atrial inputs stay unchanged, but ventricular interaction can alter RV function. Not EF, viable muscle fraction or measured Ees; calcium timing is unchanged.",
+      "左室自由壁と心室中隔の能動張力（Land Tref）を一緒に変える倍率です。右室自由壁・心房の設定は変えませんが、心室間の相互作用で右室機能も変わり得ます。EF・残存心筋量・実測Eesの倍率ではなく、Caの時間特性は変えません。",
+    ),
+    aliases: ["LV", "left ventricular contractility", "左室収縮性", "左室収縮力"],
+  },
   "ventilation.peep-cm-h2o": {
     category: "ventilation",
     label: textV1("PEEP", "PEEP"),

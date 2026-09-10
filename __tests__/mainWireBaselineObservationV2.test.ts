@@ -7,17 +7,28 @@ import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import { observeMainWireStandard70QualificationV2, observeMainWireStandard70TimingAndInletV2 } from
   "@/analysis/methods/mainWire/MainWireStandard70BaselineAssessmentV2";
 import { measureMainWireIntegratedModelStandard70CandidateEvidenceV1,
-  completeMainWireStandard70TimingAndInletTraceV1 } from
+  completeMainWireStandard70TimingAndInletTraceV1,
+  mainWireStandard70TimingAndInletObservationTraceV1 as observationTrace } from
   "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
 import {
   MAIN_WIRE_BASELINE_OBSERVATION_V2_ID,
   MainWireBaselineObservationUnavailableErrorV2,
   observeMainWireBaselineV2,
+  observeMainWireVentricularValveTimingV2,
   type MainWireBaselineObservationBeatV2,
   type MainWireBaselineObservationTraceSampleV2,
 } from "@/analysis/methods/mainWire/MainWireBaselineObservationV2";
 
 describe("baseline observation V2", () => {
+  it("joins an actual preceding context without replacing the terminal window", () => {
+    const samples = fixtureV2().samples;
+    const input = { terminalTrace: samples.slice(2) as never, timingAndInletPrecedingTrace: samples.slice(0, 2) as never };
+    expect(observationTrace(input)).toEqual(samples);
+    expect(observationTrace({ terminalTrace: input.terminalTrace })).toEqual(samples.slice(2));
+    for (const preceding of [samples.slice(0, 1), samples.slice(0, 3), [...samples.slice(0, 2)].reverse()]) {
+      expect(() => observationTrace({ ...input, timingAndInletPrecedingTrace: preceding as never })).toThrow(/contiguously/);
+    }
+  });
   it("uses one zero-flow ET for the reported timing and Tei on both sides", () => {
     const observed = observeMainWireBaselineV2(fixtureV2());
     expect(observed.methodId).toBe(MAIN_WIRE_BASELINE_OBSERVATION_V2_ID);
@@ -98,6 +109,22 @@ describe("baseline observation V2", () => {
       ...sample, valveFlowMlPerSec: { ...sample.valveFlowMlPerSec,
         MV: sample.acceptedTimeSec === 1.1 ? 1 : sample.valveFlowMlPerSec.MV },
     })) })).toThrow(/A needs a positive interior peak/);
+  });
+
+  it("preserves native timing independently of unresolved E/A on either side", () => {
+    const input = fixtureV2(), original = observeMainWireBaselineV2(input);
+    for (const valve of ["MV", "TV"] as const) {
+      const samples = input.samples.map(sample => ({ ...sample, valveFlowMlPerSec: {
+        ...sample.valveFlowMlPerSec, [valve]: sample.acceptedTimeSec === 1.1 ? 1 : sample.valveFlowMlPerSec[valve] } }));
+      expect(() => observeMainWireBaselineV2({ ...input, samples })).toThrow(/A needs/);
+      const left = observeMainWireVentricularValveTimingV2({ ...input, samples, side: "left" });
+      expect(left).toEqual({ timing: original.left.timing, events: original.left.events });
+    }
+    expect(() => observeMainWireVentricularValveTimingV2({ ...input, side: "left",
+      samples: input.samples.filter(s => s.acceptedTimeSec <= 1) })).toThrow(/closure/);
+    expect(() => observeMainWireVentricularValveTimingV2({ ...input, side: "left",
+      samples: input.samples.map((s, i) => i === 0 ? { ...s, valveFlowMlPerSec: { ...s.valveFlowMlPerSec, MV: NaN } } : s) }))
+      .toThrow(/invalid|nonfinite/);
   });
 
   it("rejects hidden extra forward-flow duration and duplicate ejection episodes", () => {

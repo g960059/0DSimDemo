@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
 const defaultRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
-  "../studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-registry-admission-lock.json",
+  "../data/model-releases/standard73/publication.json",
   import.meta.url,
 ), "utf8")) as Readonly<{ modelId: string }>;
 
@@ -96,7 +96,7 @@ test("@desktop selector stays ID-less until the first explicit Save", async ({
   await expect(page.getByRole("button", { name: /書き出/ })).toHaveCount(0);
 });
 
-test("@desktop production Standard70 inherits the complete analysis Surface", async ({
+test("@desktop current model inherits the complete analysis Surface", async ({
   page,
 }) => {
   const root = page.getByTestId("v3-dockview-workbench");
@@ -807,7 +807,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
   ).toBeLessThanOrEqual(0.25);
 
   // Mutating the restored copy remains branch-local after the durable
-  // round-trip. Standard70 warm-starts only that branch from its accepted
+  // round-trip. The current model warm-starts only that branch from its accepted
   // state and clock; the baseline fixture and trajectory remain untouched.
   const restoredCopyEpoch = await inputEpoch(page);
   const restoredCopyTimeBeforeMutation = await modelTime(root);
@@ -842,23 +842,21 @@ test("@desktop simulation information stays human-facing", async ({
     name: "数理モデルの詳細を見る",
   });
   await expect(documentationLink).toBeVisible();
-  await expect(documentationLink).toHaveAttribute(
-    "href",
-    /\/ja\/models\/circleheart\.main-wire-integrated-transaction-v3\.algebraic-pulmonary-root\.standard-70\?surface=/,
-  );
+  expect(await documentationLink.getAttribute("href"))
+    .toContain(`/ja/models/${DEFAULT_EXACT_MODEL_ID}?surface=`);
   const limitations = dialog.locator("details").filter({
     hasText: "制限事項",
   }).first();
   await limitations.locator("summary").click();
   await expect(limitations).toContainText(
-    "AoPは大動脈弁直後の大動脈基部compliance node圧",
+    "AoP/PAPはAo/PA node圧",
   );
   await expect(limitations).toContainText(
-    "formal PVA/ESPVR/EDPVRとGuyton / Starlingはversioned analysis",
+    "局所ジェット、圧波の伝播・反射",
   );
   await expect(dialog.getByText("数理モデルのbaseline検証", { exact: true }))
     .toBeVisible();
-  await expect(dialog.getByText("PAP / PV flow morphology", { exact: true }))
+  await expect(dialog.getByText("LV τ (Weiss / Glantz)", { exact: true }))
     .toBeVisible();
   await expect(dialog.getByText("Exact model ID", { exact: true }))
     .toHaveCount(0);
@@ -872,12 +870,10 @@ test("@desktop simulation information stays human-facing", async ({
   const documentationPageOpened = page.context().waitForEvent("page");
   await documentationLink.click();
   const documentationPage = await documentationPageOpened;
-  await expect(
-    documentationPage.getByTestId("standard70-model-documentation-v1"),
-  ).toBeVisible();
+  await expect(documentationPage).toHaveURL(new RegExp(`/ja/models/${DEFAULT_EXACT_MODEL_ID.replaceAll(".", "\\.")}\\?`));
   await expect(documentationPage.getByRole("heading", {
-    name: "Main Wire Standard 70",
-    exact: true,
+    name: /^Standard \d+のしくみ$/,
+    level: 1,
   })).toBeVisible();
   await documentationPage.close();
 });

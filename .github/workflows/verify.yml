@@ -55,97 +55,26 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Verify exact V3 registry admission
-        run: npm run verify:registry:main-wire-v3
-        env:
-          CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
-
-      - name: Verify selected aortic outflow Standard66 registry admission
-        run: npm run verify:registry:main-wire-selected-aortic-outflow-v1
-        env:
-          CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
-
-      - name: Verify algebraic proximal roots Standard67 registry admission
-        run: npm run verify:registry:main-wire-algebraic-proximal-roots-v1
-        env:
-          CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
-
-  standard68:
-    name: Standard68 registry admission
+  current-model:
+    name: Current model registry admission
     runs-on: ubuntu-latest
-    # Dependency installation and the unchanged cold numerical gate can exceed
-    # 15 minutes on shared runners. This is a job guard, not a numerical limit.
-    timeout-minutes: 25
-
+    timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Verify rounded ejection Standard68 registry admission
-        run: npm run verify:registry:main-wire-rounded-ejection-v1
-        env:
-          CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
-
-  standard69:
-    name: Standard69 registry admission
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Verify qualified baseline Standard69 registry admission
-        run: npm run verify:registry:main-wire-qualified-baseline-v1
-        env:
-          CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
-
-  standard70:
-    name: Standard70 registry admission
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Verify algebraic pulmonary root Standard70 registry admission
-        run: npm run verify:registry:main-wire-algebraic-pulmonary-root-v1
-        env:
-          CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+      - run: npm ci
+      - name: Verify reviewed artifact, own captures and scientific bindings
+        run: npm run verify:registry:current
+      # Cold-to-periodic fitting belongs to the canonical/nightly lane. The PR
+      # gate verifies current artifact/captures above and qualification rules here.
+      - name: Verify pressure-rate numerical quality guards
+        run: >-
+          npx vitest run --config vitest.canonical.config.ts
+          __tests__/mainWireBaselinePressureRateQualityV1.test.ts
+          --minWorkers=1 --maxWorkers=2
 
   test:
     name: Fast tests
@@ -179,30 +108,6 @@ jobs:
           # this remains a runaway-process guard rather than a performance gate.
           CIRCLEHEART_FAST_TEST_BUDGET_MS: 300000
 
-      - name: Verify Standard66 exact and Surface boundaries
-        if: github.event_name == 'pull_request'
-        run: >-
-          node node_modules/vitest/vitest.mjs run
-          --config vitest.config.ts
-          --testTimeout=10000
-          __tests__/mainWireSelectedAorticPortSessionExtensionV1.test.ts
-          __tests__/mainWireIntegratedTypedAuthoritySelectedAorticExtensionV1.test.ts
-          __tests__/mainWireIntegratedModelStandard66CheckpointV1.test.ts
-          __tests__/mainWireIntegratedModelStandard66OutputRegistryV1.test.ts
-          __tests__/mainWireIntegratedModelStandard66TypedAuthoritySessionV1.test.ts
-          __tests__/mainWireIntegratedModelStandard66ModelSurfaceV1.test.ts
-          __tests__/mainWireIntegratedStudioSelectedAorticOutflowV1.test.ts
-          __tests__/mainWireIntegratedModelStandard66ProductionRouteParityV1.test.ts
-
-      - name: Verify exact V3 snapshot qualification
-        if: github.event_name == 'pull_request'
-        # Keep the cold-to-P1 gate outside the parallel smoke worker pool. The
-        # test yields only at accepted cycle boundaries so Vitest RPC stays live.
-        run: >-
-          node node_modules/vitest/vitest.mjs run
-          --config vitest.canonical.config.ts
-          __tests__/mainWireIntegratedModelSnapshotQualificationV3.test.ts
-
   browser:
     name: Workbench browser smoke
     runs-on: ubuntu-latest
@@ -221,7 +126,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Chromium
+      - name: Install Chromium and WebKit
         run: npx playwright install --with-deps chromium webkit
 
       - name: Build
@@ -302,9 +207,7 @@ jobs:
       - build
       - browser
       - supabase
-      - standard68
-      - standard69
-      - standard70
+      - current-model
       - test
       - whitespace
     if: always()
@@ -318,9 +221,7 @@ jobs:
           BUILD_RESULT: ${{ needs.build.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
           SUPABASE_RESULT: ${{ needs.supabase.result }}
-          STANDARD68_RESULT: ${{ needs.standard68.result }}
-          STANDARD69_RESULT: ${{ needs.standard69.result }}
-          STANDARD70_RESULT: ${{ needs.standard70.result }}
+          CURRENT_MODEL_RESULT: ${{ needs.current-model.result }}
           TEST_RESULT: ${{ needs.test.result }}
           WHITESPACE_RESULT: ${{ needs.whitespace.result }}
         run: |
@@ -330,9 +231,7 @@ jobs:
             "Build:$BUILD_RESULT" \
             "Workbench browser smoke:$BROWSER_RESULT" \
             "Supabase schema and policy tests:$SUPABASE_RESULT" \
-            "Standard68 registry admission:$STANDARD68_RESULT" \
-            "Standard69 registry admission:$STANDARD69_RESULT" \
-            "Standard70 registry admission:$STANDARD70_RESULT" \
+            "Current model registry admission:$CURRENT_MODEL_RESULT" \
             "Test:$TEST_RESULT" \
             "Check diff whitespace:$WHITESPACE_RESULT"
           do

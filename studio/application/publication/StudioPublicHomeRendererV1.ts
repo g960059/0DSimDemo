@@ -1,5 +1,6 @@
 import enTranslation from "@/locales/en/translation.json";
 import jaTranslation from "@/locales/ja/translation.json";
+import { modelLibraryHref } from "@/homeLinks";
 import {
   renderStudioPublicHomeBootstrapV1,
   type StudioPublicHomeBootstrapV1,
@@ -120,7 +121,7 @@ function publicHomeBodyHtmlV1(
     }),
     `</div>`,
     `</main>`,
-    `<footer class="public-static-home-footer"><div class="public-static-home-footer-inner"><div><strong>${SITE_NAME_V1}</strong><span>${escapeHtmlTextV1(copy.headline)}</span></div><nav aria-label="${escapeHtmlAttributeV1(copy.footerNavigation)}"><a href="/${locale}/experiments">${escapeHtmlTextV1(copy.sectionSimulations)}</a><a href="/${locale}/articles">${escapeHtmlTextV1(copy.sectionArticles)}</a><a href="/${locale}/docs/authoring-cli">AI Authoring CLI</a></nav></div></footer>`,
+    `<footer class="public-static-home-footer"><div class="public-static-home-footer-inner"><div><strong>${SITE_NAME_V1}</strong><span>${escapeHtmlTextV1(copy.headline)}</span></div><nav aria-label="${escapeHtmlAttributeV1(copy.footerNavigation)}"><a href="/${locale}/experiments">${escapeHtmlTextV1(copy.sectionSimulations)}</a><a href="/${locale}/articles">${escapeHtmlTextV1(copy.sectionArticles)}</a><a href="${modelLibraryHref(locale)}">${escapeHtmlTextV1(copy.modelDocumentation)}</a><a href="/${locale}/docs/authoring-cli">AI Authoring CLI</a></nav></div></footer>`,
     `</div>`,
   ].join("");
 }

@@ -18,6 +18,10 @@ describe("Home V4", () => {
     expect(markup).toContain("公開コンテンツを読み込んでいます…");
     expect(markup).not.toContain("公開中の記事はまだありません。");
     expect(markup).not.toContain("公開中のシミュレーションはまだありません。");
+    const footer = markup.slice(markup.indexOf("<footer"));
+    expect(footer).toContain('href="/ja/models"');
+    expect(footer).toContain("数理モデル・プリセット");
+    expect(markup.slice(0, markup.indexOf("<footer"))).not.toContain('href="/ja/models"');
   });
 
   it("does not reuse a previous locale catalog during an in-app switch", () => {

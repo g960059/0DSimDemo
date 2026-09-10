@@ -64,6 +64,10 @@ export function buildAuthoritativeCirculationGraphV1(): AuthoritativeCirculation
 export type VascularPvRuntimeParameterViewV1 = {
   readonly venousTone: number;
   readonly arterialStiffness: number;
+  /** Fixed construction scale of Ao/SA/Art volume-law amplitude. */
+  readonly systemicArterialComplianceResearchScale?: number;
+  /** Fixed construction scale of the existing Ao_SA momentum term. */
+  readonly aorticRootInertanceResearchScale?: number;
   readonly selectedAorticOutflowProfile?:
     MainWireSelectedAorticOutflowCirculationProfileV1;
   readonly algebraicProximalArterialRootsProfile?:
@@ -94,6 +98,14 @@ export function vascularPvLawFromNodeV1(
 ): VascularPvLaw {
   const Vu = effectiveUnstressedVolumeFromNodeV1(node, params);
   if (node.kind === "arterial") {
+    const systemicScale = params.systemicArterialComplianceResearchScale ?? 1;
+    if (!Number.isFinite(systemicScale) || systemicScale <= 0) {
+      throw new Error("systemic arterial compliance scale must be positive and finite");
+    }
+    if (params.systemicArterialComplianceResearchScale !== undefined
+      && params.selectedAorticOutflowProfile !== undefined) {
+      throw new Error("systemic compliance scale has no selected-aortic-profile compatibility decision");
+    }
     const stiffnessMultiplier =
       selectedSystemicArterialStiffnessMultiplierV1(node, params);
     if (stiffnessMultiplier !== undefined) {
@@ -112,7 +124,8 @@ export function vascularPvLawFromNodeV1(
       kind: "arterial",
       Vu,
       P0: node.P0 ?? 50,
-      VsEff: Math.max((node.Vs ?? 100) / Math.max(params.arterialStiffness, 0.25), 1),
+      VsEff: Math.max((node.Vs ?? 100) / Math.max(params.arterialStiffness, 0.25), 1)
+        * (node.name === "Ao" || node.name === "SA" || node.name === "Art" ? systemicScale : 1),
     };
   }
   if (node.kind === "linear") {

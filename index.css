@@ -3053,6 +3053,27 @@ body[data-app-theme="light"] .public-static-theme-moon {
   }
 }
 
+.model-reference-reader [id] {
+  scroll-margin-top: var(--reader-anchor-offset, 11.5rem);
+}
+
+.model-reference-reader > div > aside {
+  top: calc(var(--reader-header-height, 105px) + 1.5rem);
+}
+
+.model-reading-prose {
+  overflow-wrap: anywhere;
+}
+
+.model-reading-prose table {
+  font-variant-numeric: tabular-nums;
+}
+
+.model-reading-prose [data-testid="model-documentation-v2"] > div > section:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
 .model-disclosure-backdrop {
   animation: model-disclosure-backdrop-in 160ms ease-out both;
 }

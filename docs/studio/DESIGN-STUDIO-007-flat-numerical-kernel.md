@@ -49,8 +49,12 @@ component convergence gates. Predictors, factorizations, and other warm-start
 data are non-authoritative caches: they may reduce work but cannot relax final
 residual, conservation, bound, material, or event requirements. Restore,
 fixture discontinuity, or failed candidates invalidate incompatible caches.
+History that changes the floating-point continuation is numerical continuation
+state, even when it changes no physiological equation. It must be retained when
+the checkpoint promises bit-identical continuation.
 
-A change to accepted equations, integration, step policy, solver semantics,
+A change to an identity fixed under [DESIGN-STUDIO-006](DESIGN-STUDIO-006-model-surface-release-and-model-lab.md)
+that alters accepted equations, integration, step policy, solver semantics,
 event order, primitive output meaning, or checkpoint continuation requires a
 new exact `modelId`. An implementation-only artifact revision may remain under
 one `modelId` only through the repository's byte-equivalence admission path.
@@ -73,9 +77,17 @@ between retired and candidate Sessions.
 ## Checkpoint and durable content
 
 The exact checkpoint binds accepted state, clocks, in-progress model-owned
-accumulators, configuration identity, and continuation semantics. It excludes
-presentation history and non-authoritative solver caches. Restore validates the
-complete envelope before rebuilding private runtime storage.
+accumulators, configuration identity, and required numerical continuation
+history, captured at one accepted epoch before asynchronous work. It excludes
+presentation history, diagnostic counters, and rebuildable scratch storage.
+Restore validates the complete envelope before exposing a new Session; capture
+does not reset or otherwise alter the live solver. Historical physical-state
+restart formats do not thereby acquire a bit-identical continuation guarantee
+and are never silently upgraded under their old exact identity.
+
+Same-engine continuation and cross-engine reproducibility are separate claims.
+An artifact's bit-exact restore test does not establish identical trajectories
+across JavaScript engines, engine versions, or numerical implementations.
 
 Experiments and Snapshots retain their declared exact and Surface pins.
 Historical content loads its own immutable exact artifact; a current release
@@ -84,7 +96,8 @@ layout.
 
 ## Release evidence
 
-A numerical-authority change must cover, in proportion to its claim:
+A numerical-authority change must cover the affected items, in proportion to
+its claim (not repeat this entire list merely because an ID was minted):
 
 - local equation or root agreement against an independent reference;
 - conservation, bounds, event order, and failed-candidate atomicity;

@@ -3,11 +3,11 @@ import {
   validateStudioModelWorkerReleaseTicketV2,
 } from "@/studio/contracts/v2/release";
 import standardClientDescriptorV1 from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
+  "@/data/model-releases/CurrentModelReleaseV1";
 import standardSurfaceReleaseV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import standardRegistryAdmissionLockV1 from
-  "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
+  "@/data/model-releases/standard73/publication.json";
 
 export const STANDARD_TEST_SURFACE_SERIES_ID_V1 =
   standardSurfaceReleaseV1.surfaceSeriesId;

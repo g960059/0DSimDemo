@@ -35,6 +35,15 @@ export type MainWireBaselineCalibrationCandidateInputsV1 = Readonly<{
   ventricularContractilityScale: number;
 }>;
 
+/** The old research alias overwrites (does not multiply) all ventricular wall
+ * scales. Reject it before searching/saving so a free coordinate cannot be
+ * silently shadowed. The exact model and its checkpoint semantics are unchanged. */
+export function assertUnaliasedMainWireFittingCandidateV1(candidate: MainWireBaselineCalibrationCandidateInputsV1): void {
+  if (candidate.ventricularContractilityScale !== 1) {
+    throw new Error("Fitting requires ventricularContractilityScale = 1; set chamberMechanics.activeTensionScaleByWall explicitly instead of the overwriting common alias");
+  }
+}
+
 export type MainWireBaselineCalibrationParameterDescriptorV1 = Readonly<{
   parameterId: MainWireBaselineCalibrationParameterIdV1;
   unit: "mL" | "1";

@@ -212,6 +212,14 @@ const appRoutes = () => (
       )}
     />
     <Route
+      path="models"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Loading model documentation…" />}>
+          <ModelDocumentationPage />
+        </React.Suspense>
+      )}
+    />
+    <Route
       path="models/:modelId"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading model documentation…" />}>

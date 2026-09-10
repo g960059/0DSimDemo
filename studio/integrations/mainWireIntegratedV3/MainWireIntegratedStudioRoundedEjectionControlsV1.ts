@@ -210,8 +210,9 @@ export function applyMainWireIntegratedStudioRoundedEjectionControlV1<
   fixture: TFixture,
   controlId: string,
   value: number,
+  controlDefinitions: ReadonlyMap<string, ControlDefinitionV2> = CONTROL_BY_ID_V1,
 ): TFixture {
-  const definition = CONTROL_BY_ID_V1.get(controlId);
+  const definition = controlDefinitions.get(controlId);
   if (definition === undefined) {
     throw new Error(`Standard68 control is not registered: ${controlId}`);
   }
@@ -231,14 +232,14 @@ export function applyMainWireIntegratedStudioRoundedEjectionControlV1<
     }) as TFixture;
   }
   const mechanics = fixture.mechanismResearchInputs.chamberMechanics;
-  if (controlId === "myocardium.contractility") {
+  if (controlId === "myocardium.contractility" || controlId === "myocardium.lv-contractility") {
     return withMechanicsV1(fixture, {
       ...mechanics,
       activeTensionScaleByWall: {
         ...mechanics.activeTensionScaleByWall,
         LVFW: value,
         SEP: value,
-        RVFW: value,
+        ...(controlId === "myocardium.contractility" ? { RVFW: value } : {}),
       },
     });
   }
@@ -342,6 +343,7 @@ export function reduceMainWireIntegratedStudioRoundedEjectionControlV1<
   fixture: TFixture,
   controlId: string,
   value: number,
+  controlDefinitions: ReadonlyMap<string, ControlDefinitionV2> = CONTROL_BY_ID_V1,
 ): StudioFixturePatchV2 {
   // Applying first keeps path reduction and exact fixture mutation under the
   // same model-owned admissibility contract, including same-value actions.
@@ -349,6 +351,7 @@ export function reduceMainWireIntegratedStudioRoundedEjectionControlV1<
     fixture,
     controlId,
     value,
+    controlDefinitions,
   );
   const hemodynamic = Object.entries(HEMODYNAMIC_CONTROL_BY_INPUT_V1)
     .find(([, id]) => id === controlId);
@@ -357,9 +360,9 @@ export function reduceMainWireIntegratedStudioRoundedEjectionControlV1<
       ["hemodynamicResearchInputs", hemodynamic[0]],
     ], value);
   }
-  if (controlId === "myocardium.contractility") {
+  if (controlId === "myocardium.contractility" || controlId === "myocardium.lv-contractility") {
     return numericPatchV1(
-      (["LVFW", "SEP", "RVFW"] as const).map((wallId) => [
+      (controlId === "myocardium.contractility" ? ["LVFW", "SEP", "RVFW"] : ["LVFW", "SEP"]).map((wallId) => [
         "mechanismResearchInputs",
         "chamberMechanics",
         "activeTensionScaleByWall",

@@ -11,8 +11,7 @@ import {
 } from "@/studio/infrastructure/model/DynamicExactModelRuntimeLoaderV2";
 
 const LOCAL_STANDARD_ARTIFACT_V1 = new URL(
-  "../../studio/integrations/mainWireIntegratedV3/"
-    + "MainWireIntegratedStudioExactModelV1.artifact.mjs",
+  "../../data/model-releases/standard73/artifact.mjs.txt",
   import.meta.url,
 );
 

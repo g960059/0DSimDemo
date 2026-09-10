@@ -12,3 +12,4 @@ export {
 /** Lightweight client-visible half of the selected exact fixture identity. */
 export const MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1 =
   "circleheart.main-wire-integrated-v3-selected-aortic-outflow-fixture.standard-v1" as const;
+export { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 } from "@/domain/model/MainWireStandardIdentityV1";

@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { studioCanonicalJsonStringify } from "@/domain/json/CanonicalJson";
 import currentSurface from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 
 import type {
   ModelSurfaceReleaseManifestV1,
@@ -201,17 +201,17 @@ function resolveCommittedManifestPathV1(inputPath: string): string {
 export async function loadModelSurfacePublicationManifestV1(
   inputPath: string,
 ): Promise<ModelSurfaceReleaseManifestV1> {
-  const manifestPath = resolveCommittedManifestPathV1(inputPath);
-  const extension = path.extname(manifestPath);
+  const extension = path.extname(inputPath);
   if (extension !== ".json" && extension !== ".ts") {
     throw new Error("Model Surface publication requires a JSON or TypeScript manifest");
   }
+  const manifestPath = resolveCommittedManifestPathV1(inputPath);
   // Never evaluate a user-selected module: a tracked generator or CLI can
   // write files or publish remotely even during --dry-run. Only the reviewed,
   // statically imported current Surface is an admitted TypeScript manifest.
   if (extension === ".ts" && manifestPath !== path.join(repositoryRoot,
     "studio/integrations/mainWireIntegratedV3/"
-      + "MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1.ts")) {
+      + "MainWireIntegratedStudioStaticCaseSurfaceV1.ts")) {
     throw new Error("Only the current Model Surface TypeScript module is publishable");
   }
   const parsed: unknown = extension === ".json"

@@ -82,6 +82,7 @@
     "viewAll": "View all",
     "loading": "Loading public content…",
     "footerNavigation": "CircleHeart links",
+    "modelDocumentation": "Models & presets",
     "noArticles": "No public articles yet.",
     "noSimulations": "No public simulations yet.",
     "startFirstSimulation": "Start your first simulation",
@@ -420,8 +421,10 @@
       "scenarioManager": {
         "addFromPreset": "Add from Preset",
         "baseColor": "Base color for new traces",
-        "baselinePresetTitle": "Baseline",
-        "baselinePresetDescription": "Exact fixture and checkpoint captured when this simulation opened.",
+        "baselinePresetTitle": "baseline",
+        "baselinePresetDescription": "Registered reference settings and saved state for this model.",
+        "loadedStateTitle": "Loaded state",
+        "loadedStateDescription": "Settings and state when this simulation opened, not the registered baseline.",
         "busy": "A Scenario operation is running",
         "close": "Close Scenario inspector",
         "copySuffix": "copy",
@@ -729,6 +732,23 @@
       "Formal PVA/ESPVR/EDPVR and Guyton / Starling are versioned analyses. They include previews that exclude nonconverged points and are not independent physiological or clinical validation.",
       "Ordinary controls warm-start from the accepted state and model clock. TBV is detached-preflighted; when bounded continuation is required, it may atomically commit a later accepted boundary. Neither transition models an autonomic reflex.",
       "Baseline mint gates, numerical verification, and morphology checks do not establish clinical normality for an individual patient or every loading condition."
+    ],
+    "standard71Items": [
+      "Pressures represent lumped 0D compartments, not local jets, travelling/reflected waves, or a specific catheter or cuff station.",
+      "AoP/PAP are Ao/PA node pressures, without a displayed ZcQ addition or local pressure-recovery correction. They are not interchangeable with Doppler maximum-jet gradients.",
+      "The baseline is a local candidate. Passing numerical/construction checks does not remove reference cautions or establish clinical normality or patient prediction."
+    ],
+    "staticAnatomyItems": [
+      "For research and education, not a medical device or a basis for diagnosis, treatment or patient-specific decisions.",
+      "Pressures represent 0D compartments, not local jets, wave propagation/reflection or a specific catheter or cuff location.",
+      "AoP/PAP are Ao/PA node pressures. No display-only ZcQ addition or local pressure-recovery correction is applied; they are not interchangeable with Doppler peak-jet gradients.",
+      "Baseline and chronic LV-dilated HFrEF have their own fixed anatomy and saved state. They do not simulate evolving remodeling or regional myocardial infarction.",
+      "Qualification applies to the tested preset conditions, not every control combination or clinical normality. Model and case documents describe further limits, including coronary perfusion and oxygen-consumption interpretation."
+    ],
+    "standard72Items": [
+      "Pressures represent lumped 0D compartments, not local jets, travelling/reflected waves, or a specific catheter or cuff station.",
+      "AoP/PAP are Ao/PA node pressures, without a displayed ZcQ addition or local pressure-recovery correction. They are not interchangeable with Doppler maximum-jet gradients.",
+      "The baseline is a local candidate. Passing numerical/construction checks does not remove reference cautions or establish clinical normality or patient prediction."
     ],
     "standard70Items": [
       "Research and education only — not a medical device, and not for diagnosis, treatment, or patient-specific decisions.",

@@ -29,6 +29,11 @@ type GridV1 = Readonly<{ qualification: MainWireBaselinePressureRateQualificatio
    * mechanisms, excluding dt/initialization. Caller owns checkpoint binding. */
   candidateIdentitySha256: string }>;
 type StatusV1 = "passed" | "failed" | "unresolved";
+export type MainWirePressureRateObservationInputV1 = Readonly<{
+  nominalDtSec: number;
+  completedBeat: BeatV1 | null;
+  terminalTrace: MainWireBaselinePressureRateQualificationV1["terminalTrace"];
+}>;
 type PeakV1 = Readonly<{ status: StatusV1; issue: string | null; reportedMmHgPerSec: number | null;
   observedMmHgPerSec: number | null; peakStartTimeSec: number | null; peakEndTimeSec: number | null;
   peakPhase01: number | null; previousSameSignFraction: number | null; nextSameSignFraction: number | null }>;
@@ -53,10 +58,30 @@ export function evaluateMainWireBaselinePressureRateQualityV1(input: Readonly<{ 
         : pair.some(({ qualification: q }) => q.classification.status !== "period1-converged") ? "period1-required"
           : pair.some(({ qualification: q }) => !(q.nominalDtSec > 0) || !Number.isFinite(q.nominalDtSec))
             || fine.qualification.nominalDtSec !== coarse.qualification.nominalDtSec / 2 ? "dt-halving-required" : null;
-  const checks = issue !== null ? [] : (["LV", "RV"] as const).flatMap((ventricle) =>
+  const checks = issue !== null ? [] : compareMainWirePressureRateObservationsV1({
+    coarse: { ...coarse.qualification, completedBeat: coarse.qualification.checkpoint.baseStandardCheckpointV2.completedBeatMetrics },
+    fine: { ...fine.qualification, completedBeat: fine.qualification.checkpoint.baseStandardCheckpointV2.completedBeatMetrics },
+  });
+  const status: StatusV1 = issue !== null || checks.some((check) => check.status === "unresolved") ? "unresolved"
+    : checks.some((check) => check.status === "failed") ? "failed" : "passed";
+  return Object.freeze({ methodId: MAIN_WIRE_BASELINE_PRESSURE_RATE_QUALITY_V1_ID, status,
+    policy, grids: Object.freeze(grids), issue, checks: Object.freeze(checks) });
+}
+export type MainWireBaselinePressureRateQualityV1 = ReturnType<typeof evaluateMainWireBaselinePressureRateQualityV1>;
+
+/** Shared observation math without inventing a production checkpoint/model ID
+ * for a research construction. Caller must bind the same construction, source
+ * traces and settled endpoints; this function establishes no such identity. */
+export function compareMainWirePressureRateObservationsV1(input: Readonly<{
+  coarse: MainWirePressureRateObservationInputV1; fine: MainWirePressureRateObservationInputV1;
+}>) {
+  if (!(input.coarse.nominalDtSec > 0) || !Number.isFinite(input.coarse.nominalDtSec)
+    || input.fine.nominalDtSec !== input.coarse.nominalDtSec / 2) throw new Error("Pressure-rate observations require dt halving");
+  const policy = MAIN_WIRE_BASELINE_PRESSURE_RATE_QUALITY_POLICY_V1;
+  return (["LV", "RV"] as const).flatMap((ventricle) =>
     (["maximum", "minimum"] as const).map((extremum) => {
-      const left = observePeakV1(coarse.qualification, ventricle, extremum);
-      const right = observePeakV1(fine.qualification, ventricle, extremum);
+      const left = observePeakV1(input.coarse, ventricle, extremum);
+      const right = observePeakV1(input.fine, ventricle, extremum);
       const relativeDifference = left.reportedMmHgPerSec === null || right.reportedMmHgPerSec === null
         || Math.max(Math.abs(left.reportedMmHgPerSec), Math.abs(right.reportedMmHgPerSec)) === 0
         ? null : Math.abs(left.reportedMmHgPerSec - right.reportedMmHgPerSec)
@@ -67,12 +92,7 @@ export function evaluateMainWireBaselinePressureRateQualityV1(input: Readonly<{ 
       return Object.freeze({ checkId: `${ventricle === "LV" ? "left" : "right"}-ventricle.${extremum}-dpdt`,
         status, relativeDifference, coarse: left, fine: right });
     }));
-  const status: StatusV1 = issue !== null || checks.some((check) => check.status === "unresolved") ? "unresolved"
-    : checks.some((check) => check.status === "failed") ? "failed" : "passed";
-  return Object.freeze({ methodId: MAIN_WIRE_BASELINE_PRESSURE_RATE_QUALITY_V1_ID, status,
-    policy, grids: Object.freeze(grids), issue, checks: Object.freeze(checks) });
 }
-export type MainWireBaselinePressureRateQualityV1 = ReturnType<typeof evaluateMainWireBaselinePressureRateQualityV1>;
 
 /** Validate a persisted passed screen, not its externally bound source traces.
  * The consuming mint also binds both checkpoint hashes and candidate identity. */
@@ -118,8 +138,8 @@ export function assertMainWireBaselinePressureRateQualityV1(value: unknown): ass
   }
 }
 
-function observePeakV1(q: MainWireBaselinePressureRateQualificationV1, ventricle: "LV" | "RV", extremum: "maximum" | "minimum"): PeakV1 {
-  const beat = q.checkpoint.baseStandardCheckpointV2.completedBeatMetrics;
+function observePeakV1(q: MainWirePressureRateObservationInputV1, ventricle: "LV" | "RV", extremum: "maximum" | "minimum"): PeakV1 {
+  const beat = q.completedBeat;
   const reported = beat?.ventricularAbsolutePressureRateExtrema[ventricle][`${extremum}MmHgPerSec`];
   const empty = (status: StatusV1, issue: string): PeakV1 => Object.freeze({ status, issue,
     reportedMmHgPerSec: Number.isFinite(reported) ? reported! : null, observedMmHgPerSec: null,

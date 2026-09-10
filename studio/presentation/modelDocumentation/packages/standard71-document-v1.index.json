@@ -1,0 +1,13 @@
+{
+  "schemaId": "circleheart.saved-model-document.v1",
+  "documentId": "standard71-document-v1",
+  "identity": {
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.reference-baseline.standard-71",
+    "surfaceReleaseId": "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.workbench-v2",
+    "surfaceSeriesId": "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.workbench",
+    "baselineId": "standard71-reference-baseline-4935-hr70-v1",
+    "title": "Main Wire Standard 71",
+    "releaseStatus": "local-candidate-not-registered"
+  },
+  "contentSha256": "acb3e0350355c76764269c6ab4deb9efd0a868269a03ac1578c0ee1ca58eb199"
+}

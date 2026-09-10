@@ -1,93 +1,55 @@
-# Integrated V3 model: current state
+# Integrated model: scope and authority
 
-Status: numerically executable research model; not clinically validated
+Status: executable education/research model; not clinically validated.
 
 ## Scope
 
-The integrated model composes five-wall Land/TriSeg cardiac mechanics,
-systemic and pulmonary circulation, coronary circulation with accepted
-autoregulation state, event-driven rhythm and calcium drive, respiratory and
-pericardial pressure owners, and declared mechanical-support owners. The
-ordinary configuration is regular sinus rhythm with support devices off.
+The current model combines five-wall Land/TriSeg mechanics, systemic and
+pulmonary circulation, coronary hydraulics and autoregulation, rhythm and
+calcium drive, and respiratory/pericardial pressure. The public configuration
+uses regular sinus rhythm with mechanical support off.
 
-The current exact release supports bounded hemodynamic, chamber-mechanics,
-valve, pericardial, coronary-disease, and oxygen-boundary research inputs. Its
-fixture fixes regular sinus rhythm and dynamic mechanical support off.
-Alternative rhythm and support paths exist only as separate engine-side
-research paths until admitted by a future exact release and compatible Model
-Surface. The model does not represent a patient-specific heart, spatial
-electrophysiology, CFD, autonomic reflexes, remodeling, dynamically coupled
-tissue metabolism, or regional ischemia.
+Finite anatomy choices are fixed constructions, not simulated remodeling.
+Different settings or a disease label do not qualify a new phenotype. Regional
+ischemia, spatial electrophysiology, distributed vascular waves, autonomic
+reflexes, evolving anatomy and dynamically coupled tissue metabolism are not
+represented. Engine-side rhythm/device paths do not imply public support.
 
-The current Standard70 construction retains the Standard69 rounded-ejection
-heart and systemic aortic-root dynamics. It removes only active PA-to-PArt
-local momentum evolution and memory, using an algebraic flow law with the
-existing linear resistance and source quadratic-loss coefficient while
-retaining the PA and PArt compliances. The checkpoint-compatible PA-to-PArt
-flow slot remains readback-only. This is a minimal
-model-form correction for the rejected pulmonary-root ringing; it is not a
-distributed pulmonary-wave or valve-jet model.
-
-The source PA-to-PArt quadratic-loss coefficient is currently zero, so its
-nominal Standard70 relation is purely linear. “Preserved” means that the source
-coefficient was not fitted or replaced; it does not claim a nonzero quadratic
-loss.
+The selected release, inputs, coefficients, measurement definitions and case
+assessments are authoritative in their registries and self-contained model
+documents. This file deliberately does not repeat per-release equations or
+construction history.
 
 ## Runtime authority
 
-The typed numerical Session owns one accepted state and stages a complete
-candidate before promotion. A failed step leaves the previous accepted tuple
-unchanged. Accepted event-limited substeps, checkpoint continuation, fixture
-epochs, and model-accumulated beat metrics are part of exact numerical
-semantics.
+The exact Session owns the accepted numerical state, event-limited substeps,
+checkpoint continuation, input epochs and model-accumulated beat metrics. A
+failed trial cannot partially promote a new accepted tuple. Each Scenario owns
+private Worker storage. Rendering, background analysis and authoring cannot
+mutate the accepted numerical state.
 
-The exact artifact carries a generated execution-plan descriptor. Each
-Scenario binds private Worker-local storage before its Session starts. UI
-render cadence, graph history, analysis Workers, and authoring state cannot
-mutate accepted numerical state.
+Identity and release consequences are defined in
+[Studio release composition](../studio/DESIGN-STUDIO-006-model-surface-release-and-model-lab.md).
+Source and tests own algorithms, tolerances and supported contracts.
 
-Code and tests own implementation details, catalogs, algorithms, and numerical
-tolerances.
+## Interpretation boundaries
 
-Exact, analysis, and Surface ownership and their identity consequences are
-defined once in
-[Studio identity and release composition](../studio/DESIGN-STUDIO-006-model-surface-release-and-model-lab.md).
+- Numerical verification and publication are not physiological or clinical
+  validation. Qualification belongs to the tested construction and conditions.
+- Clinical names do not imply identical pressure stations, event definitions
+  or measurement methods. Hydraulic gradients are not automatically Doppler
+  gradients, and model node pressures are not arbitrary catheter locations.
+- Valve-area controls alone do not represent a diagnosis, chronic remodeling,
+  leaflet pathology or an independently qualified severity grade.
+- ESPVR, EDPVR, Starling curves, PE and PVA are protocol-defined analyses.
+  They are not additional independent measurements of the same simulation.
+- PVA-derived oxygen estimates are mechanical proxies, not an ATP/metabolism
+  model or an exact whole-heart energy identity. The coronary reference bed
+  and anatomy-aware derived oxygen estimate have different mass assumptions.
+- A Snapshot admission establishes executable consistency, not settlement or
+  biological validity. Controls are research inputs, not treatment advice.
 
-## Pressure-volume and oxygen interpretation
-
-LV stroke work is the model-owned accepted-path transmural pressure-volume
-work for the completed beat. The settled-family analysis separately derives a
-protocol-defined nonlinear ESPVR, EDPVR, PE, PVA, and a literature-coefficient
-MVO2 estimate. These results are analysis outputs and may be displayed in the
-ordinary Workbench and Reader.
-
-The MVO2 value is not a metabolic submodel. The numerical model does not own
-ATP use, basal metabolism, calcium uptake/release energy, or total myocardial
-oxygen consumption. PVA is therefore a method-specific mechanical proxy, not
-an exact whole-heart energy identity. The completed research lane is retained
-at Git tag `research-pva-mvo2-558-573-final`.
-
-## Scientific claim limits
-
-- Numerical verification is not physiological or clinical validation.
-- Valve event, beat-volume, pressure, work, oxygen-boundary, and coronary
-  outputs retain their code-defined measurement bases; similar clinical names
-  do not make them interchangeable.
-- Valve-disease controls are isolated acute effective-area brackets, not
-  diagnoses, clinical grades, patient fits, or chronic-remodeling phenotypes.
-  Pulmonic stenosis/regurgitation areas require post-solve interpretation from
-  peak velocity/gradient and regurgitant fraction. Detailed jet geometry,
-  pressure recovery, valve-port inertance, and dynamic annular/leaflet
-  pathology are not represented.
-- The beat-mean oxygen observer does not feed back into mechanics or
-  circulation.
-- Structural return curves and settled preload families are protocol-defined
-  analyses, not independent measurements.
-- Controls are bounded research inputs, not diagnoses, severity grades, or
-  treatment recommendations.
-- A Snapshot admission result establishes executable consistency, not
-  settlement, biological validity, or certification.
-
-For equation anchors, calibration roles, held-out evidence, and detailed
-non-claims, consult
+Source roles and non-claims are retained in
 [literature traceability](INTEGRATED-MODEL-0002-literature-traceability.md).
+Completed studies and retired implementations are recoverable from Git history;
+historical reader documents retain their own scientific records.

@@ -275,6 +275,14 @@ export type MainWireIntegratedModelPeriodicTerminalTraceSampleV3 = Readonly<{
   }>;
 }>;
 
+/** Exact hemodynamic observations consumed by baseline analysis. Numerical
+ * diagnostics and unused calcium/coronary fields are not required placeholders. */
+export type MainWireIntegratedModelHemodynamicTraceSampleV3 = Pick<
+  MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
+  "cycleIndex" | "acceptedStepIndexWithinCycle" | "acceptedTimeSec" | "cyclePhase01" | "acceptedDtSec"
+  | "chamberVolumeMl" | "absolutePressureMmHg" | "transmuralPressureMmHg" | "valveFlowMlPerSec" | "acceptedEventIdentity"
+>;
+
 export type MainWireIntegratedModelPeriodicTerminalCycleTraceV3 = Readonly<{
   cycleIndex: number;
   startTimeSec: number;
@@ -646,6 +654,8 @@ export function assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3<
       cycleLengthSec: number,
     ) => TCalciumDriveParams;
     createRhythm: (cycleLengthSec: number) => TRhythm;
+    /** Static construction seam; default production occupancy is unchanged. */
+    createPericardium?: () => ReturnType<typeof createMainWireCommonPericardiumWithResearchInputsV1>;
   }>,
 ) {
   const {
@@ -673,7 +683,7 @@ export function assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3<
       mechanismResearchInputs.valveAreas,
     ),
   });
-  const pericardium = createMainWireCommonPericardiumWithResearchInputsV1(
+  const pericardium = fixedAssembly.createPericardium?.() ?? createMainWireCommonPericardiumWithResearchInputsV1(
     mechanismResearchInputs.pericardium,
   );
   const coronaryDisease = createMainWireCoronaryDiseaseInputV2(

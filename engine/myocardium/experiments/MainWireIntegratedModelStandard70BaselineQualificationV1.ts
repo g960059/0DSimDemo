@@ -47,6 +47,7 @@ import {
   createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
   runMainWireIntegratedModelRegularSinusAllOffCycleV3,
   type MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
+  type MainWireIntegratedModelHemodynamicTraceSampleV3,
   type MainWireIntegratedModelRegularSinusAllOffFixtureV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import {
@@ -124,7 +125,7 @@ export type MainWireIntegratedModelStandard70CandidateOptionsV1 = Readonly<{
 }>;
 
 export type MainWireIntegratedModelStandard70TimingAndInletObserverV1 = (input: Readonly<{
-  terminalTrace: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[];
+  terminalTrace: readonly MainWireIntegratedModelHemodynamicTraceSampleV3[];
   completedBeat: MainWireIntegratedModelCompletedBeatMetricsV3;
 }>) => Readonly<{
   left: MainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1;
@@ -452,14 +453,31 @@ export async function evaluateMainWireIntegratedModelStandard70CandidateV1(
   });
 }
 
-/** Re-observation reads the same source trace plus its recorded real suffix,
+/** Re-observation reads the same source trace plus its recorded real context,
  * never a replacement trace silently detached from the qualified cycle. */
-export function mainWireStandard70TimingAndInletObservationTraceV1(input: Pick<
-  MainWireIntegratedModelStandard70BaselineQualificationV1,
-  "terminalTrace" | "timingAndInletTrace" | "timingAndInletObservationWindow"
->) {
+export function mainWireStandard70TimingAndInletObservationTraceV1<T extends MainWireIntegratedModelHemodynamicTraceSampleV3>(input: Readonly<{
+  terminalTrace: readonly T[]; timingAndInletTrace?: readonly T[];
+  timingAndInletPrecedingTrace?: readonly T[];
+  timingAndInletObservationWindow?: MainWireStandard70TimingAndInletWindowV1;
+}>) {
   const trace = input.timingAndInletTrace, window = input.timingAndInletObservationWindow;
-  if (trace === undefined && window === undefined) return input.terminalTrace;
+  const withPreceding = (boundTrace: readonly T[]) => {
+    const preceding = input.timingAndInletPrecedingTrace;
+    if (preceding === undefined || preceding.length === 0) return boundTrace;
+    const joinedBoundary = [...preceding, input.terminalTrace[0]!];
+    for (let index = 0; index < joinedBoundary.length; index++) {
+      const next = joinedBoundary[index];
+      if (!next || !Number.isFinite(next.acceptedTimeSec) || !Number.isFinite(next.acceptedDtSec) || !(next.acceptedDtSec > 0))
+        throw new Error("Timing/inlet preceding trace has invalid accepted endpoints");
+      if (index === 0) continue;
+      const elapsed = next.acceptedTimeSec - joinedBoundary[index - 1]!.acceptedTimeSec;
+      const tolerance = 128 * Number.EPSILON * Math.max(1, Math.abs(next.acceptedTimeSec));
+      if (!(elapsed > 0) || Math.abs(elapsed - next.acceptedDtSec) > tolerance)
+        throw new Error("Timing/inlet preceding trace must join contiguously to its original terminal trace");
+    }
+    return Object.freeze([...preceding, ...boundTrace]);
+  };
+  if (trace === undefined && window === undefined) return withPreceding(input.terminalTrace);
   const retained = (trace?.length ?? 0) - input.terminalTrace.length;
   if (trace === undefined || window === undefined
     || window.policyId !== MAIN_WIRE_STANDARD70_TIMING_AND_INLET_WINDOW_POLICY_V1_ID
@@ -471,26 +489,24 @@ export function mainWireStandard70TimingAndInletObservationTraceV1(input: Pick<
     || canonicalJsonStringify(trace.slice(0, input.terminalTrace.length)) !== canonicalJsonStringify(input.terminalTrace)) {
     throw new Error("Timing/inlet lookahead is not bound to its original terminal trace and window");
   }
-  return trace;
+  return withPreceding(trace);
 }
 
 /** Fill only the missing real post-capture inlet closures. Executing one normal
  * cycle reuses the scheduler and all its invariants; retaining its shortest
  * required prefix avoids a second ejection in the timing evidence. No periodic
  * copy, extrapolated closure, or replacement completed beat is permitted. */
-export function completeMainWireStandard70TimingAndInletTraceV1(input: Readonly<{
-  terminalTrace: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[];
+export function completeMainWireStandard70TimingAndInletTraceV1<T extends MainWireIntegratedModelHemodynamicTraceSampleV3>(input: Readonly<{
+  terminalTrace: readonly T[];
   completedBeatEndTimeSec: number;
-  runLookaheadCycle: () => readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[];
-}>): Pick<MainWireIntegratedModelStandard70BaselineQualificationV1,
-  "timingAndInletTrace" | "timingAndInletObservationWindow"> {
+  runLookaheadCycle: () => readonly T[];
+}>): Readonly<{ timingAndInletTrace?: readonly T[]; timingAndInletObservationWindow?: MainWireStandard70TimingAndInletWindowV1 }> {
   const { terminalTrace, completedBeatEndTimeSec } = input;
   if (terminalTrace.length < 2 || !Number.isFinite(completedBeatEndTimeSec)) {
     throw new Error("Timing/inlet window requires a terminal trace and finite completed-beat end");
   }
   const closures = new Set<"MV" | "TV">();
-  const acceptPair = (previous: MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
-    next: MainWireIntegratedModelPeriodicTerminalTraceSampleV3) => {
+  const acceptPair = (previous: T, next: T) => {
     const elapsed = next.acceptedTimeSec - previous.acceptedTimeSec;
     const tolerance = 128 * Number.EPSILON * Math.max(1, Math.abs(next.acceptedTimeSec));
     if (!(elapsed > 0) || !Number.isFinite(elapsed) || !Number.isFinite(next.acceptedDtSec)
@@ -533,8 +549,9 @@ export function completeMainWireStandard70TimingAndInletTraceV1(input: Readonly<
 /** Pure post-run projection; keeping this seam separate makes observation
  * availability testable without executing or altering the exact model. */
 export function measureMainWireIntegratedModelStandard70CandidateEvidenceV1(input: Readonly<{
-  terminalTrace: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[];
-  timingAndInletTrace?: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[];
+  terminalTrace: readonly MainWireIntegratedModelHemodynamicTraceSampleV3[];
+  timingAndInletPrecedingTrace?: readonly MainWireIntegratedModelHemodynamicTraceSampleV3[];
+  timingAndInletTrace?: readonly MainWireIntegratedModelHemodynamicTraceSampleV3[];
   timingAndInletObservationWindow?: MainWireStandard70TimingAndInletWindowV1;
   completedBeat: MainWireIntegratedModelCompletedBeatMetricsV3;
   timingAndInletObserver?: MainWireIntegratedModelStandard70TimingAndInletObserverV1;

@@ -5,10 +5,23 @@
  * The manifest rejects every unowned or stale test.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 89;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 50;
+export const FAST_SUITE_FILE_BUDGET = 100;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 60;
 
 export const fastTests = [
+  "__tests__/mainWireStaticCaseStudioV1.test.ts",
+  "__tests__/mainWireStaticCaseContinuationV1.test.ts",
+  "__tests__/mainWirePreloadReserveSessionV1.test.ts",
+  "__tests__/registeredModelLaunchBaselineV1.test.ts",
+  "__tests__/mainWireHfrefResearchControlsV1.test.ts",
+  "__tests__/mainWireStaticCaseAnatomyV1.test.ts",
+  "__tests__/mainWireHfrefReferenceV1.test.ts",
+  "__tests__/fittingJsonWorkersV1.test.ts",
+  "__tests__/modelDocumentationArchiveV1.test.tsx",
+  "__tests__/mainWirePreloadReserveResearchScreenV2.test.ts",
+  "__tests__/mainWireProspectiveBaselineAdmissionV1.test.ts",
+  "__tests__/mainWireProspectiveRestAssessmentV1.test.ts",
+  "__tests__/mainWireRelaxationTauV1.test.ts",
   "__tests__/analysisMethodRegistryV1.test.ts",
   "__tests__/appTheme.test.ts",
   "__tests__/coupledHemodynamicsSolverV1.test.ts",
@@ -49,10 +62,6 @@ export const fastTests = [
   "__tests__/mainWireIntegratedModelHotPathIntegrityV3.test.ts",
   "__tests__/mainWireIntegratedModelGuytonStarlingOrientationV3.test.ts",
   "__tests__/mainWireIntegratedModelBeatMetricsV3.test.ts",
-  "__tests__/mainWireIntegratedModelStandard66CheckpointV1.test.ts",
-  "__tests__/mainWireIntegratedModelStandard66ModelSurfaceV1.test.ts",
-  "__tests__/mainWireIntegratedModelStandard66OutputRegistryV1.test.ts",
-  "__tests__/mainWireIntegratedModelStandard66TypedAuthoritySessionV1.test.ts",
   "__tests__/mainWirePeriodicPvaV1.test.ts",
   "__tests__/mainWireIntegratedMechanismStudioV1.test.ts",
   "__tests__/mainWireIntegratedModelValidationOnceV3.test.ts",
@@ -109,6 +118,18 @@ export const fastTests = [
  * on a two-core runner.
  */
 export const prSmokeTests = [
+  "__tests__/mainWireStaticCaseStudioV1.test.ts",
+  "__tests__/mainWireStaticCaseContinuationV1.test.ts",
+  "__tests__/mainWirePreloadReserveSessionV1.test.ts",
+  "__tests__/registeredModelLaunchBaselineV1.test.ts",
+  "__tests__/mainWireHfrefResearchControlsV1.test.ts",
+  "__tests__/mainWireStaticCaseAnatomyV1.test.ts",
+  "__tests__/mainWireHfrefReferenceV1.test.ts",
+  "__tests__/fittingJsonWorkersV1.test.ts",
+  "__tests__/modelDocumentationArchiveV1.test.tsx",
+  "__tests__/mainWirePreloadReserveResearchScreenV2.test.ts",
+  "__tests__/mainWireProspectiveBaselineAdmissionV1.test.ts",
+  "__tests__/mainWireRelaxationTauV1.test.ts",
   "__tests__/appTheme.test.ts",
   "__tests__/articleReaderV3.test.tsx",
   "__tests__/articleReaderLiveRuntimeV3.test.ts",
@@ -119,16 +140,12 @@ export const prSmokeTests = [
   "__tests__/homeV4.test.tsx",
   "__tests__/mainWireIntegratedModelBaselineValidationV1.test.ts",
   "__tests__/mainWireIntegratedModelOutputRegistryV3.test.ts",
-  "__tests__/mainWireIntegratedModelSessionV3.test.ts",
   "__tests__/mainWireFiveWallCoronaryCheckpointV3.test.ts",
-  "__tests__/mainWireFiveWallCoronaryTransactionV3.test.ts",
   "__tests__/mainWireFiveWallLandTriSegProviderV1.test.ts",
   "__tests__/mainWireFiveWallNonCoronaryTransactionV1.test.ts",
   "__tests__/mainWireIntegratedTypedAuthoritySessionV1.test.ts",
-  "__tests__/mainWireIntegratedModelRealProviderSmokeV3.test.ts",
   "__tests__/mainWireIntegratedModelHotPathIntegrityV3.test.ts",
   "__tests__/mainWirePeriodicPvaV1.test.ts",
-  "__tests__/mainWireIntegratedModelTransactionV3.test.ts",
   "__tests__/mainWireStructuralAnalysisExecutionV1.test.ts",
   "__tests__/mainWireIntegratedStudioModelV3.test.ts",
   "__tests__/mainWireIntegratedV3EvaluationCounters.test.ts",
@@ -142,6 +159,7 @@ export const prSmokeTests = [
   "__tests__/publicCatalogV3.test.ts",
   "__tests__/siteShellV3.test.tsx",
   "__tests__/studioContractsBoundaryV2.test.ts",
+  "__tests__/studioAuthoringCliV1.test.ts",
   "__tests__/browserContentStore.test.ts",
   "__tests__/browserExperimentResource.test.ts",
   "__tests__/studioExperimentAuthoringV2.test.ts",
@@ -162,13 +180,7 @@ export const prSmokeTests = [
 ] as const;
 
 export const regressionTests = [
-  "__tests__/mainWireIntegratedStudioAlgebraicPulmonaryRootV1.test.ts",
-  "__tests__/mainWireIntegratedStudioPublishedHemodynamicDomainsV1.test.ts",
-  "__tests__/mainWireIntegratedStudioRoundedEjectionV1.test.ts",
   "__tests__/mainWireIntegratedStudioStructuralAnalysisV3.test.ts",
-  "__tests__/mainWireIntegratedStudioAlgebraicProximalRootsV1.test.ts",
-  "__tests__/mainWireIntegratedStudioSelectedAorticOutflowV1.test.ts",
-  "__tests__/mainWireIntegratedModelStandard66ProductionRouteParityV1.test.ts",
   "__tests__/studioNumericalAuthoringV1.test.ts",
   "__tests__/acceptedEventTriggeredIabpActuatorCheckpointV1.test.ts",
   "__tests__/acceptedEventTriggeredIabpActuatorOwnerV1.test.ts",
@@ -197,7 +209,6 @@ export const regressionTests = [
   "__tests__/exactEventPrescribedCalciumV1.test.ts",
   "__tests__/mainWireIntegratedModelOutputRegistryV3.test.ts",
   "__tests__/mainWireIntegratedModelSessionV3.test.ts",
-  "__tests__/mainWireIntegratedStudioFormalPvaAdaptiveV3.test.ts",
   "__tests__/nonCoronaryDynamicMechanicalSupportIntegrationV1.test.ts",
   "__tests__/recoveryConcealmentAvGateV1.test.ts",
   "__tests__/recoveryConcealmentAvGateV2.test.ts",
@@ -206,6 +217,8 @@ export const regressionTests = [
 
 /** Current canonical scientific lane. This exact inventory is its source of truth. */
 export const canonicalScientificTests = [
+  "__tests__/mainWireStaticCaseFittingWorkflowV1.test.ts",
+  "__tests__/mainWireHfrefDilatedReferenceV1.test.ts",
   "__tests__/backwardEulerCoronaryNetworkV1.test.ts",
   "__tests__/backwardEulerCoronaryNetworkV2.test.ts",
   "__tests__/coronaryAutoregulationV2.test.ts",
@@ -221,20 +234,13 @@ export const canonicalScientificTests = [
   "__tests__/coronaryV3StepResponseMetricsV1.test.ts",
   "__tests__/coronaryV3StructuralCmdActiveReserveCharacterizationV2.test.ts",
   "__tests__/mainWireAcceptedRhythmEventScheduleV1.test.ts",
-  "__tests__/mainWireBaselineConditioningAuditV1.test.ts",
-  "__tests__/mainWireBaselineConditioningRefinedDerivativeAuditV1.test.ts",
-  "__tests__/mainWireBaselineConditioningResolutionAuditV1.test.ts",
   "__tests__/mainWireBaselineGateRolesV1.test.ts",
   "__tests__/mainWireBaselineObservationV2.test.ts",
   "__tests__/mainWireBaselinePressureRateQualityV1.test.ts",
   "__tests__/mainWireFixedToneSettlementV2.test.ts",
   "__tests__/mainWireStandard70TimingAndInletWindowV1.test.ts",
-  "__tests__/registeredModelLaunchBaselineV1.test.ts",
-  "__tests__/mainWireStandard70BaselineCalibrationEvaluatorV1.test.ts",
-  "__tests__/mainWireStandard70BaselineLocalProposalV1.test.ts",
-  "__tests__/mainWireStandard70BaselineLocalProposalSourceV1.test.ts",
-  "__tests__/mainWireStandard70BaselineLocalRecoveryV1.test.ts",
-  "__tests__/mainWireStandard70BaselineNumericalFloorAuditV1.test.ts",
+  "__tests__/mainWireStandard72CheckpointContinuationV1.test.ts",
+  "__tests__/mainWireStandard72ConstructionV1.test.ts",
   "__tests__/mainWireCoronaryBoundaryV2.test.ts",
   "__tests__/mainWireCoronaryMechanicsCouplingV1.test.ts",
   "__tests__/mainWireFiveWallCoronaryCheckpointV2.test.ts",

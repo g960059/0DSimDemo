@@ -12,12 +12,12 @@ import type {
   WorkbenchPerformanceSnapshotV3,
 } from "../components/workbench/runtime/WorkbenchPerformanceDiagnosticsV3";
 
-const selectedAorticRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
-  "../studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json",
+const currentRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
+  "../data/model-releases/standard73/publication.json",
   import.meta.url,
 ), "utf8")) as Readonly<{ modelId: string }>;
 
-const PERFORMANCE_EXACT_MODEL_ID = selectedAorticRegistryAdmissionLock.modelId;
+const PERFORMANCE_EXACT_MODEL_ID = currentRegistryAdmissionLock.modelId;
 
 type PerformanceBudgetV3 = Readonly<{
   minimumRootModelTimeRatio: number;

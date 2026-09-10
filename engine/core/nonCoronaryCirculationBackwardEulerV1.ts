@@ -4522,6 +4522,14 @@ function validateRuntimeOnceV1(
 ): void {
   requireFinite(runtime.vascular.venousTone, "venousTone");
   requirePositive(runtime.vascular.arterialStiffness, "arterialStiffness");
+  const aorticInertanceScale = runtime.vascular.aorticRootInertanceResearchScale;
+  if (aorticInertanceScale !== undefined) {
+    requireNonnegative(aorticInertanceScale, "aorticRootInertanceResearchScale");
+    if (runtime.vascular.selectedAorticOutflowProfile !== undefined
+      || runtime.vascular.algebraicProximalArterialRootsProfile !== undefined) {
+      throw new Error("aortic root inertance scale cannot override another aortic root owner");
+    }
+  }
   const selectedAorticOutflowProfile =
     runtime.vascular.selectedAorticOutflowProfile;
   if (selectedAorticOutflowProfile !== undefined) {
@@ -5076,6 +5084,11 @@ function nonCoronaryDynamicEdgeInertanceV1(
   runtime: NonCoronaryCirculationRuntimeParamsV1,
   areaRatio: number,
 ): number {
+  if (edgeName === "Ao_SA" && runtime.vascular.aorticRootInertanceResearchScale !== undefined) {
+    return (edge.L ?? 0) * runtime.vascular.aorticRootInertanceResearchScale / (
+      edge.useChiResistance ? Math.max(areaRatio, 1e-6) : 1
+    );
+  }
   const algebraicRoots = runtime.vascular
     .algebraicProximalArterialRootsProfile;
   if (

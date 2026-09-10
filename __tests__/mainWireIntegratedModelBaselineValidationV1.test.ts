@@ -5,18 +5,9 @@ import {
   buildMainWireBaselineNumericalFloorMetricV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineNumericalFloorAuditV1";
 import {
-  buildMainWireBaselineConditioningSingularValuesV1,
-  buildMainWireBaselineConditioningTasksV1,
-} from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
-import {
   applyMainWireBaselineCalibrationParametersV1,
   readMainWireBaselineCalibrationParameterV1,
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
-import {
-  MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1,
-  compileMainWireBaselineConditioningStudyV1,
-  lintMainWireBaselineConditioningStudyV1,
-} from "@/analysis/policies/mainWire/MainWireBaselineConditioningStudyV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
@@ -433,40 +424,6 @@ describe("baseline construction and calibration gates", () => {
       numericalFloorFractionOfCorridor: 0.05,
     });
   });
-  it("compiles the conditioning study deterministically and fails closed on confounded primary coordinates", async () => {
-    expect(lintMainWireBaselineConditioningStudyV1(
-      MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1,
-    )).toEqual([]);
-
-    const first = await compileMainWireBaselineConditioningStudyV1();
-    const second = await compileMainWireBaselineConditioningStudyV1();
-    expect(first.studyIdentitySha256).toMatch(/^[0-9a-f]{64}$/);
-    expect(second).toEqual(first);
-
-    const confounded = Object.freeze({
-      ...MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1,
-      primaryCoordinateIds: Object.freeze([
-        ...MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.primaryCoordinateIds,
-        "hemodynamics.venous-tone" as const,
-      ]),
-    });
-    expect(lintMainWireBaselineConditioningStudyV1(confounded)
-      .map(({ code }) => code)).toEqual(expect.arrayContaining([
-      "primary-role-mismatch",
-      "confounded-primary-coordinates",
-      "preload-owner-count",
-    ]));
-
-    const staleAnalysisTarget = Object.freeze({
-      ...MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1,
-      analysisTarget: Object.freeze({
-        ...MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.analysisTarget,
-        evaluatorId: "stale-evaluator",
-      }),
-    }) as unknown as typeof MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1;
-    expect(lintMainWireBaselineConditioningStudyV1(staleAnalysisTarget)
-      .map(({ code }) => code)).toContain("analysis-target-invalid");
-  });
   it("applies calibration coordinates independent of update ordering", () => {
     const base = Object.freeze({
       hemodynamicResearchInputs:
@@ -503,21 +460,6 @@ describe("baseline construction and calibration gates", () => {
     )).toBe(1.01);
   });
 
-  it("builds bounded conditioning task sets and resolves the small-matrix spectrum", () => {
-    expect(buildMainWireBaselineConditioningTasksV1({
-      mode: "rest-pilot",
-    })).toHaveLength(25);
-    expect(buildMainWireBaselineConditioningTasksV1({
-      mode: "primary-envelope",
-    })).toHaveLength(105);
-    expect(buildMainWireBaselineConditioningTasksV1({
-      mode: "full-envelope",
-    })).toHaveLength(125);
-    expect(buildMainWireBaselineConditioningSingularValuesV1(
-      [[3, 0], [0, 2]],
-      2,
-    )).toEqual([3, 2]);
-  });
 });
 
 function normalMeasurementsV1():

@@ -1,23 +1,15 @@
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import {
-  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_DEFAULT_FIXTURE_V1,
-  createCircleHeartExactModelReleaseV1,
-} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1";
 import clientDescriptor from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
+  "@/data/model-releases/CurrentModelReleaseV1";
 import surface from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
-import { studioCanonicalJsonStringify } from "@/domain/json/CanonicalJson";
-import { resolveRegisteredAnalysisMethodsV1 } from
-  "@/analysis/registry/RegisteredAnalysisMethodsV1";
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
+import { prepareCurrentModelPublicationV1, CURRENT_MODEL_PUBLICATION_FILES_V1 } from "./CurrentModelRegistryAdmissionV1";
 import {
   assertStudioReleaseStageV1,
-  composeStandardModelContractV1,
   type StudioReleaseStageV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
@@ -30,11 +22,11 @@ const repositoryRoot = path.resolve(
 );
 const artifactPath = path.join(
   repositoryRoot,
-  "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.artifact.mjs",
+  CURRENT_MODEL_PUBLICATION_FILES_V1.artifact,
 );
 const lockPath = path.join(
   repositoryRoot,
-  "studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-registry-admission-lock.json",
+  CURRENT_MODEL_PUBLICATION_FILES_V1.lock,
 );
 
 if (
@@ -48,10 +40,9 @@ async function main(): Promise<void> {
   const options = parsePublishArgumentsV3(process.argv.slice(2));
   assertReleaseFilesCommitted();
 
-  const artifact = readFileSync(artifactPath);
-  const { manifest, defaultFixture, lock, artifactSha256 } =
-    prepareMainWireModelPublicationV1({
-      artifact,
+  const { artifact, manifest, defaultFixture, lock, artifactSha256 } =
+    await prepareMainWireModelPublicationV1({
+      artifact: readFileSync(artifactPath),
       lockJson: readFileSync(lockPath, "utf8"),
       expectedModelId: options.modelId,
     });
@@ -170,33 +161,12 @@ function modelPublishUsageErrorV3(): Error {
 }
 
 /** Validate the complete local identity binding before obtaining credentials. */
-export function prepareMainWireModelPublicationV1(input: Readonly<{
+export async function prepareMainWireModelPublicationV1(input: Readonly<{
   artifact: Uint8Array;
   lockJson: string;
   expectedModelId: string;
 }>) {
-  const { manifest } = createCircleHeartExactModelReleaseV1();
-  const defaultFixture = MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_DEFAULT_FIXTURE_V1;
-  const lock = parseLock(input.lockJson);
-  const artifactSha256 = sha256(input.artifact);
-  if (input.expectedModelId !== manifest.modelId || lock.modelId !== manifest.modelId) {
-    throw new Error("Requested model, registry lock, and exact manifest modelId differ");
-  }
-  if (lock.artifactSha256 !== artifactSha256) {
-    throw new Error("Registry lock and exact artifact digest differ");
-  }
-  if (
-    studioCanonicalJsonStringify(manifest)
-      !== studioCanonicalJsonStringify(clientDescriptor.manifest)
-    || studioCanonicalJsonStringify(defaultFixture)
-      !== studioCanonicalJsonStringify(clientDescriptor.defaultFixture)
-  ) {
-    throw new Error("Published exact release and browser descriptor differ");
-  }
-  composeStandardModelContractV1(
-    manifest, surface, resolveRegisteredAnalysisMethodsV1(surface).capabilities,
-  );
-  return Object.freeze({ manifest, defaultFixture, lock, artifactSha256 });
+  return prepareCurrentModelPublicationV1(repositoryRoot, input);
 }
 
 function assertReleaseFilesCommitted(): void {
@@ -262,57 +232,4 @@ async function rpc(
   }
   const text = await response.text();
   return text.length === 0 ? null : JSON.parse(text);
-}
-
-function sha256(value: Uint8Array): string {
-  return createHash("sha256").update(value).digest("hex");
-}
-
-function parseLock(raw: string): Readonly<{
-  modelId: string;
-  artifactRevisionId: string;
-  artifactSha256: string;
-  predecessorArtifactRevisionId: string | null;
-  equivalenceReportSha256: string | null;
-}> {
-  const value = JSON.parse(raw) as Record<string, unknown>;
-  if (
-    value === null || typeof value !== "object" || Array.isArray(value)
-    || value.schemaId
-      !== "circleheart-standard-exact-model-registry-admission-lock-v2"
-    || typeof value.modelId !== "string"
-    || typeof value.artifactRevisionId !== "string"
-    || !/^[0-9a-f]{64}$/.test(value.artifactRevisionId)
-    || typeof value.artifactSha256 !== "string"
-    || !/^[0-9a-f]{64}$/.test(value.artifactSha256)
-    || (
-      value.predecessorArtifactRevisionId !== null
-      && (
-        typeof value.predecessorArtifactRevisionId !== "string"
-        || !/^[0-9a-f]{64}$/.test(value.predecessorArtifactRevisionId)
-      )
-    )
-    || (
-      value.equivalenceReportSha256 !== null
-      && (
-        typeof value.equivalenceReportSha256 !== "string"
-        || !/^[0-9a-f]{64}$/.test(value.equivalenceReportSha256)
-      )
-    )
-    || (
-      (value.predecessorArtifactRevisionId === null)
-      !== (value.equivalenceReportSha256 === null)
-    )
-  ) {
-    throw new Error("Registry admission lock is invalid");
-  }
-  return Object.freeze({
-    modelId: value.modelId,
-    artifactRevisionId: value.artifactRevisionId,
-    artifactSha256: value.artifactSha256,
-    predecessorArtifactRevisionId:
-      value.predecessorArtifactRevisionId as string | null,
-    equivalenceReportSha256:
-      value.equivalenceReportSha256 as string | null,
-  });
 }

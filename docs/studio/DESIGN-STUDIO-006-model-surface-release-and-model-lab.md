@@ -36,6 +36,19 @@ existing content or `modelId`.
 
 ## Identity decision table
 
+This table applies after an identity is fixed: registry publication (including
+`dev`), or an earlier durable replay contract that resolves by that identity.
+Before fixation, research candidates may change without minting another exact
+model. Record the actual source/artifact content hash, inputs, initialization,
+numerical settings, and assessment versions; a dirty worktree's HEAD alone is
+not a reproducible identity. Candidate names are not published contracts.
+
+Before fixing the contract, qualify the intended artifact through the ordinary
+Worker path, including warmed uninterrupted-versus-restored continuation,
+controls and analysis forks. Cold-start or round-trip agreement alone is not
+enough. Use the existing executable tests before finalizing release-specific
+documentation; this is an ordering requirement, not another approval layer.
+
 | Change | Required identity action |
 | --- | --- |
 | Equation, state, solver, event, fixture schema, checkpoint, existing primitive control/signal/metric semantics | New `modelId` |
@@ -56,6 +69,44 @@ Manual naming does not grant compatibility. Repository admission compares the
 exact manifest and artifact evidence; any admitted numerical difference must
 mint a new `modelId`.
 
+## Change-proportionate validation
+
+Minting, scientific assessment, executable qualification, and document
+publication are different decisions; none automatically repeats all the others.
+
+- Equations, fixed construction parameters, or numerical behavior: recheck the
+  affected numerical and physiological claims, including relevant responses.
+- Checkpoint/continuation changes: check warmed uninterrupted versus restored
+  execution, events, capture/fork isolation, and the actual Worker path. Two
+  restored twins alone do not establish uninterrupted continuation.
+- Baseline/preset input selection: keep the exact identity; qualify the adopted
+  input's settlement and intended physiological claims, not every search trial.
+- Analysis or assessment policy changes: reassess under the new version, using
+  retained raw signals when sufficient. Do not overwrite the old assessment.
+- Equivalent artifacts or presentation-only changes: check executable binding
+  or Surface compatibility without reapproving unchanged scientific judgments.
+
+Evidence reuse needs explicit correspondence of construction, inputs, numerical
+path, measurement definitions, and policy. A construction hash alone is not
+sufficient. Preserve original runs and reference flags; reused evidence is not
+a fresh execution of the successor. Release binding may pin the new artifact,
+launch checkpoint, and Surface without changing the scientific assessment.
+Rerunning applicable checks is acceptable; evidence reuse is not a prerequisite
+to proceeding and should not become more work than repeating the check.
+
+Reuse documentation modules when authoring, but freeze self-contained documents
+with their actual model/Surface/analysis and assessment references. Sharing
+equations does not make an older frozen document the successor's specification.
+
+Reference navigation groups presets (including baseline) under their exact
+model/Surface pair. Shared constitutive definitions and each preset's complete
+coefficients, geometry, initial state, and assessment are separate reading
+views; offline archives remain self-contained. Regenerable reading projections
+bind the preserved scientific record, not today's equations or gate results.
+Catalog availability is distinct from the status at archive creation. An
+arbitrary loaded capture is not the registered baseline, and a document link
+must not imply that an edited scenario has passed the preset's assessment.
+
 ## Lifecycle
 
 Registry lifecycle is `dev | stable | retired`. Publishing does not activate a
@@ -67,3 +118,10 @@ physiological validity, or certification.
 
 `/dev/model-lab` is an ephemeral launch of the checked-in bundle through the
 ordinary Worker path. It cannot create durable content.
+
+Keep CI focused on the active implementation and the adoption candidate.
+Retained immutable artifacts need integrity and supported-replay checks, not
+rebuilding every old generation from today's shared source. Retire unused
+implementations only after current runtime, Surface, analysis, and fitting
+dependencies are migrated; document availability does not require retaining
+the old numerical source.
