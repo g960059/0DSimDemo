@@ -1,4 +1,7 @@
+import React from "react";
 import { Activity } from "lucide-react";
+import { WorkbenchLastMeasuredOutputsV1 } from "./presentation/WorkbenchLastMeasuredOutputsV1";
+import { incrementWorkbenchPerformanceCounterV3 } from "./runtime/WorkbenchPerformanceDiagnosticsV3";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -64,6 +67,7 @@ export function OutputPaneBodyV3({
   scrollMode = "contained",
   showBinding,
   scenarioLabel,
+  lastMeasurements,
 }: Readonly<{
   contract: ModelContractV2;
   frame: StudioSimulationFrameV2 | null;
@@ -76,6 +80,7 @@ export function OutputPaneBodyV3({
   scrollMode?: "contained" | "parent" | "section";
   showBinding: boolean;
   scenarioLabel: string;
+  lastMeasurements: WorkbenchLastMeasuredOutputsV1;
 }>) {
   const { t } = useTranslation();
   const bindingModeLabel =
@@ -95,6 +100,10 @@ export function OutputPaneBodyV3({
     periodicPva,
     periodicPvaAnalysisError,
   });
+  React.useLayoutEffect(() => { lastMeasurements.remember(selected); }, [lastMeasurements, selected]);
+  const displayed = lastMeasurements.project(selected, locale === "ja"
+    ? "前回の測定値です。新しい有効な測定値が得られるまで表示しています。"
+    : "Previous measurement, retained until a new valid measurement is available.");
   return (
     <div
       className={`workbench-output-pane flex min-h-0 flex-col bg-wb-aux ${
@@ -118,22 +127,21 @@ export function OutputPaneBodyV3({
         variant="pane"
         scrollMode={scrollMode === "contained" ? "contained" : "parent"}
         emptyMessage={t("workbench.live.noSelectedOutputs")}
-        items={selected}
+        items={displayed}
       />
     </div>
   );
 }
 
-export function ControlPaneBodyV3({
+export const ControlPaneBodyV3 = React.memo(function ControlPaneBodyV3({
   activeScenarioId,
   contract,
   controlError,
   controlValuesByScenario,
   disabledByAnalysis,
   locale,
-  onAddItem,
   onApplyControl,
-  onOpenBindingSettings,
+  onOpenSettings,
   pane,
   pendingControlId,
   scenarios,
@@ -147,19 +155,19 @@ export function ControlPaneBodyV3({
   >;
   disabledByAnalysis: boolean;
   locale: "en" | "ja";
-  onAddItem: () => void;
   onApplyControl: (
     scenarioIds: readonly string[],
     controlId: string,
     value: number,
   ) => Promise<boolean>;
-  onOpenBindingSettings: () => void;
+  onOpenSettings: (paneId: string, section: "items" | "binding", intent?: "add") => void;
   pane: ExperimentSurfaceControlPaneV2;
   pendingControlId: string | null;
   scenarios: readonly StudioSimulationWorkerScenarioDescriptorV2[];
   scrollMode?: "contained" | "parent" | "section";
 }>) {
   const { t } = useTranslation();
+  incrementWorkbenchPerformanceCounterV3("react.control-pane.render");
   const targetScenarioIds = resolveWorkbenchControlPaneScenarioIdsV3(
     pane,
     activeScenarioId,
@@ -221,7 +229,7 @@ export function ControlPaneBodyV3({
       <WorkbenchPaneBindingButtonV3
         label={bindingLabel}
         modeLabel={bindingModeLabel}
-        onClick={onOpenBindingSettings}
+        onClick={() => onOpenSettings(pane.paneId, "binding")}
         targetLabel={bindingTargetLabel}
         testId={`control-pane-binding-${pane.paneId}`}
         visible={scenarios.length > 1}
@@ -296,13 +304,13 @@ export function ControlPaneBodyV3({
         )}
         <ExperimentPaneAddItemButtonV3
           label={t("workbench.editor.addCatalogItem")}
-          onClick={onAddItem}
+          onClick={() => onOpenSettings(pane.paneId, "items", "add")}
           prominent={selectedControls.length === 0}
         />
       </div>
     </section>
   );
-}
+});
 
 export function PaneLoadingV3() {
   const { t } = useTranslation();

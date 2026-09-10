@@ -6,7 +6,7 @@ import {
   type Page,
   type TestInfo,
 } from "@playwright/test";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 
 import type {
   WorkbenchPerformanceSnapshotV3,
@@ -212,8 +212,10 @@ test("measures exact live Workbench throughput under background contention", asy
     enforced: ENFORCE_BUDGETS_V3,
   });
   const reportJson = JSON.stringify(report, null, 2);
+  const reportPath = testInfo.outputPath("workbench-performance-report.json");
+  writeFileSync(reportPath, reportJson);
   await testInfo.attach("workbench-performance-report.json", {
-    body: Buffer.from(reportJson),
+    path: reportPath,
     contentType: "application/json",
   });
   console.log("\n[CircleHeart performance]", JSON.stringify({
@@ -421,15 +423,8 @@ async function measureControlLatencyV3(page: Page): Promise<number> {
   const startedAtMs = Date.now();
   await slider.press("ArrowRight");
 
-  // Standard 66 replaces the exact trajectory at revision/time zero. The
-  // live scheduler may accept several 2 ms steps before the browser observes
-  // the replacement frame, so the E2E boundary detects the reset relative to
-  // the old checkpoint; adapter tests pin the exact zero-valued response.
-  await expect.poll(async () => {
-    const current = await acceptedCheckpointV3(page);
-    return current.inputEpoch > initial.inputEpoch
-      && current.acceptedTimeSec < initial.acceptedTimeSec;
-  }).toBe(true);
+  // Current exact controls may continue from a qualified checkpoint instead
+  // of rewinding time. Measure the accepted new epoch, not a retired reset ABI.
   await expect.poll(async () => {
     const current = await acceptedCheckpointV3(page);
     return current.inputEpoch > initial.inputEpoch

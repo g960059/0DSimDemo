@@ -103,6 +103,7 @@ export const fastTests = [
   "__tests__/workbenchParallelScenarioRuntimeV3.test.ts",
   "__tests__/workbenchScenarioSteadyCandidateCoordinatorV3.test.ts",
   "__tests__/workbenchV3Dockview.test.tsx",
+  "__tests__/workbenchLastMeasuredOutputsV1.test.tsx",
   "__tests__/workbenchV3CanvasRenderers.test.ts",
   "__tests__/wholeHeartMechanicsContractV1.test.ts",
   "engine/__tests__/chambers.test.ts",
@@ -176,6 +177,7 @@ export const prSmokeTests = [
   "__tests__/workbenchParallelScenarioRuntimeV3.test.ts",
   "__tests__/workbenchScenarioSteadyCandidateCoordinatorV3.test.ts",
   "__tests__/workbenchV3Dockview.test.tsx",
+  "__tests__/workbenchLastMeasuredOutputsV1.test.tsx",
   "__tests__/workbenchV3CanvasRenderers.test.ts",
 ] as const;
 

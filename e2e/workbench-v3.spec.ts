@@ -202,6 +202,51 @@ test("@desktop current model inherits the complete analysis Surface", async ({
   );
 });
 
+test("@desktop @mobile previous outputs remain visibly stale across controls and mobile tabs", async ({ page }, testInfo) => {
+  const root = page.getByTestId("v3-dockview-workbench");
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768;
+  const taskDeck = page.getByTestId("workbench-mobile-task-deck");
+  if (mobile) await taskDeck.getByRole("tab", { name: "出力", exact: true }).click();
+  const output = page.locator('[data-output-id="hemodynamics.output.effective-native-left"]');
+  await expect(output).toHaveAttribute("data-output-availability", "available");
+  await expect(output).toHaveAttribute("data-output-stale", "false");
+  const playback = page.getByTestId("v3-playback-toggle");
+  await playback.click();
+  await expect(root).toHaveAttribute("data-playback", "paused");
+  // Drain the bounded already-accepted prefix before remembering the displayed value.
+  await expect.poll(async () => {
+    const before = await modelTime(root);
+    await page.waitForTimeout(150);
+    return Math.abs((await modelTime(root)) - before);
+  }).toBeLessThanOrEqual(0.002);
+  const visibleNumber = () => output.locator(".workbench-output-value").evaluate(
+    element => element.firstChild?.textContent ?? "",
+  );
+  const previous = await visibleNumber();
+  const currentColor = await output.locator(".workbench-output-value")
+    .evaluate(element => getComputedStyle(element).color);
+  const previousEpoch = await inputEpoch(page);
+  if (mobile) await taskDeck.getByRole("tab", { name: "コントロール", exact: true }).click();
+  await page.getByRole("slider", { name: "心拍数 (HR)", exact: true }).press("ArrowRight");
+  await expect.poll(() => inputEpoch(page)).toBeGreaterThan(previousEpoch);
+  if (mobile) await taskDeck.getByRole("tab", { name: "出力", exact: true }).click();
+  await expect(output).toHaveAttribute("data-output-stale", "true");
+  await expect(output).toHaveAttribute("data-output-availability", "not-evaluated-at-accepted-state");
+  expect(await visibleNumber()).toBe(previous);
+  expect(await output.locator(".workbench-output-value")
+    .evaluate(element => getComputedStyle(element).color)).not.toBe(currentColor);
+  await output.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("stale-outputs.png") });
+  await output.getByRole("button").click();
+  await expect(page.getByRole("tooltip")).toContainText("前回の測定値");
+  await page.keyboard.press("Escape");
+  await playback.click();
+  await expect(output).toHaveAttribute("data-output-stale", "false");
+  await expect(output).toHaveAttribute("data-output-availability", "available");
+  expect(await visibleNumber()).not.toBe("—");
+  await expect(root).toHaveAttribute("data-playback", "playing");
+});
+
 test("@desktop @model-lab formal analysis, warm controls, and settings stay live", async ({
   page,
 }) => {

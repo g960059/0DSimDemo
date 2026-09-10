@@ -1,4 +1,5 @@
 import React from "react";
+import { WorkbenchLastMeasuredOutputsV1 } from "./presentation/WorkbenchLastMeasuredOutputsV1";
 import { registeredCurrentBaselinePresentationV1 } from "@/studio/presentation/CurrentBaselinePresentationV1";
 import { REGISTERED_CURRENT_MODEL_BASELINE_V1 } from "@/studio/registry/RegisteredCurrentModelBaselineV1";
 import { workbenchReferencePresetsV1 } from "./WorkbenchReferencePresetsV1";
@@ -483,10 +484,23 @@ export const WorkbenchSession = ({
   const pendingFeedbackAfterRuntimeRestartRef =
     React.useRef<WorkbenchRuntimeRestartFeedbackV3 | null>(null);
   const contract = status.kind === "live" ? status.contract : null;
-  const modelDisclosure = resolveRegisteredModelDisclosureV1(
-    contract?.modelId,
-    surfaceReleaseIdRef.current,
-  );
+  // Mobile task tabs unmount their panes. Keep display memory in the Session,
+  // isolated by pane and Scenario; restart/model/Surface changes clear it.
+  const lastMeasurementsByScope = React.useMemo(() => new Map<string, {
+    paneId: string; scenarioId: string | null; memory: WorkbenchLastMeasuredOutputsV1;
+  }>(), [contract, runtimeGeneration]);
+  React.useEffect(() => {
+    for (const [key, scope] of lastMeasurementsByScope) {
+      if (!surface?.outputPanes.some(pane => pane.paneId === scope.paneId)
+        || !scenarios.some(scenario => scenario.scenarioId === scope.scenarioId)) {
+        lastMeasurementsByScope.delete(key);
+      }
+    }
+  }, [lastMeasurementsByScope, surface?.outputPanes, scenarios]);
+  const surfaceReleaseId = surfaceReleaseIdRef.current;
+  const modelDisclosure = React.useMemo(() => resolveRegisteredModelDisclosureV1(
+    contract?.modelId, surfaceReleaseId,
+  ), [contract?.modelId, surfaceReleaseId]);
   const modelDocumentation = modelDisclosure.documentation;
   const modelDocumentationLink = modelDocumentation === null
     ? undefined
@@ -497,9 +511,10 @@ export const WorkbenchSession = ({
         documentId: modelDocumentation.documentId,
       });
   const modelLimitationsKey = modelDisclosure.limitationsTranslationKey;
-  const baselineValidationPresentation = registeredCurrentBaselinePresentationV1(
-    contract?.modelId, initialBaselineFixtureRef.current, isLocale(locale) ? locale : "en",
-  );
+  const baselineFixture = initialBaselineFixtureRef.current;
+  const baselineValidationPresentation = React.useMemo(() => registeredCurrentBaselinePresentationV1(
+    contract?.modelId, baselineFixture, resolvedLocale,
+  ), [contract?.modelId, baselineFixture, resolvedLocale]);
 
   React.useEffect(() => {
     translationRef.current = t;
@@ -2861,6 +2876,12 @@ export const WorkbenchSession = ({
       activeScenarioId,
       scenarios,
     );
+    const scopeKey = JSON.stringify([pane.paneId, scenarioId]);
+    let scope = lastMeasurementsByScope.get(scopeKey);
+    if (scope === undefined) {
+      scope = { paneId: pane.paneId, scenarioId, memory: new WorkbenchLastMeasuredOutputsV1() };
+      lastMeasurementsByScope.set(scopeKey, scope);
+    }
     const frame =
       scenarioId === null
         ? null
@@ -2884,6 +2905,7 @@ export const WorkbenchSession = ({
     return (
       <OutputPaneBodyV3
         contract={contract}
+        lastMeasurements={scope.memory}
         frame={frame}
         locale={resolvedLocale}
         onAddItem={() => openPaneSettings(pane.paneId, "items", "add")}
@@ -2921,9 +2943,8 @@ export const WorkbenchSession = ({
         controlValuesByScenario={controlValuesByScenarioRef.current}
         disabledByAnalysis={scenarioOperation !== null}
         locale={resolvedLocale}
-        onAddItem={() => openPaneSettings(pane.paneId, "items", "add")}
         onApplyControl={applyControl}
-        onOpenBindingSettings={() => openPaneSettings(pane.paneId, "binding")}
+        onOpenSettings={openPaneSettings}
         pane={pane}
         pendingControlId={pendingControlId}
         scenarios={scenarios}
