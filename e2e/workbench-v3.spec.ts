@@ -301,6 +301,59 @@ test("@desktop @mobile @model-lab @beat-metrics selected beat outputs stay respo
   expect(errors).toEqual([]);
 });
 
+test("@desktop @mobile @model-lab @beat-metrics filling outputs retain stale measurements without inventing unavailable durations", async ({ page }, testInfo) => {
+  const root = page.getByTestId("v3-dockview-workbench");
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768;
+  const deck = page.getByTestId("workbench-mobile-task-deck");
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  if (mobile) {
+    await deck.getByRole("tab", { name: "出力", exact: true }).click();
+    await deck.locator(".workbench-mobile-pane-group-settings").first().click();
+  } else await openPaneSettings(page, "Outputs");
+  const settings = page.getByRole("dialog", { name: "Pane設定" });
+  await settings.locator(".workbench-pane-add-item").click();
+  const drawer = settings.getByTestId("pane-settings-context-drawer-v3");
+  for (const label of ["MV E/A", "MV DT", "MV A dur", "PV S", "PV D", "PV S/D", "PV Ar", "PV Ar dur", "PV Ar−A dur"]) {
+    await drawer.getByRole("searchbox").fill(label);
+    await drawer.getByRole("button", { name: `項目を追加: ${label}`, exact: true }).click();
+  }
+  await drawer.getByRole("button", { name: "パネルを閉じる" }).click();
+  await settings.getByRole("button", { name: "完了", exact: true }).click();
+  const measuredIds = ["hemodynamics.ratio.peak-E-to-A.volumetric.MV", "hemodynamics.duration.E-deceleration-80-40.volumetric.MV",
+    "hemodynamics.flow.peak-systolic-ejection.PVein_LA", "hemodynamics.flow.peak-early-diastolic.PVein_LA", "hemodynamics.ratio.peak-S-to-D.volumetric.PVein_LA",
+    "hemodynamics.flow.peak-atrial-reversal-magnitude.PVein_LA", "hemodynamics.duration.atrial-reversal-zero-crossing.PVein_LA"];
+  for (const id of measuredIds) await expect(page.locator(`[data-output-id="${id}"]`)).toHaveAttribute("data-output-availability", "available");
+  const aDuration = page.locator('[data-output-id="hemodynamics.duration.A-zero-crossing.volumetric.MV"]');
+  await expect(aDuration).toHaveAttribute("data-output-availability", "not-evaluated-at-accepted-state");
+  await expect(aDuration).toHaveAttribute("data-output-stale", "false"); // No invented initial measurement.
+  await expect(aDuration.locator(".text-wb-warning")).toHaveCount(0);
+  await aDuration.getByRole("button").click();
+  await expect(page.getByRole("tooltip")).toContainText("開始点を推定せず");
+  await expect(page.getByRole("tooltip")).toContainText("新しい測定値を得られていません");
+  await page.keyboard.press("Escape");
+  const ratio = page.locator(`[data-output-id="${measuredIds[0]}"]`), playback = page.getByTestId("v3-playback-toggle");
+  await playback.click(); await expect(root).toHaveAttribute("data-playback", "paused");
+  const number = () => ratio.locator(".workbench-output-value").evaluate(element => element.firstChild?.textContent ?? "");
+  const prior = await number(), epoch = await inputEpoch(page);
+  if (mobile) await deck.getByRole("tab", { name: "コントロール", exact: true }).click();
+  await page.getByRole("slider", { name: "心拍数 (HR)", exact: true }).press("ArrowRight");
+  await expect.poll(() => inputEpoch(page)).toBeGreaterThan(epoch);
+  if (mobile) await deck.getByRole("tab", { name: "出力", exact: true }).click();
+  await expect(ratio).toHaveAttribute("data-output-stale", "true");
+  expect(await number()).toBe(prior);
+  await ratio.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("filling-stale.png") });
+  await playback.click();
+  await expect(ratio).toHaveAttribute("data-output-stale", "false");
+  await expect(ratio).toHaveAttribute("data-output-availability", "available");
+  await ratio.getByRole("button").click();
+  await expect(page.getByRole("tooltip")).toContainText("Doppler流速比ではありません");
+  await page.keyboard.press("Escape");
+  await page.screenshot({ path: testInfo.outputPath("filling-ready.png") });
+  expect(errors).toEqual([]);
+});
+
 test("@desktop @model-lab formal analysis, warm controls, and settings stay live", async ({
   page,
 }) => {

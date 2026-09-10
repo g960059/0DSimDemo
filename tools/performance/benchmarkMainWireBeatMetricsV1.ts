@@ -3,6 +3,8 @@ import { createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as release } from
 import { CURRENT_BASELINE_V1 as baseline } from "@/data/model-baselines/CurrentBaselineV1";
 import { MainWireCardiacCycleCollectorV1 } from "@/analysis/methods/mainWire/MainWireCardiacCycleCollectorV1";
 import { MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1 as requiredIds } from "@/analysis/methods/mainWire/MainWireCardiacCycleMetricsV1";
+import { MainWireFillingFlowCollectorV1 } from "@/analysis/methods/mainWire/MainWireFillingFlowCollectorV1";
+import { MAIN_WIRE_FILLING_FLOW_REQUIRED_EXACT_OUTPUT_IDS_V1 as fillingIds } from "@/analysis/methods/mainWire/MainWireFillingFlowMetricsV1";
 import { projectStudioSimulationPresentationBatchV2 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
 import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 import { selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
@@ -11,13 +13,15 @@ import { selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 selectHotPathIntegrityTierV1("hot-path-lean");
 const graphIds = ["hemodynamics.pressure.absolute.LV", "hemodynamics.pressure.absolute.LA",
   "hemodynamics.pressure.absolute.Ao", "hemodynamics.volume.LV", "hemodynamics.pressure.transmural.LV", "rhythm.phase.regular-sinus"];
-const observedIds = [...new Set([...graphIds, ...requiredIds])];
+const observedIds = [...new Set([...graphIds, ...requiredIds, ...fillingIds])];
 const identity = { runtimeSessionId: "beat-benchmark", scenarioId: "baseline" };
 const seed = { runtimeSessionId: identity.runtimeSessionId, scenarios: [{ scenarioId: identity.scenarioId, ...baseline.capture }] };
 const off = release().executables.simulationAdapter, on = release().executables.simulationAdapter;
 const collector = new MainWireCardiacCycleCollectorV1();
+const fillingCollector = new MainWireFillingFlowCollectorV1();
 const times = { off: [] as number[], on: [] as number[], collector: [] as number[], completedBeat: [] as number[] };
 let latest: StudioSimulationAnalysisV2 | undefined;
+let latestFilling: StudioSimulationAnalysisV2 | undefined;
 const batchSteps = 16;
 await off.createSession(seed); await on.createSession(seed);
 
@@ -28,11 +32,13 @@ const advance = async (enabled: boolean, measured: boolean) => {
   if (enabled) {
     const observeStart = performance.now();
     const result = collector.ingest(batch);
+    const fillingResult = fillingCollector.ingest(batch);
     const elapsed = performance.now() - observeStart;
     if (result) latest = result;
+    if (fillingResult) latestFilling = fillingResult;
     if (measured) {
       times.collector.push(elapsed);
-      if (result) times.completedBeat.push(elapsed);
+      if (result || fillingResult) times.completedBeat.push(elapsed);
     }
     projectStudioSimulationPresentationBatchV2(batch, graphIds);
   }
@@ -40,7 +46,7 @@ const advance = async (enabled: boolean, measured: boolean) => {
 };
 try {
   // Compile both paths and at least one complete-beat evaluation before measuring.
-  for (let i = 0; i < 64; i++) { await advance(false, false); await advance(true, false); }
+  for (let i = 0; i < 128; i++) { await advance(false, false); await advance(true, false); }
   for (let round = 0; round < 8; round++) {
     for (const enabled of round % 2 === 0 ? [false, true] : [true, false]) {
       for (let i = 0; i < 16; i++) await advance(enabled, true);
@@ -61,5 +67,5 @@ try {
     graphColumns: graphIds.length, observedColumns: observedIds.length, terminalFramesEqual: true,
     measurement: "local Node hot-path-lean execution; excludes browser transport/DOM and device throttling; alternating paired paths",
     measured, observedToUnobservedTotalRatio: measured.on!.totalMs / measured.off!.totalMs,
-    latestBeat: latest?.payload }, null, 2)}\n`);
+    latestBeat: latest?.payload, latestFilling: latestFilling?.payload }, null, 2)}\n`);
 } finally { off.disposeSession(identity.runtimeSessionId); on.disposeSession(identity.runtimeSessionId); }

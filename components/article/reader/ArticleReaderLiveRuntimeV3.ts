@@ -1,6 +1,6 @@
 import type { ExperimentScenarioV2, ExperimentSnapshotV2 } from
   "@/studio/contracts/v2/content";
-import { mainWireCardiacCycleOutputValueV1 } from "@/analysis/methods/mainWire/MainWireCardiacCyclePresentationV1";
+import { mainWireCardiacCycleOutputValueV1, mainWireFillingFlowOutputValueV1 } from "@/analysis/methods/mainWire/MainWireCardiacCyclePresentationV1";
 import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
   StudioSimulationAnalysisV2,
@@ -216,7 +216,9 @@ export class ArticleReaderLiveRuntimeV3 {
     const runtime = this.#runtime;
     const frame = runtime !== null && this.#scenarioIds.includes(scenarioId)
       && this.#state.status !== "starting" && this.#acceptsFrames() ? runtime.latestFrame(scenarioId) : null;
-    return mainWireCardiacCycleOutputValueV1(runtime?.presentationAnalyses?.(scenarioId), frame, outputId);
+    const analyses = runtime?.presentationAnalyses?.(scenarioId);
+    return mainWireCardiacCycleOutputValueV1(analyses, frame, outputId)
+      ?? mainWireFillingFlowOutputValueV1(analyses, frame, outputId);
   }
 
   readonly subscribe = (listener: () => void): (() => void) => {

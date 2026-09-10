@@ -5,6 +5,9 @@ import {
 } from "@/analysis/contracts/AnalysisMethodRegistryV1";
 import type { PresentationAnalysisMethodV1 } from "@/analysis/contracts/PresentationAnalysisV1";
 import { MainWireCardiacCycleCollectorV1 } from "./MainWireCardiacCycleCollectorV1";
+import { MainWireFillingFlowCollectorV1 } from "./MainWireFillingFlowCollectorV1";
+import { MAIN_WIRE_FILLING_FLOW_METHOD_V1_ID, MAIN_WIRE_FILLING_FLOW_OUTPUT_IDS_V1,
+  MAIN_WIRE_FILLING_FLOW_REQUIRED_EXACT_OUTPUT_IDS_V1 } from "./MainWireFillingFlowMetricsV1";
 import {
   MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
   MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1,
@@ -197,6 +200,19 @@ export const MAIN_WIRE_CARDIAC_CYCLE_DERIVATION_V1 = Object.freeze({
   }),
 }) satisfies AnalysisDerivationRegistrationV1<MainWireAnalysisDerivationRuntimeV1>;
 
+export const MAIN_WIRE_FILLING_FLOW_DERIVATION_V1 = Object.freeze({
+  derivationId: MAIN_WIRE_FILLING_FLOW_METHOD_V1_ID,
+  outputs: Object.freeze(Object.entries(MAIN_WIRE_FILLING_FLOW_OUTPUT_IDS_V1).map(([name, outputId]) => Object.freeze({
+    outputId, kind: "metric" as const, unit: name.endsWith("MlPerSec") ? "mL/s" : name.endsWith("Ms") ? "ms" : "1",
+    shape: "scalar" as const, scope: "beat" as const, dependencies: MAIN_WIRE_FILLING_FLOW_REQUIRED_EXACT_OUTPUT_IDS_V1,
+  }))),
+  requiredAnalysisIds: Object.freeze([]),
+  runtime: Object.freeze({ kind: "presentation" as const, method: Object.freeze({
+    methodId: MAIN_WIRE_FILLING_FLOW_METHOD_V1_ID, requiredExactOutputIds: MAIN_WIRE_FILLING_FLOW_REQUIRED_EXACT_OUTPUT_IDS_V1,
+    create: () => new MainWireFillingFlowCollectorV1(),
+  }) }),
+}) satisfies AnalysisDerivationRegistrationV1<MainWireAnalysisDerivationRuntimeV1>;
+
 export const MAIN_WIRE_ANALYSIS_METHOD_REGISTRY_V1 =
   defineAnalysisMethodRegistryV1<MainWireAnalysisDerivationRuntimeV1>({
     analysisRequestIds: Object.freeze([
@@ -205,6 +221,7 @@ export const MAIN_WIRE_ANALYSIS_METHOD_REGISTRY_V1 =
     ]),
     derivations: Object.freeze([
       MAIN_WIRE_CARDIAC_CYCLE_DERIVATION_V1,
+      MAIN_WIRE_FILLING_FLOW_DERIVATION_V1,
       MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1,
       MAIN_WIRE_PERIODIC_PVA_DERIVATION_V9,
       MAIN_WIRE_PERIODIC_PVA_DERIVATION_V10,

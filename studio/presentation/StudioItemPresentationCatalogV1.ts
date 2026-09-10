@@ -537,6 +537,69 @@ const OUTPUT_PRESENTATION_V1: Readonly<
     inlineDisclosure: true,
     aliases: ["ICT", "IVCT", "isovolumic contraction time", "等容性収縮時間"],
   },
+  "hemodynamics.ratio.peak-E-to-A.volumetric.MV": {
+    category: "valves", label: textV1("MV E/A", "MV E/A"), inlineDisclosure: true,
+    description: textV1(
+      "Ratio of resolved early-filling and following atrial peak mitral flow. Uses modeled volume flow, not Doppler velocity; fused or ambiguous waves are not measured. Updates each beat after the following A wave is observed.",
+      "僧帽弁血流のE波と、それに続くA波のピーク流量比。Doppler流速比ではありません。波が融合するなど区別できない場合は測定せず、後続のA波を観察してから拍ごとに更新します。"),
+    aliases: ["E/A", "mitral inflow", "僧帽弁流入", "拡張能"],
+  },
+  "hemodynamics.duration.E-deceleration-80-40.volumetric.MV": {
+    category: "valves", label: textV1("MV DT", "MV DT"), inlineDisclosure: true,
+    description: textV1(
+      "Time from the E-flow peak to zero flow, extrapolating the descending 80%–40% segment as a straight line. A modeled flow-based DT, not a traced Doppler measurement. Unavailable if the downstroke is unresolved before atrial activation.",
+      "E波のピークから、下降部の80〜40%区間を直線でゼロ流量まで延長した時点までの時間。モデル流量から求めるDTで、Doppler波形の実測値とは異なります。心房収縮前に下降部を確認できない場合は測定しません。"),
+    aliases: ["DT", "DCT", "deceleration time", "E波減速時間"],
+  },
+  "hemodynamics.duration.A-zero-crossing.volumetric.MV": {
+    category: "valves", label: textV1("MV A dur", "MV A dur"), inlineDisclosure: true,
+    description: textV1(
+      "Duration of a separate positive mitral A-flow episode between observed zero crossings. If the E tail continues into A, a distinct onset is not assigned. Modeled flow, not Doppler annular A duration.",
+      "僧帽弁A波の順行流がゼロから始まり、ゼロに戻るまでの時間。E波の尾がA波へ続く場合は、開始点を推定せず未測定とします。弁輪部DopplerによるA波持続時間とは同一ではありません。"),
+    aliases: ["A duration", "mitral A duration", "A波持続時間"],
+  },
+  "hemodynamics.flow.peak-systolic-ejection.PVein_LA": {
+    category: "hemodynamics", label: textV1("PV S", "PV S"), inlineDisclosure: true,
+    description: textV1(
+      "Resolved peak total pulmonary venous flow into LA during aortic ejection, excluding the earlier S1 window. A model S2-like flow in mL/s, not Doppler velocity in an individual pulmonary vein. Ambiguous peaks are not measured.",
+      "大動脈駆出中に確認できる、肺静脈から左房へのピーク流量。早期のS1を除いたS2相当のモデル指標です。単一肺静脈のDoppler流速ではなく、肺静脈全体の流量（mL/s）で表します。ピークが不明確な場合は測定しません。"),
+    aliases: ["pulmonary vein S", "肺静脈S波", "systolic pulmonary venous flow"],
+  },
+  "hemodynamics.flow.peak-early-diastolic.PVein_LA": {
+    category: "hemodynamics", label: textV1("PV D", "PV D"), inlineDisclosure: true,
+    description: textV1(
+      "Resolved peak pulmonary venous flow during early mitral filling, before atrial activation. Total modeled flow in mL/s, not Doppler velocity in an individual pulmonary vein.",
+      "僧帽弁の早期流入開始から心房収縮開始までに確認できる、肺静脈から左房へのピーク流量。単一肺静脈のDoppler流速ではなく、肺静脈全体のモデル流量（mL/s）です。"),
+    aliases: ["pulmonary vein D", "肺静脈D波", "diastolic pulmonary venous flow"],
+  },
+  "hemodynamics.ratio.peak-S-to-D.volumetric.PVein_LA": {
+    category: "hemodynamics", label: textV1("PV S/D", "PV S/D"), inlineDisclosure: true,
+    description: textV1(
+      "Systolic-ejection to early-diastolic peak pulmonary venous flow ratio from the same beat. Both peaks must be resolved. Total model flow, not an individual-vein Doppler ratio; it does not independently determine filling pressure.",
+      "同じ心拍の肺静脈S波（駆出中）とD波（拡張早期）のピーク流量比。両方のピークが確認できる場合のみ測定します。単一肺静脈のDoppler流速比とは異なり、この値だけで充満圧は判断できません。"),
+    aliases: ["S/D", "肺静脈S/D", "pulmonary venous ratio"],
+  },
+  "hemodynamics.flow.peak-atrial-reversal-magnitude.PVein_LA": {
+    category: "hemodynamics", label: textV1("PV Ar", "PV Ar"), inlineDisclosure: true,
+    description: textV1(
+      "Magnitude of isolated pulmonary venous reverse flow after atrial activation, reported positive in mL/s. Reversal continuing into aortic ejection is not classified as a separate Ar wave. Not a Doppler velocity.",
+      "心房収縮に続く、左房から肺静脈への独立した逆流波の最大流量。逆流の大きさを正の値（mL/s）で表します。駆出期まで逆流が続く場合は独立したAr波と判定しません。Doppler流速とは異なります。"),
+    aliases: ["Ar", "atrial reversal", "PVA", "肺静脈逆流波"],
+  },
+  "hemodynamics.duration.atrial-reversal-zero-crossing.PVein_LA": {
+    category: "hemodynamics", label: textV1("PV Ar dur", "PV Ar dur"), inlineDisclosure: true,
+    description: textV1(
+      "Zero-crossing duration of a separate pulmonary venous atrial-reversal flow episode. Not assigned when reversal is absent, ambiguous or continues into aortic ejection. Modeled flow, not Doppler Ar duration.",
+      "肺静脈の独立した心房収縮期逆流波について、ゼロ流量から始まりゼロへ戻るまでの時間。逆流がない場合、区別できない場合、駆出期まで続く場合は未測定とします。DopplerのAr持続時間とは同一ではありません。"),
+    aliases: ["Ar duration", "PVAd", "肺静脈逆流持続時間"],
+  },
+  "hemodynamics.duration.Ar-minus-A.volumetric.PVein_LA-MV": {
+    category: "hemodynamics", label: textV1("PV Ar−A dur", "PV Ar−A dur"), inlineDisclosure: true,
+    description: textV1(
+      "Pulmonary Ar duration minus mitral A duration for the same atrial activation. Requires both separate zero-crossing episodes. Model flow-based timing; do not apply clinical Doppler diagnostic thresholds directly.",
+      "同じ心房収縮に対応する、肺静脈Ar波持続時間 − 僧帽弁A波持続時間。両方の開始点・終了点が確認できる場合のみ測定します。モデル流量による時間差のため、Dopplerの診断閾値はそのまま適用できません。"),
+    aliases: ["Ar-A", "Ar minus A", "Ar−A時間差"],
+  },
   "hemodynamics.duration.isovolumic-relaxation.flow-event.LV": {
     category: "myocardium",
     label: textV1("LV IRT", "LV IRT"),
