@@ -42,9 +42,9 @@ import {
   parseModelSurfacePublishArgumentsV1,
 } from "@/tools/registry/publishModelSurfaceReleaseV1";
 import currentClient from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72ExactModelV1.client.json";
+  "@/data/model-releases/CurrentModelReleaseV1";
 import currentSurface from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 
 const TEST_ARTIFACT_REVISION_ID_V1 = "a".repeat(64);
 
@@ -53,12 +53,12 @@ describe("Studio Supabase boundary V1", () => {
   it("binds publication to the current exact model, fixture, lock, artifact and Surface", async () => {
     const fetchV1 = vi.fn();
     vi.stubGlobal("fetch", fetchV1);
-    const directory = "studio/integrations/mainWireIntegratedV3/";
+    const directory = "data/model-releases/standard73/";
     const input = {
       artifact: readFileSync(directory
-        + "MainWireIntegratedStudioStandard72ExactModelV1.artifact.mjs"),
+        + "artifact.mjs.txt"),
       lockJson: readFileSync(directory
-        + "standard72-registry-admission-lock.json", "utf8"),
+        + "publication.json", "utf8"),
       expectedModelId: currentClient.manifest.modelId,
     };
     const prepared = await prepareMainWireModelPublicationV1(input);
@@ -104,7 +104,7 @@ describe("Studio Supabase boundary V1", () => {
     vi.stubGlobal("fetch", fetchV1);
     const directory = "studio/integrations/mainWireIntegratedV3/";
     expect(await loadModelSurfacePublicationManifestV1(directory
-      + "MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1.ts"))
+      + "MainWireIntegratedStudioStaticCaseSurfaceV1.ts"))
       .toEqual(currentSurface);
     expect(await loadModelSurfacePublicationManifestV1(directory
       + "model-surface-workbench-analysis-v1.json")).toEqual(standardSurfaceReleaseV1);

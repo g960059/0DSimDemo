@@ -36,19 +36,18 @@ import type { ExactModelFixtureProjectionV1 } from
 import { resolveRegisteredExactModelFixtureProjectionV1 } from
   "@/studio/registry/RegisteredExactModelFixtureProjectionV1";
 import {
-  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1,
+  MAIN_WIRE_STATIC_CASE_MODEL_ID_V1,
 } from
-  "@/domain/model/MainWireStandardIdentityV1";
-import algebraicPulmonaryRootClientDescriptorV1 from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72ExactModelV1.client.json";
+  "@/domain/model/MainWireStaticCaseIdentityV1";
+import algebraicPulmonaryRootClientDescriptorV1, { CURRENT_MODEL_PRESETS_V1 } from
+  "@/data/model-releases/CurrentModelReleaseV1";
 import algebraicPulmonaryRootSurfaceReleaseV1 from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72SurfaceV1";
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import algebraicPulmonaryRootRegistryAdmissionLockV1 from
-  "@/studio/integrations/mainWireIntegratedV3/standard72-registry-admission-lock.json";
+  "@/data/model-releases/standard73/publication.json";
 
 export const DEFAULT_STUDIO_MODEL_ID_V2:
-typeof MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 =
-  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1;
+typeof MAIN_WIRE_STATIC_CASE_MODEL_ID_V1 = MAIN_WIRE_STATIC_CASE_MODEL_ID_V1;
 
 export type StudioClientCompositionV2 = Readonly<{
   exactModel: Readonly<{
@@ -147,7 +146,7 @@ function loadStudioLocalAlgebraicPulmonaryRootClientCompositionForSurfaceV1(
       algebraicPulmonaryRootClientDescriptorV1.schemaId
       !== "circleheart-standard-exact-model-client-descriptor-v1"
     ) {
-      throw new Error("Standard72 client descriptor identity mismatch");
+      throw new Error("Current client descriptor identity mismatch");
     }
     assertExactModelKernelManifestV3(
       algebraicPulmonaryRootClientDescriptorV1.manifest,
@@ -181,13 +180,12 @@ function loadStudioLocalAlgebraicPulmonaryRootClientCompositionForSurfaceV1(
 function localAlgebraicPulmonaryRootArtifactUrlV1(): string {
   const loopbackBase = "http://127.0.0.1/";
   const resolved = new URL(
-    "../integrations/mainWireIntegratedV3/"
-      + "MainWireIntegratedStudioStandard72ExactModelV1.artifact.mjs",
+    "../../data/model-releases/standard73/artifact.mjs.txt",
     import.meta.url,
   );
   return resolved.protocol === "file:"
     ? new URL(
-        "__circleheart_local_standard72_artifact__.mjs",
+        "__circleheart_local_standard73_artifact__.mjs",
         loopbackBase,
       ).href
     : localAlgebraicPulmonaryRootArtifactRevisionUrlV1(resolved).href;
@@ -327,6 +325,7 @@ function composeStudioClientCompositionV2(
       workerReleaseTicket: release.ticket,
     }),
     modelSurface,
+    presets: CURRENT_MODEL_PRESETS_V1,
     ...(release.activeBundleVersion === undefined
       ? {}
       : { activeBundleVersion: release.activeBundleVersion }),

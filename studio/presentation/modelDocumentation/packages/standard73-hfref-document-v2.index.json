@@ -1,0 +1,13 @@
+{
+  "schemaId": "circleheart.saved-model-document.v1",
+  "documentId": "standard73-hfref-document-v2",
+  "identity": {
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.static-anatomy.standard-73",
+    "surfaceReleaseId": "circleheart.main-wire.surface.static-anatomy.standard-73.workbench-v1",
+    "surfaceSeriesId": "circleheart.main-wire.surface.static-anatomy.workbench",
+    "baselineId": "standard73-hfref-chronic-dilated-v1",
+    "title": "HFrEF · 慢性左室拡大型",
+    "releaseStatus": "reviewed-release-package"
+  },
+  "contentSha256": "6b415790ed58874f52141002dedc15dd7612bedf9362f84bf624955f2338dcc4"
+}

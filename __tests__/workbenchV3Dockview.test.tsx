@@ -1429,7 +1429,7 @@ describe("V3 Dockview Workbench", () => {
       "hemodynamics.systemic-resistance",
       "hemodynamics.pulmonary-resistance",
       "hemodynamics.venous-tone",
-      "myocardium.active-tension-scale.LVFW",
+      "myocardium.lv-contractility",
       "myocardium.passive-stiffness-scale.LVFW",
     ]);
     expect(controlPane.items.length).toBeGreaterThan(0);

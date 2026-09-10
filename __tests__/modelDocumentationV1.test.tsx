@@ -29,8 +29,8 @@ import { resolveSavedModelDocumentIndexV1 } from "@/studio/presentation/modelDoc
 import { fittedBaselineEquationDataV1, fittedBaselineSettingsV1 } from "@/tools/modelDocumentation/authoring/FittedBaselineDocumentCompositionV1";
 import { MAIN_WIRE_FITTING_SEED_V1 } from "@/analysis/registry/MainWireFittingSeedV1";
 import hfref from "@/studio/presentation/modelDocumentation/packages/hfref-static-case-document-v4.index.json";
-import baseline73 from "@/studio/presentation/modelDocumentation/packages/standard73-document-v1.index.json";
-import hfref73 from "@/studio/presentation/modelDocumentation/packages/standard73-hfref-document-v1.index.json";
+import baseline73 from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.index.json";
+import hfref73 from "@/studio/presentation/modelDocumentation/packages/standard73-hfref-document-v2.index.json";
 
 function renderRoute(modelId: string, surfaceReleaseId: string, locale: "ja" | "en" = "ja", view?: "guide" | "presets") {
   return new Promise<string>((resolve, reject) => {
@@ -100,7 +100,7 @@ describe("current and historical model documentation", () => {
     expect(saved.views.en.records[1].label).toContain("inherited");
     expect(historical.identity.releaseStatus).toBe("local-candidate-not-registered");
     expect(resolveRegisteredModelLaunchCheckpointV1(historical.identity.modelId, historical.scientificRecord.measurements.fixtureIdentity)).toBeUndefined();
-    expect(REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1.map(o => o.label)).toEqual(["Standard 72", "Standard 71", "HFrEF · 慢性左室拡大型", "Standard 73", "Standard 73 · HFrEF"]);
+    expect(REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1.map(o => o.label)).toEqual(["Standard 73", "Standard 73 · HFrEF", "Standard 72", "Standard 71", "HFrEF · 慢性左室拡大型"]);
   });
 
   it.each(["ja", "en"] as const)("renders current and historical documents in %s without substituting identities", async locale => {
@@ -205,10 +205,10 @@ describe("separate model and preset reader, bound to preserved records", () => {
   });
   it("groups by exact model and Surface, not disease name or creation-time candidate status", () => {
     const current = currentModelReadingEntryV1()!;
-    expect(current.identity.modelId).toBe(saved.identity.modelId);
+    expect(current.identity.modelId).toBe(baseline73.identity.modelId);
     expect(current.state).toBe("current");
     expect(saved.identity.releaseStatus).toBe("local-candidate-not-registered");
-    expect(compatibleReadingEntriesV1(current).map(e => e.presetLabel.ja)).toEqual(["baseline"]);
+    expect(compatibleReadingEntriesV1(current).map(e => e.presetLabel.ja)).toEqual(["baseline", "HFrEF · 慢性左室拡大型"]);
     expect(modelReadingPresetLabelV1(current, "ja")).toBe("baseline・プリセット");
     const disease = MODEL_READING_ENTRIES_V1.find(e => e.documentId === hfrefArchive.documentId)!;
     expect(disease.state).toBe("research");
@@ -226,16 +226,19 @@ describe("separate model and preset reader, bound to preserved records", () => {
     expect(entries[0].capture).toBe(baseline.capture);
     expect(entries[1].capture).toBe(startup);
     expect(workbenchReferencePresetsV1({ modelId: baseline.modelId, baseline, startup: baseline.capture, supplied: [], loadedLabel: "loaded", loadedDescription: "" })).toEqual([baseline]);
+    expect(workbenchReferencePresetsV1({ modelId: baseline.modelId, baseline, supplied: [baseline], loadedLabel: "loaded", loadedDescription: "" })).toEqual([baseline]);
+    expect(() => workbenchReferencePresetsV1({ modelId: baseline.modelId, baseline,
+      supplied: [{ ...baseline, capture: startup }], loadedLabel: "loaded", loadedDescription: "" })).toThrow(/Conflicting captures/);
     // A research composition supplies its own explicitly identified baseline,
     // not the selected production model's baseline or a relabeled loaded state.
     expect(workbenchReferencePresetsV1({ modelId: baseline.modelId, startup: baseline.capture, supplied: [baseline], loadedLabel: "loaded", loadedDescription: "" })).toEqual([baseline]);
   });
-  it("groups the final local baseline and HFrEF under one model without replacing the current release", () => {
-    expect(currentModelReadingEntryV1()?.identity.modelId).toBe(client.manifest.modelId);
+  it("groups the public baseline and HFrEF under the current model", () => {
+    expect(currentModelReadingEntryV1()?.identity.modelId).toBe(baseline73.identity.modelId);
     const baseline = MODEL_READING_ENTRIES_V1.find(e => e.documentId === baseline73.documentId)!;
     const disease = MODEL_READING_ENTRIES_V1.find(e => e.documentId === hfref73.documentId)!;
     expect(baseline.presetKind).toBe("baseline"); expect(disease.presetKind).toBe("case");
-    expect(baseline.state).toBe("research"); expect(disease.state).toBe("research");
+    expect(baseline.state).toBe("current"); expect(disease.state).toBe("current");
     expect(baseline.modelLabel).toEqual(disease.modelLabel);
     expect(compatibleReadingEntriesV1(disease).map(e => e.documentId)).toEqual([baseline73.documentId, hfref73.documentId]);
     expect(resolveSavedModelDocumentIndexV1(baseline.identity.modelId, baseline.identity.surfaceReleaseId)?.documentId).toBe(baseline.documentId);

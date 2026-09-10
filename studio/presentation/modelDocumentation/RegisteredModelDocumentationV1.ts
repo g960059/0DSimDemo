@@ -12,7 +12,7 @@ export type RegisteredModelDisclosureV1 = Readonly<{
   documentation: RegisteredModelDocumentationIdentityV1 | null;
   badgeLabel: string;
   shortLabel: string | null;
-  limitationsTranslationKey: "modelLimitations.items" | "modelLimitations.standard71Items" | "modelLimitations.standard72Items";
+  limitationsTranslationKey: "modelLimitations.items" | "modelLimitations.standard71Items" | "modelLimitations.standard72Items" | "modelLimitations.staticAnatomyItems";
 }>;
 
 /** Historical document availability never admits an executable or baseline. */

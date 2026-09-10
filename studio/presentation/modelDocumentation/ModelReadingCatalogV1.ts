@@ -5,13 +5,13 @@ import type { Locale } from "@/localeRouting";
 /** Current use is catalog metadata, not a rewrite of an archive's creation status. */
 export const MODEL_READING_ENTRIES_V1 = SAVED_MODEL_DOCUMENT_CATALOG_V1.map(entry => {
   const isCase = "caseOnly" in entry && entry.caseOnly;
-  const research = isCase || "research" in entry && entry.research;
+  const research = "research" in entry && entry.research;
   const modelLabel = "modelLabel" in entry ? entry.modelLabel : entry.label;
-  const current = entry.document.documentId === selection.document.documentId
-    && entry.document.contentSha256 === selection.document.contentSha256
-    && entry.document.identity.modelId === selection.modelId
+  const current = entry.document.identity.modelId === selection.modelId
     && entry.document.identity.surfaceReleaseId === selection.surfaceReleaseId
-    && entry.document.identity.baselineId === selection.baselineId;
+    && (isCase || entry.document.documentId === selection.document.documentId
+      && entry.document.contentSha256 === selection.document.contentSha256
+      && entry.document.identity.baselineId === selection.baselineId);
   return { ...entry.document, state: research ? "research" as const : current ? "current" as const : "archived" as const,
     presetKind: isCase ? "case" as const : "baseline" as const,
     modelLabel: isCase && !("modelLabel" in entry) ? { ja: "HFrEF研究モデル", en: "HFrEF research model" } : { ja: modelLabel, en: modelLabel },
@@ -23,7 +23,7 @@ export const MODEL_READING_ENTRIES_V1 = SAVED_MODEL_DOCUMENT_CATALOG_V1.map(entr
 });
 
 export type ModelReadingEntryV1 = (typeof MODEL_READING_ENTRIES_V1)[number];
-export const currentModelReadingEntryV1 = () => MODEL_READING_ENTRIES_V1.find(e => e.state === "current");
+export const currentModelReadingEntryV1 = () => MODEL_READING_ENTRIES_V1.find(e => e.state === "current" && e.presetKind === "baseline");
 export const MODEL_READING_MODELS_V1 = MODEL_READING_ENTRIES_V1.filter((entry, index, all) =>
   all.findIndex(e => e.identity.modelId === entry.identity.modelId && e.identity.surfaceReleaseId === entry.identity.surfaceReleaseId) === index);
 export function compatibleReadingEntriesV1(entry: ModelReadingEntryV1) {

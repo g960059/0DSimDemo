@@ -1,10 +1,10 @@
 {
-  "baselineId": "standard72-reference-baseline-4935-hr70-v1",
-  "modelId": "circleheart.main-wire-integrated-transaction-v3.reference-baseline.standard-72",
-  "surfaceReleaseId": "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.measured-diastolic-workbench-v1",
-  "recordSha256": "5f598f70c3ac79359fdd42fd71de8c68474725601532662edf89282fa57a5744",
+  "baselineId": "standard73-baseline-v1",
+  "modelId": "circleheart.main-wire-integrated-transaction-v3.static-anatomy.standard-73",
+  "surfaceReleaseId": "circleheart.main-wire.surface.static-anatomy.standard-73.workbench-v1",
+  "recordSha256": "7aaebd75ec37b1d9290edab2529ab9083d549f4e1c4cd4c7b826a4b6b30f9fb3",
   "document": {
-    "documentId": "standard72-document-v1",
-    "contentSha256": "8d94da6d0c7c7edf88b5c277eda1aaa9cb613cca22fff158ed91f2c8fdcdcdc7"
+    "documentId": "standard73-document-v2",
+    "contentSha256": "e1f1fdfafb8898d25998fbe537daa8772e5f06f90e534624cc44ef88fc07dcf6"
   }
 }

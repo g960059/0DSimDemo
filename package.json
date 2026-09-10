@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "verify:registry:current": "vite-node --script tools/registry/verifyCurrentModelPublicationV1.ts",
     "fit:case": "vite-node --script tools/scientific/runMainWireCaseFittingV1.ts",
     "search:scientific:main-wire-standard72-v1": "vite-node --script tools/scientific/runMainWireStandard72FittingSearchV1.ts",
     "qualify:scientific:main-wire-standard72-v1": "vite-node --script tools/scientific/runMainWireStandard72QualificationV1.ts",

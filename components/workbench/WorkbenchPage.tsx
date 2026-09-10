@@ -2,7 +2,7 @@ import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 
 import { homeHref, myExperimentsHref, modelDocumentationHref } from "@/homeLinks";
-import hfrefDocument from "@/studio/presentation/modelDocumentation/packages/standard73-hfref-document-v1.index.json";
+import hfrefDocument from "@/studio/presentation/modelDocumentation/packages/standard73-hfref-document-v2.index.json";
 import { isLocale } from "@/localeRouting";
 import { isOpaqueExperimentIdV3 } from "@/studio/infrastructure/browser/StudioExperimentIdentityV3";
 import { WorkbenchSession } from "@/components/workbench/WorkbenchSession";
@@ -39,10 +39,10 @@ export function WorkbenchModelLabPage() {
   return <div className="flex h-full min-h-0 flex-col">
     <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-wb-border bg-wb-panel px-3 py-1.5 text-xs text-wb-text">
       {hfrefResearch && <details className="max-w-3xl">
-        <summary className="cursor-pointer">{ja ? "研究候補：慢性拡大型HFrEF" : "Research: chronic dilated HFrEF"}</summary>
+        <summary className="cursor-pointer">{ja ? "症例：慢性拡大型HFrEF" : "Case: chronic dilated HFrEF"}</summary>
         <p className="py-2">{ja
-          ? "「Presetから追加」で定常化済みのHFrEF候補を選べます。LV自由壁と共有中隔の収縮性低下に、参照形状・心筋量の変更を組み合わせた一例です。LV収縮性だけを下げても同じ症例にはなりません。右室自由壁の設定は同じですが、中隔や循環を介して右室の動きも変わります。慢性期の状態を表すための研究候補で、リモデリングの進行過程やAMIは再現していません。冠血管床と酸素需要の基準はbaselineのままで、増えた心筋への灌流や酸素供給の十分さは未検証です。Glantz τは推定不良のため未確定。正式採用前であり、操作後すぐの値は定常値ではありません。"
-          : "Add the settled HFrEF candidate from Presets. This case combines reduced LV free-wall and shared-septal contractility with changed reference geometry and tissue mass; lowering contractility alone does not reproduce it. RV free-wall inputs are unchanged, but septal and circulatory coupling affect RV behavior. It represents one chronic state, not evolving remodeling or AMI. The coronary bed and reference oxygen demand remain at baseline: perfusion and oxygen adequacy for the larger mass are unvalidated. Glantz tau is unresolved. Formal adoption is pending, and values immediately after an edit are transient."}</p>
+          ? "通常のworkbenchと同じbaseline・HFrEFを選べます。HFrEFは左室の形状・心筋量の変更と収縮性低下を組み合わせた一例で、収縮性だけを下げた状態とは異なります。リモデリングの進行過程やAMIを再現するものではありません。検証した範囲と限界は症例文書をご覧ください。"
+          : "The same baseline and HFrEF presets are available in the ordinary workbench. HFrEF combines changed LV geometry and tissue mass with reduced contractility; lowering contractility alone is different. It does not simulate evolving remodeling or AMI. See the case document for qualification scope and limitations."}</p>
       </details>}
       {hfrefResearch && !import.meta.env.PROD && <a target="_blank" rel="noreferrer"
         className="text-wb-accent underline underline-offset-2"

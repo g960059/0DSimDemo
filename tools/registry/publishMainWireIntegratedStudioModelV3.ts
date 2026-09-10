@@ -4,11 +4,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import clientDescriptor from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72ExactModelV1.client.json";
+  "@/data/model-releases/CurrentModelReleaseV1";
 import surface from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72SurfaceV1";
-import { prepareStandard72RegistryAdmissionV1, readStandard72AdmissionFilesV1,
-  assertStandard72AdmissionLockV1, STANDARD72_RELEASE_FILES_V1 } from "./Standard72RegistryAdmissionV1";
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
+import { prepareCurrentModelPublicationV1, CURRENT_MODEL_PUBLICATION_FILES_V1 } from "./CurrentModelRegistryAdmissionV1";
 import {
   assertStudioReleaseStageV1,
   type StudioReleaseStageV1,
@@ -23,11 +22,11 @@ const repositoryRoot = path.resolve(
 );
 const artifactPath = path.join(
   repositoryRoot,
-  STANDARD72_RELEASE_FILES_V1.artifact,
+  CURRENT_MODEL_PUBLICATION_FILES_V1.artifact,
 );
 const lockPath = path.join(
   repositoryRoot,
-  STANDARD72_RELEASE_FILES_V1.lock,
+  CURRENT_MODEL_PUBLICATION_FILES_V1.lock,
 );
 
 if (
@@ -167,14 +166,7 @@ export async function prepareMainWireModelPublicationV1(input: Readonly<{
   lockJson: string;
   expectedModelId: string;
 }>) {
-  const lockJson = input.lockJson;
-  const admitted = await prepareStandard72RegistryAdmissionV1(
-    readStandard72AdmissionFilesV1(repositoryRoot, { artifact: input.artifact,
-      clientJson: readFileSync(path.join(repositoryRoot, STANDARD72_RELEASE_FILES_V1.client), "utf8") }),
-    input.expectedModelId,
-  );
-  assertStandard72AdmissionLockV1(lockJson, admitted.lock);
-  return admitted;
+  return prepareCurrentModelPublicationV1(repositoryRoot, input);
 }
 
 function assertReleaseFilesCommitted(): void {

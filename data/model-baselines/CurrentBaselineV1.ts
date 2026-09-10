@@ -1,5 +1,5 @@
 import { cloneAndFreezeStudioJson } from "@/domain/json/CanonicalJson";
-import record from "./standard72-reference-baseline-4935-hr70-v1.json";
+import record from "./standard73-baseline-v1.json";
 import selection from "./current-baseline-selection-v1.json";
 
 // Local adoption metadata, not a new exact-model identity. Keep the selection

@@ -2,10 +2,10 @@ import { studioCanonicalJsonStringify } from "@/domain/json/CanonicalJson";
 import type { ScenarioCheckpointV2 } from "@/studio/contracts/v2/content";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import type { StudioModelWorkerReleaseTicketV2 } from "@/studio/contracts/v2/release";
-import descriptor from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72ExactModelV1.client.json";
+import descriptor from "@/data/model-releases/CurrentModelReleaseV1";
 import { CURRENT_BASELINE_V1 as adopted } from "@/data/model-baselines/CurrentBaselineV1";
-import lock from "@/studio/integrations/mainWireIntegratedV3/standard72-registry-admission-lock.json";
-import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72SurfaceV1";
+import lock from "@/data/model-releases/standard73/publication.json";
+import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 
 const equal = (a: unknown, b: unknown) => studioCanonicalJsonStringify(a) === studioCanonicalJsonStringify(b);
 
@@ -15,10 +15,11 @@ const checkpoint = adopted.capture.checkpoint;
 if (descriptor.manifest.modelId !== lock.modelId || adopted.modelId !== lock.modelId
   || adopted.artifactRevisionId !== lock.artifactRevisionId || adopted.artifactSha256 !== lock.artifactSha256
   || checkpoint.payload.checkpointSha256 !== adopted.evidence.launchCheckpointSha256
-  || checkpoint.acceptedTimeSec !== checkpoint.payload.acceptedTimeSec
-  || checkpoint.acceptedRevision !== checkpoint.payload.revision
+  || checkpoint.acceptedTimeSec !== checkpoint.payload.base.acceptedTimeSec
+  || checkpoint.acceptedRevision !== checkpoint.payload.base.revision
   || adopted.surfaceReleaseId !== surface.surfaceReleaseId
-  || surface.surfaceReleaseId !== lock.releaseQualification.surfaceReleaseId) {
+  || surface.surfaceReleaseId !== lock.surfaceReleaseId
+  || adopted.recordSha256 !== lock.baselineRecordSha256) {
   throw new Error("Current baseline package is not bound to its launch checkpoint");
 }
 

@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
 const defaultRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
-  "../studio/integrations/mainWireIntegratedV3/standard72-registry-admission-lock.json",
+  "../data/model-releases/standard73/publication.json",
   import.meta.url,
 ), "utf8")) as Readonly<{ modelId: string }>;
 

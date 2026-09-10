@@ -69,15 +69,15 @@ export async function composeBoundStaticCaseDocumentV1(input: { qualificationPat
   equations.constructionNote = saved.scientificRecord.equations.constructionNote;
   const measurements = { ...prior, modelId: bundle.manifest.modelId, surfaceReleaseId: surface.surfaceReleaseId,
     surfaceSeriesId: surface.surfaceSeriesId, baselineId: preset.presetId,
-    releaseStatus: "frozen-local-release-review-pending", reference, observations, baseline: baseline.values,
+    releaseStatus: "reviewed-release-package", reference, observations, baseline: baseline.values,
     construction: checkpoint.construction,
     settings: bundle.manifest.primitiveControlCatalog.map((s: { controlId: string }) => ({ ...s,
       observed: projection.controlValue(preset.capture.fixture, s.controlId) })),
     qualification: { sourceSha256: results[0]!.sourceSha256, evidenceSha256: recordSha256,
       referenceSha256: await hash(reference), artifactSha256: bundle.artifactSha256,
       artifactRevisionId: bundle.artifactRevisionId, checkpointSha256: checkpoint.checkpointSha256 },
-    registrationProposal: { ...prior.registrationProposal, status: "ready-for-independent-review",
-      requiredBeforePublicRegistration: ["Approve and pin the complete local package through the agreed 1/2 independent review.", "Explicit registry publication and active-default selection are separate actions."] },
+    registrationProposal: { ...prior.registrationProposal, status: "reviewed-release-package",
+      requiredBeforePublicRegistration: ["Explicit registry publication and active-default selection are separate from scientific qualification and clinical validation."] },
     historicalEvidence: { documentId: saved.documentId, contentSha256: saved.contentSha256,
       scope: "PV energetics, conditional passive curves, operation diagnostics and slow-tail experiments retain their original research identities. Rest comparison and launch are new own-model records." },
   };

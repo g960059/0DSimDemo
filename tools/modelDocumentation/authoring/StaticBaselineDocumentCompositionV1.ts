@@ -71,7 +71,7 @@ export async function composeStaticBaselineDocumentV1(input: {
   const measurements = {
     schemaId: "main-wire-static-baseline-documentation-v1", modelId: bundle.manifest.modelId,
     surfaceReleaseId: surface.surfaceReleaseId, surfaceSeriesId: surface.surfaceSeriesId, baselineId: preset.presetId,
-    releaseStatus: "local-candidate-not-registered", clinicalNormalityClaimed: false,
+    releaseStatus: "reviewed-release-package", clinicalNormalityClaimed: false,
     fixtureIdentity: preset.capture.fixture as typeof prior.measurements.fixtureIdentity,
     settings: bundle.manifest.primitiveControlCatalog.map((control: typeof prior.measurements.settings[number]) => {
       const value = projection.controlValue(preset.capture.fixture, control.controlId);
@@ -98,9 +98,9 @@ export async function composeStaticBaselineDocumentV1(input: {
   const content = { ...measurements, equations, title: "Standard 73",
     moduleIds: prior.modules.map(m => m.id), analysisMethods: methods(surface).capabilities,
     copy: {
-      release: { ja: "研究・教育用 · 固定形状モデル · 採用レビュー前", en: "Research and education · static anatomy · adoption review pending" },
-      changes: { ja: "baselineと慢性左室拡大型HFrEFの二つの固定形状を扱う候補です。このページは共通の数理モデルとbaselineを説明します。疾患の設定・評価は別の症例文書に保存しています。",
-        en: "This candidate supports two fixed anatomies: baseline and chronic LV-dilated HFrEF. This page describes the shared model and baseline; disease settings and assessments have a separate case document." },
+      release: { ja: "研究・教育用 · 固定形状モデル", en: "Research and education · static anatomy" },
+      changes: { ja: "baselineと慢性左室拡大型HFrEFの二つの固定形状を扱います。このページは共通の数理モデルとbaselineを説明します。疾患の設定・評価は別の症例文書に保存しています。",
+        en: "This model supports two fixed anatomies: baseline and chronic LV-dilated HFrEF. This page describes the shared model and baseline; disease settings and assessments have a separate case document." },
       provenance: { ja: "このモデル自身を2 ms・1 msで独立に初期状態から計算し、定常拍と固定制御下の低・高容量応答を評価しました。baselineは自身のcheckpointから起動し、ソースと実行物で1,000ステップの継続を照合しています。",
         en: "Own-model independent cold 2/1 ms runs assess rest and fixed-control low/high preload responses. Baseline starts from its own checkpoint, with 1,000-step source/artifact continuation checked." },
       assessment: { ja: "このbaseline自身の検証記録です。HFrEFに健常者の基準を当てはめた結果ではありません。正式採用・公開と臨床的妥当性の確立は別です。",

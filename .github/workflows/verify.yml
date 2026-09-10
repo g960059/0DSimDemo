@@ -86,7 +86,7 @@ jobs:
         run: npx vitest run __tests__/retainedExactModelPackageV1.test.ts
 
   standard72:
-    name: Standard72 registry admission
+    name: Current model registry admission
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -97,10 +97,12 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Bind retained scientific assessment and qualify deterministic executable
-        run: npm run verify:registry:main-wire-standard72-v1
+        run: npm run verify:registry:current
       - name: Verify admission, checkpoint, fitting and qualification contracts
         run: >-
           npx vitest run
+          __tests__/mainWireStaticCaseStudioV1.test.ts
+          __tests__/registeredModelLaunchBaselineV1.test.ts
           __tests__/mainWireStandard72RegistryAdmissionV1.test.ts
           __tests__/mainWireStandard72CheckpointContinuationV1.test.ts
           __tests__/mainWireStandard72ConstructionV1.test.ts

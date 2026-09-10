@@ -738,6 +738,13 @@
       "AoP/PAP are Ao/PA node pressures, without a displayed ZcQ addition or local pressure-recovery correction. They are not interchangeable with Doppler maximum-jet gradients.",
       "The baseline is a local candidate. Passing numerical/construction checks does not remove reference cautions or establish clinical normality or patient prediction."
     ],
+    "staticAnatomyItems": [
+      "For research and education, not a medical device or a basis for diagnosis, treatment or patient-specific decisions.",
+      "Pressures represent 0D compartments, not local jets, wave propagation/reflection or a specific catheter or cuff location.",
+      "AoP/PAP are Ao/PA node pressures. No display-only ZcQ addition or local pressure-recovery correction is applied; they are not interchangeable with Doppler peak-jet gradients.",
+      "Baseline and chronic LV-dilated HFrEF have their own fixed anatomy and saved state. They do not simulate evolving remodeling or regional myocardial infarction.",
+      "Qualification applies to the tested preset conditions, not every control combination or clinical normality. Model and case documents describe further limits, including coronary perfusion and oxygen-consumption interpretation."
+    ],
     "standard72Items": [
       "Pressures represent lumped 0D compartments, not local jets, travelling/reflected waves, or a specific catheter or cuff station.",
       "AoP/PAP are Ao/PA node pressures, without a displayed ZcQ addition or local pressure-recovery correction. They are not interchangeable with Doppler maximum-jet gradients.",
