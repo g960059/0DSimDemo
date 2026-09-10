@@ -45,7 +45,7 @@ test.beforeEach(async ({ page }, testInfo) => {
   }
   const modelLab = testInfo.title.includes("@model-lab");
   await page.goto(modelLab
-    ? `/ja/dev/model-lab${testInfo.title.includes("@beat-metrics") ? "?beatMetrics=1" : ""}`
+    ? "/ja/dev/model-lab"
     : "/ja/experiments/new");
   const root = page.getByTestId("v3-dockview-workbench");
   await expect(root).toBeVisible();
@@ -250,7 +250,7 @@ test("@desktop @mobile previous outputs remain visibly stale across controls and
   await expect(root).toHaveAttribute("data-playback", "playing");
 });
 
-test("@desktop @mobile @model-lab @beat-metrics selected beat outputs stay responsive and retain stale values", async ({ page }, testInfo) => {
+test("@desktop @mobile @beat-metrics selected beat outputs stay responsive and retain stale values", async ({ page }, testInfo) => {
   const root = page.getByTestId("v3-dockview-workbench");
   const mobile = (page.viewportSize()?.width ?? 1440) < 768;
   const deck = page.getByTestId("workbench-mobile-task-deck");
@@ -302,7 +302,7 @@ test("@desktop @mobile @model-lab @beat-metrics selected beat outputs stay respo
   expect(errors).toEqual([]);
 });
 
-test("@desktop @mobile @model-lab @beat-metrics filling outputs retain stale measurements without inventing unavailable durations", async ({ page }, testInfo) => {
+test("@desktop @mobile @beat-metrics filling outputs retain stale measurements without inventing unavailable durations", async ({ page }, testInfo) => {
   const root = page.getByTestId("v3-dockview-workbench");
   const mobile = (page.viewportSize()?.width ?? 1440) < 768;
   const deck = page.getByTestId("workbench-mobile-task-deck");

@@ -44,7 +44,7 @@ import {
 import currentClient from
   "@/data/model-releases/CurrentModelReleaseV1";
 import currentSurface from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 
 const TEST_ARTIFACT_REVISION_ID_V1 = "a".repeat(64);
 
@@ -104,7 +104,7 @@ describe("Studio Supabase boundary V1", () => {
     vi.stubGlobal("fetch", fetchV1);
     const directory = "studio/integrations/mainWireIntegratedV3/";
     expect(await loadModelSurfacePublicationManifestV1(directory
-      + "MainWireIntegratedStudioStaticCaseSurfaceV1.ts"))
+      + "MainWireIntegratedStudioStaticCaseSurfaceV2.ts"))
       .toEqual(currentSurface);
     await expect(loadModelSurfacePublicationManifestV1("../outside.json"))
       .rejects.toThrow(/inside the repository/);

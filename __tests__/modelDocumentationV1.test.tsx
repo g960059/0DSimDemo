@@ -18,8 +18,10 @@ import { modelDocumentationHref } from "@/homeLinks";
 import saved from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.json";
 import historical from "@/studio/presentation/modelDocumentation/packages/standard71-document-v1.json";
 import { MAIN_WIRE_MODEL_MODULES_V1, MAIN_WIRE_REFERENCE_CONSTRUCTION_MODULE_IDS_V1 } from "@/studio/presentation/modelDocumentation/MainWireModelModulesV1";
-import { resolveRegisteredModelDisclosureV1, resolveRegisteredModelDocumentationV1, REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
+import { resolveRegisteredModelDisclosureV1, resolveRegisteredModelDocumentationV1, resolveRegisteredPresetDocumentationV1, REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
+import beatSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
+import { assertAdditiveModelSurfaceUpgradeV1 } from "@/studio/contracts/v2/modelSurface";
 import client from "@/data/model-releases/CurrentModelReleaseV1";
 import { resolveRegisteredModelLaunchCheckpointV1 } from "@/studio/registry/RegisteredModelLaunchBaselineV1";
 import { resolveSavedModelDocumentIndexV1 } from "@/studio/presentation/modelDocumentation/SavedModelDocumentCatalogV1";
@@ -51,6 +53,25 @@ function renderRoute(modelId: string, surfaceReleaseId: string, locale: "ja" | "
 }
 
 describe("current and historical model documentation", () => {
+  it("reuses unchanged model/case qualification without relabelling it as beat-analysis validation", () => {
+    expect(() => assertAdditiveModelSurfaceUpgradeV1(surface, beatSurface)).not.toThrow();
+    expect({ ...beatSurface, surfaceReleaseId: surface.surfaceReleaseId,
+      predecessorSurfaceReleaseId: surface.predecessorSurfaceReleaseId,
+      derivedOutputCatalog: surface.derivedOutputCatalog }).toEqual(surface);
+    const reference = resolveRegisteredModelDocumentationV1(client.manifest.modelId, beatSurface.surfaceReleaseId)!;
+    expect(reference.surfaceReleaseId).toBe(surface.surfaceReleaseId);
+    expect(reference.documentId).toBe(saved.documentId);
+    // An archived package still never claims the new pair or new measurement definitions.
+    expect(resolveSavedModelDocumentIndexV1(client.manifest.modelId, beatSurface.surfaceReleaseId)).toBeNull();
+    expect(resolveRegisteredModelDisclosureV1(client.manifest.modelId, beatSurface.surfaceReleaseId).badgeLabel).toBe("MW 73");
+    for (const doc of [baseline73, hfref73]) {
+      const link = resolveRegisteredPresetDocumentationV1(client.manifest.modelId, beatSurface.surfaceReleaseId, doc.identity.baselineId)!;
+      expect(link).toMatchObject({ documentId: doc.documentId, surfaceReleaseId: doc.identity.surfaceReleaseId });
+      expect(resolveSavedModelDocumentIndexV1(link.modelId, link.surfaceReleaseId, link.documentId)?.contentSha256).toBe(doc.contentSha256);
+    }
+    expect(resolveRegisteredPresetDocumentationV1(client.manifest.modelId, beatSurface.surfaceReleaseId, "unknown")).toBeNull();
+    expect(resolveRegisteredModelDocumentationV1("model/unknown", beatSurface.surfaceReleaseId)).toBeNull();
+  });
   it("requires explicit case selection instead of substituting HFrEF for the static model baseline", () => {
     const { modelId, surfaceReleaseId } = hfref.identity;
     expect(resolveSavedModelDocumentIndexV1(modelId, surfaceReleaseId)).toBeNull();

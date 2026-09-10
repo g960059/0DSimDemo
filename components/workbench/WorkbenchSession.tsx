@@ -4,7 +4,6 @@ import { WorkbenchLastMeasuredOutputsV1 } from "./presentation/WorkbenchLastMeas
 import { registeredCurrentBaselinePresentationV1 } from "@/studio/presentation/CurrentBaselinePresentationV1";
 import { REGISTERED_CURRENT_MODEL_BASELINE_V1 } from "@/studio/registry/RegisteredCurrentModelBaselineV1";
 import { workbenchReferencePresetsV1 } from "./WorkbenchReferencePresetsV1";
-import { MODEL_READING_ENTRIES_V1 } from "@/studio/presentation/modelDocumentation/ModelReadingCatalogV1";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import {
   ArrowLeft,
@@ -101,12 +100,12 @@ import {
 import { isLocale } from "@/localeRouting";
 import {
   resolveRegisteredModelDisclosureV1,
+  resolveRegisteredPresetDocumentationV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
 import {
   loadStudioDefaultClientCompositionV2,
   loadStudioExperimentClientCompositionV2,
   loadStudioLocalCurrentClientCompositionV1,
-  loadStudioLocalBeatMetricsClientCompositionV1,
   loadStudioSnapshotClientCompositionV2,
   type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
@@ -742,9 +741,7 @@ export const WorkbenchSession = ({
                   sourceSnapshot.surfaceReleaseId,
                 )
               : modelLab
-                ? new URLSearchParams(location.search).get("beatMetrics") === "1"
-                  ? await loadStudioLocalBeatMetricsClientCompositionV1()
-                  : await loadStudioLocalCurrentClientCompositionV1()
+                ? await loadStudioLocalCurrentClientCompositionV1()
                 : await loadStudioDefaultClientCompositionV2();
       } catch (error) {
         if (
@@ -2989,10 +2986,9 @@ export const WorkbenchSession = ({
         scenarioBaseColors={surface?.scenarioColorSeeds ?? []}
         presets={scenarioPresets}
         presetDocumentationLinks={Object.fromEntries(scenarioPresets.flatMap(preset => {
-          const entry = MODEL_READING_ENTRIES_V1.find(e => e.identity.modelId === preset.modelId
-            && e.identity.surfaceReleaseId === surfaceReleaseIdRef.current && e.identity.baselineId === preset.presetId);
+          const entry = resolveRegisteredPresetDocumentationV1(preset.modelId, surfaceReleaseIdRef.current, preset.presetId);
           return entry ? [[preset.presetId, { href: modelDocumentationHref({ locale: resolvedLocale,
-            ...entry.identity, documentId: entry.documentId, view: "presets" }), label: resolvedLocale === "ja" ? "設定と検証" : "Settings & checks" }]] : [];
+            ...entry, view: "presets" }), label: resolvedLocale === "ja" ? "設定と検証" : "Settings & checks" }]] : [];
         }))}
         actionDisabledReasons={
           scenarioOperation === null

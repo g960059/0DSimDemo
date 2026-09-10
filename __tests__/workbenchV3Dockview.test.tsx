@@ -610,8 +610,7 @@ describe("V3 Dockview Workbench", () => {
   });
 
   it("keeps expected unresolved beat measurements in the tooltip without changing quality or inventing an initial value", async () => {
-    const { loadStudioLocalBeatMetricsClientCompositionV1 } = await import("@/studio/composition/StudioDefaultCompositionV2");
-    const { contract } = (await loadStudioLocalBeatMetricsClientCompositionV1()).modelSurface;
+    const { contract } = (await loadStudioLocalCurrentClientCompositionV1()).modelSurface;
     const defaultPane = createDefaultExperimentSurfaceV3(contract, "scenario/a").outputPanes[0]!;
     for (const locale of ["ja", "en"] as const) {
       const items = materializeWorkbenchOutputPresentationItemsV3({ contract, frame: null, locale,
