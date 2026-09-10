@@ -121,7 +121,7 @@ export function WorkbenchItemDescriptionPopoverV3({
             ref={popoverRef}
             id={descriptionId}
             role="tooltip"
-            className="fixed z-[120] block rounded-lg border border-wb-line bg-wb-floating px-3 py-2 text-[11px] font-normal leading-4 text-wb-text shadow-xl"
+            className="fixed z-[120] block whitespace-pre-line rounded-lg border border-wb-line bg-wb-floating px-3 py-2 text-[11px] font-normal leading-4 text-wb-text shadow-xl"
             data-placement={position.placement}
             data-testid="workbench-item-description-popover-v3"
             style={{

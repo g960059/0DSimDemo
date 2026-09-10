@@ -75,7 +75,7 @@ export function buildMainWireFillingFlowMetricsV1(samples: readonly Sample[]): M
   const nextEjection = nextAortic[0]!;
   const mitralTransitions = zeroTransitions(series(mvId, start, nextEjection.onset));
   const opening = mitralTransitions.find(event => event.rising && event.time > ejection.offset);
-  const closure = mitralTransitions.find(event => !event.rising && event.time > atrial);
+  const closure = mitralTransitions.filter(event => !event.rising && event.time > atrial).at(-1);
   const earlierClosure = mitralTransitions.filter(event => !event.rising && event.time < ejection.onset).at(-1);
   if (opening === undefined || closure === undefined || earlierClosure === undefined
     || opening.time >= atrial || closure.time >= nextEjection.onset
@@ -83,9 +83,13 @@ export function buildMainWireFillingFlowMetricsV1(samples: readonly Sample[]): M
     return finish("missing-or-overlapping-mitral-filling-landmarks");
   }
   const early = series(mvId, opening.time, atrial);
-  const late = series(mvId, atrial, closure.time);
+  // Observe the entire following A region. The first closure can belong to an
+  // extra pulse and must not hide a second pulse or a still-open final episode.
+  const late = series(mvId, atrial, nextEjection.onset);
+  const lateEpisodes = episodes(late);
   const e = resolvedPeak(early);
-  const a = resolvedPeak(late);
+  const a = lateEpisodes.length <= 1 && late.at(-1)!.value <= tolerance
+    ? resolvedPeak(late) : null;
   if (e !== null && a !== null) values[ids.mitralPeakEToA] = e.value / a.value;
   else reasons[ids.mitralPeakEToA] = "E-or-A-peak-unresolved-or-fused";
 
@@ -93,7 +97,7 @@ export function buildMainWireFillingFlowMetricsV1(samples: readonly Sample[]): M
   if (dt !== null) values[ids.mitralDecelerationTimeMs] = dt * 1000;
   else reasons[ids.mitralDecelerationTimeMs] = "E-downstroke-not-resolved-before-atrial-activation";
 
-  const aEpisode = a === null ? undefined : episodes(late).find(p => p.onset < a.time && p.offset > a.time);
+  const aEpisode = a === null ? undefined : lateEpisodes.find(p => p.onset < a.time && p.offset > a.time);
   if (aEpisode !== undefined) values[ids.mitralADurationMs] = (aEpisode.offset - aEpisode.onset) * 1000;
   else reasons[ids.mitralADurationMs] = "A-wave-has-no-separate-observed-zero-flow-onset-and-offset";
 

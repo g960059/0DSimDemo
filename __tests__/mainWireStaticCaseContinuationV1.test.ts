@@ -79,7 +79,9 @@ describe("anatomy-bearing development continuation (not yet a public preset)", (
     expect(source.observe().completedBeatMetrics).not.toBeNull();
     expect(resumed!.observe().completedBeatMetrics).toEqual(source.observe().completedBeatMetrics);
     expect(await resumed!.checkpoint()).toEqual(await source.checkpoint());
-  }, 30_000);
+  // Checkpoint equality is not a speed gate. The 1-ms replay reached 31.5 s on
+  // shared CI; retain every tick/assertion and the separate suite wall budget.
+  }, 60_000);
 
   it("binds the full resolved anatomy and inputs, rejecting relabeling even after a new outer digest", async () => {
     const source = warm(), saved = await source.checkpoint();

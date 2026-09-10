@@ -42,6 +42,7 @@ export class MainWireFillingFlowCollectorV1 implements PresentationAnalysisColle
       const sample: Sample = { inputEpoch: frame.inputEpoch, acceptedRevision: batch.acceptedRevisions[row]!,
         acceptedTimeSec: batch.acceptedTimesSec[row]!, values: Object.fromEntries(requiredIds.map((id, i) => {
           const column = columns[i]!, offset = row * batch.outputIds.length + column;
+          // Require an assessed value, not merely availability (code 2 is not-assessed).
           return [id, column < 0 || batch.outputStates[offset]! >= 2 ? null : batch.outputValues[offset]!];
         })) };
       if (requiredIds.some(id => !Number.isFinite(sample.values[id])) || sample.values[phaseId]! < 0 || sample.values[phaseId]! >= 1 + 1e-12) {

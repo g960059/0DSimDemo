@@ -6,7 +6,7 @@
  */
 
 export const FAST_SUITE_FILE_BUDGET = 100;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 60;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 61;
 
 export const fastTests = [
   "__tests__/mainWireCardiacCycleMetricsV1.test.ts",
@@ -120,6 +120,7 @@ export const fastTests = [
  * on a two-core runner.
  */
 export const prSmokeTests = [
+  "__tests__/mainWireCardiacCycleMetricsV1.test.ts",
   "__tests__/mainWireStaticCaseStudioV1.test.ts",
   "__tests__/mainWireStaticCaseContinuationV1.test.ts",
   "__tests__/mainWirePreloadReserveSessionV1.test.ts",

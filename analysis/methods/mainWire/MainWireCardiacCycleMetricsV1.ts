@@ -199,12 +199,14 @@ export function buildMainWireCardiacCycleMetricsV1(
     selected.closureTimeSec,
   );
   const ictSec = mitralClosureTimeSec === null
+    || !hasNoForwardValveFlowV1(cycle, mitralClosureTimeSec, selected.openingTimeSec)
     ? null
     : nonnegativeIntervalV1(
         mitralClosureTimeSec,
         selected.openingTimeSec,
       );
   const ivrtSec = mitralOpeningTimeSec === null
+    || !hasNoForwardValveFlowV1(cycle, selected.closureTimeSec, mitralOpeningTimeSec)
     ? null
     : nonnegativeIntervalV1(
         selected.closureTimeSec,
@@ -333,6 +335,10 @@ function validateAcceptedSamplesV1(
     const phase = requiredValueV1(sample, PHASE_OUTPUT_ID_V1);
     if (phase < 0 || phase >= 1 + 1e-12) {
       throw new Error(`Cardiac-cycle sample ${index} phase is outside [0, 1)`);
+    }
+    const previousPhase = index === 0 ? null : requiredValueV1(samples[index - 1]!, PHASE_OUTPUT_ID_V1);
+    if (previousPhase !== null && phase <= previousPhase && previousPhase - phase <= .5) {
+      throw new Error("Cardiac-cycle phase must increase between regular-sinus wraps");
     }
     previousRevision = sample.acceptedRevision;
     previousTimeSec = sample.acceptedTimeSec;
@@ -544,6 +550,23 @@ function firstOpeningAfterV1(
     }
   }
   return null;
+}
+
+/** Nearest crossings alone do not establish a closed interval: either valve
+ * may have reopened in between. Include interpolated endpoints, since mitral
+ * flow may already be present at aortic opening or closure. */
+function hasNoForwardValveFlowV1(
+  points: readonly AnalysisPointV1[],
+  startTimeSec: number,
+  endTimeSec: number,
+): boolean {
+  if (endTimeSec < startTimeSec - TIME_TOLERANCE_SEC_V1) return false;
+  return [MITRAL_FLOW_OUTPUT_ID_V1, AORTIC_FLOW_OUTPUT_ID_V1].every(outputId => {
+    const maximum = endTimeSec > startTimeSec
+      ? maximumValueV1(points, outputId, startTimeSec, endTimeSec)
+      : pointValueAtTimeV1(points, outputId, startTimeSec);
+    return maximum <= 1e-9; // mL/s: zero-crossing interpolation roundoff only.
+  });
 }
 
 function pressureRateExtremaV1(

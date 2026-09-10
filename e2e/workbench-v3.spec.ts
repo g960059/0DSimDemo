@@ -241,6 +241,7 @@ test("@desktop @mobile previous outputs remain visibly stale across controls and
   await page.screenshot({ path: testInfo.outputPath("stale-outputs.png") });
   await output.getByRole("button").click();
   await expect(page.getByRole("tooltip")).toContainText("前回の測定値");
+  await expect(page.getByRole("tooltip")).toHaveCSS("white-space", "pre-line");
   await page.keyboard.press("Escape");
   await playback.click();
   await expect(output).toHaveAttribute("data-output-stale", "false");
@@ -331,6 +332,7 @@ test("@desktop @mobile @model-lab @beat-metrics filling outputs retain stale mea
   await aDuration.getByRole("button").click();
   await expect(page.getByRole("tooltip")).toContainText("開始点を推定せず");
   await expect(page.getByRole("tooltip")).toContainText("新しい測定値を得られていません");
+  await expect(page.getByRole("tooltip")).toHaveCSS("white-space", "pre-line");
   await page.keyboard.press("Escape");
   const ratio = page.locator(`[data-output-id="${measuredIds[0]}"]`), playback = page.getByTestId("v3-playback-toggle");
   await playback.click(); await expect(root).toHaveAttribute("data-playback", "paused");

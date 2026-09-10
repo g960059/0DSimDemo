@@ -83,6 +83,22 @@ describe("bounded presentation analysis collector", () => {
     expect(collector.ingest(sampleBatch(resumed))?.payload).toMatchObject({ status: "available" });
   });
 
+  it.each(["flat", "dip"] as const)("invalidates a %s phase immediately instead of treating it as a cycle wrap", mode => {
+    const collector = new MainWireCardiacCycleCollectorV1();
+    const source = samplesV1();
+    expect(collector.ingest(sampleBatch(source))?.payload).toMatchObject({ status: "available" });
+    const last = source.at(-1)!;
+    const phaseId = MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1[0];
+    const invalid = { ...last, acceptedRevision: last.acceptedRevision + 1,
+      acceptedTimeSec: last.acceptedTimeSec + .002,
+      values: { ...last.values, [phaseId]: last.values[phaseId]! - (mode === "dip" ? .004 : 0) } };
+    expect(() => buildMainWireCardiacCycleMetricsV1([...source, invalid])).toThrow(/phase must increase/);
+    expect(collector.ingest(sampleBatch([invalid]))?.payload).toMatchObject({ status: "unavailable" });
+    const resumed = source.map(s => ({ ...s, acceptedRevision: s.acceptedRevision + invalid.acceptedRevision + 1,
+      acceptedTimeSec: s.acceptedTimeSec + invalid.acceptedTimeSec + .002 }));
+    expect(collector.ingest(sampleBatch(resumed))?.payload).toMatchObject({ status: "available" });
+  });
+
   it("keeps analysis outside exact frames and fails closed across identity/epoch boundaries", () => {
     const samples = samplesV1(), batch = sampleBatch(samples);
     const analysis = new MainWireCardiacCycleCollectorV1().ingest(batch)!;
@@ -175,6 +191,25 @@ describe("Flow-event timing and windowed pressure-rate analysis", () => {
     expect(result.values[ids.leftVentricularIsovolumicContractionTimeMs]).toBeNull();
     expect(result.values[ids.leftVentricularIsovolumicRelaxationTimeMs]).toBeNull();
     expect(result.values[ids.leftVentricularMyocardialPerformanceIndex]).toBeNull();
+  });
+
+  it.each(["ICT", "IRT"] as const)("rejects %s spanning forward mitral flow, while retaining independent measurements", interval => {
+    const result = buildMainWireCardiacCycleMetricsV1(samplesV1({
+      mitralFlow: phase => triangularPulseV1(phase, .02, .08, .18, 100)
+        + triangularPulseV1(phase, .6, .7, .9, 200)
+        + (interval === "ICT" ? triangularPulseV1(phase, .19, .205, .22, 50)
+          : triangularPulseV1(phase, .48, .51, .54, 50)),
+    }));
+    expect(result.status).toBe("available");
+    const ids = MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1;
+    const rejected = interval === "ICT" ? ids.leftVentricularIsovolumicContractionTimeMs
+      : ids.leftVentricularIsovolumicRelaxationTimeMs;
+    const retained = interval === "ICT" ? ids.leftVentricularIsovolumicRelaxationTimeMs
+      : ids.leftVentricularIsovolumicContractionTimeMs;
+    expect(result.values[rejected]).toBeNull();
+    expect(result.values[ids.leftVentricularMyocardialPerformanceIndex]).toBeNull();
+    expect(result.values[retained]).toBeCloseTo(interval === "ICT" ? 100 : 20, 9);
+    expect(result.values[ids.leftVentricularMaximumPressureRate10Ms]).toBeGreaterThan(0);
   });
 
   it("fails closed when more than one material forward ejection is present", () => {
@@ -296,6 +331,26 @@ describe("volumetric mitral and pulmonary venous filling observations", () => {
     expect(result.values[fillingIds.mitralDecelerationTimeMs]).toBeNull();
     if (mode !== "short-downstroke") expect(result.values[fillingIds.mitralPeakEToA]).toBeNull();
     expect(result.values[fillingIds.pulmonaryDiastolicPeakFlowMlPerSec]).toBeCloseTo(100, 9);
+  });
+
+  it.each([false, true])("rejects multiple A episodes over the whole late-filling interval (larger first: %s)", largerFirst => {
+    const result = fillingMetrics(fillingSamples((p, _t, mv) => p < .22
+      ? triangularPulseV1(p, .02, .06, .1, largerFirst ? 100 : 20)
+        + triangularPulseV1(p, .12, .15, .18, largerFirst ? 20 : 100)
+      : mv));
+    for (const id of [fillingIds.mitralPeakEToA, fillingIds.mitralADurationMs, fillingIds.pulmonaryArMinusADurationMs])
+      expect(result.values[id], id).toBeNull();
+    expect(result.values[fillingIds.mitralDecelerationTimeMs]).toBeCloseTo(200, 9);
+    expect(result.values[fillingIds.pulmonaryPeakSToD]).toBeCloseTo(.8, 9);
+    expect(result.values[fillingIds.pulmonaryArDurationMs]).toBeCloseTo(180, 9);
+  });
+
+  it("does not hide a reopened A-region pulse still flowing at the following ejection", () => {
+    const result = fillingMetrics(fillingSamples((p, time, mv) => mv
+      + (time >= 2 ? triangularPulseV1(p, .19, .205, .24, 40) : 0)));
+    expect(result.values[fillingIds.mitralPeakEToA]).toBeNull();
+    expect(result.values[fillingIds.mitralADurationMs]).toBeNull();
+    expect(result.values[fillingIds.pulmonaryArMinusADurationMs]).toBeNull();
   });
 
   it.each(["absent", "sustained"])("leaves Ar unavailable when %s instead of assigning zero or systolic reversal", mode => {

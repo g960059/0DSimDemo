@@ -54,6 +54,7 @@ export class MainWireCardiacCycleCollectorV1 implements PresentationAnalysisColl
         values: Object.fromEntries(requiredIds.map((id, index) => {
           const column = columns[index]!;
           const offset = row * batch.outputIds.length + column;
+          // Codes 0/1 are assessed values; available-but-not-assessed (2) is not an observation.
           return [id, column < 0 || batch.outputStates[offset]! >= 2
             ? null : batch.outputValues[offset]!];
         })),
@@ -65,12 +66,14 @@ export class MainWireCardiacCycleCollectorV1 implements PresentationAnalysisColl
       }
       let previous = this.#samples.at(-1);
       if (previous && (sample.acceptedRevision <= previous.acceptedRevision
-        || Math.abs(sample.acceptedTimeSec - previous.acceptedTimeSec - 0.002) > 2e-12)) {
+        || Math.abs(sample.acceptedTimeSec - previous.acceptedTimeSec - 0.002) > 2e-12
+        || (sample.values[phaseId]! <= previous.values[phaseId]!
+          && previous.values[phaseId]! - sample.values[phaseId]! <= .5))) {
         invalidate(sample);
         previous = undefined;
       }
       this.#samples.push(sample);
-      if (previous && sample.values[phaseId]! < previous.values[phaseId]!) {
+      if (previous && previous.values[phaseId]! - sample.values[phaseId]! > .5) {
         if (this.#hasBoundary) {
           // Invalid observations must not stop or alter the numerical runtime.
           let result: Result;
