@@ -15,6 +15,7 @@ import { runMainWireStaticBaselineQualificationGridV1 as qualifyGrid,
   type MainWireStaticBaselineQualificationGridV1 as QualificationGrid } from "@/analysis/methods/mainWire/MainWireStaticBaselineQualificationV1";
 import { observeMainWireBaselineV2 as observeNative } from "@/analysis/methods/mainWire/MainWireBaselineObservationV2";
 import { measureMainWireRelaxationTauV1 as measureTau } from "@/analysis/methods/mainWire/MainWireRelaxationTauV1";
+import { reobserveMainWireCaseV1 as reobserve } from "@/tools/scientific/reobserveMainWireCaseV1";
 
 // Test token, not a source-authenticated research run. The CLI owns real snapshots.
 const sourceSha256 = "a".repeat(64), hfref = "hfref-chronic-dilated-v1";
@@ -99,8 +100,11 @@ describe("one finite-case fitting path with independent reference assessment", (
     const index = preceding.findIndex(s => s.acceptedTimeSec > ed && s.valveFlowMlPerSec.TV === 0);
     expect(index).toBeGreaterThanOrEqual(0);
     const changed = preceding.map((s, i) => i === index ? { ...s, valveFlowMlPerSec: { ...s.valveFlowMlPerSec, TV: .01 } } : s);
-    expect(assess(hfref, { diagnostics: { ...d, timingAndInletPrecedingTrace: changed } }))
-      .toMatchObject({ status: "unavailable", issue: { code: "overlapping-valve-flow", side: "right" } });
+    const observed = assess(hfref, { diagnostics: { ...d, timingAndInletPrecedingTrace: changed } });
+    expect(observed).toMatchObject({ status: "held", observation: { measurementReview: { status: "required" } } });
+    if (observed.referenceId !== hfref || observed.status === "unavailable") throw new Error("Expected partial HFrEF observation");
+    expect(observed.observation.values.ictMs).not.toBeNull();
+    expect(observed.observation.measurementReview.issues.some(i => i.side === "right")).toBe(true);
   });
   it("owns request inputs and warm-starts nearby parameters without mutating the anchor", async () => {
     const candidateInputs = { ...structuredClone(disease.candidateInputs),
@@ -141,6 +145,21 @@ describe("one finite-case fitting path with independent reference assessment", (
     expect(rerun.result.qualification.publicPromotionAuthorized).toBe(false);
     expect(JSON.stringify(old)).toBe(before);
   }, 20_000);
+  it("binds offline re-observation separately from the numerical source and executes no new steps", async () => {
+    const before = JSON.stringify(disease), analysisSource = "b".repeat(64);
+    const result = await reobserve(disease, analysisSource);
+    expect(result.numericalSourceSha256).toBe(sourceSha256);
+    expect(result.analysisSourceSha256).toBe(analysisSource);
+    expect(result.sourceResultSha256).toBe(disease.resultSha256);
+    expect(result.checkpointSha256).toBe(disease.execution.checkpoint.checkpointSha256);
+    expect(result.previousObservationContext).toEqual(disease.referenceContext);
+    expect(result.cycleObservation.methodId).toBe("main-wire-valve-cycle-observation-v3");
+    expect(result.numericalStepsExecuted).toBe(0); expect(result.publicPromotionAuthorized).toBe(false);
+    const { reobservationSha256, ...body } = result;
+    expect(await hash(body)).toBe(reobservationSha256); expect(JSON.stringify(disease)).toBe(before);
+    await expect(reobserve(disease, "invented-source")).rejects.toThrow(/digest/);
+    await expect(reobserve({ ...disease, resultSha256: "f".repeat(64) }, analysisSource)).rejects.toThrow(/digest/);
+  });
   it("can use the fitted checkpoint in the real exact adapter without baseline-state substitution", async () => {
     const c = disease.candidateInputs;
     const direct = await Session.restore(disease.execution.checkpoint, c.anatomyId, c.hemodynamicResearchInputs, 1, c.mechanismResearchInputs);
@@ -170,14 +189,20 @@ describe("one finite-case fitting path with independent reference assessment", (
     expect(await run({ referenceId: hfref, sourceSha256, candidateInputs: c, abortSignal: AbortSignal.abort() }))
       .toMatchObject({ status: "operational-interrupted" });
   });
-  it("retains converged raw evidence when a native event assumption makes assessment unavailable", async () => {
+  it("retains converged raw and valid LV evidence while holding a case with pre-ejection RV reflow", async () => {
     const c = disease.candidateInputs;
     const result = await run({ referenceId: hfref, sourceSha256, reuse: disease,
       candidateInputs: { ...c, hemodynamicResearchInputs: { ...c.hemodynamicResearchInputs, totalBloodVolumeMl: 4785 } } });
     expect(result.status).toBe("saved-result-ready");
     if (result.status !== "saved-result-ready") throw new Error(JSON.stringify(result));
     expect(result.result.execution.classification.status).toBe("period1-converged");
-    expect(result.result.rest).toMatchObject({ status: "unavailable", issue: { code: "overlapping-valve-flow", side: "right" } });
+    expect(result.result.rest).toMatchObject({ status: "held", observation: { measurementReview: {
+      status: "required", issues: [{ code: "pre-ejection-inlet-reopening", side: "right" }] } } });
+    if (result.result.rest.referenceId !== hfref || result.result.rest.status === "unavailable") throw new Error("Expected partial HFrEF observation");
+    expect(result.result.rest.observation.values.ictMs).not.toBeNull();
+    expect(result.result.rest.observation.values.rvIctMs).not.toBeNull();
+    const d = result.result.execution.diagnostics;
+    expect(() => observeNative({ completedBeat: d.completedBeat, samples: observationTrace(d) })).toThrow(/recurs/);
     expect(result.result.qualification.publicPromotionAuthorized).toBe(false);
     await expect(read(result.result)).resolves.toEqual(result.result);
     // Assessment may report known measurement failures, not hide programming errors.

@@ -20,7 +20,7 @@ import { measureMainWireIntegratedModelStandard70CandidateEvidenceV1 as measure,
   mainWireStandard70TimingAndInletObservationTraceV1 as observationTrace } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
 import { observeMainWireStandard70TimingAndInletV2 as timing } from "./MainWireStandard70BaselineAssessmentV2";
 import { MAIN_WIRE_BASELINE_OBSERVATION_V2_ID, MainWireBaselineObservationUnavailableErrorV2 } from "./MainWireBaselineObservationV2";
-import { observeMainWireHfrefCaseV2 as observeHfref, MAIN_WIRE_HFREF_CASE_OBSERVATION_V2_ID } from "./MainWireHfrefCaseObservationV2";
+import { observeMainWireHfrefCaseV3 as observeHfref, MAIN_WIRE_HFREF_CASE_OBSERVATION_V3_ID } from "./MainWireHfrefCaseObservationV3";
 import { assessMainWireHfrefDilatedRestV1 as assessHfref } from "@/analysis/policies/mainWire/MainWireHfrefDilatedReferenceV1";
 import baselineEvidence from "@/data/physiology/main-wire-prospective-reference-evidence-v1.json";
 
@@ -49,7 +49,7 @@ export function ownMainWireStaticCaseCandidateV1(input: MainWireStaticCaseCandid
 function context(referenceId: MainWireCaseReferenceIdV1) {
   if (referenceId !== "baseline" && referenceId !== "hfref-chronic-dilated-v1") throw new Error("Unsupported case reference");
   const reference = resolveReference(referenceId);
-  return { reference, methodId: referenceId === "baseline" ? MAIN_WIRE_BASELINE_OBSERVATION_V2_ID : MAIN_WIRE_HFREF_CASE_OBSERVATION_V2_ID,
+  return { reference, methodId: referenceId === "baseline" ? MAIN_WIRE_BASELINE_OBSERVATION_V2_ID : MAIN_WIRE_HFREF_CASE_OBSERVATION_V3_ID,
     assessmentPolicy: referenceId === "baseline" ? { policy: baselinePolicy, evidence: baselineEvidence } : reference.target };
 }
 export async function buildMainWireStaticCaseFittingPolicyIdentityV1(referenceId: MainWireCaseReferenceIdV1) {
@@ -67,7 +67,8 @@ export function assessMainWireStaticCaseRestV1(referenceId: MainWireCaseReferenc
     if (referenceId === "hfref-chronic-dilated-v1") {
       const observation = observeHfref(d.completedBeat, observationTrace(d));
       const assessment = assessHfref(observation);
-      return { referenceId, status: assessment.screenPassed ? "passed" as const : "held" as const, observation, assessment };
+      return { referenceId, status: assessment.screenPassed && observation.measurementReview.status === "clear"
+        ? "passed" as const : "held" as const, observation, assessment };
     }
     const measured = measure({ ...d, timingAndInletObserver: timing });
     const checks = buildChecks(measured, true);

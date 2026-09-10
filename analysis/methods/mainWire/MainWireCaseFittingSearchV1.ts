@@ -59,9 +59,12 @@ export function scoreMainWireCaseFittingResultV1(result: Outcome): MainWireCaseS
   if (rest.status === "unavailable") return unknown(rest.status, [rest.issue.code]);
   if (rest.referenceId === "hfref-chronic-dilated-v1") {
     const a = rest.assessment;
-    return { status: rest.status, rank: a.ranking, targetsMet: a.screenPassed && a.preferredTargetsMet,
+    const review = rest.observation.measurementReview;
+    return { status: rest.status, rank: review.status === "clear" ? a.ranking : null,
+      targetsMet: rest.status === "passed" && a.preferredTargetsMet,
       observations: a.targets.map(t => ({ metricId: t.metricId, actual: t.actual, lower: t.lower, upper: t.upper, scale: t.upper - t.lower })),
-      holds: [...a.screen.filter(s => s.status !== "passed").map(s => `screen:${s.metricId}:${s.status}`),
+      holds: [...review.issues.map(i => `measurement:${i.side}:${i.code}`),
+        ...a.screen.filter(s => s.status !== "passed").map(s => `screen:${s.metricId}:${s.status}`),
         ...a.targets.filter(s => s.status !== "passed").map(s => `target:${s.metricId}:${s.status}`)] };
   }
   const a = rest.assessment;

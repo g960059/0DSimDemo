@@ -71,6 +71,13 @@ bases before treating differences as physiological residuals. A presentation
 windowed pressure rate and native accepted-step extrema are different estimands;
 neither matching their numbers nor meeting a new display metric is a fitting goal.
 
+Keep measurement availability local to the affected side and estimand whenever
+the shared trace and exact beat are valid. Preserve event anomalies separately
+from recoverable values: a last-closure timing measurement must not silently
+replace native first-closure volumes or make a reopened-valve case rank as
+qualified. Re-observation records bind both the original numerical source and
+the new analysis source; they are not new numerical or time-step verification.
+
 Stop tuning and compare model form when structured residuals, unsupported bound
 dependence, loss of response reserve, conservation/solver failure, or strong
 initialization/resolution dependence persist. Assess physiologically motivated
