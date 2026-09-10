@@ -12,7 +12,6 @@ import {
 } from "@/studio/contracts/v2/release";
 import {
   assertExactModelKernelManifestV3,
-  assertAdditiveModelSurfaceUpgradeV1,
   assertModelSurfaceReleaseManifestV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
@@ -43,8 +42,9 @@ import {
 import currentClientDescriptorV1, { CURRENT_MODEL_PRESETS_V1 } from
   "@/data/model-releases/CurrentModelReleaseV1";
 import currentSurfaceReleaseV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
+import previousSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
-import beatMetricsSurfaceV2 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 import currentRegistryAdmissionLockV1 from
   "@/data/model-releases/standard73/publication.json";
 
@@ -108,15 +108,14 @@ async function createRegistryClientCompositionV2(
     if (modelId === undefined) {
       return loadStudioLocalCurrentClientCompositionV1();
     }
+    const localSurface = surfacePin === undefined ? undefined
+      : [currentSurfaceReleaseV1, previousSurfaceReleaseV1]
+        .find(surface => localSurfacePinMatchesV1(surface, surfacePin));
     if (
       modelId === currentClientDescriptorV1.manifest.modelId
-      && surfacePin !== undefined
-      && localSurfacePinMatchesV1(
-        currentSurfaceReleaseV1,
-        surfacePin,
-      )
+      && localSurface !== undefined
     ) {
-      return loadStudioLocalCurrentClientCompositionV1();
+      return loadStudioLocalCurrentClientCompositionForSurfaceV1(localSurface);
     }
     throw new Error(
       "Unconfigured local registry cannot resolve the requested exact model and Surface pin",
@@ -134,17 +133,6 @@ Promise<StudioClientCompositionV2> {
   return loadStudioLocalCurrentClientCompositionForSurfaceV1(
     currentSurfaceReleaseV1,
   );
-}
-
-/** Analysis-only local candidate. It shares the exact artifact/fixture/capture,
- * not the published Surface qualification; Model Lab cannot save content. */
-export async function loadStudioLocalBeatMetricsClientCompositionV1(): Promise<StudioClientCompositionV2> {
-  assertAdditiveModelSurfaceUpgradeV1(currentSurfaceReleaseV1, beatMetricsSurfaceV2);
-  const composition = await loadStudioLocalCurrentClientCompositionForSurfaceV1(beatMetricsSurfaceV2);
-  return Object.freeze({ ...composition, exactModel: Object.freeze({
-    ...composition.exactModel,
-    defaultCheckpoint: REGISTERED_CURRENT_MODEL_BASELINE_V1.checkpoint,
-  }) });
 }
 
 function loadStudioLocalCurrentClientCompositionForSurfaceV1(

@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { studioCanonicalJsonStringify } from "@/domain/json/CanonicalJson";
 import currentSurface from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 
 import type {
   ModelSurfaceReleaseManifestV1,
@@ -211,7 +211,7 @@ export async function loadModelSurfacePublicationManifestV1(
   // statically imported current Surface is an admitted TypeScript manifest.
   if (extension === ".ts" && manifestPath !== path.join(repositoryRoot,
     "studio/integrations/mainWireIntegratedV3/"
-      + "MainWireIntegratedStudioStaticCaseSurfaceV1.ts")) {
+      + "MainWireIntegratedStudioStaticCaseSurfaceV2.ts")) {
     throw new Error("Only the current Model Surface TypeScript module is publishable");
   }
   const parsed: unknown = extension === ".json"

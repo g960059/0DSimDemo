@@ -21,7 +21,7 @@ import { MainWireCardiacCycleCollectorV1 } from "@/analysis/methods/mainWire/Mai
 import { buildMainWireCardiacCycleMetricsV1, MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1 as cycleInputs,
   MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1 as cycleOutputs,
   type MainWireCardiacCycleAcceptedSampleV1 } from "@/analysis/methods/mainWire/MainWireCardiacCycleMetricsV1";
-import { loadStudioLocalBeatMetricsClientCompositionV1 } from "@/studio/composition/StudioDefaultCompositionV2";
+import { loadStudioLocalCurrentClientCompositionV1 } from "@/studio/composition/StudioDefaultCompositionV2";
 import { CURRENT_BASELINE_V1 } from "@/data/model-baselines/CurrentBaselineV1";
 import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 import { MainWireFillingFlowCollectorV1 } from "@/analysis/methods/mainWire/MainWireFillingFlowCollectorV1";
@@ -37,8 +37,8 @@ const fixture = (dilated: boolean) => ({ ...template, schemaId, anatomyId: dilat
     activeTensionScaleByWall: { ...mechanism.chamberMechanics.activeTensionScaleByWall, LVFW: dilated ? .35 : 1, SEP: dilated ? .35 : 1 } } } });
 
 describe("static case exact adapter and inherited Surface", () => {
-  it("launches the additive beat-metric candidate from the same exact baseline capture", async () => {
-    const composition = await loadStudioLocalBeatMetricsClientCompositionV1();
+  it("launches the current additive beat-metric Surface from the same exact baseline capture", async () => {
+    const composition = await loadStudioLocalCurrentClientCompositionV1();
     expect(composition.modelSurface.identity.surfaceReleaseId).toBe(cycleSurface.surfaceReleaseId);
     expect(composition.modelSurface.analysis.presentationMethods).toHaveLength(2);
     expect(composition.modelSurface.analysis.periodicPvaDerivation).toBe(methods(surface).periodicPvaDerivation);

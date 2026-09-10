@@ -8,6 +8,7 @@ import { loadStudioLocalCurrentClientCompositionV1 as localComposition,
   loadStudioSnapshotClientCompositionV2, invalidateStudioClientCompositionCachesV2 } from "@/studio/composition/StudioDefaultCompositionV2";
 import * as releaseResolvers from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
+import currentSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 import descriptor from "@/data/model-releases/CurrentModelReleaseV1";
 import lock from "@/data/model-releases/standard73/publication.json";
 import savedCurrentDocument from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.json";
@@ -53,17 +54,21 @@ describe("current Standard73 launch baseline", () => {
     expect(controls["rhythm.heart-rate-bpm"]).toEqual({ status: "value", value: 70 });
     expect(controls["hemodynamics.total-blood-volume-ml"]).toEqual({ status: "value", value: 4935 });
     expect(controls["myocardium.active-tension-scale.LVFW"]).toEqual({ status: "value", value: 1 });
-    expect(composition.modelSurface.identity.surfaceReleaseId).toBe(surface.surfaceReleaseId);
+    expect(composition.modelSurface.identity.surfaceReleaseId).toBe(currentSurface.surfaceReleaseId);
     expect(composition.modelSurface.analysis.periodicPvaDerivation).toBeDefined();
   });
   it("resolves new, pinned experiment, and snapshot through the same current Surface", async () => {
     vi.spyOn(releaseResolvers, "studioSupabaseModelReleaseResolverV1").mockReturnValue(null);
     const current = await loadStudioDefaultClientCompositionV2();
     for (const loaded of [await loadStudioExperimentClientCompositionV2(baseline.modelId, surface.surfaceSeriesId),
-      await loadStudioSnapshotClientCompositionV2(baseline.modelId, surface.surfaceSeriesId, surface.surfaceReleaseId)]) {
+      await loadStudioSnapshotClientCompositionV2(baseline.modelId, currentSurface.surfaceSeriesId, currentSurface.surfaceReleaseId)]) {
       expect(loaded).toBe(current);
       expect(loaded.exactModel.defaultCheckpoint).toBe(baseline.checkpoint);
     }
+    const pinned = await loadStudioSnapshotClientCompositionV2(baseline.modelId, surface.surfaceSeriesId, surface.surfaceReleaseId);
+    expect(pinned.modelSurface.identity.surfaceReleaseId).toBe(surface.surfaceReleaseId);
+    expect(pinned.exactModel.defaultCheckpoint).toBe(baseline.checkpoint);
+    expect(pinned).not.toBe(current);
     await expect(loadStudioSnapshotClientCompositionV2(baseline.modelId, surface.surfaceSeriesId, "unrelated")).rejects.toThrow(/Surface/);
     await expect(loadStudioExperimentClientCompositionV2("circleheart.main-wire-integrated-transaction-v3.algebraic-pulmonary-root.standard-70",
       surface.surfaceSeriesId)).rejects.toThrow(/current exact model/);
@@ -91,6 +96,7 @@ describe("current Standard73 launch baseline", () => {
       { ticket: { ...ticket, modelId: "unrelated" }, defaultFixture: descriptor.defaultFixture },
       { ticket: { ...ticket, manifest: { ...ticket.manifest, modelId: "unrelated" } }, defaultFixture: descriptor.defaultFixture },
       { ticket: { ...ticket, surfaceRelease: { ...surface, displayName: "unreviewed" } }, defaultFixture: descriptor.defaultFixture },
+      { ticket: { ...ticket, surfaceRelease: { ...currentSurface, displayName: "unreviewed" } }, defaultFixture: descriptor.defaultFixture },
     ]) expect(resolveRegisteredModelLaunchDefaultsV1(input).defaultCheckpoint).toBeUndefined();
   });
   it("retains contextual cautions instead of presenting all observations as normal", () => {

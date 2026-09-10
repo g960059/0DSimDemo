@@ -2,7 +2,7 @@ import previous from "./MainWireIntegratedStudioStaticCaseSurfaceV1";
 import { MAIN_WIRE_CARDIAC_CYCLE_DERIVATION_V1 as cycle, MAIN_WIRE_FILLING_FLOW_DERIVATION_V1 as filling } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import { derivationCapabilityV1, outputCapabilityV1, type ModelSurfaceReleaseManifestV1 } from "@/studio/contracts/v2/modelSurface";
 
-/** Additive analysis-only candidate; the current published release stays v1. */
+/** Additive, opt-in beat analyses; exact dynamics and existing outputs are unchanged. */
 export default Object.freeze({
   ...previous,
   surfaceReleaseId: "circleheart.main-wire.surface.static-anatomy.standard-73.workbench-v2",
