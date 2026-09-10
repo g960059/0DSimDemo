@@ -13,7 +13,7 @@ export function workbenchReferencePresetsV1(input: {
     if (!duplicate) presets.push(preset);
     else if (canonical(duplicate.capture) !== canonical(preset.capture)) throw new Error("Conflicting captures for one preset identity");
   }
-  if (!input.startup || presets.some(p => p.modelId === input.modelId && canonical(p.capture.fixture) === canonical(input.startup!.fixture))) return presets;
+  if (!input.startup || presets.some(p => p.modelId === input.modelId && canonical(p.capture) === canonical(input.startup!))) return presets;
   return [...presets, { schemaId: STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID, presetId: "preset/workbench-loaded-state",
     modelId: input.modelId, title: input.loadedLabel, description: input.loadedDescription, capture: input.startup }];
 }

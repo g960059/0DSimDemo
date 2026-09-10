@@ -232,4 +232,17 @@ describe("separate model and preset reader, bound to preserved records", () => {
     expect(resolveSavedModelDocumentIndexV1(baseline.identity.modelId, baseline.identity.surfaceReleaseId)?.documentId).toBe(baseline.documentId);
     expect(resolveSavedModelDocumentIndexV1(baseline.identity.modelId, baseline.identity.surfaceReleaseId, disease.documentId)?.documentId).toBe(disease.documentId);
   });
+  it("preserves loaded checkpoints that differ from a preset with the same fixture", () => {
+    const baseline = { ...bundle.baseline, schemaId: STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID } satisfies ScenarioPresetV2;
+    const startup = { ...baseline.capture, checkpoint: { ...baseline.capture.checkpoint,
+      payload: { ...baseline.capture.checkpoint.payload, checkpointSha256: "distinct-loaded-checkpoint" } } };
+    const entries = workbenchReferencePresetsV1({ modelId: baseline.modelId, baseline, startup,
+      supplied: [], loadedLabel: "読込時の状態", loadedDescription: "" });
+    expect(startup.fixture).toBe(baseline.capture.fixture);
+    expect(entries.map(e => e.presetId)).toEqual([baseline.presetId, "preset/workbench-loaded-state"]);
+    expect(entries[0].capture).toBe(baseline.capture);
+    expect(entries[1].capture).toBe(startup);
+    expect(workbenchReferencePresetsV1({ modelId: baseline.modelId, baseline,
+      startup: structuredClone(baseline.capture), supplied: [], loadedLabel: "loaded", loadedDescription: "" })).toEqual([baseline]);
+  });
 });
