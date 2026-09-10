@@ -1,5 +1,6 @@
 import type { ExperimentScenarioV2, ExperimentSnapshotV2 } from
   "@/studio/contracts/v2/content";
+import { mainWireCardiacCycleOutputValueV1, mainWireFillingFlowOutputValueV1 } from "@/analysis/methods/mainWire/MainWireCardiacCyclePresentationV1";
 import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
   StudioSimulationAnalysisV2,
@@ -79,7 +80,7 @@ export type ArticleReaderParallelRuntimeV3 = Pick<
   | "selectScenario"
   | "setPlaybackRate"
   | "terminate"
->;
+> & Partial<Pick<WorkbenchParallelScenarioRuntimeV3, "presentationAnalyses">>;
 
 export type ArticleReaderParallelRuntimeFactoryInputV3 = Readonly<{
   expectedModelId: string;
@@ -97,6 +98,7 @@ type ArticleReaderLiveRuntimeCommonDependenciesV3 = Readonly<{
   resolveAnalysisExecutionPlan?:
     StudioSimulationAnalysisExecutionPlanResolverV2;
   presentationOutputIds?: ReadonlySet<string>;
+  presentationAnalysisIds?: readonly string[];
 }>;
 
 export type ArticleReaderLiveRuntimeDependenciesV3 =
@@ -180,6 +182,7 @@ export class ArticleReaderLiveRuntimeV3 {
           backgroundWorkerPool,
           presentationOutputIds: () =>
             this.#presentationOutputIds ?? Object.freeze([]),
+          presentationAnalysisIds: () => dependencies.presentationAnalysisIds ?? [],
           resolveAnalysisExecutionPlan:
             dependencies.resolveAnalysisExecutionPlan ?? (() => null),
         });
@@ -208,6 +211,15 @@ export class ArticleReaderLiveRuntimeV3 {
   }
 
   readonly getSnapshot = (): ArticleReaderLiveRuntimeStateV3 => this.#state;
+
+  presentationOutput(scenarioId: string, outputId: string) {
+    const runtime = this.#runtime;
+    const frame = runtime !== null && this.#scenarioIds.includes(scenarioId)
+      && this.#state.status !== "starting" && this.#acceptsFrames() ? runtime.latestFrame(scenarioId) : null;
+    const analyses = runtime?.presentationAnalyses?.(scenarioId);
+    return mainWireCardiacCycleOutputValueV1(analyses, frame, outputId)
+      ?? mainWireFillingFlowOutputValueV1(analyses, frame, outputId);
+  }
 
   readonly subscribe = (listener: () => void): (() => void) => {
     this.#listeners.add(listener);

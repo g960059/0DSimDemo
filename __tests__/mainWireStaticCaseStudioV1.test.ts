@@ -16,6 +16,17 @@ import localBundle from "@/data/model-releases/standard73/bundle.json";
 import localPackage from "@/data/model-releases/standard73/package.json";
 import baselineDoc from "@/studio/presentation/modelDocumentation/packages/standard73-document-v1.json";
 import hfrefDoc from "@/studio/presentation/modelDocumentation/packages/standard73-hfref-document-v1.json";
+import cycleSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
+import { MainWireCardiacCycleCollectorV1 } from "@/analysis/methods/mainWire/MainWireCardiacCycleCollectorV1";
+import { buildMainWireCardiacCycleMetricsV1, MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1 as cycleInputs,
+  MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1 as cycleOutputs,
+  type MainWireCardiacCycleAcceptedSampleV1 } from "@/analysis/methods/mainWire/MainWireCardiacCycleMetricsV1";
+import { loadStudioLocalBeatMetricsClientCompositionV1 } from "@/studio/composition/StudioDefaultCompositionV2";
+import { CURRENT_BASELINE_V1 } from "@/data/model-baselines/CurrentBaselineV1";
+import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
+import { MainWireFillingFlowCollectorV1 } from "@/analysis/methods/mainWire/MainWireFillingFlowCollectorV1";
+import { buildMainWireFillingFlowMetricsV1 as fillingMetrics, MAIN_WIRE_FILLING_FLOW_REQUIRED_EXACT_OUTPUT_IDS_V1 as fillingInputs,
+  MAIN_WIRE_FILLING_FLOW_OUTPUT_IDS_V1 as fillingIds } from "@/analysis/methods/mainWire/MainWireFillingFlowMetricsV1";
 
 const originalTier = hotPathIntegrityTierV1();
 beforeEach(() => selectHotPathIntegrityTierV1("hot-path-lean"));
@@ -26,6 +37,72 @@ const fixture = (dilated: boolean) => ({ ...template, schemaId, anatomyId: dilat
     activeTensionScaleByWall: { ...mechanism.chamberMechanics.activeTensionScaleByWall, LVFW: dilated ? .35 : 1, SEP: dilated ? .35 : 1 } } } });
 
 describe("static case exact adapter and inherited Surface", () => {
+  it("launches the additive beat-metric candidate from the same exact baseline capture", async () => {
+    const composition = await loadStudioLocalBeatMetricsClientCompositionV1();
+    expect(composition.modelSurface.identity.surfaceReleaseId).toBe(cycleSurface.surfaceReleaseId);
+    expect(composition.modelSurface.analysis.presentationMethods).toHaveLength(2);
+    expect(composition.modelSurface.analysis.periodicPvaDerivation).toBe(methods(surface).periodicPvaDerivation);
+    expect(composition.exactModel.modelId).toBe(localBundle.manifest.modelId);
+    expect(composition.exactModel.defaultCheckpoint).toEqual(CURRENT_BASELINE_V1.capture.checkpoint);
+    expect(composition.exactModel.workerReleaseTicket.artifactRevisionId).toBe(localPackage.artifactRevisionId);
+  });
+
+  it.each([localBundle.baseline, ...localBundle.presets])("observes full 2-ms beats in $presetId without modifying exact outputs", async preset => {
+    const adapter = release().executables.simulationAdapter;
+    const identity = { runtimeSessionId: "cycle-test", scenarioId: "case" };
+    const collector = new MainWireCardiacCycleCollectorV1();
+    const fillingCollector = new MainWireFillingFlowCollectorV1();
+    const inputs = [...new Set([...cycleInputs, ...fillingInputs])];
+    const samples: MainWireCardiacCycleAcceptedSampleV1[] = [];
+    const emissions: StudioSimulationAnalysisV2[] = [];
+    let fillingEmission: StudioSimulationAnalysisV2 | undefined;
+    await adapter.createSession({ runtimeSessionId: identity.runtimeSessionId, scenarios: [{ scenarioId: identity.scenarioId, ...preset.capture }] });
+    try {
+      for (let i = 0; i < 120; i++) {
+        const batch = await adapter.advancePresentationBatch({ ...identity, stepCount: 16, presentationOutputIds: inputs });
+        const emission = collector.ingest(batch);
+        fillingEmission = fillingCollector.ingest(batch) ?? fillingEmission;
+        if (emission) emissions.push(emission);
+        for (let row = 0; row < batch.acceptedRevisions.length; row++) samples.push({
+          inputEpoch: batch.terminalFrame.inputEpoch, acceptedRevision: batch.acceptedRevisions[row]!,
+          acceptedTimeSec: batch.acceptedTimesSec[row]!, values: Object.fromEntries(inputs.map((id, column) =>
+            [id, batch.outputStates[row * inputs.length + column]! < 2 ? batch.outputValues[row * inputs.length + column]! : null])),
+        });
+      }
+      const reference = buildMainWireCardiacCycleMetricsV1(samples);
+      expect(reference.status).toBe("available");
+      expect(emissions.at(-1)?.payload).toEqual(reference);
+      expect(emissions.length).toBeGreaterThanOrEqual(2);
+      expect(emissions.length).toBeLessThanOrEqual(6);
+      if (reference.status !== "available") return;
+      expect(Object.values(reference.values).every(value => typeof value === "number" && Number.isFinite(value))).toBe(true);
+      const frame = adapter.currentFrame(identity);
+      for (const id of cycleOutputs) expect(frame.outputs[id]).toBeUndefined();
+      expect(reference.source.cycleDurationSec).toBeCloseTo(60 / Number(frame.outputs["rhythm.heart-rate.instantaneous"]?.value), 5);
+      const filling = fillingMetrics(samples);
+      expect(filling.status).toBe("available");
+      expect(fillingEmission?.payload).toEqual(filling);
+      for (const id of Object.values(fillingIds)) expect(frame.outputs[id]).toBeUndefined();
+      expect(filling.values[fillingIds.mitralPeakEToA]).toBeGreaterThan(0);
+      expect(filling.values[fillingIds.mitralDecelerationTimeMs]).toBeGreaterThan(0);
+      expect(filling.values[fillingIds.pulmonarySystolicPeakFlowMlPerSec]).toBeGreaterThan(0);
+      expect(filling.values[fillingIds.pulmonaryDiastolicPeakFlowMlPerSec]).toBeGreaterThan(0);
+      expect(filling.values[fillingIds.pulmonaryPeakSToD]).toBeGreaterThan(0);
+      // Both current captures have residual early filling at atrial activation:
+      // a Doppler-style zero-baseline A duration must NOT be invented.
+      expect(filling.values[fillingIds.mitralADurationMs]).toBeNull();
+      expect(filling.values[fillingIds.pulmonaryArMinusADurationMs]).toBeNull();
+      if (preset.presetId === localBundle.baseline.presetId) {
+        expect(filling.values[fillingIds.pulmonaryArPeakMagnitudeMlPerSec]).toBeGreaterThan(0);
+        expect(filling.values[fillingIds.pulmonaryArDurationMs]).toBeGreaterThan(0);
+      } else {
+        // The current HFrEF capture has combined atrial/systolic reversal.
+        expect(filling.values[fillingIds.pulmonaryArPeakMagnitudeMlPerSec]).toBeNull();
+        expect(filling.values[fillingIds.pulmonaryArDurationMs]).toBeNull();
+      }
+    } finally { adapter.disposeSession(identity.runtimeSessionId); }
+  }, 40_000);
+
   it("pins own baseline/case captures, documents and the production-framed executable revision without activating it", async () => {
     const { recordSha256, ...body } = localBundle;
     expect(await hash(body)).toBe(localPackage.bundleSha256); expect(recordSha256).toBe(localPackage.bundleSha256);

@@ -932,6 +932,11 @@ body[data-app-theme="light"] {
   letter-spacing: 0;
 }
 
+.workbench-output-item[data-output-stale="true"] .workbench-output-value {
+  color: var(--wb-text-subtle);
+  font-weight: var(--wb-weight-regular);
+}
+
 .workbench-control-binding {
   color: var(--wb-text-muted);
   font-size: var(--wb-type-meta);

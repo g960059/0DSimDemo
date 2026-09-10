@@ -44,7 +44,9 @@ test.beforeEach(async ({ page }, testInfo) => {
     });
   }
   const modelLab = testInfo.title.includes("@model-lab");
-  await page.goto(modelLab ? "/ja/dev/model-lab" : "/ja/experiments/new");
+  await page.goto(modelLab
+    ? `/ja/dev/model-lab${testInfo.title.includes("@beat-metrics") ? "?beatMetrics=1" : ""}`
+    : "/ja/experiments/new");
   const root = page.getByTestId("v3-dockview-workbench");
   await expect(root).toBeVisible();
   await expect(root).toHaveAttribute(
@@ -200,6 +202,158 @@ test("@desktop current model inherits the complete analysis Surface", async ({
   await expect.poll(() => acceptedRevision(page)).toBeGreaterThanOrEqual(
     priorRevision,
   );
+});
+
+test("@desktop @mobile previous outputs remain visibly stale across controls and mobile tabs", async ({ page }, testInfo) => {
+  const root = page.getByTestId("v3-dockview-workbench");
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768;
+  const taskDeck = page.getByTestId("workbench-mobile-task-deck");
+  if (mobile) await taskDeck.getByRole("tab", { name: "出力", exact: true }).click();
+  const output = page.locator('[data-output-id="hemodynamics.output.effective-native-left"]');
+  await expect(output).toHaveAttribute("data-output-availability", "available");
+  await expect(output).toHaveAttribute("data-output-stale", "false");
+  const playback = page.getByTestId("v3-playback-toggle");
+  await playback.click();
+  await expect(root).toHaveAttribute("data-playback", "paused");
+  // Drain the bounded already-accepted prefix before remembering the displayed value.
+  await expect.poll(async () => {
+    const before = await modelTime(root);
+    await page.waitForTimeout(150);
+    return Math.abs((await modelTime(root)) - before);
+  }).toBeLessThanOrEqual(0.002);
+  const visibleNumber = () => output.locator(".workbench-output-value").evaluate(
+    element => element.firstChild?.textContent ?? "",
+  );
+  const previous = await visibleNumber();
+  const currentColor = await output.locator(".workbench-output-value")
+    .evaluate(element => getComputedStyle(element).color);
+  const previousEpoch = await inputEpoch(page);
+  if (mobile) await taskDeck.getByRole("tab", { name: "コントロール", exact: true }).click();
+  await page.getByRole("slider", { name: "心拍数 (HR)", exact: true }).press("ArrowRight");
+  await expect.poll(() => inputEpoch(page)).toBeGreaterThan(previousEpoch);
+  if (mobile) await taskDeck.getByRole("tab", { name: "出力", exact: true }).click();
+  await expect(output).toHaveAttribute("data-output-stale", "true");
+  await expect(output).toHaveAttribute("data-output-availability", "not-evaluated-at-accepted-state");
+  expect(await visibleNumber()).toBe(previous);
+  expect(await output.locator(".workbench-output-value")
+    .evaluate(element => getComputedStyle(element).color)).not.toBe(currentColor);
+  await output.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("stale-outputs.png") });
+  await output.getByRole("button").click();
+  await expect(page.getByRole("tooltip")).toContainText("前回の測定値");
+  await expect(page.getByRole("tooltip")).toHaveCSS("white-space", "pre-line");
+  await page.keyboard.press("Escape");
+  await playback.click();
+  await expect(output).toHaveAttribute("data-output-stale", "false");
+  await expect(output).toHaveAttribute("data-output-availability", "available");
+  expect(await visibleNumber()).not.toBe("—");
+  await expect(root).toHaveAttribute("data-playback", "playing");
+});
+
+test("@desktop @mobile @model-lab @beat-metrics selected beat outputs stay responsive and retain stale values", async ({ page }, testInfo) => {
+  const root = page.getByTestId("v3-dockview-workbench");
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768;
+  const deck = page.getByTestId("workbench-mobile-task-deck");
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  if (mobile) {
+    await deck.getByRole("tab", { name: "出力", exact: true }).click();
+    await deck.locator(".workbench-mobile-pane-group-settings").first().click();
+  } else await openPaneSettings(page, "Outputs");
+  const settings = page.getByRole("dialog", { name: "Pane設定" });
+  await settings.locator(".workbench-pane-add-item").click();
+  const drawer = settings.getByTestId("pane-settings-context-drawer-v3");
+  const labels = ["LV ICT", "LV IRT", "LV Tei", "LV +dP/dt (10 ms)", "LV −dP/dt (10 ms)", "RV +dP/dt (10 ms)", "RV −dP/dt (10 ms)"];
+  for (const label of labels) {
+    await drawer.getByRole("searchbox").fill(label);
+    await drawer.getByRole("button", { name: `項目を追加: ${label}`, exact: true }).click();
+  }
+  await drawer.getByRole("button", { name: "パネルを閉じる" }).click();
+  await settings.getByRole("button", { name: "完了", exact: true }).click();
+  const ids = ["hemodynamics.duration.isovolumic-contraction.flow-event.LV",
+    "hemodynamics.duration.isovolumic-relaxation.flow-event.LV", "hemodynamics.index.myocardial-performance.flow-event.LV",
+    "hemodynamics.pressure-rate.maximum-windowed-10ms.absolute.LV", "hemodynamics.pressure-rate.minimum-windowed-10ms.absolute.LV",
+    "hemodynamics.pressure-rate.maximum-windowed-10ms.absolute.RV", "hemodynamics.pressure-rate.minimum-windowed-10ms.absolute.RV"];
+  for (const id of ids) await expect(page.locator(`[data-output-id="${id}"]`)).toHaveAttribute("data-output-availability", "available");
+  const ict = page.locator(`[data-output-id="${ids[0]}"]`);
+  const playback = page.getByTestId("v3-playback-toggle");
+  await playback.click(); await expect(root).toHaveAttribute("data-playback", "paused");
+  const number = () => ict.locator(".workbench-output-value").evaluate(element => element.firstChild?.textContent ?? "");
+  const prior = await number();
+  const epoch = await inputEpoch(page);
+  if (mobile) await deck.getByRole("tab", { name: "コントロール", exact: true }).click();
+  await page.getByRole("slider", { name: "心拍数 (HR)", exact: true }).press("ArrowRight");
+  await expect.poll(() => inputEpoch(page)).toBeGreaterThan(epoch);
+  if (mobile) await deck.getByRole("tab", { name: "出力", exact: true }).click();
+  await expect(ict).toHaveAttribute("data-output-stale", "true");
+  expect(await number()).toBe(prior);
+  await ict.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("beat-metrics-stale.png") });
+  await playback.click();
+  for (const id of ids) {
+    const output = page.locator(`[data-output-id="${id}"]`);
+    await expect(output).toHaveAttribute("data-output-stale", "false");
+    await expect(output).toHaveAttribute("data-output-availability", "available");
+  }
+  await ict.getByRole("button").click();
+  await expect(page.getByRole("tooltip")).toContainText("モデルの血流");
+  await page.keyboard.press("Escape");
+  await page.screenshot({ path: testInfo.outputPath("beat-metrics-ready.png") });
+  expect(errors).toEqual([]);
+});
+
+test("@desktop @mobile @model-lab @beat-metrics filling outputs retain stale measurements without inventing unavailable durations", async ({ page }, testInfo) => {
+  const root = page.getByTestId("v3-dockview-workbench");
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768;
+  const deck = page.getByTestId("workbench-mobile-task-deck");
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  if (mobile) {
+    await deck.getByRole("tab", { name: "出力", exact: true }).click();
+    await deck.locator(".workbench-mobile-pane-group-settings").first().click();
+  } else await openPaneSettings(page, "Outputs");
+  const settings = page.getByRole("dialog", { name: "Pane設定" });
+  await settings.locator(".workbench-pane-add-item").click();
+  const drawer = settings.getByTestId("pane-settings-context-drawer-v3");
+  for (const label of ["MV E/A", "MV DT", "MV A dur", "PV S", "PV D", "PV S/D", "PV Ar", "PV Ar dur", "PV Ar−A dur"]) {
+    await drawer.getByRole("searchbox").fill(label);
+    await drawer.getByRole("button", { name: `項目を追加: ${label}`, exact: true }).click();
+  }
+  await drawer.getByRole("button", { name: "パネルを閉じる" }).click();
+  await settings.getByRole("button", { name: "完了", exact: true }).click();
+  const measuredIds = ["hemodynamics.ratio.peak-E-to-A.volumetric.MV", "hemodynamics.duration.E-deceleration-80-40.volumetric.MV",
+    "hemodynamics.flow.peak-systolic-ejection.PVein_LA", "hemodynamics.flow.peak-early-diastolic.PVein_LA", "hemodynamics.ratio.peak-S-to-D.volumetric.PVein_LA",
+    "hemodynamics.flow.peak-atrial-reversal-magnitude.PVein_LA", "hemodynamics.duration.atrial-reversal-zero-crossing.PVein_LA"];
+  for (const id of measuredIds) await expect(page.locator(`[data-output-id="${id}"]`)).toHaveAttribute("data-output-availability", "available");
+  const aDuration = page.locator('[data-output-id="hemodynamics.duration.A-zero-crossing.volumetric.MV"]');
+  await expect(aDuration).toHaveAttribute("data-output-availability", "not-evaluated-at-accepted-state");
+  await expect(aDuration).toHaveAttribute("data-output-stale", "false"); // No invented initial measurement.
+  await expect(aDuration.locator(".text-wb-warning")).toHaveCount(0);
+  await aDuration.getByRole("button").click();
+  await expect(page.getByRole("tooltip")).toContainText("開始点を推定せず");
+  await expect(page.getByRole("tooltip")).toContainText("新しい測定値を得られていません");
+  await expect(page.getByRole("tooltip")).toHaveCSS("white-space", "pre-line");
+  await page.keyboard.press("Escape");
+  const ratio = page.locator(`[data-output-id="${measuredIds[0]}"]`), playback = page.getByTestId("v3-playback-toggle");
+  await playback.click(); await expect(root).toHaveAttribute("data-playback", "paused");
+  const number = () => ratio.locator(".workbench-output-value").evaluate(element => element.firstChild?.textContent ?? "");
+  const prior = await number(), epoch = await inputEpoch(page);
+  if (mobile) await deck.getByRole("tab", { name: "コントロール", exact: true }).click();
+  await page.getByRole("slider", { name: "心拍数 (HR)", exact: true }).press("ArrowRight");
+  await expect.poll(() => inputEpoch(page)).toBeGreaterThan(epoch);
+  if (mobile) await deck.getByRole("tab", { name: "出力", exact: true }).click();
+  await expect(ratio).toHaveAttribute("data-output-stale", "true");
+  expect(await number()).toBe(prior);
+  await ratio.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("filling-stale.png") });
+  await playback.click();
+  await expect(ratio).toHaveAttribute("data-output-stale", "false");
+  await expect(ratio).toHaveAttribute("data-output-availability", "available");
+  await ratio.getByRole("button").click();
+  await expect(page.getByRole("tooltip")).toContainText("Doppler流速比ではありません");
+  await page.keyboard.press("Escape");
+  await page.screenshot({ path: testInfo.outputPath("filling-ready.png") });
+  expect(errors).toEqual([]);
 });
 
 test("@desktop @model-lab formal analysis, warm controls, and settings stay live", async ({

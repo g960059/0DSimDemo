@@ -32,6 +32,35 @@ import {
 } from "./helpers/standardReleaseTicketV1";
 
 describe("ArticleReaderLiveRuntimeV3", () => {
+  it("does not read beat outputs from a lane before initialization completes", async () => {
+    const snapshot = snapshotV3();
+    const initializeGate = deferredV3<StudioSimulationWorkerScenarioStateV2>();
+    const harness = runtimeHarnessV3(snapshot, { initializeGate });
+    const latest = vi.fn();
+    let initialized = false;
+    const controller = new ArticleReaderLiveRuntimeV3(snapshot, {
+      createRuntime: input => {
+        const runtime = harness.createRuntime(input);
+        return { ...runtime, latestFrame: scenarioId => {
+          latest();
+          if (!initialized) throw new Error("not initialized");
+          return runtime.latestFrame(scenarioId);
+        } };
+      },
+    });
+    const starting = controller.start();
+    await Promise.resolve();
+    expect(controller.presentationOutput("scenario/one", "hemodynamics.duration.isovolumic-contraction.flow-event.LV"))
+      .toMatchObject({ value: null, quality: "not-assessed" });
+    expect(latest).not.toHaveBeenCalled();
+    initialized = true;
+    initializeGate.resolve(workerStateV3(snapshot, "scenario/one")); await starting;
+    expect(controller.getSnapshot().status).toBe("playing");
+    expect(controller.presentationOutput("scenario/one", "pressure")).toBeUndefined();
+    await controller.dispose();
+    expect(controller.presentationOutput("scenario/one", "hemodynamics.duration.isovolumic-contraction.flow-event.LV"))
+      .toMatchObject({ value: null });
+  });
   it("restores only the visible Scenario authority and starts those lanes", async () => {
     const snapshot = snapshotV3();
     const harness = runtimeHarnessV3(snapshot);

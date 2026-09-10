@@ -8,6 +8,7 @@ import type { ControlDefinitionV2 } from "@/studio/contracts/v2/model";
 import {
   WorkbenchItemDescriptionPopoverV3,
 } from "./presentation/WorkbenchItemDescriptionPopoverV3";
+import { incrementWorkbenchPerformanceCounterV3 } from "./runtime/WorkbenchPerformanceDiagnosticsV3";
 
 export type ExperimentOutputPresentationItemV3 = Readonly<{
   itemId: string;
@@ -22,6 +23,8 @@ export type ExperimentOutputPresentationItemV3 = Readonly<{
   availability?: string;
   quality?: string;
   qualityNotice?: string;
+  /** Previous display value only; availability/quality still describe the current result. */
+  staleNotice?: string;
 }>;
 
 export type ExperimentPaneAddItemActionV3 = Readonly<{
@@ -106,35 +109,15 @@ export function ExperimentOutputGridV3({
       {items.map((item) => {
         const display = resolveExperimentOutputDisplayV3(item);
         return (
-          <div
+          <ExperimentOutputTileV3
             key={item.itemId}
-            className={`workbench-output-item min-w-0 ${itemClassName}`}
-            data-output-availability={item.availability ?? "unavailable"}
-            data-output-quality={item.quality ?? "not-assessed"}
-          >
-            <div className="flex min-w-0 items-center gap-1">
-              <p className="workbench-output-label min-w-0 truncate">
-                {item.label}
-              </p>
-              {item.description !== undefined && (
-                <WorkbenchItemDescriptionPopoverV3
-                  ariaLabel={item.descriptionAriaLabel ?? item.label}
-                  description={item.description}
-                />
-              )}
-            </div>
-            <p className="workbench-output-value mt-0.5 whitespace-nowrap tabular-nums">
-              {display.value}
-              <span className="workbench-output-unit ml-1">
-                {display.unit}
-              </span>
-            </p>
-            {item.qualityNotice !== undefined && (
-              <p className="mt-1 text-[11px] text-wb-warning">
-                {item.qualityNotice}
-              </p>
-            )}
-          </div>
+            itemId={item.itemId} className={itemClassName} label={item.label}
+            value={display.value} unit={display.unit}
+            availability={item.availability ?? "unavailable"}
+            quality={item.quality ?? "not-assessed"}
+            description={item.description} descriptionAriaLabel={item.descriptionAriaLabel}
+            qualityNotice={item.qualityNotice} staleNotice={item.staleNotice}
+          />
         );
       })}
       {addItemAction !== undefined && (
@@ -148,6 +131,35 @@ export function ExperimentOutputGridV3({
     </div>
   );
 }
+
+/** Compare displayed primitives, not high-rate frame objects or unrounded values. */
+const ExperimentOutputTileV3 = React.memo(function ExperimentOutputTileV3({
+  itemId, className, label, value, unit, availability, quality,
+  description, descriptionAriaLabel, qualityNotice, staleNotice,
+}: Readonly<{
+  itemId: string; className: string; label: string; value: string; unit: string;
+  availability: string; quality: string; description?: string;
+  descriptionAriaLabel?: string; qualityNotice?: string; staleNotice?: string;
+}>) {
+  incrementWorkbenchPerformanceCounterV3("react.output-tile.render");
+  const disclosure = [staleNotice, description].filter(Boolean).join("\n\n");
+  return <div className={`workbench-output-item min-w-0 ${className}`}
+    data-output-id={itemId} data-output-availability={availability}
+    data-output-quality={quality} data-output-stale={staleNotice !== undefined ? "true" : "false"}>
+    <div className="flex min-w-0 items-center gap-1">
+      <p className="workbench-output-label min-w-0 truncate">{label}</p>
+      {disclosure && <WorkbenchItemDescriptionPopoverV3
+        ariaLabel={descriptionAriaLabel ?? label} description={disclosure} />}
+    </div>
+    <p className="workbench-output-value mt-0.5 whitespace-nowrap tabular-nums"
+      title={staleNotice}>
+      {value}<span className="workbench-output-unit ml-1">{unit}</span>
+      {staleNotice && <span className="sr-only">{staleNotice}</span>}
+    </p>
+    {qualityNotice !== undefined && staleNotice === undefined &&
+      <p className="mt-1 text-[11px] text-wb-warning">{qualityNotice}</p>}
+  </div>;
+});
 
 /** Shared low-emphasis path from a live output/control pane to its item catalog. */
 export function ExperimentPaneAddItemButtonV3({
@@ -212,7 +224,7 @@ export function resolveExperimentOutputDisplayV3(
         );
   return Object.freeze({
     value,
-    unit: clinicalPercent ? "%" : item.unit,
+    unit: clinicalPercent ? "%" : item.unit === "1" ? "" : item.unit,
   });
 }
 

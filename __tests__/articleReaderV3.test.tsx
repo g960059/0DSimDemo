@@ -204,6 +204,7 @@ function runtimeCompositionV3(): StudioClientCompositionV2 {
       }),
       analysis: Object.freeze({
         capabilities: Object.freeze([]),
+        presentationMethods: Object.freeze([]),
         periodicPvaDerivation: null,
         resolveExecutionPlan: () => null,
       }),
@@ -632,6 +633,9 @@ describe("Article Reader V3 experiment anchor", () => {
         ),
       ].sort(),
     ).toEqual(["output/co", "output/pressure"]);
+    // A derived output card never becomes an exact intermediate column.
+    expect([...articleReaderPresentationOutputSelectionV3(contract, selectedSnapshot, briefing,
+      new Set(["output/pressure"]))]).toEqual(["output/pressure"]);
   });
 
   it("separates in-place Peek maximization from Experiment Session navigation", () => {

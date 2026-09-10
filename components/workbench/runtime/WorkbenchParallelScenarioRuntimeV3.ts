@@ -73,6 +73,7 @@ export type WorkbenchParallelScenarioRuntimeClientV3 = Pick<
     "initializationTiming"
   ];
   presentationTiming?: StudioSimulationWorkerClientV2["presentationTiming"];
+  presentationAnalyses?: StudioSimulationWorkerClientV2["presentationAnalyses"];
 }>;
 
 type WorkbenchParallelScenarioTimeConductorV3 = Pick<
@@ -118,6 +119,7 @@ export type WorkbenchParallelScenarioRuntimeDependenciesV3 = Readonly<{
   presentationProfile?: WorkbenchPresentationProfileV3;
   /** Current authored scalar signals needed between complete terminal frames. */
   presentationOutputIds?: () => ReadonlySet<string> | readonly string[];
+  presentationAnalysisIds?: () => readonly string[];
   onPlaybackRateChange?(state: WorkbenchGroupPlaybackRateStateV3): void;
 }>;
 
@@ -157,6 +159,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   readonly #presentationProfile: WorkbenchPresentationProfileV3;
   readonly #presentationOutputIds:
     () => ReadonlySet<string> | readonly string[];
+  readonly #presentationAnalysisIds: () => readonly string[];
   readonly #lanes = new Map<string, WorkbenchParallelScenarioLaneV3>();
   readonly #analysisClients = new Set<
     WorkbenchParallelScenarioRuntimeClientV3
@@ -194,6 +197,8 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     this.#presentationProfile = dependencies.presentationProfile
       ?? resolveWorkbenchPresentationProfileV3();
     this.#presentationOutputIds = dependencies.presentationOutputIds
+      ?? (() => Object.freeze([]));
+    this.#presentationAnalysisIds = dependencies.presentationAnalysisIds
       ?? (() => Object.freeze([]));
     const createTimeConductor = dependencies.createTimeConductor
       ?? ((conductorDependencies) =>
@@ -922,6 +927,16 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     });
   }
 
+  presentationAnalyses(scenarioId: string): readonly StudioSimulationAnalysisV2[] {
+    const lane = this.#lanes.get(scenarioId);
+    if (this.#state !== "active" || lane === undefined) return Object.freeze([]);
+    return Object.freeze((lane.client.presentationAnalyses?.() ?? []).filter(analysis =>
+      analysis.inputEpoch === lane.latestFrame.inputEpoch
+      && analysis.scenarioId === scenarioId
+      && analysis.sourceAcceptedRevision <= lane.latestFrame.acceptedRevision
+      && analysis.sourceAcceptedTimeSec <= lane.latestFrame.acceptedTimeSec));
+  }
+
   async #advanceLane(
     lane: WorkbenchParallelScenarioLaneV3,
     stepCount: number,
@@ -945,11 +960,13 @@ export class WorkbenchParallelScenarioRuntimeV3 {
         typedArrayBytes,
       );
     }
+    const presentationAnalysisIds = this.#presentationAnalysisIds();
     const frames = await lane.client.advancePresentation({
       runtimeSessionId: lane.runtimeSessionId,
       scenarioId: lane.descriptor.scenarioId,
       stepCount,
       presentationOutputIds,
+      ...(presentationAnalysisIds.length === 0 ? {} : { presentationAnalysisIds }),
     });
     if (workbenchPerformanceDiagnosticsEnabledV3()) {
       const timing = lane.client.presentationTiming?.();

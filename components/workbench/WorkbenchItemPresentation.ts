@@ -8,6 +8,7 @@ import {
   outputLabelV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import type { MainWirePeriodicPvaV1 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
+import { mainWireCardiacCycleOutputValueV1, mainWireFillingFlowOutputValueV1 } from "@/analysis/methods/mainWire/MainWireCardiacCyclePresentationV1";
 import {
   MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
   MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
@@ -19,6 +20,7 @@ import type {
 } from "@/studio/contracts/v2/model";
 import type {
   StudioSimulationFrameV2,
+  StudioSimulationAnalysisV2,
   StudioSimulationOutputValueV2,
 } from "@/studio/contracts/v2/simulation";
 import {
@@ -200,6 +202,7 @@ export function materializeWorkbenchOutputPresentationItemsV3(
     notAssessedNotice: string;
     pane: ExperimentSurfaceOutputPaneV2;
     periodicPva?: MainWirePeriodicPvaV1;
+    presentationAnalyses?: readonly StudioSimulationAnalysisV2[];
     periodicPvaAnalysisError?: string;
   }>,
 ): readonly ExperimentOutputPresentationItemV3[] {
@@ -303,8 +306,11 @@ export function materializeWorkbenchOutputPresentationItemsV3(
 
     const definition = outputById.get(item.outputId);
     if (definition === undefined) continue;
+    const observation = mainWireCardiacCycleOutputValueV1(input.presentationAnalyses, input.frame, item.outputId)
+      ?? mainWireFillingFlowOutputValueV1(input.presentationAnalyses, input.frame, item.outputId);
     const outputValue =
       workbenchPeriodicPvaOutputValueV3(input.periodicPva, item.outputId)
+      ?? observation
       ?? input.frame?.outputs[item.outputId];
     const pvaNotice = WORKBENCH_PERIODIC_PVA_ANALYSIS_OUTPUT_ID_SET_V1.has(
       item.outputId,
@@ -320,12 +326,17 @@ export function materializeWorkbenchOutputPresentationItemsV3(
       outputKind: definition.kind,
       storedLabel: item.label,
     });
+    // An unresolved waveform is an expected measurement state, not a runtime
+    // error. Keep raw availability/quality, disclose the reason on demand.
+    const description = observation?.quality === "not-assessed"
+      ? `${input.locale === "ja" ? "現在の波形から新しい測定値を得られていません。" : "No new measurement is resolved from the current waveform."}\n\n${presentation.description}`
+      : presentation.description;
     result.push({
       itemId: item.outputId,
       label: presentation.label,
       ...(presentation.inlineDisclosure
         ? {
-            description: presentation.description,
+            description,
             descriptionAriaLabel:
               input.locale === "ja"
                 ? `${presentation.label}の説明`
@@ -339,7 +350,7 @@ export function materializeWorkbenchOutputPresentationItemsV3(
       quality: outputValue?.quality ?? "not-assessed",
       ...(pvaNotice !== undefined
         ? { qualityNotice: pvaNotice }
-        : outputValue?.quality === "not-assessed"
+        : observation === undefined && outputValue?.quality === "not-assessed"
           ? { qualityNotice: input.notAssessedNotice }
           : {}),
     });

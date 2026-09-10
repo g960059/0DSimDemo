@@ -194,6 +194,7 @@ type ExpectedResponseV2 =
       minimumAcceptedTimeSec: number;
       stepCount: number;
       presentationOutputIds: readonly string[];
+      presentationAnalysisIds: readonly string[];
     }>
   | Readonly<{
       kind: "control-applied";
@@ -290,6 +291,7 @@ export class StudioSimulationWorkerClientV2 {
   #acceptedTimeSec: number | undefined;
   #lastPresentationTiming:
     StudioSimulationWorkerPresentationTimingV2 | undefined;
+  readonly #presentationAnalyses = new Map<string, StudioSimulationAnalysisV2>();
   #lastInitializationTiming:
     StudioSimulationWorkerInitializationTimingV2 | undefined;
   #operationInFlight:
@@ -520,6 +522,7 @@ export class StudioSimulationWorkerClientV2 {
         minimumAcceptedTimeSec: this.#acceptedTimeSec,
         stepCount: request.stepCount,
         presentationOutputIds: request.presentationOutputIds,
+        presentationAnalysisIds: request.presentationAnalysisIds ?? [],
       });
       if (response.status !== "ok" || response.kind !== "presentation-advanced") {
         throw new Error(
@@ -537,6 +540,10 @@ export class StudioSimulationWorkerClientV2 {
       this.#inputEpoch = last.inputEpoch;
       this.#acceptedRevision = last.acceptedRevision;
       this.#acceptedTimeSec = last.acceptedTimeSec;
+      for (const id of this.#presentationAnalyses.keys()) {
+        if (!request.presentationAnalysisIds?.includes(id)) this.#presentationAnalyses.delete(id);
+      }
+      for (const analysis of response.analyses ?? []) this.#presentationAnalyses.set(analysis.analysisId, analysis);
       return frames;
     } catch (error) {
       this.#terminateWith(errorAsErrorV2(error));
@@ -544,6 +551,14 @@ export class StudioSimulationWorkerClientV2 {
     } finally {
       this.#operationInFlight = undefined;
     }
+  }
+
+  /** Latest beat summaries in the current Scenario/input epoch; never exact frame fields. */
+  presentationAnalyses(): readonly StudioSimulationAnalysisV2[] {
+    return Object.freeze([...this.#presentationAnalyses.values()].filter(analysis =>
+      this.#state === "active" && analysis.modelId === this.#modelId
+      && analysis.runtimeSessionId === this.#runtimeSessionId && analysis.scenarioId === this.#scenarioId
+      && analysis.inputEpoch === this.#inputEpoch));
   }
 
   /** Last correlated Worker-side timing, retained only for opt-in diagnostics. */
@@ -1138,6 +1153,7 @@ export class StudioSimulationWorkerClientV2 {
     this.#state = "terminated";
     this.#lastPresentationTiming = undefined;
     this.#lastInitializationTiming = undefined;
+    this.#presentationAnalyses.clear();
     try {
       this.#worker.removeEventListener("message", this.#onMessage);
     } catch {
@@ -1282,6 +1298,17 @@ function assertExpectedResponseV2(
     }
     if (batch.terminalFrame.inputEpoch !== expected.inputEpoch) {
       throw new Error("simulation worker presentation input epoch changed");
+    }
+    for (const analysis of response.analyses ?? []) {
+      if (!expected.presentationAnalysisIds.includes(analysis.analysisId)
+        || analysis.modelId !== expected.modelId || analysis.runtimeSessionId !== expected.runtimeSessionId
+        || analysis.scenarioId !== expected.scenarioId || analysis.inputEpoch !== expected.inputEpoch
+        || analysis.sourceAcceptedRevision < expected.minimumAcceptedRevision
+        || analysis.sourceAcceptedRevision > batch.terminalFrame.acceptedRevision
+        || analysis.sourceAcceptedTimeSec < expected.minimumAcceptedTimeSec
+        || analysis.sourceAcceptedTimeSec > batch.terminalFrame.acceptedTimeSec) {
+        throw new Error("simulation worker presentation analysis correlation mismatch");
+      }
     }
     return;
   }

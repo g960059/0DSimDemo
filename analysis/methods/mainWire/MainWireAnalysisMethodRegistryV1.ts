@@ -3,6 +3,16 @@ import {
   resolveAnalysisMethodsForSurfaceV1,
   type AnalysisDerivationRegistrationV1,
 } from "@/analysis/contracts/AnalysisMethodRegistryV1";
+import type { PresentationAnalysisMethodV1 } from "@/analysis/contracts/PresentationAnalysisV1";
+import { MainWireCardiacCycleCollectorV1 } from "./MainWireCardiacCycleCollectorV1";
+import { MainWireFillingFlowCollectorV1 } from "./MainWireFillingFlowCollectorV1";
+import { MAIN_WIRE_FILLING_FLOW_METHOD_V1_ID, MAIN_WIRE_FILLING_FLOW_OUTPUT_IDS_V1,
+  MAIN_WIRE_FILLING_FLOW_REQUIRED_EXACT_OUTPUT_IDS_V1 } from "./MainWireFillingFlowMetricsV1";
+import {
+  MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
+  MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1,
+  MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+} from "./MainWireCardiacCycleMetricsV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
@@ -56,11 +66,12 @@ export type MainWirePeriodicPvaDerivationV1 = Readonly<{
 type MainWireAnalysisDerivationRuntimeV1 = Readonly<{
   kind: "periodic-pva";
   derivation: MainWirePeriodicPvaDerivationV1;
-}>;
+}> | Readonly<{ kind: "presentation"; method: PresentationAnalysisMethodV1 }>;
 
 export type ResolvedMainWireAnalysisMethodsV1 = Readonly<{
   capabilities: readonly string[];
   periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
+  presentationMethods: readonly PresentationAnalysisMethodV1[];
   resolveExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
 }>;
 
@@ -170,6 +181,38 @@ const MAIN_WIRE_PERIODIC_PVA_DERIVATION_V13 = Object.freeze({
   }),
 }) satisfies AnalysisDerivationRegistrationV1<MainWireAnalysisDerivationRuntimeV1>;
 
+export const MAIN_WIRE_CARDIAC_CYCLE_DERIVATION_V1 = Object.freeze({
+  derivationId: MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
+  outputs: Object.freeze(Object.entries(MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1)
+    .map(([name, outputId]) => Object.freeze({
+      outputId, kind: "metric" as const, unit: name.includes("PressureRate") ? "mmHg/s" : name.endsWith("TimeMs") ? "ms" : "1",
+      shape: "scalar" as const, scope: "beat" as const,
+      dependencies: MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+    }))),
+  requiredAnalysisIds: Object.freeze([]),
+  runtime: Object.freeze({
+    kind: "presentation" as const,
+    method: Object.freeze({
+      methodId: MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
+      requiredExactOutputIds: MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+      create: () => new MainWireCardiacCycleCollectorV1(),
+    }),
+  }),
+}) satisfies AnalysisDerivationRegistrationV1<MainWireAnalysisDerivationRuntimeV1>;
+
+export const MAIN_WIRE_FILLING_FLOW_DERIVATION_V1 = Object.freeze({
+  derivationId: MAIN_WIRE_FILLING_FLOW_METHOD_V1_ID,
+  outputs: Object.freeze(Object.entries(MAIN_WIRE_FILLING_FLOW_OUTPUT_IDS_V1).map(([name, outputId]) => Object.freeze({
+    outputId, kind: "metric" as const, unit: name.endsWith("MlPerSec") ? "mL/s" : name.endsWith("Ms") ? "ms" : "1",
+    shape: "scalar" as const, scope: "beat" as const, dependencies: MAIN_WIRE_FILLING_FLOW_REQUIRED_EXACT_OUTPUT_IDS_V1,
+  }))),
+  requiredAnalysisIds: Object.freeze([]),
+  runtime: Object.freeze({ kind: "presentation" as const, method: Object.freeze({
+    methodId: MAIN_WIRE_FILLING_FLOW_METHOD_V1_ID, requiredExactOutputIds: MAIN_WIRE_FILLING_FLOW_REQUIRED_EXACT_OUTPUT_IDS_V1,
+    create: () => new MainWireFillingFlowCollectorV1(),
+  }) }),
+}) satisfies AnalysisDerivationRegistrationV1<MainWireAnalysisDerivationRuntimeV1>;
+
 export const MAIN_WIRE_ANALYSIS_METHOD_REGISTRY_V1 =
   defineAnalysisMethodRegistryV1<MainWireAnalysisDerivationRuntimeV1>({
     analysisRequestIds: Object.freeze([
@@ -177,6 +220,8 @@ export const MAIN_WIRE_ANALYSIS_METHOD_REGISTRY_V1 =
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
     ]),
     derivations: Object.freeze([
+      MAIN_WIRE_CARDIAC_CYCLE_DERIVATION_V1,
+      MAIN_WIRE_FILLING_FLOW_DERIVATION_V1,
       MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1,
       MAIN_WIRE_PERIODIC_PVA_DERIVATION_V9,
       MAIN_WIRE_PERIODIC_PVA_DERIVATION_V10,
@@ -210,6 +255,8 @@ export function resolveMainWireAnalysisMethodsForSurfaceV1(
   const periodicPvaRuntime = periodicPvaRuntimes[0];
   return Object.freeze({
     capabilities: resolved.capabilities,
+    presentationMethods: Object.freeze(resolved.derivations.flatMap(({ runtime }) =>
+      runtime.kind === "presentation" ? [runtime.method] : [])),
     periodicPvaDerivation:
       periodicPvaRuntime?.kind === "periodic-pva"
         ? periodicPvaRuntime.derivation

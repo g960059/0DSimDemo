@@ -493,7 +493,7 @@ describe("V3 Dockview Workbench", () => {
     ).toBe("94.6/63.8(73.1)");
   });
 
-  it("renders clinical fractions as percentages without changing other ratios", () => {
+  it("renders clinical fractions as percentages and keeps dimensionless ratios unscaled", () => {
     expect(
       resolveExperimentOutputDisplayV3({
         itemId: "hemodynamics.ejection-fraction.LV-event-defined",
@@ -511,7 +511,11 @@ describe("V3 Dockview Workbench", () => {
         unit: "1",
         significantDigits: 3,
       }),
-    ).toEqual({ value: "4.25", unit: "1" });
+    ).toEqual({ value: "4.25", unit: "" });
+    expect(resolveExperimentOutputDisplayV3({
+      itemId: "hemodynamics.index.myocardial-performance.flow-event.LV",
+      label: "LV Tei", value: .702, unit: "1", significantDigits: 3,
+    })).toEqual({ value: "0.702", unit: "" });
   });
 
   it("places the output add action after the final output tile", () => {
@@ -603,6 +607,30 @@ describe("V3 Dockview Workbench", () => {
           itemId === "hemodynamics.pressure.systolic.Ao",
       ),
     ).toBe(false);
+  });
+
+  it("keeps expected unresolved beat measurements in the tooltip without changing quality or inventing an initial value", async () => {
+    const { loadStudioLocalBeatMetricsClientCompositionV1 } = await import("@/studio/composition/StudioDefaultCompositionV2");
+    const { contract } = (await loadStudioLocalBeatMetricsClientCompositionV1()).modelSurface;
+    const defaultPane = createDefaultExperimentSurfaceV3(contract, "scenario/a").outputPanes[0]!;
+    for (const locale of ["ja", "en"] as const) {
+      const items = materializeWorkbenchOutputPresentationItemsV3({ contract, frame: null, locale,
+        notAssessedNotice: "internal-quality-warning", pane: { ...defaultPane, items: [
+          { outputId: "hemodynamics.duration.A-zero-crossing.volumetric.MV", label: "MV A dur", order: 0 },
+          { outputId: "hemodynamics.duration.isovolumic-contraction.flow-event.LV", label: "LV ICT", order: 1 },
+        ] } });
+      for (const item of items) {
+        expect(item).toMatchObject({ value: null, quality: "not-assessed", availability: "not-evaluated-at-accepted-state" });
+        expect(item.qualityNotice).toBeUndefined();
+        expect(item.description).toContain(locale === "ja" ? "新しい測定値を得られていません" : "No new measurement");
+      }
+      const markup = renderToStaticMarkup(<ExperimentOutputGridV3 items={items} variant="pane" />);
+      expect(markup).toContain("—");
+      expect(markup).toContain('data-output-stale="false"');
+      expect(markup).toContain('data-testid="workbench-item-description-trigger-v3"');
+      expect(markup).not.toContain("text-wb-warning");
+      expect(markup).not.toContain("internal-quality-warning");
+    }
   });
 
   it("preserves an atomic pressure item when a pane does not select the triplet", async () => {
