@@ -1,6 +1,6 @@
 import { CURRENT_MODEL_PRESETS_V1 } from "@/data/model-releases/CurrentModelReleaseV1";
 import { resolveMainWireStaticCaseDefinitionV1 as definition,
-  type MainWireStaticCaseCandidateV1, type MainWireCaseReferenceIdV1 } from "./MainWireStaticCaseDefinitionsV1";
+  type MainWireStaticCaseCandidateV1, type MainWireCaseReferenceIdV1 } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
 import { canonicalJsonStringify as canonical } from "@/engine/integrity";
 import { MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1 as template }
   from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";

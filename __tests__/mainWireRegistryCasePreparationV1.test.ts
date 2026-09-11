@@ -7,7 +7,7 @@ import { createMainWireCaseInputRecordV1 as create, readMainWireCaseInputRecordV
   readMainWireHistoricalFittingEvidenceV1 as history, bindMainWireCaseInputRecordV1 as bind,
   compareMainWireCaseInputsV1 as compare, unwrapMainWireFittingEvidenceV1 as unwrap } from "@/analysis/registry/MainWireCaseInputRecordV1";
 import { MAIN_WIRE_STATIC_CASE_DEFINITIONS_V1 as definitions } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
-import { mainWireStaticCaseFittingSeedV1 as seed } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
+import { mainWireStaticCaseFittingSeedV1 as seed } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import { CURRENT_MODEL_PRESETS_V1 as adopted } from "@/data/model-releases/CurrentModelReleaseV1";
 import { MainWireStaticCaseSessionV1 as Session } from "@/engine/vnext/MainWireStaticCaseSessionV1";
 import { writeFittingRunJsonV1 as save } from "@/tools/scientific/FittingRunFilesV1";

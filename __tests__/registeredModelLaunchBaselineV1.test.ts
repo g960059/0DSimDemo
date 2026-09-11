@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { REGISTERED_CURRENT_MODEL_BASELINE_V1 as baseline } from "@/studio/registry/RegisteredCurrentModelBaselineV1";
 import { resolveRegisteredModelLaunchCheckpointV1, resolveRegisteredModelLaunchDefaultsV1 } from "@/studio/registry/RegisteredModelLaunchBaselineV1";
-import { mainWireStaticCaseFittingSeedV1 } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
+import { mainWireStaticCaseFittingSeedV1 } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import { registeredCurrentBaselinePresentationV1 } from "@/studio/presentation/CurrentBaselinePresentationV1";
 import { loadStudioLocalCurrentClientCompositionV1 as localComposition,
   loadStudioLocalResearchClientCompositionV1 as researchComposition,

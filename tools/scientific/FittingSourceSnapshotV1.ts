@@ -9,7 +9,7 @@ const execute = promisify(execFile);
 const hash = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 // Include numerical/analysis code, their data, CLI entry points and build inputs;
 // not generated research runs or installed dependencies.
-const roots = ["engine", "analysis", "domain", "runtime", "data", "studio", "tools", "components", "index.css", "homeLinks.ts", "localeRouting.ts",
+const roots = ["engine", "analysis", "domain", "runtime", "data", "studio", "tools", "components", "appTheme.ts", "index.css", "homeLinks.ts", "localeRouting.ts",
   "package.json", "package-lock.json", "tsconfig.json", "tsconfig.node.json",
   "vite.config.ts", "vitest.config.ts"];
 

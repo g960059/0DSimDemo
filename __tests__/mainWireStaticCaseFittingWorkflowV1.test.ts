@@ -4,7 +4,7 @@ import { sha256CanonicalJsonHex as hash } from "@/engine/integrity";
 import { runMainWireStaticCaseFittingV1 as run, readMainWireStaticCaseFittingResultV1 as read,
   assessMainWireStaticCaseRestV1 as assess, ownMainWireStaticCaseCandidateV1 as own,
   type MainWireStaticCaseFittingResultV1 as Result } from "@/analysis/methods/mainWire/MainWireStaticCaseFittingWorkflowV1";
-import { mainWireStaticCaseFittingSeedV1 as seed } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
+import { mainWireStaticCaseFittingSeedV1 as seed } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import { createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as release,
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1 as template } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
 import { MAIN_WIRE_STATIC_CASE_FIXTURE_SCHEMA_ID_V1 as fixtureSchema } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseIdentityV1";

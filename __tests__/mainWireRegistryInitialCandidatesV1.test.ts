@@ -4,7 +4,7 @@ import { ownMainWireRegistryProposalsV1 as own, mainWireInitialCandidatePrefixV1
   assessMainWireInitialCandidateV1 as assessInitial,
   type MainWireInitialCandidateMaterialV1 as Start } from "@/tools/scientific/MainWireRegistryInitialCandidatesV1";
 import { readRegistryInitialCandidatesV1 as readStarts } from "@/tools/scientific/prepareMainWireRegistryReviewV1";
-import { mainWireStaticCaseFittingSeedV1 as seed } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
+import { mainWireStaticCaseFittingSeedV1 as seed } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import { MAIN_WIRE_STATIC_CASE_DEFINITIONS_V1 as definitions } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
 import { createMainWireCaseInputRecordV1 as record, bindMainWireCaseInputRecordV1 as bind } from "@/analysis/registry/MainWireCaseInputRecordV1";
 import { MAIN_WIRE_STATIC_CASE_MODEL_ID_V1 as modelId } from "@/domain/model/MainWireStaticCaseIdentityV1";

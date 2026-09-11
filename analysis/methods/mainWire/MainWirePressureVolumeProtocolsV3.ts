@@ -127,20 +127,6 @@ export interface MainWireIntegratedModelStructuralAnalysisSessionV3 {
   ): MainWireIntegratedModelStructuralAnalysisSessionV3;
 }
 
-function structuralCompletedBeatV3(
-  observation: MainWireIntegratedModelObservationV3,
-  session?: MainWireIntegratedModelStructuralAnalysisSessionV3,
-): MainWireIntegratedModelCompletedBeatMetricsV3 | null {
-  const native = observation.completedBeatMetrics;
-  if (native === null || session?.pressureVolumeLandmarksForBeatV1 === undefined) return native;
-  const landmarks = session.pressureVolumeLandmarksForBeatV1(native);
-  // This local calculation view never becomes an exact observation or output.
-  return landmarks === null ? null : Object.freeze({ ...native,
-    leftVentricularPressureVolumeLandmarks: landmarks.left,
-    rightVentricularPressureVolumeLandmarks: landmarks.right,
-  });
-}
-
 function advanceStructuralAnalysisSessionV3(
   session: MainWireIntegratedModelStructuralAnalysisSessionV3,
   targetTimeSec: number,
@@ -372,9 +358,8 @@ class FormalFixedTbvPressureVolumeLoopCollectorV3 {
       this.previousPhase01 = sample.left.phase01!;
       return null;
     }
-    const structuralBeat = structuralCompletedBeatV3(observation, session);
     const completed =
-      structuralBeat !== null && this.fullCycleStarted &&
+      this.fullCycleStarted &&
       this.left.length >= MINIMUM_PRESSURE_VOLUME_LOOP_SAMPLE_COUNT_V3 &&
       this.right.length >= MINIMUM_PRESSURE_VOLUME_LOOP_SAMPLE_COUNT_V3
         ? Object.freeze({
@@ -382,7 +367,7 @@ class FormalFixedTbvPressureVolumeLoopCollectorV3 {
               left: Object.freeze([...this.left]),
               right: Object.freeze([...this.right]),
             }),
-            completedBeatMetrics: structuralBeat,
+            completedBeatMetrics: observation.completedBeatMetrics!,
           })
         : null;
     this.fullCycleStarted = true;
@@ -1205,7 +1190,7 @@ function settleFormalPressureVolumeSourceV3(
         "global TBV changed during active-controller source settlement",
       );
     }
-    const completed = structuralCompletedBeatV3(advance.observation, branch);
+    const completed = advance.observation.completedBeatMetrics;
     if (
       completed === null ||
       completed.endAtrialCaptureId === lastCompletedBeatId
@@ -2069,7 +2054,7 @@ async function measureFormalPressureVolumeBranchV3(
       if (completedPressureVolumeLoop !== null) {
         pressureVolumeBeats.push(completedPressureVolumeLoop);
       }
-      const completed = structuralCompletedBeatV3(advance.observation, branch);
+      const completed = advance.observation.completedBeatMetrics;
       if (
         completed === null ||
         completed.endAtrialCaptureId === lastCompletedBeatId

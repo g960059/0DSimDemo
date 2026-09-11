@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { MAIN_WIRE_AS_REFERENCE_V1 as reference, MAIN_WIRE_AS_LOW_FLOW_REFERENCE_V1 as lowReference, validateMainWireAsReferenceV1 as validate, assessMainWireAsRestV1 as assess } from "@/analysis/policies/mainWire/MainWireAsReferenceV1";
 import { resolveMainWireStaticCaseDefinitionV1 as definition } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
-import { mainWireStaticCaseFittingSeedV1 as seed } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
+import { mainWireStaticCaseFittingSeedV1 as seed } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import { withMainWireCaseSearchCoordinateV1 as update } from "@/analysis/methods/mainWire/MainWireCaseFittingSearchV1";
 import { mainWireAorticJetVelocityV1 as velocity, observeMainWireAorticJetV1 as observe } from "@/analysis/methods/mainWire/MainWireAorticJetObservationV1";
 import { evaluateMainWireQuasiSteadyOrificeValveV2 as evaluate, MAIN_WIRE_VALVE_BLOOD_DENSITY_KG_PER_M3_V2 as rho,

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hotPathIntegrityTierV1, selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { MainWireStaticCaseSessionV1 as StaticSession } from "@/engine/vnext/MainWireStaticCaseSessionV1";
-import { mainWireStaticCaseFittingSeedV1 as staticSeed } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
+import { mainWireStaticCaseFittingSeedV1 as staticSeed } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import {
   wrapMainWirePreloadReserveSessionV1 as wrap,
 } from "@/analysis/methods/mainWire/MainWirePreloadReserveSessionV1";

@@ -8,7 +8,7 @@ import { MAIN_WIRE_STATIC_CASE_MODEL_ID_V1 as modelId } from "@/domain/model/Mai
 import { CURRENT_MODEL_PRESETS_V1 as adopted } from "@/data/model-releases/CurrentModelReleaseV1";
 import { MAIN_WIRE_STATIC_CASE_DEFINITIONS_V1 as definitions, resolveMainWireStaticCaseDefinitionV1 as definition,
   type MainWireCaseReferenceIdV1 as Reference, type MainWireStaticCaseCandidateV1 as Candidate } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
-import { mainWireStaticCaseFittingSeedV1 as seed } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
+import { mainWireStaticCaseFittingSeedV1 as seed } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import { createMainWireCaseInputRecordV1 as inputRecord, readMainWireCaseInputRecordV1 as readInput,
   readMainWireHistoricalFittingEvidenceV1 as history, bindMainWireCaseInputRecordV1 as bind,
   unwrapMainWireFittingEvidenceV1 as unwrap } from "@/analysis/registry/MainWireCaseInputRecordV1";

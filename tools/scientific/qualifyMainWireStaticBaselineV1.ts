@@ -3,7 +3,7 @@ import { resolve, join } from "node:path";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import { selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
-import { mainWireStaticCaseFittingSeedV1 as seed } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
+import { mainWireStaticCaseFittingSeedV1 as seed } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import { runMainWireStaticBaselineQualificationGridV1 as run, assessMainWireStaticBaselineQualificationV1 as assess,
   type MainWireStaticBaselineQualificationGridV1 as Grid } from "@/analysis/methods/mainWire/MainWireStaticBaselineQualificationV1";
 import { readFittingWorkerStdinV1, runFittingJsonWorkersV1 } from "./runFittingJsonWorkersV1";

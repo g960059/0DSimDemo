@@ -84,6 +84,25 @@ describe("analysis-owned quasi-steady semilunar closure", () => {
     expect(session.pressureVolumeLandmarksForBeatV1!(beat)).toBeNull();
   });
 
+  it.each([0, .006])("projects only structural advance, not native observations (origin %s)", origin => {
+    const { source, beat } = syntheticClosureSource({ origin }), session = wrap(source);
+    const nativeBefore = JSON.stringify(beat);
+    const result = session.advanceStructuralAnalysisToPresentationTimeV1!(.01);
+    expect(result.status).toBe("advanced");
+    if (result.status === "failed") throw new Error(result.message);
+    expect(session.observe().completedBeatMetrics).toBe(beat);
+    expect(source.observe().completedBeatMetrics).toBe(beat);
+    expect(JSON.stringify(beat)).toBe(nativeBefore);
+    if (origin > 0) expect(result.observation.completedBeatMetrics).toBeNull();
+    else {
+      expect(result.observation.completedBeatMetrics?.leftVentricularPressureVolumeLandmarks.endSystolic)
+        .toEqual({ event: "semilunar-valve-closure", volumeMl: 79.25, pressureMmHg: 101 });
+      const { leftVentricularPressureVolumeLandmarks: _left, rightVentricularPressureVolumeLandmarks: _right, ...rest } = result.observation.completedBeatMetrics!;
+      const { leftVentricularPressureVolumeLandmarks: _nativeLeft, rightVentricularPressureVolumeLandmarks: _nativeRight, ...nativeRest } = beat;
+      expect(rest).toEqual(nativeRest);
+    }
+  });
+
   it.each(["forkAtFixedGlobalTotalBloodVolume", "forkResponsiveStarlingAtFixedGlobalTotalBloodVolume"] as const)(
     "keeps observations private across %s", forkMethod => {
       const { source, beat } = syntheticClosureSource(), parent = wrap(source), branch = parent[forkMethod](4000);

@@ -5,11 +5,20 @@ import { parseArgs } from "node:util";
 import { selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { runMainWireStaticCaseFittingV1 as run, readMainWireStaticCaseFittingResultV1 as read,
   type MainWireStaticCaseFittingRequestV1 as Request, type MainWireCaseReferenceIdV1 as Reference } from "@/analysis/methods/mainWire/MainWireStaticCaseFittingWorkflowV1";
-import { mainWireStaticCaseFittingSeedV1 as seed } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
+import { mainWireStaticCaseFittingSeedV1 as seed } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import { beginFittingSourceSnapshotV1 } from "./FittingSourceSnapshotV1";
 import { readFittingWorkerStdinV1, runFittingJsonWorkersV1 } from "./runFittingJsonWorkersV1";
-import { searchMainWireCaseFittingV1 as search, MAIN_WIRE_CASE_FITTING_COORDINATES_V1 as coordinates,
+import { searchMainWireCaseFittingV1 as search,
   type MainWireCaseFittingCoordinateIdV1 as CoordinateId } from "@/analysis/methods/mainWire/MainWireCaseFittingSearchV1";
+import { resolveMainWireCaseSearchProfileV1 } from "@/analysis/registry/MainWireCaseSearchProfilesV1";
+
+export function resolveMainWireFittingCoordinatesV1(referenceId: Reference, requested?: string): readonly CoordinateId[] {
+  const allowed = resolveMainWireCaseSearchProfileV1(referenceId).coordinateIds;
+  const ids = requested === undefined ? allowed : requested.split(",") as CoordinateId[];
+  if (!ids.length || new Set(ids).size !== ids.length || ids.some(id => !allowed.includes(id)))
+    throw new Error("Search coordinates must be distinct and allowed by this case");
+  return ids;
+}
 
 type Job = { id: string; referenceId: Reference; candidateInputs?: Request["candidateInputs"]; reuseFile?: string; nominalDtSec?: Request["nominalDtSec"] };
 async function main() {
@@ -39,9 +48,8 @@ async function main() {
   if (values.optimize && values.plan || !values.optimize && [values.budget, values.minutes, values.coordinates].some(Boolean))
     throw new Error("Search options require --reference and --optimize, not --plan");
   const budget = Number(values.budget ?? 25), minutes = Number(values.minutes ?? 10);
-  const coordinateIds = values.coordinates ? values.coordinates.split(",") as CoordinateId[] : coordinates.map(d => d.id);
-  if (values.optimize && (!Number.isInteger(budget) || budget < 1 || budget > 128 || !Number.isFinite(minutes) || minutes <= 0 || minutes > 60
-    || !coordinateIds.length || new Set(coordinateIds).size !== coordinateIds.length || coordinateIds.some(id => !coordinates.some(d => d.id === id))))
+  const coordinateIds = values.optimize ? resolveMainWireFittingCoordinatesV1(values.reference as Reference, values.coordinates) : [];
+  if (values.optimize && (!Number.isInteger(budget) || budget < 1 || budget > 128 || !Number.isFinite(minutes) || minutes <= 0 || minutes > 60))
     throw new Error("Search requires budget 1–128, minutes >0 and <=60, and distinct supported coordinates");
   const jobs: Job[] = values.plan ? JSON.parse(await readFile(values.plan, "utf8")) : [{ id: "case", referenceId: values.reference as Reference,
     ...(values.candidate ? { candidateInputs: JSON.parse(await readFile(values.candidate, "utf8")) } : {}),
@@ -119,4 +127,4 @@ async function main() {
     throw error;
   } finally { await snapshot.finish(files); }
 }
-await main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

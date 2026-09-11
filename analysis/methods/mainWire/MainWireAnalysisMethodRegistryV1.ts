@@ -260,6 +260,8 @@ export const MAIN_WIRE_ANALYSIS_METHOD_REGISTRY_V1 =
       resolveMainWireStructuralAnalysisExecutionPlanV1,
   });
 
+const PERIODIC_PVA_BINDINGS_V1 = new WeakMap<MainWirePeriodicPvaDerivationV1, MainWirePeriodicPvaDerivationV1>();
+
 /** Main Wire composition wrapper over the model-independent registry. */
 export function resolveMainWireAnalysisMethodsForSurfaceV1(
   surfaceValue: unknown,
@@ -282,14 +284,18 @@ export function resolveMainWireAnalysisMethodsForSurfaceV1(
     r => r.derivationId === periodicPvaRegistration?.derivationId)?.requiredAnalysisIds;
   if (periodicPvaRegistration && sourceAnalysisIds?.length !== 1)
     throw new Error("PVA must pin one structural source analysis");
+  let periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null = null;
+  if (periodicPvaRuntime?.kind === "periodic-pva") {
+    const definition = periodicPvaRuntime.derivation;
+    periodicPvaDerivation = PERIODIC_PVA_BINDINGS_V1.get(definition)
+      ?? Object.freeze({ ...definition, sourceAnalysisId: sourceAnalysisIds![0]! });
+    PERIODIC_PVA_BINDINGS_V1.set(definition, periodicPvaDerivation);
+  }
   return Object.freeze({
     capabilities: resolved.capabilities,
     presentationMethods: Object.freeze(resolved.derivations.flatMap(({ runtime }) =>
       runtime.kind === "presentation" ? [runtime.method] : [])),
-    periodicPvaDerivation:
-      periodicPvaRuntime?.kind === "periodic-pva"
-        ? Object.freeze({ ...periodicPvaRuntime.derivation, sourceAnalysisId: sourceAnalysisIds![0]! })
-        : null,
+    periodicPvaDerivation,
     resolveExecutionPlan: resolved.resolveExecutionPlan,
   });
 }

@@ -81,8 +81,7 @@ export function wrapMainWirePressureCrossingSessionV1(source: Session, dt: .002 
     forkAtFixedGlobalTotalBloodVolume: tbv => source.forkAtFixedGlobalTotalBloodVolume(tbv),
     forkResponsiveStarlingAtFixedGlobalTotalBloodVolume: tbv => source.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(tbv),
   }, dt, undefined, true);
-  return Object.freeze({ ...numerical,
-    pressureVolumeLandmarksForBeatV1(beat: Beat) {
+  const landmarksForBeat = (beat: Beat) => {
       if (beat.startTimeSec < origin) return null;
       const forSide = (side: "left" | "right") => {
         const native = side === "left" ? beat.leftVentricularPressureVolumeLandmarks : beat.rightVentricularPressureVolumeLandmarks;
@@ -95,6 +94,23 @@ export function wrapMainWirePressureCrossingSessionV1(source: Session, dt: .002 
         return Object.freeze({ ...native, endSystolic: event.landmark });
       };
       return Object.freeze({ left: forSide("left"), right: forSide("right") });
+  };
+  return Object.freeze({ ...numerical,
+    pressureVolumeLandmarksForBeatV1: landmarksForBeat,
+    // Only the new Surface's structural advance sees the measured landmarks.
+    // Native observe/advance, exact frames and the admitted legacy executable
+    // stay unchanged; the family consumes this ephemeral calculation view.
+    advanceStructuralAnalysisToPresentationTimeV1(target) {
+      const result = numerical.advanceToPresentationTime(target);
+      if (result.status === "failed" || result.observation.completedBeatMetrics === null) return result;
+      const native = result.observation.completedBeatMetrics;
+      const landmarks = landmarksForBeat(native);
+      return Object.freeze({ ...result, observation: Object.freeze({ ...result.observation,
+        completedBeatMetrics: landmarks === null ? null : Object.freeze({ ...native,
+          leftVentricularPressureVolumeLandmarks: landmarks.left,
+          rightVentricularPressureVolumeLandmarks: landmarks.right,
+        }),
+      }) });
     },
     forkAtFixedGlobalTotalBloodVolume: tbv => wrapMainWirePressureCrossingSessionV1(source.forkAtFixedGlobalTotalBloodVolume(tbv), dt),
     forkResponsiveStarlingAtFixedGlobalTotalBloodVolume: tbv => wrapMainWirePressureCrossingSessionV1(source.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(tbv), dt),

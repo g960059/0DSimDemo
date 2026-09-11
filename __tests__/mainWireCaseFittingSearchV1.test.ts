@@ -2,10 +2,12 @@ import { describe, it, expect } from "vitest";
 import { searchMainWireCaseFittingV1 as search, scoreMainWireCaseFittingResultV1 as score,
   mainWireCaseScoreImprovesV1 as improves, withMainWireCaseSearchCoordinateV1 as update,
   readMainWireCaseSearchCoordinateV1 as read, type MainWireCaseSearchScoreV1 as Score } from "@/analysis/methods/mainWire/MainWireCaseFittingSearchV1";
-import { mainWireStaticCaseFittingSeedV1 as seed } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
+import { mainWireStaticCaseFittingSeedV1 as seed } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import type { MainWireStaticCaseCandidateV1 as Candidate, runMainWireStaticCaseFittingV1 as run } from "@/analysis/methods/mainWire/MainWireStaticCaseFittingWorkflowV1";
 import { searchMainWireRegistryCaseV1 as registrySearch } from "../tools/scientific/MainWireRegistryCaseSearchV1";
 import { compareMainWireCasePeriodicTracesV1 as compareTraces } from "@/analysis/methods/mainWire/MainWireCaseInitializationAgreementV1";
+import { resolveMainWireFittingCoordinatesV1 as cliCoordinates } from "@/tools/scientific/runMainWireCaseFittingV1";
+import { resolveMainWireCaseSearchProfileV1 as profile } from "@/analysis/registry/MainWireCaseSearchProfilesV1";
 
 type Outcome = Awaited<ReturnType<typeof run>>;
 // Deliberately synthetic transport stub: tests search arithmetic and scheduling,
@@ -23,6 +25,15 @@ const base = () => ({ referenceId: "baseline" as const, candidateInputs: seed("b
   coordinateIds: ["tbv"] as const, maximumEvaluations: 20, maximumWallTimeMs: 60000 });
 
 describe("bounded case-fitting search", () => {
+  it.each(["baseline", "hfref-chronic-dilated-v1", "as-high-gradient-valve-only-v1", "as-low-flow-reduced-ef-v1"] as const)(
+    "uses only %s case-owned coordinates when CLI --coordinates is omitted", reference => {
+      expect(cliCoordinates(reference)).toEqual(profile(reference).coordinateIds);
+    });
+  it("rejects a CLI coordinate from another case before starting a run", () => {
+    expect(cliCoordinates("baseline", "tbv")).toEqual(["tbv"]);
+    for (const requested of ["aortic-area", "tbv,tbv", "", "not-a-coordinate"])
+      expect(() => cliCoordinates("baseline", requested)).toThrow(/allowed by this case/);
+  });
   it("compares observable cycles by source-period phase, not absolute time or a fitted peak", () => {
     const trace = (origin: number, offset = 0) => Array.from({ length: 100 }, (_, i) => ({
       acceptedTimeSec: origin + (i + 1) / 100, acceptedDtSec: .01,

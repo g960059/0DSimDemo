@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, rm, mkdir } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { build } from "esbuild";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { openFittingRunJournalV1 as open, runJournaledFittingBatchV1 as batch } from "@/tools/scientific/FittingRunJournalV1";
@@ -7,7 +10,7 @@ import { runFittingJsonWorkersV1 as workers } from "@/tools/scientific/runFittin
 import { beginFittingSourceSnapshotV1 as beginSource, resumeFittingSourceSnapshotV1 as resumeSource } from "@/tools/scientific/FittingSourceSnapshotV1";
 import { fittingFileSha256V1 as fileHash } from "@/tools/scientific/SealedFittingRunV1";
 import { searchMainWireCaseFittingV1 as search, readMainWireCaseSearchCoordinateV1 as coordinate } from "@/analysis/methods/mainWire/MainWireCaseFittingSearchV1";
-import { mainWireStaticCaseFittingSeedV1 as seed } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
+import { mainWireStaticCaseFittingSeedV1 as seed } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import type { MainWireStaticCaseCandidateV1 as Candidate, runMainWireStaticCaseFittingV1 as fit } from "@/analysis/methods/mainWire/MainWireStaticCaseFittingWorkflowV1";
 
 vi.mock("@/tools/scientific/runFittingJsonWorkersV1", () => ({ runFittingJsonWorkersV1: vi.fn() }));
@@ -29,6 +32,15 @@ describe("same-run fitting journal", () => {
     const dir = await make(), prefix = join(dir, "execution"), snapshot = await beginSource(prefix);
     expect((await resumeSource(prefix)).sourceSha256).toBe(snapshot.sourceSha256);
     const path = `${prefix}.started.json`, original = await readFile(path, "utf8"), manifest = JSON.parse(original);
+    expect(manifest.files.some((f: { path: string }) => f.path === "appTheme.ts")).toBe(true);
+    // Resolve the complete preparation graph from the archive itself. Bundling
+    // does not run the ODE or borrow omitted source files from the live checkout.
+    const extracted = join(dir, "extracted");
+    await mkdir(extracted);
+    await promisify(execFile)("tar", ["-xzf", `${prefix}.source.tar.gz`, "-C", extracted]);
+    await expect(build({ absWorkingDir: extracted, entryPoints: ["tools/scientific/prepareMainWireRegistryReviewV1.ts"],
+      bundle: true, write: false, format: "esm", platform: "node", packages: "external", logLevel: "silent" }))
+      .resolves.toHaveProperty("errors", []);
     const changed = structuredClone(manifest);
     changed.files[0].sha256 = "c".repeat(64); changed.sourceSha256 = fileHash(JSON.stringify(changed.files));
     await writeFile(path, JSON.stringify(changed));
