@@ -5,9 +5,20 @@ import { parseArgs } from "node:util";
 import { selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { runMainWireStaticCaseFittingV1 as run, readMainWireStaticCaseFittingResultV1 as read,
   type MainWireStaticCaseFittingRequestV1 as Request, type MainWireCaseReferenceIdV1 as Reference } from "@/analysis/methods/mainWire/MainWireStaticCaseFittingWorkflowV1";
-import { mainWireStaticCaseFittingSeedV1 as seed } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
+import { mainWireStaticCaseFittingSeedV1 as seed } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import { beginFittingSourceSnapshotV1 } from "./FittingSourceSnapshotV1";
 import { readFittingWorkerStdinV1, runFittingJsonWorkersV1 } from "./runFittingJsonWorkersV1";
+import { searchMainWireCaseFittingV1 as search,
+  type MainWireCaseFittingCoordinateIdV1 as CoordinateId } from "@/analysis/methods/mainWire/MainWireCaseFittingSearchV1";
+import { resolveMainWireCaseSearchProfileV1 } from "@/analysis/registry/MainWireCaseSearchProfilesV1";
+
+export function resolveMainWireFittingCoordinatesV1(referenceId: Reference, requested?: string): readonly CoordinateId[] {
+  const allowed = resolveMainWireCaseSearchProfileV1(referenceId).coordinateIds;
+  const ids = requested === undefined ? allowed : requested.split(",") as CoordinateId[];
+  if (!ids.length || new Set(ids).size !== ids.length || ids.some(id => !allowed.includes(id)))
+    throw new Error("Search coordinates must be distinct and allowed by this case");
+  return ids;
+}
 
 type Job = { id: string; referenceId: Reference; candidateInputs?: Request["candidateInputs"]; reuseFile?: string; nominalDtSec?: Request["nominalDtSec"] };
 async function main() {
@@ -19,18 +30,27 @@ async function main() {
   }
   const { values } = parseArgs({ options: { output: { type: "string" }, reference: { type: "string" },
     candidate: { type: "string" }, reuse: { type: "string" }, dt: { type: "string" },
-    plan: { type: "string" }, workers: { type: "string" }, help: { type: "boolean" } } });
+    plan: { type: "string" }, workers: { type: "string" }, help: { type: "boolean" }, optimize: { type: "boolean" },
+    budget: { type: "string" }, minutes: { type: "string" }, coordinates: { type: "string" } } });
   if (values.help) {
     process.stdout.write("Usage: npm run fit:case -- --output NEW_DIRECTORY --reference baseline|hfref-chronic-dilated-v1 [--candidate FILE] [--reuse RESULT_FILE] [--dt 0.002|0.001]\n"
       + "Batch: --output NEW_DIRECTORY --plan JOB_ARRAY_JSON [--workers 1..8]\n"
       + "Each job contains id, referenceId, optional candidateInputs/reuseFile/nominalDtSec. Results retain input order.\n"
       + "Uses Standard73 finite static anatomy, NOT retained Standard72. Reference selection changes assessment, not equations.\n"
-      + "Rest screening only: no automatic optimization, paired-grid qualification, reserve, mint or preset adoption.\n"); return;
+      + "Search: --reference REFERENCE --optimize [--budget 25] [--minutes 10] [--workers 4] [--coordinates tbv,systemic-resistance,arterial-stiffness,lv-active]\n"
+      + "Search uses current registry intervals, not invented normal ranges or a unique patient estimate.\n"
+      + "Rest screening/search only: no paired-grid qualification, reserve, mint or preset adoption.\n"); return;
   }
   if (!values.output || Boolean(values.plan) === Boolean(values.reference)
     || (values.plan && [values.candidate, values.reuse, values.dt].some(Boolean))) throw new Error("Choose --reference or --plan and a new --output directory");
   const concurrency = Number(values.workers ?? 4);
   if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 8) throw new Error("Workers must be 1–8");
+  if (values.optimize && values.plan || !values.optimize && [values.budget, values.minutes, values.coordinates].some(Boolean))
+    throw new Error("Search options require --reference and --optimize, not --plan");
+  const budget = Number(values.budget ?? 25), minutes = Number(values.minutes ?? 10);
+  const coordinateIds = values.optimize ? resolveMainWireFittingCoordinatesV1(values.reference as Reference, values.coordinates) : [];
+  if (values.optimize && (!Number.isInteger(budget) || budget < 1 || budget > 128 || !Number.isFinite(minutes) || minutes <= 0 || minutes > 60))
+    throw new Error("Search requires budget 1–128, minutes >0 and <=60, and distinct supported coordinates");
   const jobs: Job[] = values.plan ? JSON.parse(await readFile(values.plan, "utf8")) : [{ id: "case", referenceId: values.reference as Reference,
     ...(values.candidate ? { candidateInputs: JSON.parse(await readFile(values.candidate, "utf8")) } : {}),
     ...(values.reuse ? { reuseFile: values.reuse } : {}),
@@ -51,8 +71,40 @@ async function main() {
     const path = join(output, name); await writeFile(path, JSON.stringify(value, null, 2) + "\n", { flag: "wx" }); files.push(path);
   };
   await save("plan.json", { jobs, sourceSha256: snapshot.sourceSha256, concurrency,
-    scope: "research-periodic-rest-screen", publicPromotionAuthorized: false });
+    scope: values.optimize ? "research-periodic-rest-search" : "research-periodic-rest-screen",
+    ...(values.optimize ? { budget, minutes, coordinateIds } : {}), publicPromotionAuthorized: false });
   try {
+    if (values.optimize) {
+      const initial = requests[0]!;
+      const signal = AbortSignal.timeout(Math.ceil(minutes * 60_000));
+      const report = await search({ referenceId: initial.referenceId, candidateInputs: initial.candidateInputs,
+        reuse: initial.reuse, maximumEvaluations: budget, maximumWallTimeMs: minutes * 60_000, coordinateIds,
+        evaluateBatch: async jobs => {
+          const results = await runFittingJsonWorkersV1<Awaited<ReturnType<typeof run>>>({
+            scriptPath: fileURLToPath(import.meta.url), concurrency, signal,
+            jobs: jobs.map(job => ({ args: ["--worker"], input: JSON.stringify({ referenceId: initial.referenceId,
+              candidateInputs: job.candidateInputs, ...(job.reuse ? { reuse: job.reuse } : {}),
+              sourceSha256: snapshot.sourceSha256, nominalDtSec: initial.nominalDtSec }) })) });
+          for (const [i, result] of results.entries()) {
+            await save(`${jobs[i]!.id}.json`, result.status === "saved-result-ready" ? result.result : result);
+            if (result.status === "saved-result-ready") await read(result.result);
+            process.stdout.write(JSON.stringify({ id: jobs[i]!.id, status: result.status,
+              ...(result.status === "saved-result-ready" ? { rest: result.result.rest.status, cycles: result.result.execution.completedCycleCount,
+                initialization: result.result.initialization.kind, wallTimeMs: result.result.wallTimeMs } : { message: result.message }) }) + "\n");
+          }
+          return results;
+        } });
+      const { evaluations, ...summary } = report;
+      await save("report.json", { ...summary, sourceSha256: snapshot.sourceSha256, nominalDtSec: initial.nominalDtSec,
+        evaluations: evaluations.map(({ outcome, ...e }) => ({ ...e, file: `${e.id}.json`, status: outcome.status,
+          ...(outcome.status === "saved-result-ready" ? { resultSha256: outcome.result.resultSha256,
+            initialization: outcome.result.initialization.kind, cycles: outcome.result.execution.completedCycleCount,
+            wallTimeMs: outcome.result.wallTimeMs } : { message: outcome.message }) })) });
+      await save("best-candidate.json", report.bestCandidateInputs);
+      process.stdout.write(JSON.stringify({ stopReason: report.stopReason, bestId: report.bestId, bestScore: report.bestScore,
+        evaluationCount: report.evaluationCount, wallTimeMs: report.wallTimeMs, publicPromotionAuthorized: false }) + "\n");
+      return;
+    }
     const results = await runFittingJsonWorkersV1<Awaited<ReturnType<typeof run>>>({
       scriptPath: fileURLToPath(import.meta.url), concurrency, signal: AbortSignal.timeout(1_800_000),
       jobs: requests.map(r => ({ args: ["--worker"], input: JSON.stringify({ ...r, sourceSha256: snapshot.sourceSha256 }) })) });
@@ -75,4 +127,4 @@ async function main() {
     throw error;
   } finally { await snapshot.finish(files); }
 }
-await main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

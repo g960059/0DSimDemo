@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { nextZeroBasedPvDomainV3, workbenchPvLoopDomainPointsV3 } from "@/components/workbench/presentation/PressureVolumeLoopCanvasV3";
 
 import {
   WORKBENCH_PRESENTATION_SAMPLE_CAPACITY_V3,
@@ -140,7 +141,10 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     const focused = guytonStarlingPlotDomainV3(orientation);
     expect(guytonZeroFlowPresentationMaximumV3(orientation)).toBeCloseTo(14.3);
     expect(focused.pressureMaximumMmHg).toBeCloseTo(14.3);
-    expect(guytonStarlingPlotDomainV3(orientation, [history])).toEqual(focused);
+    const comparison = guytonStarlingPlotDomainV3(orientation, [history]);
+    expect(comparison.pressureMinimumMmHg).toBeLessThanOrEqual(guytonStarlingPlotDomainV3(history).pressureMinimumMmHg);
+    expect(comparison.pressureMaximumMmHg).toBe(focused.pressureMaximumMmHg);
+    expect(comparison.flowMaximumLPerMin).toBeGreaterThanOrEqual(focused.flowMaximumLPerMin);
   });
 
   it("preserves missing support, vertical points, and reversed pressure limbs in TBV order", () => {
@@ -274,6 +278,65 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     ).toEqual([-20, 80]);
     expect(niceNumericDomainV3([-2, 12])).toEqual([-5, 15]);
     expect(numericTicksV3([-5, 15])).toEqual([-5, 0, 5, 10, 15]);
+  });
+
+  it("keeps PV pressure and volume domains at zero without altering observations", () => {
+    for (const observations of [[], [-10, -2], [0, 0], [NaN, Infinity], [-1.4, 6, 110], [45, 170]]) {
+      const values = Object.freeze(observations);
+      const state = nextZeroBasedPvDomainV3(null, values, { commitKey: "0" });
+      expect(state.domain[0]).toBe(0);
+      expect(state.domain[1]).toBeGreaterThan(0);
+      expect(state.domain[1]).toBeGreaterThanOrEqual(Math.max(0, ...values.filter(Number.isFinite)));
+    }
+  });
+
+  it("fits PV axes to current and visible previous loops, never auxiliary geometry", () => {
+    const point = (volumeMl: number, pressureMmHg: number): WorkbenchPvPointV3 =>
+      Object.freeze({ volumeMl, pressureMmHg, acceptedTimeSec: 1, cyclePhase01: 0.5 });
+    const completedBeat = [point(60, 100), point(140, 10)];
+    const liveSegment = [point(130, 110)];
+    const previousBeat = [point(160, 125)];
+    const distantSupport = Object.freeze([point(600, 500)]);
+    const drawing = Object.freeze({
+      espvr: { curve: distantSupport, fitPoints: distantSupport },
+      edpvr: { fitPoints: distantSupport },
+      loadRelation: { segments: [distantSupport], loadSupportPoints: distantSupport },
+      diastolicRelation: { segments: [distantSupport] },
+      pressureEnvelope: [distantSupport],
+      areaDisplay: { potentialEnergyStrip: [{ volumeMl: 600, lowerPressureMmHg: 10, upperPressureMmHg: 500 }] },
+    });
+    const trace = { completedBeat, liveSegment, history: [{ completedBeat: previousBeat }],
+      periodicPvaDrawing: drawing, periodicPvaHistoryDrawings: [{ drawing, alpha: 0.3 }] };
+    const points = workbenchPvLoopDomainPointsV3([trace]);
+    expect(points).toEqual([...completedBeat, ...liveSegment, ...previousBeat]);
+    expect(nextZeroBasedPvDomainV3(null, points.map(p => p.volumeMl), { commitKey: "1", upperPaddingFraction: 0.08 }).domain)
+      .toEqual([0, 200]);
+    expect(nextZeroBasedPvDomainV3(null, points.map(p => p.pressureMmHg), { commitKey: "1", upperPaddingFraction: 0.12 }).domain)
+      .toEqual([0, 150]);
+    // Hiding previous results changes support; hiding or updating auxiliaries does not.
+    expect(workbenchPvLoopDomainPointsV3([{ ...trace, history: [] }])).toEqual([...completedBeat, ...liveSegment]);
+    const withoutAnalysis = { ...trace, periodicPvaDrawing: null, periodicPvaHistoryDrawings: [] };
+    expect(workbenchPvLoopDomainPointsV3([withoutAnalysis])).toEqual(points);
+    expect(drawing.espvr.curve).toBe(distantSupport);
+  });
+
+  it("keeps prepared or historical analysis out of an empty loop domain", () => {
+    const trace = { completedBeat: [], liveSegment: [], history: [],
+      get periodicPvaDrawing(): never { throw new Error("Analysis must not own the loop viewport"); },
+      get periodicPvaHistoryDrawings(): never { throw new Error("Old analysis must not own the loop viewport"); } };
+    expect(workbenchPvLoopDomainPointsV3([trace])).toEqual([]);
+  });
+
+  it("contracts a zero-based PV upper limit only after sustained smaller observations", () => {
+    let state = nextZeroBasedPvDomainV3(null, [-3, 200], { commitKey: "0", upperPaddingFraction: 0 });
+    for (let beat = 1; beat <= 5; beat++) {
+      state = nextZeroBasedPvDomainV3(state, [-2, 70], { commitKey: String(beat), upperPaddingFraction: 0 });
+      expect(state.domain).toEqual([0, 200]);
+    }
+    state = nextZeroBasedPvDomainV3(state, [-2, 70], { commitKey: "6", upperPaddingFraction: 0 });
+    expect(state.domain[0]).toBe(0);
+    expect(state.domain[1]).toBeLessThan(200);
+    expect(state.domain[1]).toBeGreaterThanOrEqual(70);
   });
 
   it("uses model-emitted cycle wraps to select the newest complete PV beat", () => {
@@ -980,7 +1043,7 @@ describe("V3-neutral Workbench Canvas helpers", () => {
 
   it("fades historical graph states by recency", () => {
     expect([0, 1, 2].map((index) => workbenchHistoryAlphaV3(index, 3))).toEqual(
-      [0.08, 0.14, 0.2],
+      [0.15, 0.25, 0.35],
     );
     expect(workbenchHistoryAlphaV3(-1, 3)).toBe(0);
   });

@@ -1,4 +1,6 @@
 import React from "react";
+import { loadPreparedModelAnalysisV1 } from "./runtime/PreparedModelAnalysisRegistryV1";
+import type { StudioJsonObjectV2 } from "@/studio/contracts/v2/json";
 import { workbenchPresentationAnalysisSelectionV1 } from "./presentation/WorkbenchPresentationOutputSelectionV3";
 import { WorkbenchLastMeasuredOutputsV1 } from "./presentation/WorkbenchLastMeasuredOutputsV1";
 import { registeredCurrentBaselinePresentationV1 } from "@/studio/presentation/CurrentBaselinePresentationV1";
@@ -105,7 +107,7 @@ import {
 import {
   loadStudioDefaultClientCompositionV2,
   loadStudioExperimentClientCompositionV2,
-  loadStudioLocalCurrentClientCompositionV1,
+  loadStudioLocalResearchClientCompositionV1,
   loadStudioSnapshotClientCompositionV2,
   type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
@@ -219,7 +221,7 @@ import {
 import {
   scalarAvailableOutputV3,
 } from "@/components/workbench/WorkbenchItemPresentation";
-import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
+import { mainWireFormalPvAnalysisIdV1 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import {
   MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
   type MainWirePeriodicPvaDerivationV1,
@@ -741,7 +743,7 @@ export const WorkbenchSession = ({
                   sourceSnapshot.surfaceReleaseId,
                 )
               : modelLab
-                ? await loadStudioLocalCurrentClientCompositionV1()
+                ? await loadStudioLocalResearchClientCompositionV1()
                 : await loadStudioDefaultClientCompositionV2();
       } catch (error) {
         if (
@@ -937,6 +939,14 @@ export const WorkbenchSession = ({
         releaseTicket: composition.exactModel.workerReleaseTicket,
         backgroundWorkerPool,
         resolveAnalysisExecutionPlan: composition.modelSurface.analysis.resolveExecutionPlan,
+        loadPreparedAnalysis: async seed => {
+          if (!seed.checkpoint) return null;
+          const saved = await loadPreparedModelAnalysisV1(composition.exactModel.workerReleaseTicket,
+            { fixture: seed.fixture, checkpoint: seed.checkpoint });
+          return saved === null ? null : { ...saved.analysis, payload: { ...saved.analysis.payload as StudioJsonObjectV2,
+            preparedOrigin: { recordSha256: saved.recordSha256, captureSha256: saved.captureSha256,
+              preparationSourceSha256: saved.preparationSourceSha256, use: "registered-initial-state-analysis" } } };
+        },
         presentationAnalysisIds: () => surfaceRef.current === null ? []
           : workbenchPresentationAnalysisSelectionV1(surfaceRef.current, composition.modelSurface.catalog,
             composition.modelSurface.analysis.presentationMethods),
@@ -1390,7 +1400,7 @@ export const WorkbenchSession = ({
           runtime.latestFrame(scenarioId),
         );
         const structuralAnalysisIds = new Set(
-          workbenchStructuralHistoryAnalysisIdsV3(surfaceRef.current, contract),
+          workbenchStructuralHistoryAnalysisIdsV3(surfaceRef.current, contract, mainWireFormalPvAnalysisIdV1(periodicPvaDerivationRef.current)),
         );
         // History is visual comparison context, not a qualification result.
         // Preserve the latest curve that was actually renderable for the old
@@ -1448,7 +1458,7 @@ export const WorkbenchSession = ({
         );
         const acceptedScenarios = await Promise.all(
           uniqueScenarioIds.map((scenarioId) =>
-            runtime.captureScenario(scenarioId)),
+            runtime.captureScenario(scenarioId, { prewarm: true })),
         );
         const projectedControlValues = Object.fromEntries(
           acceptedScenarios.map((scenario) => [
@@ -2599,6 +2609,7 @@ export const WorkbenchSession = ({
   });
 
   const latestFrame = status.kind === "live" ? status.frame : null;
+  const formalPvAnalysisId = mainWireFormalPvAnalysisIdV1(periodicPvaDerivationRef.current);
   const rootRuntimeData =
     status.kind === "live"
       ? {
@@ -2640,7 +2651,7 @@ export const WorkbenchSession = ({
     periodicPvaOutputScenarioIds.filter((scenarioId) => {
       const key = workbenchAnalysisHistoryKeyV3(
         scenarioId,
-        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+        formalPvAnalysisId,
       );
       return (
         analysisByKey[key] === undefined &&
@@ -2649,7 +2660,7 @@ export const WorkbenchSession = ({
       );
     });
   const periodicPvaOutputRequestKey = structuralReturnComparisonRequestKeyV3(
-    MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+    formalPvAnalysisId,
     missingPeriodicPvaOutputScenarioIds,
   );
   const lastPeriodicPvaOutputRequestKeyRef = React.useRef<string | null>(null);
@@ -2668,7 +2679,7 @@ export const WorkbenchSession = ({
       return;
     if (
       requestAnalysis(
-        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+        formalPvAnalysisId,
         missingPeriodicPvaOutputScenarioIds,
       )
     ) {
@@ -2681,6 +2692,7 @@ export const WorkbenchSession = ({
     return () => window.clearTimeout(retryTimer);
   }, [
     latestFrame?.acceptedRevision,
+    formalPvAnalysisId,
     missingPeriodicPvaOutputScenarioIds,
     periodicPvaOutputRequestKey,
     periodicPvaOutputRetryNonce,
@@ -2864,6 +2876,7 @@ export const WorkbenchSession = ({
         scenarios={scenarios}
         surface={surface}
         visibleScenarioIds={visibleScenarioIds}
+        readPresentation={id => ({ analyses: runtimeRef.current?.presentationAnalyses(id) ?? [], frame: runtimeRef.current?.maybeLatestFrame(id) })}
       />
     );
   };
@@ -2896,7 +2909,7 @@ export const WorkbenchSession = ({
         ? null
         : workbenchAnalysisHistoryKeyV3(
             scenarioId,
-            MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+            formalPvAnalysisId,
           );
     const periodicPva =
       periodicPvaAnalysisKey === null
@@ -2967,7 +2980,7 @@ export const WorkbenchSession = ({
               pendingAnalysisKeys.includes(
                 workbenchAnalysisHistoryKeyV3(
                   scenarioId,
-                  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+                  formalPvAnalysisId,
                 ),
               ),
           )
@@ -3143,11 +3156,14 @@ export const WorkbenchSession = ({
           {contract !== null && (
             <WorkbenchSimulationInfoV3
               currentModelId={contract.modelId}
-              limitations={
-                t(modelLimitationsKey, {
+              limitations={[
+                ...(t(modelLimitationsKey, {
                   returnObjects: true,
-                }) as string[]
-              }
+                }) as string[]),
+                ...(modelLab ? [resolvedLocale === "ja"
+                  ? "PV解析では、準定常弁の前向き駆出が終わる位置を、弁前後の圧差のゼロ交差から補間します。実際の弁尖の接触時刻を測るものではありません。ライブ計算や保存状態は変更せず、独立した解析用の計算で測定します。"
+                  : "PV analysis interpolates the end of forward ejection at the quasi-steady valve's signed pressure-difference zero crossing. This is not a measurement of physical leaflet contact. Measurements use isolated analysis sessions without changing the live calculation or saved state."] : []),
+              ]}
               note={{
                 value: surface?.note.text ?? "",
                 placeholder: t("workbench.editor.notePlaceholder"),
@@ -3521,6 +3537,9 @@ export const WorkbenchSession = ({
             ),
             pvaBoundaryView: t("workbench.editor.pvaBoundaryView"),
             pvaBoundaryViewHint: t("workbench.editor.pvaBoundaryViewHint"),
+            previousResults: t("workbench.editor.previousResults"),
+            previousResultsHint: t("workbench.editor.previousResultsHint"),
+            noPreviousResults: t("workbench.editor.noPreviousResults"),
             fixedBinding: t("workbench.editor.fixedBinding"),
             fixedBindingHint: t("workbench.editor.fixedBindingHint"),
             outputFixedBindingHint: t(

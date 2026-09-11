@@ -7,9 +7,14 @@ import { MAIN_WIRE_HFREF_REFERENCE_V1 as reference } from "@/analysis/policies/m
 /** Uses native valve-closure volumes, not source-cohort means or fitted Ees.
  * Keep that convention visible: imaging extrema need not coincide exactly. */
 export function readMainWireHfrefBeatV1(beat: Beat) {
-  const bsa = reference.scope.bodySurfaceAreaM2;
+  return readMainWireRestingCaseBeatV1(beat, reference.scope);
+}
+
+/** Shared native measurements; no disease criteria or cohort targets. */
+export function readMainWireRestingCaseBeatV1(beat: Beat, scope: { bodySurfaceAreaM2: number; heartRateBpm: number }) {
+  const bsa = scope.bodySurfaceAreaM2;
   const flow = readFlow(beat, bsa);
-  if (Math.abs(flow.heartRateBpm - reference.scope.heartRateBpm) >= 1e-7) throw new Error("HFrEF reference requires HR70");
+  if (Math.abs(flow.heartRateBpm - scope.heartRateBpm) >= 1e-7) throw new Error("Resting observation HR differs from its reference scope");
   const volume = (side: "left" | "right") => {
     const v = side === "left" ? beat.leftVentricularValveEventMetrics : beat.rightVentricularValveEventMetrics;
     const ed = v.endDiastolic, es = v.endSystolic;
@@ -19,7 +24,7 @@ export function readMainWireHfrefBeatV1(beat: Beat) {
       || ![ed.volumeMl, es.volumeMl, ed.timeSec, es.timeSec].every(Number.isFinite)
       || !(ed.volumeMl > es.volumeMl && es.volumeMl > 0)
       || !(beat.startTimeSec <= ed.timeSec && ed.timeSec < es.timeSec && es.timeSec < beat.endTimeSec)) {
-      throw new Error("HFrEF observation requires ordered native valve-closure volumes");
+      throw new Error("Resting observation requires ordered native valve-closure volumes");
     }
     return { edvi: ed.volumeMl / bsa, esvi: es.volumeMl / bsa, ef: 1 - es.volumeMl / ed.volumeMl };
   };
@@ -40,7 +45,7 @@ export function readMainWireHfrefBeatV1(beat: Beat) {
     ciMinusHrTimesEfEdvi: flow.netCardiacIndexLPerMinPerM2 - flow.heartRateBpm * lv.ef * lv.edvi / 1000,
     pulmonaryMinusAorticNetFlowLPerMin: flow.pulmonaryMinusSystemicNetFlowLPerMin,
   };
-  if (Object.values(values).some(v => v === null || !Number.isFinite(v))) throw new Error("HFrEF beat observation is missing or nonfinite");
+  if (Object.values(values).some(v => v === null || !Number.isFinite(v))) throw new Error("Resting beat observation is missing or nonfinite");
   return { values, flow };
 }
 

@@ -80,7 +80,7 @@ export function workbenchHistoryAlphaV3(
   const recency01 = historyCount === 1
     ? 1
     : historyIndex / (historyCount - 1);
-  return 0.08 + recency01 * 0.12;
+  return 0.15 + recency01 * 0.20;
 }
 
 export function workbenchTraceLegendKeyV3(

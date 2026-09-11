@@ -10,6 +10,9 @@ export default defineConfig(() => {
         host: '0.0.0.0',
       },
       plugins: [react(), tailwindcss()],
+      // Workers are constructed with type: 'module'. Preserve lazy numerical
+      // analysis imports instead of folding them into every live lane.
+      worker: { format: 'es' as const },
       resolve: {
         dedupe: ['react', 'react-dom'],
         alias: {

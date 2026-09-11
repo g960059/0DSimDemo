@@ -205,7 +205,6 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
       }));
     await Promise.resolve();
     expect(events).toEqual([]);
-    expect(pool.foregroundCapacityMeasurementEligible()).toBe(true);
 
     pool.setForegroundPlaybackState({
       playbackRate: 1,
@@ -213,12 +212,10 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
       calibrating: false,
     });
     await vi.waitFor(() => expect(events).toEqual(["low", "high"]));
-    expect(pool.foregroundCapacityMeasurementEligible()).toBe(false);
 
     releaseAnalysis();
     await expect(Promise.all(analyses.map(({ promise }) => promise)))
       .resolves.toEqual(["low", "high"]);
-    expect(pool.foregroundCapacityMeasurementEligible()).toBe(true);
 
     pool.setForegroundPlaybackState({
       playbackRate: 1,
@@ -227,7 +224,6 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
     });
     await expect(handle.promise).resolves.toBe("done");
     expect(events).toEqual(["low", "high", "started"]);
-    expect(pool.foregroundCapacityMeasurementEligible()).toBe(true);
     pool.dispose();
   });
 
@@ -275,7 +271,6 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
         typeof cancellableClientV3
       >).wait());
     await Promise.resolve();
-    expect(pool.foregroundCapacityMeasurementEligible()).toBe(false);
 
     pool.setLiveScenarioCount(1);
     pool.setForegroundPlaybackState({
@@ -287,7 +282,6 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
       WorkbenchBackgroundJobCancelledErrorV3,
     );
     expect(clients[0]!.terminate).toHaveBeenCalled();
-    expect(pool.foregroundCapacityMeasurementEligible()).toBe(true);
     pool.dispose();
   });
 

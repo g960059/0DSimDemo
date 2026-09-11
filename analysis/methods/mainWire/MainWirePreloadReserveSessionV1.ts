@@ -15,13 +15,15 @@ type ReserveSource = Pick<Session, "currentAcceptedState" | "observe" | "project
 /** Analysis owns the requested numerical resolution across every ephemeral fork. */
 export function wrapMainWirePreloadReserveSessionV1(
   source: ReserveSource, nominalDtSec: .002 | .001, abortSignal?: AbortSignal,
+  retainPresentationReadback = false,
 ): MainWireIntegratedModelStructuralAnalysisSessionV3 {
   validateDt(nominalDtSec);
-  return wrapSession(source, nominalDtSec, abortSignal);
+  return wrapSession(source, nominalDtSec, abortSignal, retainPresentationReadback);
 }
 
 function wrapSession(
   source: ReserveSource, nominalDtSec: .002 | .001, abortSignal: AbortSignal | undefined,
+  retainPresentationReadback: boolean,
 ): MainWireIntegratedModelStructuralAnalysisSessionV3 {
   const advance = (targetTimeSec: number): MainWireIntegratedModelPresentationAdvanceV3 => {
     assertNotAborted(abortSignal);
@@ -49,7 +51,9 @@ function wrapSession(
       if (!(nextTarget > acceptedTimeSec)) {
         throw new Error("Preload reserve numerical clock did not advance");
       }
-      const result = source.advanceToPresentationTimeWithSelectedOutputProjectionV1(nextTarget, []).advance;
+      const result = retainPresentationReadback && nextTarget === targetTimeSec
+        ? source.advanceToPresentationTime(nextTarget)
+        : source.advanceToPresentationTimeWithSelectedOutputProjectionV1(nextTarget, []).advance;
       internalAcceptedSubstepCount += result.internalAcceptedSubstepCount;
       if (result.status !== "already-at-target") {
         boundaryClippedSubstepCount += result.boundaryClippedSubstepCount ?? 0;
@@ -77,7 +81,7 @@ function wrapSession(
   const fork = (kind: "forkAtFixedGlobalTotalBloodVolume" | "forkResponsiveStarlingAtFixedGlobalTotalBloodVolume", tbv: number) => {
     assertNotAborted(abortSignal);
     const branch = source[kind](tbv);
-    return wrapSession(branch, nominalDtSec, abortSignal);
+    return wrapSession(branch, nominalDtSec, abortSignal, retainPresentationReadback);
   };
   return Object.freeze({
     currentAcceptedState: () => source.currentAcceptedState(),

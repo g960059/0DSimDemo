@@ -6,6 +6,9 @@ import {
 import type { PresentationAnalysisMethodV1 } from "@/analysis/contracts/PresentationAnalysisV1";
 import { MainWireCardiacCycleCollectorV1 } from "./MainWireCardiacCycleCollectorV1";
 import { MainWireFillingFlowCollectorV1 } from "./MainWireFillingFlowCollectorV1";
+import { MAIN_WIRE_PRESSURE_CROSSING_PV_ANALYSIS_V1_ID } from "./MainWireStructuralAnalysisContractV3";
+import { MAIN_WIRE_AORTIC_JET_PRESENTATION_V1_ID as jetMethodId, MAIN_WIRE_AORTIC_JET_PRESENTATION_INPUTS_V1 as jetInputs,
+  MAIN_WIRE_AORTIC_JET_PRESENTATION_OUTPUTS_V1 as jetOutputs, buildMainWireAorticJetPresentationV1 as jetBuild } from "./MainWireAorticJetPresentationV1";
 import { MAIN_WIRE_FILLING_FLOW_METHOD_V1_ID, MAIN_WIRE_FILLING_FLOW_OUTPUT_IDS_V1,
   MAIN_WIRE_FILLING_FLOW_REQUIRED_EXACT_OUTPUT_IDS_V1 } from "./MainWireFillingFlowMetricsV1";
 import {
@@ -24,11 +27,13 @@ import {
   MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID,
   buildMainWirePeriodicPvaMethodV8,
   buildMainWirePeriodicPvaMethodV9,
   buildMainWirePeriodicPvaMethodV10,
   buildMainWirePeriodicPvaMethodV13,
   buildMainWirePeriodicPvaMethodV14,
+  buildMainWirePeriodicPvaMethodV15,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
@@ -60,6 +65,7 @@ export const MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1 =
 
 export type MainWirePeriodicPvaDerivationV1 = Readonly<{
   methodId: string;
+  sourceAnalysisId?: string;
   build: typeof buildMainWirePeriodicPvaMethodV8;
 }>;
 
@@ -213,13 +219,31 @@ export const MAIN_WIRE_FILLING_FLOW_DERIVATION_V1 = Object.freeze({
   }) }),
 }) satisfies AnalysisDerivationRegistrationV1<MainWireAnalysisDerivationRuntimeV1>;
 
+export const MAIN_WIRE_AORTIC_JET_DERIVATION_V1 = Object.freeze({
+  derivationId: jetMethodId,
+  outputs: Object.freeze(jetOutputs.map(({ outputId, unit }) => Object.freeze({ outputId, unit,
+    kind: "metric" as const, shape: "scalar" as const, scope: "beat" as const, dependencies: jetInputs }))),
+  requiredAnalysisIds: Object.freeze([]), runtime: Object.freeze({ kind: "presentation" as const, method: Object.freeze({
+    methodId: jetMethodId, requiredExactOutputIds: jetInputs,
+    create: () => new MainWireCardiacCycleCollectorV1({ methodId: jetMethodId, requiredIds: jetInputs, build: jetBuild }),
+  }) }),
+}) satisfies AnalysisDerivationRegistrationV1<MainWireAnalysisDerivationRuntimeV1>;
+
 export const MAIN_WIRE_ANALYSIS_METHOD_REGISTRY_V1 =
   defineAnalysisMethodRegistryV1<MainWireAnalysisDerivationRuntimeV1>({
     analysisRequestIds: Object.freeze([
       MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+      MAIN_WIRE_PRESSURE_CROSSING_PV_ANALYSIS_V1_ID,
     ]),
     derivations: Object.freeze([
+      Object.freeze({ ...MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1,
+        derivationId: MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID,
+        requiredAnalysisIds: Object.freeze([MAIN_WIRE_PRESSURE_CROSSING_PV_ANALYSIS_V1_ID]),
+        runtime: Object.freeze({ kind: "periodic-pva" as const,
+          derivation: Object.freeze({ methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID, build: buildMainWirePeriodicPvaMethodV15 }) }),
+      }),
+      MAIN_WIRE_AORTIC_JET_DERIVATION_V1,
       MAIN_WIRE_CARDIAC_CYCLE_DERIVATION_V1,
       MAIN_WIRE_FILLING_FLOW_DERIVATION_V1,
       MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1,
@@ -236,6 +260,8 @@ export const MAIN_WIRE_ANALYSIS_METHOD_REGISTRY_V1 =
       resolveMainWireStructuralAnalysisExecutionPlanV1,
   });
 
+const PERIODIC_PVA_BINDINGS_V1 = new WeakMap<MainWirePeriodicPvaDerivationV1, MainWirePeriodicPvaDerivationV1>();
+
 /** Main Wire composition wrapper over the model-independent registry. */
 export function resolveMainWireAnalysisMethodsForSurfaceV1(
   surfaceValue: unknown,
@@ -246,21 +272,30 @@ export function resolveMainWireAnalysisMethodsForSurfaceV1(
   });
   const periodicPvaRuntimes = resolved.derivations.filter(
     ({ runtime }) => runtime.kind === "periodic-pva",
-  ).map(({ runtime }) => runtime);
+  );
   if (periodicPvaRuntimes.length > 1) {
     throw new Error(
       "Surface must pin exactly one periodic PVA derivation generation",
     );
   }
-  const periodicPvaRuntime = periodicPvaRuntimes[0];
+  const periodicPvaRegistration = periodicPvaRuntimes[0];
+  const periodicPvaRuntime = periodicPvaRegistration?.runtime;
+  const sourceAnalysisIds = MAIN_WIRE_ANALYSIS_METHOD_REGISTRY_V1.derivations.find(
+    r => r.derivationId === periodicPvaRegistration?.derivationId)?.requiredAnalysisIds;
+  if (periodicPvaRegistration && sourceAnalysisIds?.length !== 1)
+    throw new Error("PVA must pin one structural source analysis");
+  let periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null = null;
+  if (periodicPvaRuntime?.kind === "periodic-pva") {
+    const definition = periodicPvaRuntime.derivation;
+    periodicPvaDerivation = PERIODIC_PVA_BINDINGS_V1.get(definition)
+      ?? Object.freeze({ ...definition, sourceAnalysisId: sourceAnalysisIds![0]! });
+    PERIODIC_PVA_BINDINGS_V1.set(definition, periodicPvaDerivation);
+  }
   return Object.freeze({
     capabilities: resolved.capabilities,
     presentationMethods: Object.freeze(resolved.derivations.flatMap(({ runtime }) =>
       runtime.kind === "presentation" ? [runtime.method] : [])),
-    periodicPvaDerivation:
-      periodicPvaRuntime?.kind === "periodic-pva"
-        ? periodicPvaRuntime.derivation
-        : null,
+    periodicPvaDerivation,
     resolveExecutionPlan: resolved.resolveExecutionPlan,
   });
 }

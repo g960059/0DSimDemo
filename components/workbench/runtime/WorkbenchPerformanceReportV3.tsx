@@ -148,7 +148,7 @@ export function WorkbenchPerformanceReportV3() {
 
   return (
     <aside
-      className="fixed bottom-3 right-3 z-[250] max-w-[calc(100vw-1.5rem)] text-wb-text"
+      className="fixed bottom-3 right-3 z-[80] max-w-[calc(100vw-1.5rem)] text-wb-text"
       data-testid="workbench-performance-report-v3"
     >
       {open && (

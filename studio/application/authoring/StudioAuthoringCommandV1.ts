@@ -396,6 +396,9 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
       analysisId: id,
       side: { enum: ["left", "right", "both"] },
     }),
+    object(["derivationId", "graphId", "renderer"], {
+      graphId: id, renderer: { const: "cycle-waveform" }, derivationId: id,
+    }),
   ] });
   const outputDefinition = Object.freeze({ oneOf: [
     object(["kind", "outputId", "sampling", "shape", "unit"], {

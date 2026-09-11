@@ -2,6 +2,7 @@ import {
   DynamicExactModelRuntimeLoaderV2,
 } from "@/studio/infrastructure/model/DynamicExactModelRuntimeLoaderV2";
 import { resolveRegisteredPresentationAnalysisMethodsV1 } from "@/analysis/registry/RegisteredAnalysisMethodsV1";
+import { REGISTERED_ANALYSIS_EXECUTOR_V1 } from "@/analysis/runtime/RegisteredAnalysisExecutorV1";
 import {
   type StudioSimulationWorkerResponseV2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
@@ -27,6 +28,7 @@ let lastRuntimeLoadTiming: Readonly<{
 }> | undefined;
 const workerRuntime = new StudioSimulationWorkerRuntimeV2({
   port: workerPort,
+  analysisExecutor: REGISTERED_ANALYSIS_EXECUTOR_V1,
   resolvePresentationAnalysisMethods: resolveRegisteredPresentationAnalysisMethodsV1,
   async loadExactRuntime(input) {
     if (input.releaseTicket.modelId !== input.expectedModelId) {

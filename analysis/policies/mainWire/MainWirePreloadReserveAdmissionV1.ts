@@ -77,8 +77,9 @@ export function qualifyMainWirePreloadReserveAdmissionV1(coarse: Measurement, fi
         sensitivity: slopeSensitivity, passed: Number.isFinite(slopeSensitivity) && slopeSensitivity < slopeMargin });
       // Positive EDV/Ptm follows from separately resolved positive numerator
       // and denominator; no additional divided-ratio test is needed.
-      return { side, direction, screens, margins, ratioMargins,
-        passed: a.endpointDirection === direction && b.endpointDirection === direction
+      const endpointDirectionsMatch = a.endpointDirection === direction && b.endpointDirection === direction;
+      return { side, direction, endpointDirectionsMatch, screens, margins, ratioMargins,
+        passed: endpointDirectionsMatch
           && screens.every(s => s.status === "directional-screen-passed")
           && [...margins, ...ratioMargins].every(m => m.passed) };
     }));

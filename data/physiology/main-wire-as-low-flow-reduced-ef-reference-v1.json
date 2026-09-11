@@ -1,0 +1,38 @@
+{
+  "referenceId": "as-low-flow-reduced-ef-v1",
+  "label": "AS · 低EF・低流量・低勾配",
+  "clinicalValidationClaimed": false,
+  "scope": { "heartRateBpm": 70, "bodySurfaceAreaM2": 1.9, "rhythm": "sinus", "purpose": "拡大・収縮能低下の心室に狭い弁を組み合わせ、狭窄があっても勾配が小さくなることを示す安静時の教育例。患者の診断・治療適応を判定しない。" },
+  "construction": {
+    "mechanism": "固定の拡大型LVと小さな大動脈弁の最大順行EOAを組み合わせ、LV自由壁・中隔の能動張力を調整する。最初は能動張力を下げたHFrEFから開始し、各候補の倍率を記録する。",
+    "rationale": "既存HFrEFを開始点に使うが、その採用条件は引き継がない。正常弁の同一背景対照、高勾配・弁のみ例、baselineを並べる。選んだ心室構成は疾患全員の必然ではなく、機序を説明するための設計判断。",
+    "sourceIds": ["esc-eacts-as-2025", "topas-projected-ava-2010"],
+    "limitations": "心筋梗塞、局所虚血、経時的リモデリング、求心性肥大、DSE薬理を再現しない。設定EOAが既知のモデル教材で、臨床の真性／偽性狭窄の診断を代替しない。"
+  },
+  "sources": [
+    { "sourceId": "esc-eacts-as-2025", "title": "Praz et al. 2025 ESC/EACTS Guidelines for the management of valvular heart disease", "url": "https://academic.oup.com/ejcts/article-abstract/doi/10.1093/ejcts/ezaf276/8242828", "locator": "doi:10.1093/ejcts/ezaf276; Section 8.2.1, Figure 6, discordant AS criteria", "population": "成人弁膜症の学会勧告。", "method": "低EF・低流量・低勾配AS：平均勾配<40、AVA≤1 cm²、SVI≤35 mL/m²、LVEF<50%。", "limitations": "臨床では計測確認とCT/DSEを含む統合判断が必要。モデルの既知の水力学的EOAは独立な形態計測ではない。閾値は患者分布の目標平均ではない。" },
+    { "sourceId": "eacvi-ase-as-2017", "title": "Baumgartner et al. Recommendations on the Echocardiographic Assessment of Aortic Valve Stenosis: A Focused Update. 2017", "url": "https://www.asecho.org/wp-content/uploads/2017/04/2017ValveStenosisGuideline.pdf", "locator": "doi:10.1016/j.echo.2017.02.009; low-flow assessment and measurement methods", "population": "ASの心エコー評価に関する学会勧告。", "method": "CW Dopplerの速度、瞬時4v²の平均、連続の式のAVAと流量評価。", "limitations": "Vmax<4を追加して一致する低勾配教材を選ぶが、2025年の分類を速度だけに置き換えない。LVOT、Doppler計測過程、圧回復は本モデルにない。" },
+    { "sourceId": "namasivayam-flow-2020", "title": "Namasivayam et al. Transvalvular Flow Rate Determines Prognostic Value of Aortic Valve Area in Aortic Stenosis. 2020", "url": "https://pubmed.ncbi.nlm.nih.gov/32299587/", "locator": "doi:10.1016/j.jacc.2020.02.046", "population": "AS臨床コホートと検証コホート。", "method": "駆出中流量SV/ETとAVAの関係。", "limitations": "SVIとSV/ETを同一視せず、予後のcutoffを全例の必須条件にしない。" },
+    { "sourceId": "topas-projected-ava-2010", "title": "Clavel et al. Validation of conventional and simplified methods to calculate projected valve area at normal flow rate in patients with low flow, low gradient aortic stenosis: the multicenter TOPAS study. 2010", "url": "https://pubmed.ncbi.nlm.nih.gov/20362927/", "locator": "doi:10.1016/j.echo.2010.02.002; 142 patients, projected area at standardized flow", "population": "低流量ASのDSE研究。", "method": "流量増加に伴うAVA変化から標準化流量時の面積を推定。", "limitations": "本モデルの能動張力変更をDSEと同一視しない。面積上限が小さい候補から偽性狭窄の応答を再現したとは主張しない。" }
+  ],
+  "restScreen": [
+    { "metricId": "avEffectiveAreaCm2", "lower": 0, "lowerInclusive": false, "upper": 1, "unit": "cm²", "sourceIds": ["esc-eacts-as-2025"], "rationale": "小さな有効面積のモデル例。正値は計測成立条件で、1以下は分類の参照。" },
+    { "metricId": "avBernoulliMeanGradient", "lower": 0, "lowerInclusive": false, "upper": 40, "upperInclusive": false, "unit": "mmHg", "sourceIds": ["esc-eacts-as-2025"], "rationale": "低勾配の境界は40未満。正の勾配を持つ駆出が成立する例を選ぶ。" },
+    { "metricId": "forwardSvi", "lower": 0, "lowerInclusive": false, "upper": 35, "unit": "mL/m²", "sourceIds": ["esc-eacts-as-2025"], "rationale": "低流量の境界は35以下。SV/ETによる別定義とのOR条件にはしない。" },
+    { "metricId": "lvef", "lower": 0, "lowerInclusive": false, "upper": 0.5, "upperInclusive": false, "unit": "1", "sourceIds": ["esc-eacts-as-2025"], "rationale": "EF低下は50%未満。弁閉鎖時の容積によるEFで、純粋な収縮力の測定ではない。" },
+    { "metricId": "avVmax", "lower": 0, "lowerInclusive": false, "upper": 4, "upperInclusive": false, "unit": "m/s", "sourceIds": ["eacvi-ase-as-2017"], "rationale": "初回は速度も低い一致例を選ぶ教材上の条件。平均勾配<40と同義ではない。" }
+  ],
+  "fittingTargets": [
+    { "metricId": "avBernoulliMeanGradient", "lower": 20, "upper": 35, "unit": "mmHg", "priority": 0, "sourceIds": ["esc-eacts-as-2025"], "rationale": "40の境界から離れ、狭窄の圧負荷も見やすい20–35を初回教材の選択帯とする。患者群の正常範囲や文献の平均値ではない。" },
+    { "metricId": "forwardSvi", "lower": 25, "upper": 35, "unit": "mL/m²", "priority": 1, "sourceIds": ["esc-eacts-as-2025", "namasivayam-flow-2020"], "rationale": "低流量でも安静時の拍出を残す25–35を、この教材の採用条件とする。優先順位は探索順で、任意条件という意味ではない。下限25は普遍的生理閾値ではない。HR70でCIと従属するためCIを重複加算しない。" }
+  ],
+  "context": [
+    { "metricIds": ["lvedvi", "lvesvi", "meanLa", "nativeLvEndFillingPressure", "weissTauMs", "flowEToA", "tei", "positiveDpDt", "negativeDpDt"], "sourceIds": ["esc-eacts-as-2025"], "rationale": "拡大・残存血液量、充満・弛緩・時間配分を説明する。高充満圧やτ延長を全例で必須にせず、実際の観測を示す。" },
+    { "metricIds": ["etMs", "avAccelerationTimeMs", "avAtEt", "meanEjectionFlowMlPerSec", "avMeanGradient", "aoNodePeak", "aoNodeMinimum", "ci", "lvTransmuralStrokeWorkJPerM2"], "sourceIds": ["eacvi-ase-as-2017", "namasivayam-flow-2020"], "rationale": "速度・流量・圧・仕事の関係を同じ拍で示す。AT/ET・PV輪郭に一律の異常形を要求しない。" }
+  ],
+  "features": [
+    { "featureId": "low-flow-low-gradient", "role": "required", "metricIds": ["avEffectiveAreaCm2", "avBernoulliMeanGradient", "forwardSvi", "lvef"], "sourceIds": ["esc-eacts-as-2025"], "label": "狭い弁でも勾配が高くならない", "expectedFinding": "低EF・低流量と小弁口が併存し、平均勾配は40未満となる。", "limitation": "患者の真性／偽性ASの確定診断ではない。設定面積が既知のモデル例。" },
+    { "featureId": "retained-low-output", "role": "required", "metricIds": ["forwardSvi", "avBernoulliMeanGradient"], "sourceIds": ["esc-eacts-as-2025"], "label": "拍出が残る低流量例", "expectedFinding": "この教材の選定条件として安静時の拍出を残し、弁性負荷とLV不全を比較できる例を選ぶ。", "limitation": "全ASの必須所見ではなく、ショック、症状、治療適応を判定する範囲でもない。" },
+    { "featureId": "same-background-control", "role": "observe", "metricIds": ["avMeanGradient", "ci", "lvTransmuralStrokeWorkJPerM2", "meanLa"], "sourceIds": ["topas-projected-ava-2010"], "label": "同じ心筋背景で弁だけを戻す対照", "expectedFinding": "低い勾配の背景にある心室・流量と、弁の負担を切り分ける。", "limitation": "定常対照であり、DSE、TAVI直後、長期適応を予測しない。" }
+  ]
+}

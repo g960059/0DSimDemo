@@ -18,6 +18,11 @@ export const MAIN_WIRE_FITTING_OBSERVATION_WINDOW_V1_ID = "main-wire-fitting-obs
 type FittingSample = Sample & Readonly<{ numerical: Readonly<{
   globalVolumeErrorMl: number; coronaryLedgerErrorMl: number;
 }> }>;
+export type MainWireFittingFailureDiagnosticsV1 = {
+  completedCycleCount: number; acceptedTimeSec: number;
+  classification: ReturnType<typeof classify>; periodicObservations: readonly CycleObservation[];
+  lastCompletedCycleTraceTail: readonly FittingSample[];
+};
 const observedOutputIds: readonly MainWireIntegratedModelOutputIdV3[] = [
   ...(["LA", "LV", "RA", "RV", "Ao", "PA", "PVein"] as const).map(id => `hemodynamics.pressure.absolute.${id}` as const),
   ...(["LV", "RV"] as const).map(id => `hemodynamics.pressure.transmural.${id}` as const),
@@ -35,6 +40,7 @@ export async function settleMainWireFittingSessionV1<T>(request: Readonly<{
   nominalDtSec: MainWireFittingNominalDtV1;
   abortSignal?: AbortSignal;
   onPhase?: (phase: "exact-execution" | "periodic-classification" | "observation") => void;
+  onFailureDiagnostics?: (diagnostics: MainWireFittingFailureDiagnosticsV1) => void;
 }>) {
   const { session, fixture, nominalDtSec, abortSignal, requestIdentitySha256 } = request;
   const initial = session.currentAcceptedState();
@@ -51,8 +57,12 @@ export async function settleMainWireFittingSessionV1<T>(request: Readonly<{
     atrialCaptureCount: number; ventricularCaptureCount: number;
     maximumGlobalVolumeErrorMl: number; maximumCoronaryLedgerErrorMl: number }[] = [];
   let completedCycleCount = 0;
+  const retainFailure = () => request.onFailureDiagnostics?.({ completedCycleCount,
+    acceptedTimeSec: session.currentAcceptedState().acceptedTimeSec, classification,
+    periodicObservations: observations.slice(-3), lastCompletedCycleTraceTail: terminalTrace.slice(-12) });
+  try {
   for (let cycleIndex = 1; cycleIndex <= periodicPolicy.maximumCycleCount; cycleIndex++) {
-    if (abortSignal?.aborted) return { status: "operational-interrupted" as const, message: "Evaluation interrupted" };
+    if (abortSignal?.aborted) { retainFailure(); return { status: "operational-interrupted" as const, message: "Evaluation interrupted" }; }
     previousTrace = terminalTrace;
     terminalTrace = collectMainWireFittingCycleV1(session, fixture, cycleIndex, nominalDtSec);
     const accepted = session.currentAcceptedState(), previous = boundaries.at(-1)!;
@@ -75,8 +85,9 @@ export async function settleMainWireFittingSessionV1<T>(request: Readonly<{
     await new Promise<void>(resolve => setTimeout(resolve, 0));
   }
   request.onPhase?.("periodic-classification");
-  if (classification.status !== "period1-converged")
-    return { status: "nonsettled-or-event-change" as const, message: classification.status };
+  if (classification.status !== "period1-converged") {
+    retainFailure(); return { status: "nonsettled-or-event-change" as const, message: classification.status };
+  }
   const checkpoint = await request.checkpoint();
   request.onPhase?.("observation");
   const completedBeat = session.observe().completedBeatMetrics;
@@ -98,6 +109,7 @@ export async function settleMainWireFittingSessionV1<T>(request: Readonly<{
     diagnostics: { completedBeat, terminalTrace, ...timing, timingAndInletPrecedingTrace,
       periodicObservations: observations, cycleEvidence,
       invariantPolicyId: numericalPolicy.policyId, allOffAndOwnerClocksCheckedEveryStep: true as const } };
+  } catch (error) { retainFailure(); throw error; }
 }
 
 export function collectMainWireFittingCycleV1(session: Pick<Session, "currentAcceptedState" | "advanceToPresentationTimeWithSelectedOutputProjectionV1" | "observe">,

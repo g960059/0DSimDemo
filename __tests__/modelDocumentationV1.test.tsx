@@ -30,7 +30,7 @@ import { createMainWireIntegratedModelStaticCaseFixtureV1 as fixtureFor } from "
 import { mainWireIntegratedStudioFixtureProjectionV3 as projection } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
 import type { MainWireStaticCaseCheckpointV1 } from "@/engine/myocardium/MainWireStaticCaseCheckpointV1";
 import bundle from "@/data/model-releases/standard73/bundle.json";
-import { mainWireStaticCaseFittingSeedV1 } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
+import { mainWireStaticCaseFittingSeedV1 } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import { MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import hfref from "@/studio/presentation/modelDocumentation/packages/hfref-static-case-document-v4.index.json";
 import baseline73 from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.index.json";

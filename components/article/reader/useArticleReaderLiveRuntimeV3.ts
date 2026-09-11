@@ -29,6 +29,7 @@ export type UseArticleReaderLiveRuntimeResultV3 = Readonly<{
   fixtureProjection: ExactModelFixtureProjectionV1;
   periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
   presentationOutput?: ArticleReaderLiveRuntimeV3["presentationOutput"];
+  presentationTrace?: ArticleReaderLiveRuntimeV3["presentationTrace"];
   play(): void;
   pause(): Promise<void>;
   setPlaybackRate(rate: number): void;
@@ -183,12 +184,14 @@ export function useArticleReaderLiveRuntimeV3(
 
   const presentationOutput = React.useCallback((scenarioId: string, outputId: string) =>
     controllerRef.current?.presentationOutput(scenarioId, outputId), []);
+  const presentationTrace = React.useCallback((scenarioId: string) => controllerRef.current?.presentationTrace(scenarioId), []);
   return React.useMemo(() => Object.freeze({
     state,
     sampleStore,
     fixtureProjection: exactModel.fixtureProjection,
     periodicPvaDerivation: exactModel.periodicPvaDerivation,
     presentationOutput,
+    presentationTrace,
     applyControl,
     play,
     pause,
@@ -200,6 +203,7 @@ export function useArticleReaderLiveRuntimeV3(
     exactModel.fixtureProjection,
     exactModel.periodicPvaDerivation,
     presentationOutput,
+    presentationTrace,
     pause,
     play,
     requestAnalysis,

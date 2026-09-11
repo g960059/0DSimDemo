@@ -8,12 +8,25 @@ import { MAIN_WIRE_HFREF_REFERENCE_V1, MAIN_WIRE_HFREF_REST_POLICY_V1 } from
   "@/analysis/policies/mainWire/MainWireHfrefReferenceV1";
 import { MAIN_WIRE_HFREF_DILATED_REFERENCE_V1, MAIN_WIRE_HFREF_DILATED_REST_POLICY_V1 } from
   "@/analysis/policies/mainWire/MainWireHfrefDilatedReferenceV1";
+import { MAIN_WIRE_AS_REFERENCE_V1, MAIN_WIRE_AS_REST_POLICY_V1, MAIN_WIRE_AS_LOW_FLOW_REFERENCE_V1, MAIN_WIRE_AS_LOW_FLOW_REST_POLICY_V1 } from "@/analysis/policies/mainWire/MainWireAsReferenceV1";
 
 /**
  * Targets are separate from launch selection and search seeds. Changing a
  * suggested input cannot invalidate a saved target or its measured results.
  */
 export const MAIN_WIRE_FITTING_REFERENCE_REGISTRY_V1 = Object.freeze({
+  "as-low-flow-reduced-ef-v1": Object.freeze({
+    referenceId: "as-low-flow-reduced-ef-v1" as const, label: MAIN_WIRE_AS_LOW_FLOW_REFERENCE_V1.label,
+    target: Object.freeze({ kind: "source-informed-disease-construction" as const,
+      evidence: MAIN_WIRE_AS_LOW_FLOW_REFERENCE_V1, policy: MAIN_WIRE_AS_LOW_FLOW_REST_POLICY_V1, referenceOutputsAreTargets: false as const }),
+    evidenceRole: "construction" as const, clinicalValidationClaimed: false as const,
+  }),
+  "as-high-gradient-valve-only-v1": Object.freeze({
+    referenceId: "as-high-gradient-valve-only-v1" as const, label: MAIN_WIRE_AS_REFERENCE_V1.label,
+    target: Object.freeze({ kind: "source-informed-disease-construction" as const,
+      evidence: MAIN_WIRE_AS_REFERENCE_V1, policy: MAIN_WIRE_AS_REST_POLICY_V1, referenceOutputsAreTargets: false as const }),
+    evidenceRole: "construction" as const, clinicalValidationClaimed: false as const,
+  }),
   baseline: Object.freeze({
     referenceId: "baseline" as const,
     label: "baseline" as const,

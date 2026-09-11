@@ -113,6 +113,12 @@ export interface MainWireIntegratedModelStructuralAnalysisSessionV3 {
   projectCurrentAcceptedValuesV1?(
     outputIds: readonly MainWireIntegratedModelOutputIdV3[],
   ): Readonly<Record<string, MainWireIntegratedModelOutputValueV3>>;
+  /** Analysis-only event measurements. Null discards a beat whose full event
+   * window was not observed; exact/native metrics and checkpoints stay intact. */
+  pressureVolumeLandmarksForBeatV1?(beat: MainWireIntegratedModelCompletedBeatMetricsV3): Readonly<{
+    left: MainWireIntegratedModelVentricularPressureVolumeLandmarksV3;
+    right: MainWireIntegratedModelVentricularPressureVolumeLandmarksV3;
+  }> | null;
   forkAtFixedGlobalTotalBloodVolume(
     targetGlobalTotalBloodVolumeMl: number,
   ): MainWireIntegratedModelStructuralAnalysisSessionV3;

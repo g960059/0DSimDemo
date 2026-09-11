@@ -942,7 +942,7 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).not.toContain('data-chart-legend="scenarios"');
   });
 
-  it("keeps the last complete structural curve visible while its Scenario recalculates", () => {
+  it.each([0, 1])("honors history depth %i while a Reader structural curve recalculates", (historyDepth) => {
     const snapshot = snapshotV3();
     const scenario = snapshot.content.scenarios[0]!;
     const graph = contractV3().graphCatalog[0]!;
@@ -963,7 +963,7 @@ describe("Article Reader V3 experiment anchor", () => {
       <ArticleReaderStructuralReturnGraphV3
         authoredScenarios={snapshot.content.scenarios}
         graph={graph}
-        historyDepth={0}
+        historyDepth={historyDepth}
         pane={snapshot.content.surface.graphPanes[0]!}
         runtime={runtime}
         surface={snapshot.content.surface}
@@ -972,11 +972,16 @@ describe("Article Reader V3 experiment anchor", () => {
       />,
     );
 
+    if (historyDepth === 0) {
+      expect(html).not.toContain('data-chart-kind="guyton-starling-structural-orientation-v3"');
+      return;
+    }
     expect(html).toContain(
       'data-chart-kind="guyton-starling-structural-orientation-v3"',
     );
     expect(html).toContain('data-pending-scenario-count="1"');
     expect(html).toContain('data-starling-pending="true"');
+    expect(html).toContain('data-stale-scenario-count="1"');
     expect(html).toContain("再計算中");
   });
 

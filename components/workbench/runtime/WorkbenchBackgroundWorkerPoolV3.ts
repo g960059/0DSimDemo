@@ -26,7 +26,6 @@ export type WorkbenchBackgroundWorkerPoolPortV3 = Readonly<{
   setForegroundPlaybackState(
     state: WorkbenchForegroundPlaybackStateV3,
   ): void;
-  foregroundCapacityMeasurementEligible(): boolean;
   schedule<T>(
     priority: WorkbenchBackgroundJobPriorityV3,
     operation: (client: StudioSimulationWorkerClientV2) => Promise<T>,
@@ -143,10 +142,6 @@ export class WorkbenchBackgroundWorkerPoolV3
     this.#dispatchWaiting();
     this.#replenishWarmWorkers();
     this.#recordState();
-  }
-
-  foregroundCapacityMeasurementEligible(): boolean {
-    return !this.#disposed && this.#leased.size === 0;
   }
 
   async run<T>(
@@ -489,10 +484,6 @@ export class WorkbenchBackgroundWorkerPoolV3
     recordWorkbenchPerformanceValueV3(
       "background.pool.queued-jobs",
       this.#waiting.length,
-    );
-    recordWorkbenchPerformanceValueV3(
-      "background.pool.foreground-measurement-eligible",
-      this.foregroundCapacityMeasurementEligible() ? 1 : 0,
     );
     recordWorkbenchPerformanceValueV3(
       "background.pool.playback-headroom",

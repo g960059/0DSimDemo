@@ -45,6 +45,7 @@ import currentSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 import previousSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
+import researchSurfaceReleaseV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 import currentRegistryAdmissionLockV1 from
   "@/data/model-releases/standard73/publication.json";
 
@@ -133,6 +134,18 @@ Promise<StudioClientCompositionV2> {
   return loadStudioLocalCurrentClientCompositionForSurfaceV1(
     currentSurfaceReleaseV1,
   );
+}
+
+/** Model Lab only; no registry publication or production default change. */
+export async function loadStudioLocalResearchClientCompositionV1(): Promise<StudioClientCompositionV2> {
+  const [composition, { localResearchPresetsV1 }] = await Promise.all([
+    loadStudioLocalCurrentClientCompositionForSurfaceV1(researchSurfaceReleaseV1),
+    import("@/studio/application/dev/StudioLocalResearchPresetsV1"),
+  ]);
+  return Object.freeze({ ...composition, presets: Object.freeze([
+    ...(composition.presets ?? []),
+    ...localResearchPresetsV1(composition.exactModel.modelId, composition.exactModel.workerReleaseTicket.artifactRevisionId),
+  ]) });
 }
 
 function loadStudioLocalCurrentClientCompositionForSurfaceV1(

@@ -7,6 +7,8 @@ import { CURRENT_BASELINE_V1 as adopted } from "@/data/model-baselines/CurrentBa
 import lock from "@/data/model-releases/standard73/publication.json";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import beatSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
+import jetSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV3";
+import crossingSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 
 const equal = (a: unknown, b: unknown) => studioCanonicalJsonStringify(a) === studioCanonicalJsonStringify(b);
 
@@ -46,7 +48,7 @@ export function resolveRegisteredCurrentModelLaunchV1(input: Readonly<{
   return isRegisteredCurrentBaselineFixtureV1(input.ticket.modelId, input.defaultFixture)
     && equal(input.ticket.manifest, descriptor.manifest)
     // V2 adds observers only; neither the exact capture nor its qualification changes.
-    && [surface, beatSurface].some(known => equal(input.ticket.surfaceRelease, known))
+    && [surface, beatSurface, jetSurface, crossingSurface].some(known => equal(input.ticket.surfaceRelease, known))
     ? Object.freeze({ defaultFixture: REGISTERED_CURRENT_MODEL_BASELINE_V1.fixture,
       defaultCheckpoint: REGISTERED_CURRENT_MODEL_BASELINE_V1.checkpoint }) : undefined;
 }

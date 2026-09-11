@@ -30,8 +30,9 @@ import {
   workbenchBoundedGraphHistoryV3,
 } from "@/components/workbench/WorkbenchAnalysisState";
 import { workbenchScenarioRuntimeStatusV3 } from "@/components/workbench/WorkbenchSessionPolicy";
-import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
+import { mainWireFormalPvAnalysisIdV1 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import type { MainWirePeriodicPvaV1 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
+import { CompletedEjectionWaveformV1 } from "./presentation/CompletedEjectionWaveformV1";
 import type { MainWirePeriodicPvaDerivationV1 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import type {
   ExperimentSurfaceGraphPaneV2,
@@ -85,6 +86,7 @@ export function GraphPaneBodyV3({
   scenarios,
   surface,
   visibleScenarioIds,
+  readPresentation,
 }: Readonly<{
   activeScenarioId: string | null;
   playbackRunning: boolean;
@@ -107,6 +109,7 @@ export function GraphPaneBodyV3({
   scenarios: readonly StudioSimulationWorkerScenarioDescriptorV2[];
   surface: ExperimentSurfaceV2;
   visibleScenarioIds: readonly string[];
+  readPresentation?: (scenarioId: string) => { analyses: readonly StudioSimulationAnalysisV2[]; frame?: StudioSimulationFrameV2 };
 }>) {
   const { t } = useTranslation();
   const { appTheme } = useAppTheme();
@@ -124,9 +127,17 @@ export function GraphPaneBodyV3({
     pane,
     visibleScenarioIds,
   );
+  if (graph.renderer === "cycle-waveform") return <CompletedEjectionWaveformV1 traces={scenarios.flatMap((scenario, index) => {
+    if (!scopedVisibleScenarioIds.includes(scenario.scenarioId) || isWorkbenchGraphTraceExcludedV3(pane, scenario.scenarioId, null)) return [];
+    const source = readPresentation?.(scenario.scenarioId);
+    return [{ scenarioId: scenario.scenarioId, label: scenario.label, frame: source?.frame,
+      analysis: source?.analyses.find(a => a.analysisId === graph.derivationId),
+      color: resolveWorkbenchGraphTraceStyleV3({ pane, surface, renderer: graph.renderer, authoredScenarioCount: scenarios.length,
+        scenarioId: scenario.scenarioId, scenarioIndex: index, seriesId: null, seriesIndex: 0, appTheme }).color }];
+  })} />;
   if (graph.renderer === "structural-return") {
     const structuralAnalysisId =
-      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID;
+      mainWireFormalPvAnalysisIdV1(periodicPvaDerivation);
     const pending = new Set(pendingAnalysisKeys);
     const traces = Object.freeze(
       scenarios.flatMap((scenario, scenarioIndex) => {
@@ -159,9 +170,7 @@ export function GraphPaneBodyV3({
             analysis: analysisByKey[key],
             history: workbenchBoundedGraphHistoryV3(
               analysisHistoryByKey[key] ?? [],
-              analysisPending
-                ? Math.max(1, configuredHistoryDepth)
-                : configuredHistoryDepth,
+              configuredHistoryDepth,
             ),
             error: analysisErrorByKey[key] ?? null,
             pending: analysisPending,
@@ -186,6 +195,7 @@ export function GraphPaneBodyV3({
     <SampledGraphPaneBodyV3
       activeScenarioId={activeScenarioId}
       analysisByKey={analysisByKey}
+      analysisHistoryByKey={analysisHistoryByKey}
       analysisErrorByKey={analysisErrorByKey}
       playbackRunning={playbackRunning}
       contract={contract}
@@ -207,6 +217,7 @@ export function GraphPaneBodyV3({
 function SampledGraphPaneBodyV3({
   activeScenarioId,
   analysisByKey,
+  analysisHistoryByKey,
   analysisErrorByKey,
   playbackRunning,
   contract,
@@ -230,8 +241,9 @@ function SampledGraphPaneBodyV3({
   frame: StudioSimulationFrameV2 | null;
   graph: Exclude<
     ModelContractV2["graphCatalog"][number],
-    StructuralReturnGraphDefinitionV2
+    StructuralReturnGraphDefinitionV2 | { renderer: "cycle-waveform" }
   >;
+  analysisHistoryByKey: Readonly<Record<string, readonly StudioSimulationAnalysisV2[]>>;
   onRequestAnalysis: (
     analysisId: string,
     scenarioIds: readonly string[],
@@ -277,7 +289,7 @@ function SampledGraphPaneBodyV3({
   // `responsive-preview` values remain readable in portable content, but no
   // longer select the retired multi-load support envelope.
   const pressureVolumeAnalysisId =
-    MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID;
+    mainWireFormalPvAnalysisIdV1(periodicPvaDerivation);
   const periodicPvaEnabled = workbenchPvGraphUsesPeriodicPvaAnalysisV3(
     graph.renderer,
     displayedSeries.map(({ seriesId }) => seriesId),
@@ -346,7 +358,6 @@ function SampledGraphPaneBodyV3({
         if (!visibleScenarioIds.includes(scenario.scenarioId)) return [];
         const samples =
           exactOrbitSamplesByScenarioId[scenario.scenarioId] ?? [];
-        if (samples.length === 0) return [];
         return selectedBindings.flatMap(({ binding, series }) => {
           if (
             isWorkbenchGraphTraceExcludedV3(
@@ -401,6 +412,12 @@ function SampledGraphPaneBodyV3({
               chamberLabel: series.label,
               chamberColor: style.color,
               ...(periodicPva === undefined ? {} : { periodicPva }),
+              periodicPvaHistory: relationSide === null ? [] : workbenchBoundedGraphHistoryV3(
+                analysisHistoryByKey[analysisKey] ?? [], pane.historyDepth ?? 1,
+              ).flatMap(analysis => {
+                const historical = periodicPvaFromAnalysisV3(analysis, relationSide, periodicPvaDerivation);
+                return historical === undefined ? [] : [{ value: historical, inputEpoch: analysis.inputEpoch }];
+              }),
               ...(analysisErrorByKey[analysisKey] === undefined
                 ? {}
                 : {
@@ -624,12 +641,6 @@ function StructuralReturnGraphPaneV3({
 }>) {
   const { t } = useTranslation();
   const lastAutoRequestedKeyRef = React.useRef<string | null>(null);
-  const retainedOrientationByScenarioRef = React.useRef(
-    new Map<
-      string,
-      NonNullable<ReturnType<typeof structuralReturnOrientationFromPayloadV3>>
-    >(),
-  );
   const missingScenarioIds = React.useMemo(
     () =>
       Object.freeze(
@@ -670,24 +681,6 @@ function StructuralReturnGraphPaneV3({
     onRequestAnalysis,
     operationPending,
   ]);
-  React.useEffect(() => {
-    const retained = retainedOrientationByScenarioRef.current;
-    const activeKeys = new Set(
-      traces.map(({ scenarioId }) => `${structuralSide}:${scenarioId}`),
-    );
-    for (const key of retained.keys()) {
-      if (!activeKeys.has(key)) retained.delete(key);
-    }
-    for (const trace of traces) {
-      const orientation = structuralReturnOrientationFromPayloadV3(
-        trace.analysis?.payload,
-        structuralSide,
-      );
-      if (orientation !== null) {
-        retained.set(`${structuralSide}:${trace.scenarioId}`, orientation);
-      }
-    }
-  }, [structuralSide, traces]);
   const comparisonTraces = React.useMemo(
     () =>
       Object.freeze(
@@ -705,21 +698,12 @@ function StructuralReturnGraphPaneV3({
               return candidate === null ? [] : [candidate];
             }),
           );
-          const retainedOrientation =
-            trace.pending && currentOrientation === null
-              ? (retainedOrientationByScenarioRef.current.get(
-                  `${structuralSide}:${trace.scenarioId}`,
-                ) ?? null)
-              : null;
           const historyFallbackOrientation =
-            trace.pending &&
-            currentOrientation === null &&
-            retainedOrientation === null
+            currentOrientation === null
               ? (historyOrientations.at(-1) ?? null)
               : null;
           const orientation =
             currentOrientation ??
-            retainedOrientation ??
             historyFallbackOrientation;
           if (orientation === null) return [];
           return [
@@ -729,6 +713,8 @@ function StructuralReturnGraphPaneV3({
               color: trace.color,
               orientation,
               orientationAlpha: historyFallbackOrientation === null ? 1 : 0.34,
+              stale: historyFallbackOrientation !== null,
+              error: trace.error,
               pending: trace.pending,
               historyOrientations:
                 historyFallbackOrientation === null
@@ -765,6 +751,8 @@ function StructuralReturnGraphPaneV3({
           </div>
         ) : (
           <GuytonStarlingComparisonCanvasV3
+            onRetryAnalysis={operationPending || !traces.some(trace => trace.error && !trace.pending)
+              ? undefined : () => onRequestAnalysis(analysisId, traces.filter(trace => trace.error && !trace.pending).map(trace => trace.scenarioId))}
             recalculatingLabel={t("workbench.live.analysisRecalculating")}
             traces={comparisonTraces}
           />

@@ -7,10 +7,13 @@ export function selectPresentationAnalysisIdsV1(
   outputIds: Iterable<string>,
   catalog: MaterializedModelSurfaceV1,
   methods: readonly PresentationAnalysisMethodV1[],
+  graphIds: readonly string[] = [],
 ): readonly string[] {
   const selected = new Set(outputIds);
   const required = new Set(catalog.derivedOutputCatalog
     .filter(output => selected.has(output.outputId)).map(output => output.derivationId));
+  for (const graph of catalog.graphCatalog) if (graph.renderer === "cycle-waveform" && graphIds.includes(graph.graphId))
+    required.add(graph.derivationId);
   return Object.freeze(methods.filter(method => required.has(method.methodId)).map(method => method.methodId));
 }
 
@@ -25,7 +28,8 @@ export function workbenchPresentationAnalysisSelectionV1(
   const cached = cache.get(catalog);
   if (cached !== undefined) return cached;
   const ids = selectPresentationAnalysisIdsV1(
-    surface.outputPanes.flatMap(pane => pane.items.map(item => item.outputId)), catalog, methods);
+    surface.outputPanes.flatMap(pane => pane.items.map(item => item.outputId)), catalog, methods,
+    surface.graphPanes.map(pane => pane.graphId));
   cache.set(catalog, ids);
   analysisSelectionCache.set(surface, cache);
   return ids;
@@ -55,7 +59,7 @@ export function workbenchPresentationOutputSelectionV3(
     const graph = contract.graphCatalog.find(
       ({ graphId }) => graphId === pane.graphId,
     );
-    if (graph === undefined || graph.renderer === "structural-return") continue;
+    if (graph === undefined || graph.renderer === "structural-return" || graph.renderer === "cycle-waveform") continue;
     if (graph.renderer === "sweep") sweepPresent = true;
     for (const authoredSeries of pane.series) {
       const binding = graph.seriesCatalog.find(

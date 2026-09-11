@@ -38,7 +38,7 @@ export function articleReaderPresentationOutputSelectionV3(
     const graph = contract.graphCatalog.find(
       ({ graphId }) => graphId === pane.graphId,
     );
-    if (graph === undefined || graph.renderer === "structural-return") continue;
+    if (graph === undefined || graph.renderer === "structural-return" || graph.renderer === "cycle-waveform") continue;
     if (graph.renderer === "sweep") sweepPresent = true;
     const selectedSeries = selectedGraph.overrides?.series ?? pane.series;
     for (const authoredSeries of selectedSeries) {

@@ -15,7 +15,8 @@ export const WORKBENCH_SCENARIO_COLOR_PALETTE_V3 = Object.freeze([
 export type WorkbenchGraphRendererV3 =
   | "sweep"
   | "pressure-volume"
-  | "structural-return";
+  | "structural-return"
+  | "cycle-waveform";
 
 export type WorkbenchResolvedGraphTraceStyleV3 = Readonly<{
   color: string;

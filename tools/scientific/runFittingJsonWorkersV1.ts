@@ -6,6 +6,10 @@ import { resolve } from "node:path";
 export async function runFittingJsonWorkersV1<T>(request: Readonly<{
   scriptPath: string; jobs: readonly Readonly<{ args: readonly string[]; input: string }>[];
   concurrency: number; signal?: AbortSignal;
+  /** Persist a completed job before another job occupies this slot. */
+  onResult?: (result: T, index: number) => Promise<void>;
+  /** Opt-in isolation. Persistence failures still stop the whole run. */
+  onFailure?: (error: Error, index: number) => Promise<T>;
 }>): Promise<T[]> {
   if (!Number.isInteger(request.concurrency) || request.concurrency < 1 || request.concurrency > 8) throw new Error("Fitting concurrency must be 1–8");
   const scriptPath = request.scriptPath, signal = request.signal;
@@ -27,7 +31,14 @@ export async function runFittingJsonWorkersV1<T>(request: Readonly<{
     while (next < jobs.length) {
       if (interrupted) throw new DOMException("Fitting workers interrupted", "AbortError");
       const i = next++;
-      values[i] = await execute(jobs[i]!);
+      let result: T;
+      try { result = await execute(jobs[i]!); }
+      catch (error) {
+        if (interrupted || !request.onFailure) throw error;
+        result = await request.onFailure(error instanceof Error ? error : new Error(String(error)), i);
+      }
+      values[i] = result;
+      if (request.onResult) await request.onResult(result, i);
     }
   });
   try {

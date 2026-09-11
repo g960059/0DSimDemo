@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 
 const defaultRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
   "../data/model-releases/standard73/publication.json",
@@ -302,6 +303,272 @@ test("@desktop @mobile @beat-metrics selected beat outputs stay responsive and r
   expect(errors).toEqual([]);
 });
 
+test("@desktop @mobile @model-lab @prepared-cycle prepared PV results and opt-in AV timing survive controls", async ({ page }, testInfo) => {
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768, errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  const root = page.getByTestId("v3-dockview-workbench"), deck = page.getByTestId("workbench-mobile-task-deck");
+  const pv = page.locator("[data-pva-result-count]").first();
+  const started = Date.now();
+  await expect.poll(async () => Number(await pv.getAttribute("data-pva-result-count")), { timeout: 15_000 }).toBeGreaterThan(0);
+  const readyPath = testInfo.outputPath("prepared-baseline-ready.json");
+  await writeFile(readyPath, JSON.stringify({ waitAfterWorkbenchMs: Date.now() - started,
+    navigationToReadyMs: await page.evaluate(() => performance.now()) }));
+  await testInfo.attach("prepared-baseline-ready", { path: readyPath, contentType: "application/json" });
+  if (mobile) {
+    await page.getByRole("button", { name: "グラフビューを追加", exact: true }).click();
+    await page.getByRole("dialog", { name: "グラフを追加" }).getByRole("button", { name: /^AV流速・駆出時間 / }).click();
+  } else {
+    await page.getByRole("region", { name: "グラフエリア" }).getByRole("button", { name: "Paneを追加", exact: true }).first().click();
+    await page.getByRole("menu", { name: "Paneを追加" }).getByRole("menuitem", { name: "AV流速・駆出時間", exact: true }).click();
+  }
+  const wave = page.locator('[data-ejection-waveform="true"]').first();
+  await expect(wave).toBeVisible();
+  await expect(wave.locator('[data-ejection-stale="false"]')).toHaveCount(1);
+  await expect(wave).toContainText(/AT \d+ \/ ET \d+ ms/);
+  await expectNonZeroCanvas(wave);
+  await wave.screenshot({ path: testInfo.outputPath("ejection-ready.png") });
+  const playback = page.getByTestId("v3-playback-toggle");
+  await playback.click(); await expect(root).toHaveAttribute("data-playback", "paused");
+  const before = await wave.innerText(), epoch = await inputEpoch(page);
+  if (mobile) await deck.getByRole("tab", { name: "コントロール", exact: true }).click();
+  await page.getByRole("slider", { name: "心拍数 (HR)", exact: true }).press("ArrowRight");
+  await expect.poll(() => inputEpoch(page)).toBeGreaterThan(epoch);
+  await expect(wave.locator('[data-ejection-stale="true"]')).toHaveCount(1);
+  expect(await wave.innerText()).toContain(before);
+  await wave.screenshot({ path: testInfo.outputPath("ejection-stale.png") });
+  await playback.click();
+  await expect(wave.locator('[data-ejection-stale="false"]')).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
+test("@desktop @mobile @model-lab @pv-history loop-owned zero-based axes retain auxiliary history without rescaling", async ({ page }, testInfo) => {
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768;
+  const root = page.getByTestId("v3-dockview-workbench");
+  const pv = page.locator('[data-chart-kind="pressure-volume-loop-v3"]').first();
+  const starling = page.locator('[data-chart-kind="guyton-starling-structural-orientation-v3"]').first();
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  const selectGraph = async (name: string) => {
+    if (mobile) await page.getByTestId("workbench-mobile-graph-view-rail").getByRole("tab", { name, exact: true }).click();
+    else await page.getByRole("region", { name: "グラフエリア" }).getByText(name, { exact: true }).click();
+  };
+  const editGraph = async (name: string) => {
+    if (mobile) await page.getByRole("button", { name: `グラフビュー「${name}」を編集`, exact: true }).click();
+    else await openPaneSettings(page, name);
+  };
+  await expect.poll(async () => Number(await pv.getAttribute("data-pva-result-count")), { timeout: 15_000 }).toBeGreaterThan(0);
+  await expect.poll(async () => Number(await pv.getAttribute("data-pv-ready-trace-count"))).toBeGreaterThan(0);
+  await expect(pv).toHaveAttribute("data-volume-minimum-ml", "0");
+  await expect(pv).toHaveAttribute("data-pressure-minimum-mmhg", "0");
+  const pressureMaximum = Number(await pv.locator("canvas").getAttribute("data-pressure-maximum-mmhg"));
+  const volumeMaximum = Number(await pv.locator("canvas").getAttribute("data-volume-maximum-ml"));
+  const playback = page.getByTestId("v3-playback-toggle");
+  await playback.click();
+  await expect(root).toHaveAttribute("data-playback", "paused");
+  await pv.screenshot({ path: testInfo.outputPath("pv-loop-owned-domain.png") });
+  // Changing the auxiliary construction must not enlarge the paused loop's axes.
+  for (const view of ["pva", "envelope", "espvr"] as const) {
+    await editGraph("PV loop");
+    const settings = page.getByRole("dialog", { name: "Pane設定" });
+    await settings.getByRole("button", { name: view === "envelope" ? /^包絡線 / : /^PVA / }).click();
+    await settings.getByRole("button", { name: "完了", exact: true }).click();
+    await expect(pv).toHaveAttribute("data-pv-pva-boundary-visible", view === "espvr" ? "false" : "true");
+    await expect(pv.locator("canvas")).toHaveAttribute("data-pressure-maximum-mmhg", String(pressureMaximum));
+    await expect(pv.locator("canvas")).toHaveAttribute("data-volume-maximum-ml", String(volumeMaximum));
+  }
+  const epoch = await inputEpoch(page);
+  if (mobile) await page.getByTestId("workbench-mobile-task-deck").getByRole("tab", { name: "コントロール", exact: true }).click();
+  await page.getByRole("slider", { name: "心拍数 (HR)", exact: true }).press("ArrowRight");
+  await expect.poll(() => inputEpoch(page)).toBeGreaterThan(epoch);
+  await expect(pv).toHaveAttribute("data-pva-result-count", "0");
+  await expect(pv).toHaveAttribute("data-pva-retained-drawing-count", "1");
+  await expect(pv).toHaveAttribute("data-pv-history-loop-count", "1");
+  await expect(pv.getByText("薄い線：変更前", { exact: true })).toBeVisible();
+  expect(Number(await pv.locator("canvas").getAttribute("data-pressure-maximum-mmhg"))).toBeGreaterThanOrEqual(pressureMaximum);
+  expect(Number(await pv.locator("canvas").getAttribute("data-volume-maximum-ml"))).toBeGreaterThanOrEqual(volumeMaximum);
+  await pv.screenshot({ path: testInfo.outputPath("pv-history-pending.png") });
+  await selectGraph("Systemic Guyton / Starling");
+  await expect(starling).toHaveAttribute("data-stale-scenario-count", "1");
+  await expect(starling).toHaveAttribute("data-history-count", "1");
+  await expect(starling.getByText("薄い線：変更前", { exact: true })).toBeVisible();
+  await starling.screenshot({ path: testInfo.outputPath("starling-history-pending.png") });
+  for (const name of ["Systemic Guyton / Starling", "PV loop"]) {
+    await selectGraph(name);
+    await editGraph(name);
+    const settings = page.getByRole("dialog", { name: "Pane設定" });
+    const history = settings.getByRole("group", { name: "変更前の結果" });
+    await expect(history.getByRole("radio", { name: "1", exact: true })).toBeChecked();
+    await history.getByText("非表示", { exact: true }).click();
+    await expect(history.getByRole("radio", { name: "非表示", exact: true })).toBeChecked();
+    await settings.getByRole("button", { name: "完了", exact: true }).click();
+    if (name === "PV loop") {
+      await expect(pv).toHaveAttribute("data-pva-retained-drawing-count", "0");
+      await expect(pv).toHaveAttribute("data-pv-history-loop-count", "0");
+    } else await expect.poll(async () => await starling.count() === 0 ? 0 : Number(await starling.getAttribute("data-history-count"))).toBe(0);
+    await editGraph(name);
+    const choices = settings.getByRole("group", { name: "変更前の結果" });
+    await choices.getByRole("radio", { name: "3", exact: true }).focus();
+    await choices.getByRole("radio", { name: "3", exact: true }).press("Space");
+    await expect(choices.getByRole("radio", { name: "3", exact: true })).toBeChecked();
+    await choices.getByRole("radio", { name: "3", exact: true }).press("ArrowLeft");
+    await choices.getByRole("radio", { name: "2", exact: true }).press("ArrowLeft");
+    await expect(choices.getByRole("radio", { name: "1", exact: true })).toBeChecked();
+    await settings.screenshot({ path: testInfo.outputPath(name === "PV loop" ? "pv-history-settings.png" : "starling-history-settings.png") });
+    await settings.getByRole("button", { name: "完了", exact: true }).click();
+  }
+  await expect(pv).toHaveAttribute("data-pva-retained-drawing-count", "1");
+  await playback.click();
+  const startTime = await modelTime(root);
+  // At the supported 0.25x playback rate, six model seconds already need
+  // 24 wall seconds. Keep the six-second retention check, not a hidden 0.3x SLA.
+  await expect.poll(() => modelTime(root), { timeout: 40_000 }).toBeGreaterThan(startTime + 6);
+  await expect(pv).toHaveAttribute("data-pva-retained-drawing-count", "1");
+  await expect(pv).toHaveAttribute("data-pressure-minimum-mmhg", "0");
+  expect(Number(await pv.locator("canvas").getAttribute("data-pressure-maximum-mmhg"))).toBeGreaterThanOrEqual(pressureMaximum);
+  await pv.screenshot({ path: testInfo.outputPath("pv-history-resumed.png") });
+  expect(errors).toEqual([]);
+});
+
+test("@desktop @mobile @model-lab @as-jet opt-in jet outputs preserve live and stale behavior", async ({ page }, testInfo) => {
+  const root = page.getByTestId("v3-dockview-workbench");
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768;
+  const deck = page.getByTestId("workbench-mobile-task-deck");
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  const labels = ["AV peak PG (4v²)", "AV AT", "AV AT/ET", "AV mean flow"];
+  const ids = ["hemodynamics.velocity.peak-quasi-steady-jet.AoV", "hemodynamics.pressure-gradient.mean-bernoulli-jet.AoV",
+    "hemodynamics.pressure-gradient.peak-bernoulli-jet.AoV", "hemodynamics.duration.jet-acceleration.AoV",
+    "hemodynamics.ratio.jet-AT-to-ET.AoV", "hemodynamics.area.forward-SV-over-jet-VTI.AoV", "hemodynamics.flow.mean-ejection.AoV",
+    "hemodynamics.stroke-volume-index.forward.AoV-reference-bsa1p9"];
+  // No new defaults: the reader deliberately selects the additional observer.
+  for (const id of ids) await expect(page.locator(`[data-output-id="${id}"]`)).toHaveCount(0);
+  if (mobile) {
+    await deck.getByRole("tab", { name: "出力", exact: true }).click();
+    await deck.locator(".workbench-mobile-pane-group-settings").first().click();
+  } else await openPaneSettings(page, "Outputs");
+  const settings = page.getByRole("dialog", { name: "Pane設定" });
+  await settings.getByRole("button", { name: "AS関連の5項目を追加", exact: true }).click();
+  await expect(settings.getByRole("button", { name: "AS関連の5項目を追加", exact: true })).toHaveCount(0);
+  await settings.locator(".workbench-pane-add-item").click();
+  const drawer = settings.getByTestId("pane-settings-context-drawer-v3");
+  for (const label of labels) {
+    await drawer.getByRole("searchbox").fill(label);
+    await drawer.getByRole("button", { name: `項目を追加: ${label}`, exact: true }).click();
+  }
+  await drawer.getByRole("button", { name: "パネルを閉じる" }).click();
+  await settings.getByRole("button", { name: "完了", exact: true }).click();
+  for (const id of ids) await expect(page.locator(`[data-output-id="${id}"]`)).toHaveAttribute("data-output-availability", "available");
+  for (const id of ids) await expect(page.locator(`[data-output-id="${id}"]`)).toHaveCount(1);
+  const svi = page.locator(`[data-output-id="${ids[7]}"]`);
+  await svi.getByRole("button").click();
+  await expect(page.getByRole("tooltip")).toContainText("BSA 1.9 m²");
+  await page.keyboard.press("Escape");
+  const vmax = page.locator(`[data-output-id="${ids[0]}"]`), playback = page.getByTestId("v3-playback-toggle");
+  const value = () => vmax.locator(".workbench-output-value").evaluate(element => element.firstChild?.textContent ?? "");
+  expect(Number(await value())).toBeGreaterThan(0);
+  await vmax.getByRole("button").click();
+  await expect(page.getByRole("tooltip")).toContainText("Dopplerの実測値ではなく");
+  await page.keyboard.press("Escape");
+  await vmax.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("jet-outputs-ready.png") });
+  await playback.click(); await expect(root).toHaveAttribute("data-playback", "paused");
+  const previous = await value(), epoch = await inputEpoch(page);
+  if (mobile) await deck.getByRole("tab", { name: "コントロール", exact: true }).click();
+  await page.getByRole("slider", { name: "心拍数 (HR)", exact: true }).press("ArrowRight");
+  await expect.poll(() => inputEpoch(page)).toBeGreaterThan(epoch);
+  if (mobile) await deck.getByRole("tab", { name: "出力", exact: true }).click();
+  await expect(vmax).toHaveAttribute("data-output-stale", "true");
+  expect(await value()).toBe(previous);
+  await vmax.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("jet-outputs-stale.png") });
+  await playback.click();
+  for (const id of ids) {
+    const output = page.locator(`[data-output-id="${id}"]`);
+    await expect(output).toHaveAttribute("data-output-stale", "false");
+    await expect(output).toHaveAttribute("data-output-availability", "available");
+  }
+  expect(errors).toEqual([]);
+});
+
+test("@desktop @mobile @model-lab @as-presets settled AS presets remain reachable beside their controls", async ({ page }, testInfo) => {
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768;
+  const deck = page.getByTestId("workbench-mobile-task-deck"), root = page.getByTestId("v3-dockview-workbench");
+  const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
+  if (mobile) {
+    await deck.getByRole("tab", { name: "出力", exact: true }).click();
+    await deck.locator(".workbench-mobile-pane-group-settings").first().click();
+  } else await openPaneSettings(page, "Outputs");
+  const settings = page.getByRole("dialog", { name: "Pane設定" });
+  await settings.getByRole("button", { name: "AS関連の5項目を追加", exact: true }).click();
+  await settings.getByRole("button", { name: "完了", exact: true }).click();
+  const ids = ["hemodynamics.velocity.peak-quasi-steady-jet.AoV", "hemodynamics.pressure-gradient.mean-bernoulli-jet.AoV"];
+  const manager = mobile ? deck.getByTestId("workbench-scenario-manager-v3") : page.getByRole("region", { name: "Scenarios" });
+  for (const [title, min, max] of [["AS · 弁狭窄のみ・高勾配", 45, 52], ["HFrEF · 慢性左室拡大型", 1, 3], ["AS · 低EF・低流量・低勾配", 18, 23]] as const) {
+    if (mobile) await deck.getByRole("tab", { name: "Scenario", exact: true }).click();
+    await manager.getByRole("button", { name: "Presetから追加", exact: true }).click();
+    const menu = page.getByRole("menu", { name: "Presetから追加", exact: true });
+    const item = menu.getByRole("menuitem").filter({ hasText: title }).first();
+    await item.scrollIntoViewIfNeeded();
+    expect(await menu.evaluate(e => e.getBoundingClientRect().bottom <= innerHeight)).toBe(true);
+    await item.click();
+    await expect(manager.getByRole("button", { name: new RegExp(`^${title} scenario/`) })).toHaveAttribute("aria-pressed", "true");
+    if (mobile) await deck.getByRole("tab", { name: "出力", exact: true }).click();
+    for (const id of ids) await expect(page.locator(`[data-output-id="${id}"]`)).toHaveAttribute("data-output-availability", "available");
+    const pg = page.locator(`[data-output-id="${ids[1]}"] .workbench-output-value`);
+    const value = () => pg.evaluate(e => Number(e.firstChild?.textContent));
+    await expect.poll(value).toBeGreaterThan(min); expect(await value()).toBeLessThan(max);
+    await page.screenshot({ path: testInfo.outputPath(`as-preset-${min}.png`) });
+  }
+  if (mobile) await deck.getByRole("tab", { name: "Scenario", exact: true }).click();
+  await expect(manager.getByRole("button", { name: /Scenarioメニュー:/ })).toHaveCount(4);
+  await manager.getByRole("button", { name: "baseline workbench-live-default", exact: true }).click();
+  if (mobile) await deck.getByRole("tab", { name: "出力", exact: true }).click();
+  await expect.poll(() => page.locator(`[data-output-id="${ids[1]}"] .workbench-output-value`).evaluate(e => Number(e.firstChild?.textContent))).toBeLessThan(5);
+  await expect(root).toHaveAttribute("data-model-id", DEFAULT_EXACT_MODEL_ID);
+  expect(errors).toEqual([]);
+});
+
+for (const [key, title] of [["high-gradient AS", "AS · 弁狭窄のみ・高勾配"],
+  ["low-flow AS", "AS · 低EF・低流量・低勾配"], ["HFrEF", "HFrEF · 慢性左室拡大型"]] as const) {
+test(`@desktop @model-lab @as-analysis ${key} completes formal PV analysis without stopping live execution`, async ({ page }, testInfo) => {
+  const manager = page.getByRole("region", { name: "Scenarios" });
+  await manager.getByRole("button", { name: "Presetから追加", exact: true }).click();
+  await page.getByRole("menu", { name: "Presetから追加", exact: true })
+    .getByRole("menuitem").filter({ hasText: title }).click();
+  await expect(manager.getByRole("button", { name: new RegExp(`^${title} scenario/`) })).toHaveAttribute("aria-pressed", "true");
+  const canvas = page.locator("[data-pva-result-count]").first();
+  const error = page.getByTestId("workbench-pva-analysis-error");
+  const started = Date.now();
+  // A dev-server reload discards an unsaved scenario. Report it as such rather
+  // than waiting several minutes and misclassifying it as a numerical failure.
+  await Promise.race([page.waitForEvent("framenavigated", { predicate: frame => frame === page.mainFrame(), timeout: 20_000 })
+    .then(() => { throw new Error("Workbench page reloaded while verifying formal analysis"); }), expect.poll(async () => {
+    if (await error.count()) {
+      await error.first().click();
+      const message = await page.getByTestId("workbench-pva-analysis-error-popover").innerText();
+      await testInfo.attach("analysis-error", { body: message, contentType: "text/plain" });
+      throw new Error(message);
+    }
+    return Number(await canvas.getAttribute("data-pva-result-count")) >= 2 && await canvas.getAttribute("data-pva-analysis-pending") === "false";
+  }, { timeout: 15_000 }).toBe(true)]);
+  const readyPath = testInfo.outputPath("prepared-case-ready.json");
+  await writeFile(readyPath, JSON.stringify({ case: key, waitAfterScenarioAddedMs: Date.now() - started }));
+  await testInfo.attach("prepared-case-ready", { path: readyPath, contentType: "application/json" });
+  await expect(error).toHaveCount(0);
+  expect(Number(await canvas.getAttribute("data-pv-envelope-source-point-count"))).toBeGreaterThan(10);
+  expect(Number(await canvas.getAttribute("data-pv-diastolic-source-point-count"))).toBeGreaterThan(10);
+  await page.screenshot({ path: testInfo.outputPath("as-formal-complete.png") });
+  const before = await acceptedRevision(page);
+  await expect.poll(() => acceptedRevision(page)).toBeGreaterThan(before + 100);
+  await expect(page.getByTestId("v3-runtime-error")).toHaveCount(0);
+  await page.getByTestId("workbench-simulation-info-trigger-v3").click();
+  const info = page.getByRole("dialog", { name: "シミュレーション情報" });
+  await info.getByRole("tab", { name: "数理モデル", exact: true }).click();
+  await info.getByText("制限事項", { exact: false }).first().click();
+  await expect(info.getByText(/圧差のゼロ交差から補間/)).toBeVisible();
+});
+}
+
 test("@desktop @mobile @beat-metrics filling outputs retain stale measurements without inventing unavailable durations", async ({ page }, testInfo) => {
   const root = page.getByTestId("v3-dockview-workbench");
   const mobile = (page.viewportSize()?.width ?? 1440) < 768;
@@ -508,7 +775,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   );
   await expect(
     page.locator(
-      '[data-pv-relation-semantics="area-max-common-isochrone-espvr-exponential-edpvr"]',
+      '[data-pv-relation-semantics="full-load-pressure-envelope-measured-diastolic-locus"]',
     ),
   ).toBeVisible();
   await expectFormalPvaProgressOrResult(
@@ -590,6 +857,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   await graphGroups.first().getByRole("button", { name: "Paneを追加" }).click();
   const addGraphMenu = page.getByRole("menu", { name: "Paneを追加" });
   await expect(addGraphMenu.getByRole("menuitem")).toHaveText([
+    "AV流速・駆出時間",
     "PV loop",
     "圧波形",
     "流量波形",
@@ -663,15 +931,6 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
     preControlRevision,
   );
   await expect.poll(() => modelTime(root)).toBeGreaterThan(preControlTime);
-  await expect(page.locator(
-    '[data-analysis-input-epoch][data-circulation-side="right"]',
-  )).toHaveAttribute(
-    "data-analysis-input-epoch",
-    String(changedEpoch),
-    {
-      timeout: 20_000,
-    },
-  );
   await expect(structural).toHaveAttribute("data-history-count", "1");
 
   await openPaneSettings(page, "Outputs");
@@ -763,6 +1022,14 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   expect(lowerControllerGroup?.y ?? 0).toBeGreaterThan(
     upperControllerGroup?.y ?? 0,
   );
+  // Exercise settings while the isolated formal family is still computing.
+  // It must eventually replace the retained old-input drawing; use the same
+  // bounded formal-analysis budget as the initial PV check, not a 20s SLA.
+  await expect(page.locator(
+    '[data-analysis-input-epoch][data-circulation-side="right"]',
+  )).toHaveAttribute("data-analysis-input-epoch", String(changedEpoch), { timeout: 90_000 });
+  await expect(page.getByTestId("workbench-structural-analysis-error")).toHaveCount(0);
+  await expect(page.getByTestId("v3-runtime-error")).toHaveCount(0);
 });
 
 test("@desktop baseline duplication stays independent and requires explicit save", async ({

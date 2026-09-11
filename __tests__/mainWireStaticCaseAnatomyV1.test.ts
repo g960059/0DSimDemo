@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveMainWireStaticCaseAnatomyV1 as anatomy } from "@/engine/myocardium/mechanics/MainWireStaticCaseAnatomyV1";
 import { createMainWireIntegratedModelStaticCaseFixtureV1 as create } from "@/engine/myocardium/experiments/MainWireIntegratedModelStaticCaseFixtureV1";
 import { createMainWireIntegratedModelStandard71FixtureV1 as original } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
-import { mainWireStaticCaseFittingSeedV1 as seed } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
+import { mainWireStaticCaseFittingSeedV1 as seed } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import { checkpointWholeHeartMechanicsStateV1 as checkpoint, restoreWholeHeartMechanicsStateV1 as restore } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 
 describe("current finite static anatomy construction", () => {

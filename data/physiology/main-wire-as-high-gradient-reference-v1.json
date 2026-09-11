@@ -1,0 +1,42 @@
+{
+  "referenceId": "as-high-gradient-valve-only-v1",
+  "label": "AS · 弁狭窄のみ・高勾配",
+  "clinicalValidationClaimed": false,
+  "scope": { "heartRateBpm": 70, "bodySurfaceAreaM2": 1.9, "rhythm": "sinus", "purpose": "安静時の弁性圧負荷を示す教育例。慢性肥大、石灰化、二尖弁、線維化、症状や治療適応を再現・判定するものではない。" },
+  "construction": {
+    "mechanism": "baseline形状の心室に大動脈弁の有効弁口面積低下を加え、弁性圧負荷の効果を観察する固定構成。",
+    "rationale": "この例の入力差は採用baselineから最大順行EOAのみとする。血液量・心筋・血管を同時に調整せず、正常弁の同一背景対照はbaselineを用いる。モデル設計上の選択で、文献から同定した患者パラメータではない。",
+    "sourceIds": ["eacvi-ase-as-2017", "ito-contractility-2019"],
+    "limitations": "能動張力の倍率は壁の質量や形状を変えず、慢性肥大の代用とはみなさない。EF保持は収縮性正常の証明ではない。低流量・低勾配AS、慢性リモデリング、弁置換後の適応過程は別の検討対象。"
+  },
+  "sources": [
+    { "sourceId": "esc-eacts-as-2025", "title": "Praz et al. 2025 ESC/EACTS Guidelines for the management of valvular heart disease", "url": "https://academic.oup.com/ejcts/article-abstract/doi/10.1093/ejcts/ezaf276/8242828", "locator": "doi:10.1093/ejcts/ezaf276; Section 8.2.1, Figure 6, integrative AS assessment", "population": "成人の弁膜症に関する学会勧告。", "method": "勾配・AVAと、SVI≤35 mL/m²／>35、EF<50%／≥50%による観測型の区別。", "limitations": "モデルの小EOAは既知の水力学的設定であり、臨床で必要な再測定・CT・DSEによる確認を代替しない。性別SVI閾値は提案として紹介され、本文の分類は35を用いる。" },
+    { "sourceId": "eacvi-ase-as-2017", "title": "Baumgartner et al. Recommendations on the Echocardiographic Assessment of Aortic Valve Stenosis: A Focused Update. 2017", "url": "https://www.asecho.org/wp-content/uploads/2017/04/2017ValveStenosisGuideline.pdf", "locator": "doi:10.1016/j.echo.2017.02.009; basic grading, flow/gradient/EF classification", "population": "ASの心エコー評価に関する学会勧告。", "method": "CW Dopplerの最大速度・瞬時4v²の駆出期平均・連続の式による有効弁口面積。", "limitations": "本モデルはDoppler計測過程やLVOTを再現しない。Vmax、勾配、AVA、SVIは独立した証拠ではない。分類は統合的に行う。" },
+    { "sourceId": "bse-as-2021", "title": "Ring et al. Echocardiographic assessment of aortic stenosis: a practical guideline from the British Society of Echocardiography. 2021", "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8115410/", "locator": "doi:10.1530/ERP-20-0035; Table 4", "population": "ASの心エコー計測・重症度評価。", "method": "重症/超重症のVmax・平均勾配・有効弁口面積の区分。", "limitations": "表の区分は全員に一致する条件ではない。ここでは一致する高勾配例を意図的に選び、低流量・低勾配例を別の表現対象とする。" },
+    { "sourceId": "gamaza-at-2017", "title": "Gamaza-Chulián et al. Acceleration Time and Ratio of Acceleration Time to Ejection Time in Aortic Stenosis: New Echocardiographic Diagnostic Parameters. 2017", "url": "https://doi.org/10.1016/j.echo.2017.06.001", "locator": "doi:10.1016/j.echo.2017.06.001; abstract, 262 patients", "population": "AS 262例（平均75歳）。重症群109例、中等症群99例を含む。", "method": "大動脈弁Doppler速度包絡。重症群AT 109±23 ms、AT/ET 0.37±0.06、中等症群82±19 ms、0.29±0.07。", "limitations": "平均±SDは正常範囲や個人の必須条件ではない。AT/ET 0.35の重症AS識別感度59%、特異度86%。抄録で確認できた範囲を使用。" },
+    { "sourceId": "namasivayam-flow-2020", "title": "Namasivayam et al. Transvalvular Flow Rate Determines Prognostic Value of Aortic Valve Area in Aortic Stenosis. 2020", "url": "https://pubmed.ncbi.nlm.nih.gov/32299587/", "locator": "doi:10.1016/j.jacc.2020.02.046", "population": "ASの臨床コホートと検証コホート。", "method": "駆出中平均流量SV/ETとAVAの関係。", "limitations": "SVIとSV/ETは同じではない。研究の流量境界を全ASに対する必須正常域へ転用しない。" },
+    { "sourceId": "ito-contractility-2019", "title": "Ito et al. Left Ventricular Contractility and Wall Stress in Patients With Aortic Stenosis With Preserved or Reduced Ejection Fraction. 2020 (online 2019)", "url": "https://doi.org/10.1016/j.jcmg.2019.01.009", "locator": "doi:10.1016/j.jcmg.2019.01.009; abstract, 445 patients", "population": "重症AS 445例をLVEF 60%で層別。", "method": "中層壁短縮率と収縮末期壁応力から収縮性を評価。EF 60%以上の群にも負荷補正した収縮性低下が24%に認められた。", "limitations": "EFと収縮性を区別する根拠として使う。50%の分類境界はこの論文から取らずEACVI/ASE勧告を参照する。固定形状モデルで慢性肥大を検証したことにはならない。" },
+    { "sourceId": "baumgartner-recovery-1999", "title": "Baumgartner et al. Overestimation of catheter gradients by Doppler ultrasound in patients with aortic stenosis: a predictable manifestation of pressure recovery. 1999", "url": "https://doi.org/10.1016/S0735-1097(99)00066-2", "locator": "doi:10.1016/S0735-1097(99)00066-2", "population": "AS患者のDopplerとカテーテル測定の比較。", "method": "流速に基づく勾配と回復後の圧差の比較。", "limitations": "本モデルは圧回復を含まない。この文献は測定方法差の根拠であり、モデルの圧回復実装を裏付けるものではない。" },
+    { "sourceId": "androshchuk-pv-2026", "title": "Androshchuk et al. Acute bi-ventricular haemodynamic changes after transcatheter aortic valve implantation for severe aortic stenosis assessed using invasive pressure-volume loops. 2026", "url": "https://pubmed.ncbi.nlm.nih.gov/42177330/", "locator": "doi:10.1007/s12928-026-01295-x; invasive conductance-catheter study, 12 patients", "population": "症候性重症ASのTAVI前後12例。", "method": "侵襲的PV測定による弁置換直後の負荷・仕事変化。", "limitations": "少数・術中条件。弁口面積だけを戻す数理的対照はTAVIそのものではない。方向性の参考に限定し、絶対値や抄録の仕事の単位を転用しない。" }
+  ],
+  "restScreen": [
+    { "metricId": "avEffectiveAreaCm2", "lower": 0, "lowerInclusive": false, "upper": 1, "unit": "cm²", "sourceIds": ["eacvi-ase-as-2017"], "rationale": "SV/VTIの有効弁口面積が正かつ1 cm²以下の例。正値は測定成立条件。独立した形態学的検証ではない。" },
+    { "metricId": "avVmax", "lower": 4, "upper": null, "normalizationScale": 2, "unit": "m/s", "sourceIds": ["eacvi-ase-as-2017", "bse-as-2021"], "rationale": "一致する高勾配例としてVmax≥4を選ぶ。生理的上限は設けない。正規化幅2は探索の尺度であって上限ではない。" },
+    { "metricId": "avBernoulliMeanGradient", "lower": 40, "upper": null, "normalizationScale": 40, "unit": "mmHg", "sourceIds": ["esc-eacts-as-2025"], "rationale": "平均4v²≥40の高勾配例を選ぶ。速度との同時条件はこの教材の選択で、臨床診断をAND条件へ置き換えるものではない。正規化幅40は探索の尺度であり生理的上限ではない。" }
+  ],
+  "fittingTargets": [
+    { "metricId": "avBernoulliMeanGradient", "lower": 40, "upper": 60, "upperInclusive": false, "unit": "mmHg", "priority": 0, "sourceIds": ["bse-as-2021"], "rationale": "最初の例は40以上60未満を選び、超重症域を避ける教材上の選択。Vmaxとpeak4v²を独立した損失として重複加算しない。" },
+    { "metricId": "forwardSvi", "lower": 35, "lowerInclusive": false, "upper": 50, "unit": "mL/m²", "method": "1拍のAV順流量/BSA。逆流なしの構成。", "priority": 1, "sourceIds": ["esc-eacts-as-2025", "namasivayam-flow-2020"], "rationale": "この教材では低流量でない例を選ぶため、35<SVI≤50を採用条件とする。優先順位は探索順で、任意条件という意味ではない。上限50は生理的正常上限ではない。SV/ETは別に観測する。" }
+  ],
+  "context": [
+    { "metricIds": ["avAccelerationTimeMs", "avAtEt", "etMs", "meanEjectionFlowMlPerSec"], "sourceIds": ["gamaza-at-2017", "namasivayam-flow-2020"], "rationale": "速度ピークの遅延と駆出延長を観測する。AT/ET 0.35以上を全例に強制せず、達していない場合も隠さず説明する。" },
+    { "metricIds": ["lvef", "meanLa", "nativeLvEndFillingPressure", "weissTauMs", "flowEToA", "tei", "positiveDpDt", "negativeDpDt"], "sourceIds": ["eacvi-ase-as-2017", "ito-contractility-2019"], "rationale": "EFは弁負荷への応答として示し、保持EFを本例の必須条件にしない。充満圧・弛緩・時間配分も観測し、全ASで異常を要求しない。LAPは実測PCWPではない。" },
+    { "metricIds": ["avPeakGradient", "avMeanGradient", "avBernoulliPeakGradient", "meanAo", "aoNodePeak", "aoNodeMinimum", "ci", "lvTransmuralStrokeWorkJPerM2"], "sourceIds": ["baumgartner-recovery-1999", "androshchuk-pv-2026"], "rationale": "同時刻LV−Ao node差と4v²を区別し、圧波形・PV loop・仕事を観察する。現モデルは圧回復や空間伝播を含まない。形の一律正常曲線やpeak-to-peak勾配をgateにしない。" }
+  ],
+  "features": [
+    { "featureId": "concordant-obstruction", "role": "required", "metricIds": ["avEffectiveAreaCm2", "avVmax", "avBernoulliMeanGradient"], "sourceIds": ["eacvi-ase-as-2017"], "label": "小さな弁口と高い流速・勾配", "expectedFinding": "流量が流れるために左室が余分な圧を発生する。", "limitation": "EFは応答として観測する。低流量・低勾配型や慢性肥大の再現ではない。" },
+    { "featureId": "ejection-flow", "role": "required", "metricIds": ["forwardSvi", "avBernoulliMeanGradient"], "sourceIds": ["bse-as-2021", "namasivayam-flow-2020"], "label": "拍出を維持した重症AS", "expectedFinding": "この教材の選定条件としてSVIを維持しながら弁性の圧負荷が増える例を選ぶ。", "limitation": "流量は負荷・収縮・駆出時間で変わる。固定の病名から一意には決まらず、全ASの必須所見ではない。" },
+    { "featureId": "timing-and-filling", "role": "observe", "metricIds": ["avAtEt", "etMs", "weissTauMs", "meanLa"], "sourceIds": ["gamaza-at-2017", "ito-contractility-2019"], "label": "駆出の時間経過と充満への影響", "expectedFinding": "速度ピークの位置、駆出時間、弛緩と充満圧を実際の結果から説明する。", "limitation": "期待した傾向と実際に観測された所見を分ける。全項目の異常を強制しない。" },
+    { "featureId": "valve-only-relief", "role": "observe", "metricIds": ["avMeanGradient", "lvTransmuralStrokeWorkJPerM2", "ci"], "sourceIds": ["androshchuk-pv-2026", "baumgartner-recovery-1999"], "label": "弁口面積だけを戻す対照", "expectedFinding": "同じ心筋・血管・TBVのまま狭窄を除いた時の圧負荷とPV loopを比較する。", "limitation": "弁置換術や慢性リモデリングの予測ではなく、閉ループの弁のみの数理的対照。" }
+  ]
+}

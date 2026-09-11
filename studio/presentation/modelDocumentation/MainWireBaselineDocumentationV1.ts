@@ -24,9 +24,17 @@ export type BaselineDocumentationRowV1 = Readonly<{
   id: string; label: string; value: number | null; unit: string;
   role: "target" | "guard" | "reference" | "numerical";
   status: "passed" | "warning" | "failed" | "unassessed" | "reference";
-  ranges: readonly { label: string; lower: number | null; upper: number | null }[];
+  ranges: readonly { label: string; lower: number | null; upper: number | null; lowerInclusive?: boolean; upperInclusive?: boolean }[];
   meaning: string; rationale: string;
   sources: readonly { title: string; url: string; locator: string }[];
+}>;
+// A new case needs only its own observations/policy for this presentation. Do
+// not make an author copy a historical document's unrelated measurements.
+export type MainWireBaselineRowsInputV1 = Readonly<{
+  evidence: MainWireBaselineSnapshotV1["evidence"];
+  admission: Pick<MainWireBaselineSnapshotV1["admission"], "policy">;
+  tauPolicy: Pick<MainWireBaselineSnapshotV1["tauPolicy"], "referenceUpperMs">;
+  observations: readonly Pick<MainWireBaselineSnapshotV1["observations"][number], "rest" | "checks" | "tau">[];
 }>;
 const labels: Record<string, string> = {
   "settlement.period1": "Period-1",
@@ -83,7 +91,7 @@ function japaneseRationale(row: BaselineDocumentationRowV1): string {
   if (id === "pcwp-surrogate.mean") return "文献のPAWP上限は臨床上の参照値です。左房圧から楔入圧への換算関係を検証した値でも、健康な人の分布の上下限でもありません。";
   if (id.startsWith("waveform")) return row.role === "reference"
     ? "丸みやピーク位置の範囲は開発時の参考値です。実測波形は負荷や圧反射で変わるため、一律のドーム形状を必須にはしていません。"
-    : "ピークや再上昇の許容値は、モデルの動作を調べる設計上の基準です。駆出中の原因不明の振動を調べる検査と、正常波形の形を断定することは分けています。具体的な検査内容は下の「数値品質・形状チェックの内容」で確認できます。";
+    : "ピークや再上昇の許容値は、モデルの動作を調べる設計上の基準です。駆出中の原因不明の振動を調べる検査と、正常波形の形を断定することは分けています。測定法と確認結果は検証記録に残します。";
   if (id === "settlement.period1") return "1拍ごとに同じ状態へ戻るかを確認します。循環血液量だけでなく、心筋や血管が持つ内部状態も含めて比較し、偶然1拍だけ一致した場合を除きます。";
   if (id === "lv.tau.weiss") return row.rationale;
   if (id.includes("cardiac-index") || id.includes("stroke-volume-index")) return "参照先は右心カテーテル検査の指標です。モデルでは大動脈弁を通る正味流量を使います。循環全体の心拍出量と対応させるには、定常・補助循環なし・循環を短絡する血流なしの条件が必要です。CIとSVIを別々の独立した目標として数えません。";
@@ -116,14 +124,14 @@ export function baselineUnitV1(unit: string) {
   return ({ s: "ms", fraction: "%", "mL/m2": "mL/m²", "L/min/m2": "L/min/m²", bool: "", ratio: "", count: "" } as Record<string, string>)[unit] ?? unit;
 }
 const l = (locale: Locale, ja: string, en: string) => locale === "ja" ? ja : en;
-function source(snapshot: MainWireBaselineSnapshotV1, sourceId: string, locator: string) {
+function source(snapshot: MainWireBaselineRowsInputV1, sourceId: string, locator: string) {
   const ref = snapshot.evidence.sources.find(s => s.sourceId === sourceId);
   if (!ref) throw new Error(`Unresolved documentation source: ${sourceId}`);
   return { title: ref.title, url: ref.url, locator };
 }
 
 /** Render the saved policy, not today's global gate registry. No new votes. */
-export function mainWireBaselineRowsV1(snapshot: MainWireBaselineSnapshotV1, grid: 0 | 1, locale: Locale): readonly BaselineDocumentationRowV1[] {
+export function mainWireBaselineRowsV1(snapshot: MainWireBaselineRowsInputV1, grid: 0 | 1, locale: Locale): readonly BaselineDocumentationRowV1[] {
   const o = snapshot.observations[grid];
   const rows: BaselineDocumentationRowV1[] = [];
   const design = l(locale, "設計上の範囲（正常範囲ではない）", "Design interval, not a normal range");

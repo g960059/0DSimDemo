@@ -1,28 +1,34 @@
 import type { PresentationAnalysisCollectorV1 } from "@/analysis/contracts/PresentationAnalysisV1";
 import type { RegisteredModelPresentationBatchV2, StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
+import type { StudioJsonObjectV2 } from "@/studio/contracts/v2/json";
 import {
   buildMainWireCardiacCycleMetricsV1,
   MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID as methodId,
   MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1 as requiredIds,
   type MainWireCardiacCycleAcceptedSampleV1 as Sample,
-  type MainWireCardiacCycleMetricsV1 as Result,
 } from "./MainWireCardiacCycleMetricsV1";
 
 const phaseId = "rhythm.phase.regular-sinus";
 const maximumSamples = 4_002; // Bounded observation window: at most 8 s at 2 ms.
-const emptyResult = buildMainWireCardiacCycleMetricsV1([]);
 const pendingReason = "insufficient-complete-regular-sinus-cycles";
+type Result = StudioJsonObjectV2 & { status: "available" | "unavailable"; reason?: string };
+type Binding = { methodId: string; requiredIds: readonly string[]; build: (samples: readonly Sample[]) => Result };
 
 /** One collector per method/Scenario in the existing numerical Worker.
  * Append every 2-ms sample, evaluate only on a completed phase-delimited beat.
  * Neither a visual history buffer nor a separately advanced simulation. */
 export class MainWireCardiacCycleCollectorV1 implements PresentationAnalysisCollectorV1 {
+  readonly #emptyResult: Result;
+  constructor(private readonly binding: Binding = { methodId, requiredIds, build: buildMainWireCardiacCycleMetricsV1 }) {
+    this.#emptyResult = binding.build([]);
+  }
   #scope = "";
   #samples: Sample[] = [];
   #hasBoundary = false;
   #lastUnavailable: string | undefined;
 
   ingest(batch: RegisteredModelPresentationBatchV2): StudioSimulationAnalysisV2 | undefined {
+    const { methodId, requiredIds, build } = this.binding, emptyResult = this.#emptyResult;
     const frame = batch.terminalFrame;
     const scope = JSON.stringify([frame.modelId, frame.runtimeSessionId, frame.scenarioId, frame.inputEpoch]);
     let emission: StudioSimulationAnalysisV2 | undefined;
@@ -77,7 +83,7 @@ export class MainWireCardiacCycleCollectorV1 implements PresentationAnalysisColl
         if (this.#hasBoundary) {
           // Invalid observations must not stop or alter the numerical runtime.
           let result: Result;
-          try { result = buildMainWireCardiacCycleMetricsV1(this.#samples); }
+          try { result = build(this.#samples); }
           catch { result = emptyResult; }
           if (result.status === "available" || result.reason !== this.#lastUnavailable) emit(sample, result);
           this.#lastUnavailable = result.status === "available" ? undefined : result.reason;

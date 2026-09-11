@@ -165,6 +165,7 @@ export class StudioSimulationWorkerRuntimeV2 {
   #exactRuntime: ResolvedExactModelRuntimeV2 | undefined;
   #surfaceSeriesId: string | undefined;
   #surfaceReleaseId: string | undefined;
+  #analysisReleaseTicket: Extract<StudioSimulationWorkerRequestV2, { kind: "initialize" }>["releaseTicket"] | undefined;
   #adapter: RegisteredModelSimulationAdapterV2 | undefined;
   #fixtureReducer: StudioFixtureReducerFacadeV2 | undefined;
   #authoring: StudioExperimentAuthoringFacadeV2 | undefined;
@@ -487,6 +488,7 @@ export class StudioSimulationWorkerRuntimeV2 {
       this.#exactRuntime = exactRuntime;
       this.#surfaceSeriesId = request.releaseTicket.surfaceRelease.surfaceSeriesId;
       this.#surfaceReleaseId = request.releaseTicket.surfaceRelease.surfaceReleaseId;
+      this.#analysisReleaseTicket = request.releaseTicket;
       this.#adapter = adapter;
       this.#fixtureReducer = createStudioFixtureReducerV2(models);
       this.#authoring = authoringStack.application;
@@ -925,7 +927,20 @@ export class StudioSimulationWorkerRuntimeV2 {
       });
       proposedAnalysis = await this.#analysisExecutor.execute(Object.freeze({
         source: Object.freeze({
-          acceptedFrame: currentFrame,
+          // Executor and request share the physical session. Result admission
+          // below is the single place that maps back to the logical session.
+          acceptedFrame: currentFrame.runtimeSessionId === physicalRuntimeSessionId ? currentFrame
+            : Object.freeze({ ...currentFrame, runtimeSessionId: physicalRuntimeSessionId }),
+          surfaceRelease: this.#analysisReleaseTicket!.surfaceRelease,
+          capture: async () => {
+            this.#assertAnalysisDidNotMutate(priorFrame, null);
+            const content = await this.#captureAllScenarios("experiment/analysis-source-capture", EMPTY_WORKER_CAPTURE_SURFACE_V2);
+            this.#assertAnalysisDidNotMutate(priorFrame, null);
+            const scenario = content.scenarios.find(s => s.scenarioId === request.scenarioId)?.capture;
+            if (!scenario || scenario.checkpoint === null || scenario.checkpoint.acceptedRevision !== priorFrame.acceptedRevision
+              || scenario.checkpoint.acceptedTimeSec !== priorFrame.acceptedTimeSec) throw new Error("Analysis capture boundary differs from request");
+            return Object.freeze({ artifactRevisionId: this.#analysisReleaseTicket!.artifactRevisionId, scenario });
+          },
           legacyExact: Object.freeze({
             request: (input) => adapter.requestAnalysis(input),
           }),
@@ -1861,6 +1876,7 @@ export class StudioSimulationWorkerRuntimeV2 {
     this.#exactRuntime = undefined;
     this.#surfaceSeriesId = undefined;
     this.#surfaceReleaseId = undefined;
+    this.#analysisReleaseTicket = undefined;
     this.#presentationMethods.clear();
     this.#presentationCollectors.clear();
     this.#adapter = undefined;

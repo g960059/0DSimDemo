@@ -1,3 +1,4 @@
+import { MAIN_WIRE_PRESSURE_CROSSING_PV_PROTOCOL_V1_ID } from "./MainWireStructuralAnalysisContractV3";
 import type {
   MainWireIntegratedModelPressureVolumeLoopPointV3,
   MainWireIntegratedModelStarlingLocusV3,
@@ -22,13 +23,16 @@ export const MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID =
   "suga-pva-common-isochrone-owner-with-measured-diastolic-load-display-v13" as const;
 export const MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID =
   "suga-pva-measured-load-display-exact-anatomy-mvo2-v14" as const;
+export const MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID =
+  "suga-pva-measured-load-signed-semilunar-pressure-family-v15" as const;
 
 export type MainWirePeriodicPvaMethodIdV1 =
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID
-  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID;
+  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID
+  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID;
 
 type Mvo2Estimate = MainWireIntegratedModelLvMvo2EstimateV1 | MainWireLvMvo2EstimateV2;
 
@@ -372,15 +376,28 @@ export function buildMainWirePeriodicPvaMethodV14(
   return buildMeasuredLoadPva(locus, ventricleId, MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID);
 }
 
+/** Same energy/display equations, separately pinned to the new measured family.
+ * Delegation preserves the V14 exact-anatomy MVO2 convention. */
+export function buildMainWirePeriodicPvaMethodV15(
+  locus: MainWireIntegratedModelStarlingLocusV3,
+  ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
+): MainWirePeriodicPvaV1 {
+  if (locus.status !== "measured-fixed-tbv-protocol" || locus.protocolId !== MAIN_WIRE_PRESSURE_CROSSING_PV_PROTOCOL_V1_ID)
+    throw new Error("Pressure-crossing PVA requires its pinned measured protocol, not a legacy family");
+  return Object.freeze({ ...buildMeasuredLoadPva(locus, ventricleId, MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID, true), methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID });
+}
+
 function buildMeasuredLoadPva(locus: MainWireIntegratedModelStarlingLocusV3,
   ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
   methodId: typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID,
+  exactIntersectionEndpoint = false,
 ): MainWirePeriodicPvaV1 {
   const pva = buildMainWirePeriodicPvaByPolicyV1(locus, ventricleId, {
     methodId,
     systolicLoadDomain: "preload-reduction-through-anchor",
     showMeasuredHighLoadIsochrone: true,
     includeAreaDisplay: true,
+    exactIntersectionEndpoint,
   });
   return Object.freeze({ ...pva, loadRelations: Object.freeze({
     systolic: buildMainWireSystolicPressureEnvelopeV1(locus),
@@ -617,6 +634,7 @@ function buildMainWirePeriodicPvaByPolicyV1(
       | "preload-reduction-through-anchor";
     showMeasuredHighLoadIsochrone?: boolean;
     includeAreaDisplay?: boolean;
+    exactIntersectionEndpoint?: boolean;
   }>,
 ): MainWirePeriodicPvaV1 {
   const familyProgress: PeriodicPvaProgressV1 = Object.freeze({
@@ -900,6 +918,7 @@ function buildMainWirePeriodicPvaByPolicyV1(
     edpvr,
     Math.max(0, lowVolumeExtension.zeroPressureVolumeMl),
     anchorEndSystolic.volumeMl,
+    method.exactIntersectionEndpoint,
   );
   if (peLeftIntersectionVolumeMl === null) {
     return incomplete(
@@ -1955,11 +1974,12 @@ function weightedRSquaredV1(
   return total > 0 ? 1 - residual / total : residual === 0 ? 1 : 0;
 }
 
-function pressureRelationsLeftIntersectionV1(
+export function pressureRelationsLeftIntersectionV1(
   systolicPressureMmHg: (volumeMl: number) => number,
   edpvr: ExponentialFitV1,
   searchStartVolumeMl: number,
   endVolumeMl: number,
+  exactEndpoint = false,
 ): number | null {
   if (
     ![searchStartVolumeMl, endVolumeMl].every(Number.isFinite) ||
@@ -2017,9 +2037,13 @@ function pressureRelationsLeftIntersectionV1(
   // admitted only when the first left intersection is followed by one
   // strictly positive pressure gap through the anchor end-systolic volume.
   for (let index = 1; index <= CURVE_SAMPLE_COUNT_V1; index += 1) {
+    // Reconstructing the known right endpoint can overshoot the measured
+    // domain by one ULP. Keep the endpoint exact, without widening the domain
+    // or accepting a nonpositive pressure gap. This V15 fix is opt-in so
+    // already-published methods retain even their former edge-case behaviour.
     const volumeMl =
-      intersectionVolumeMl +
-      (index / CURVE_SAMPLE_COUNT_V1) * (endVolumeMl - intersectionVolumeMl);
+      exactEndpoint && index === CURVE_SAMPLE_COUNT_V1 ? endVolumeMl : intersectionVolumeMl +
+        (index / CURVE_SAMPLE_COUNT_V1) * (endVolumeMl - intersectionVolumeMl);
     if (!(pressureDifferenceMmHg(volumeMl) > 0)) return null;
   }
   return intersectionVolumeMl;

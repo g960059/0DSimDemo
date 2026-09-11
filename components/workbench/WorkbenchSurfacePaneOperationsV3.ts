@@ -94,7 +94,7 @@ export function addWorkbenchSurfacePaneV3(
       ...(graph.renderer === "sweep"
         ? { windowSec: WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3 }
         : {
-            historyDepth: WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3,
+            ...(graph.renderer === "cycle-waveform" ? {} : { historyDepth: WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3 }),
             ...(graph.renderer === "pressure-volume"
               ? options.periodicPvaSupported === false
                 ? {
@@ -112,7 +112,7 @@ export function addWorkbenchSurfacePaneV3(
               : {}),
           }),
       traceColors: [],
-      series: graph.renderer === "structural-return"
+      series: graph.renderer === "structural-return" || graph.renderer === "cycle-waveform"
         ? []
         : graph.defaultSeriesIds.map((seriesId, seriesOrder) => ({
             seriesId,

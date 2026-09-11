@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   WorkbenchParallelScenarioRuntimeV3,
   type WorkbenchParallelScenarioRuntimeClientV3,
+  type WorkbenchParallelScenarioRuntimeDependenciesV3,
 } from "@/components/workbench/runtime/WorkbenchParallelScenarioRuntimeV3";
 import type {
   StudioSimulationAnalysisV2,
@@ -19,11 +20,117 @@ import type {
   WorkbenchBackgroundJobPriorityV3,
   WorkbenchBackgroundWorkerPoolPortV3,
 } from "@/components/workbench/runtime/WorkbenchBackgroundWorkerPoolV3";
+import { WorkbenchBackgroundWorkerPoolV3 } from
+  "@/components/workbench/runtime/WorkbenchBackgroundWorkerPoolV3";
 import {
   STANDARD_TEST_RELEASE_TICKET_V1,
 } from "./helpers/standardReleaseTicketV1";
 
 describe("WorkbenchParallelScenarioRuntimeV3", () => {
+  it("reuses a prepared launch family without a numerical analysis Worker, preserving its original source clock", async () => {
+    const saved = analysisV3("offline", "registered-preset", "analysis/guyton-starling");
+    const load = vi.fn(async () => saved);
+    const h = harnessV3(undefined, undefined, { loadPreparedAnalysis: load });
+    await h.runtime.initialize({ scenarios: [{ ...seedV3("scenario/baseline", "Baseline", 0), checkpoint: checkpointV3(0) }], activeScenarioId: "scenario/baseline" });
+    h.runtime.playAll();
+    const released = vi.fn();
+    const result = await h.runtime.requestAnalysis({ scenarioId: "scenario/baseline", analysisId: saved.analysisId,
+      expectedInputEpoch: 0, expectedAcceptedRevision: 0, expectedAcceptedTimeSec: 0, onLiveLaneReleased: released });
+    expect(result).toEqual({ ...saved, runtimeSessionId: "runtime/scenario/baseline", scenarioId: "scenario/baseline" });
+    expect(load).toHaveBeenCalledOnce();
+    expect(released).toHaveBeenCalledOnce();
+    expect(h.conductor.running).toBe(true);
+    expect(h.analysisClients.get("scenario/baseline")!.initialize).not.toHaveBeenCalled();
+    h.runtime.terminate();
+  });
+
+  it("does not reuse initial analysis after an accepted input change", async () => {
+    const saved = analysisV3("offline", "registered-preset", "analysis/guyton-starling");
+    const h = harnessV3(undefined, undefined, { loadPreparedAnalysis: async () => saved });
+    await h.runtime.initialize({ scenarios: [{ ...seedV3("scenario/baseline", "Baseline", 0), checkpoint: checkpointV3(0) }], activeScenarioId: "scenario/baseline" });
+    const changed = { ...frameV3("scenario/baseline", 0), inputEpoch: 1 };
+    h.clients.get("scenario/baseline")!.applyControl.mockResolvedValue(changed);
+    await h.runtime.applyControl({ scenarioId: "scenario/baseline", controlId: "test", value: 1,
+      expectedInputEpoch: 0 });
+    const worker = h.analysisClients.get("scenario/baseline")!;
+    worker.requestAnalysis.mockResolvedValue({ ...saved, scenarioId: "scenario/baseline" });
+    const result = await h.runtime.requestAnalysis({ scenarioId: "scenario/baseline", analysisId: saved.analysisId,
+      expectedInputEpoch: 1, expectedAcceptedRevision: 0, expectedAcceptedTimeSec: 0 });
+    expect(worker.initialize).toHaveBeenCalledOnce();
+    expect(result.inputEpoch).toBe(1);
+    h.runtime.terminate();
+  });
+  it("discards a prepared result when a control is accepted while the asset is loading", async () => {
+    const saved = analysisV3("offline", "registered-preset", "analysis/guyton-starling");
+    let resolveAsset!: (value: StudioSimulationAnalysisV2) => void;
+    const asset = new Promise<StudioSimulationAnalysisV2>(resolve => { resolveAsset = resolve; });
+    const h = harnessV3(undefined, undefined, { loadPreparedAnalysis: () => asset });
+    await h.runtime.initialize({ scenarios: [{ ...seedV3("scenario/baseline", "Baseline", 0), checkpoint: checkpointV3(0) }], activeScenarioId: "scenario/baseline" });
+    const released = vi.fn();
+    const pending = h.runtime.requestAnalysis({ scenarioId: "scenario/baseline", analysisId: saved.analysisId,
+      expectedInputEpoch: 0, expectedAcceptedRevision: 0, expectedAcceptedTimeSec: 0, onLiveLaneReleased: released }).catch(error => error);
+    await vi.waitFor(() => expect(released).toHaveBeenCalledOnce());
+    h.clients.get("scenario/baseline")!.applyControl.mockResolvedValue({ ...frameV3("scenario/baseline", 0), inputEpoch: 1 });
+    await h.runtime.applyControl({ scenarioId: "scenario/baseline", controlId: "test", value: 1, expectedInputEpoch: 0 });
+    resolveAsset(saved);
+    expect((await pending).message).toContain("Prepared analysis target changed");
+    expect(h.runtime.latestFrame("scenario/baseline").inputEpoch).toBe(1);
+    h.runtime.terminate();
+  });
+
+  it("falls back to numerical analysis when the optional prepared asset cannot load", async () => {
+    const h = harnessV3(undefined, undefined, { loadPreparedAnalysis: async () => { throw new Error("network unavailable"); } });
+    await h.runtime.initialize({ scenarios: [{ ...seedV3("scenario/baseline", "Baseline", 0), checkpoint: checkpointV3(0) }], activeScenarioId: "scenario/baseline" });
+    h.analysisClients.get("scenario/baseline")!.requestAnalysis.mockResolvedValue(
+      analysisV3("detached", "scenario/baseline", "analysis/guyton-starling"));
+    const result = await h.runtime.requestAnalysis({ scenarioId: "scenario/baseline", analysisId: "analysis/guyton-starling",
+      expectedInputEpoch: 0, expectedAcceptedRevision: 0, expectedAcceptedTimeSec: 0 });
+    expect(result.analysisId).toBe("analysis/guyton-starling");
+    expect(h.analysisClients.get("scenario/baseline")!.initialize).toHaveBeenCalledOnce();
+    h.runtime.terminate();
+  });
+  it("measures visible playback while detached analysis survives a Scenario addition", async () => {
+    let releaseAnalysis!: (value: string) => void;
+    const analysisGate = new Promise<string>((resolve) => { releaseAnalysis = resolve; });
+    const pool = new WorkbenchBackgroundWorkerPoolV3(
+      { warmSize: 0, maxSize: 1 },
+      () => ({ terminate: vi.fn() }) as never,
+      4,
+    );
+    const analysis = pool.schedule("analysis", () => analysisGate);
+    await Promise.resolve();
+    const harness = harnessV3(vi.fn(), pool);
+    try {
+      await harness.runtime.initialize({
+        scenarios: [seedV3("scenario/baseline", "Baseline", 0)],
+        activeScenarioId: "scenario/baseline",
+      });
+      harness.runtime.playAll();
+      expect(harness.conductor.dependencies.capacityMeasurementEligible?.())
+        .toBe(true);
+      await harness.runtime.pauseAll();
+      await harness.runtime.addScenario(seedV3("scenario/as", "AS", 0));
+      harness.runtime.playAll();
+      expect(harness.conductor.dependencies.capacityMeasurementEligible?.())
+        .toBe(true);
+
+      vi.stubGlobal("document", { visibilityState: "hidden" });
+      expect(harness.conductor.dependencies.capacityMeasurementEligible?.())
+        .toBe(false);
+      vi.stubGlobal("document", { visibilityState: "visible" });
+      expect(harness.conductor.dependencies.capacityMeasurementEligible?.())
+        .toBe(true);
+      releaseAnalysis("complete");
+      await expect(analysis.promise).resolves.toBe("complete");
+    } finally {
+      vi.unstubAllGlobals();
+      releaseAnalysis("complete");
+      await analysis.promise;
+      await harness.runtime.dispose();
+      pool.dispose();
+    }
+  });
+
   it("creates one persistent Worker per Scenario under one TimeConductor", async () => {
     const harness = harnessV3();
     const state = await harness.runtime.initialize({
@@ -121,7 +228,6 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     const backgroundWorkerPool = {
       setLiveScenarioCount: (count) => liveScenarioCounts.push(count),
       setForegroundPlaybackState: () => undefined,
-      foregroundCapacityMeasurementEligible: () => true,
       schedule: () => {
         throw new Error("background operation is not expected");
       },
@@ -145,6 +251,28 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
 
     harness.runtime.playAll();
     expect(liveScenarioCounts.at(-1)).toBe(2);
+
+    // Short, overlapping capture leases must not release the foreground
+    // reservation and start analysis before initial calibration can finish.
+    await harness.runtime.pauseScenario("scenario/baseline");
+    await harness.runtime.pauseScenario("scenario/comparison");
+    expect(harness.conductor.running).toBe(false);
+    expect(liveScenarioCounts.at(-1)).toBe(2);
+    harness.runtime.resumeScenario("scenario/baseline");
+    expect(liveScenarioCounts.at(-1)).toBe(2);
+    // A genuine global pause still gives idle capacity back to analysis.
+    await harness.runtime.pauseAll();
+    expect(liveScenarioCounts.at(-1)).toBe(0);
+    harness.runtime.resumeScenario("scenario/comparison");
+    expect(liveScenarioCounts.at(-1)).toBe(0);
+    harness.runtime.playAll();
+    expect(liveScenarioCounts.at(-1)).toBe(2);
+    harness.conductor.pause.mockRejectedValueOnce(new Error("pause failed"));
+    await expect(harness.runtime.pauseScenario("scenario/baseline")).rejects.toThrow("pause failed");
+    expect(liveScenarioCounts.at(-1)).toBe(2);
+    await harness.runtime.pauseScenario("scenario/baseline");
+    harness.runtime.resumeScenario("scenario/baseline");
+    expect(harness.conductor.running).toBe(true);
 
     await harness.runtime.addScenario(
       seedV3("scenario/third", "Third", 0),
@@ -337,7 +465,6 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     const backgroundWorkerPool = {
       setLiveScenarioCount: () => undefined,
       setForegroundPlaybackState: () => undefined,
-      foregroundCapacityMeasurementEligible: () => true,
       schedule,
       run: async <T>(
         priority: WorkbenchBackgroundJobPriorityV3,
@@ -377,6 +504,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
         ...frameV3("scenario/baseline", 1),
         inputEpoch: 1,
       }));
+    const captureCountBeforeControl = liveClient.readScenarios.mock.calls.length;
 
     await expect(harness.runtime.applyControl({
       scenarioId: "scenario/baseline",
@@ -385,9 +513,16 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       expectedInputEpoch: 0,
     })).resolves.toMatchObject({ inputEpoch: 1 });
     expect(cancelled).toHaveBeenCalledOnce();
+    // The UI already needs one authoritative capture to project the new input.
+    // A speculative warm start must reuse it, not add another blocking read.
+    expect(liveClient.readScenarios).toHaveBeenCalledTimes(captureCountBeforeControl);
+    await harness.runtime.captureScenario("scenario/baseline", { prewarm: true });
+    expect(liveClient.readScenarios).toHaveBeenCalledTimes(captureCountBeforeControl + 1);
+    expect(scheduled).toHaveBeenCalledTimes(2);
     await expect(pendingAnalysis).rejects.toThrow(
       "analysis cancelled after input change",
     );
+    await harness.runtime.dispose();
   });
 
   it("starts hypovolemic and hypervolemic analysis Workers from one exact capture", async () => {
@@ -802,6 +937,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
 function harnessV3(
   onError = vi.fn<(error: Error) => void>(),
   backgroundWorkerPool?: WorkbenchBackgroundWorkerPoolPortV3,
+  extra: Partial<WorkbenchParallelScenarioRuntimeDependenciesV3> = {},
 ) {
   const clients = new Map<string, ReturnType<typeof clientV3>>();
   const analysisClients = new Map<string, ReturnType<typeof clientV3>>();
@@ -830,6 +966,7 @@ function harnessV3(
     onFrames,
     onError,
     ...(backgroundWorkerPool === undefined ? {} : { backgroundWorkerPool }),
+    ...extra,
   });
   // Factories are lazy: provision deterministic analysis doubles for the
   // assertions before the request allocates one.

@@ -184,6 +184,14 @@ export const prSmokeTests = [
 ] as const;
 
 export const regressionTests = [
+  "__tests__/fittingRunJournalV1.test.ts",
+  "__tests__/mainWireRegistryCasePreparationV1.test.ts",
+  "__tests__/mainWireRegistryInitialCandidatesV1.test.ts",
+  "__tests__/mainWireAsCaseV1.test.ts",
+  "__tests__/mainWireAsPresentationV1.test.ts",
+  "__tests__/preparedModelAnalysisV1.test.ts",
+  "__tests__/mainWirePressureCrossingAnalysisV1.test.ts",
+  "__tests__/registryCaseDocumentationV1.test.ts",
   "__tests__/mainWireIntegratedStudioStructuralAnalysisV3.test.ts",
   "__tests__/studioNumericalAuthoringV1.test.ts",
   "__tests__/acceptedEventTriggeredIabpActuatorCheckpointV1.test.ts",
@@ -221,6 +229,9 @@ export const regressionTests = [
 
 /** Current canonical scientific lane. This exact inventory is its source of truth. */
 export const canonicalScientificTests = [
+  "__tests__/mainWireValveCycleObservationV3.test.ts",
+  "__tests__/mainWireWorkbenchMetricsAuditV1.test.ts",
+  "__tests__/mainWireCaseFittingSearchV1.test.ts",
   "__tests__/mainWireStaticCaseFittingWorkflowV1.test.ts",
   "__tests__/mainWireHfrefDilatedReferenceV1.test.ts",
   "__tests__/backwardEulerCoronaryNetworkV1.test.ts",

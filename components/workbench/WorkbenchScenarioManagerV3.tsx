@@ -426,7 +426,7 @@ export function WorkbenchScenarioManagerV3(
                         rect.right - 248,
                         rect.bottom + 4,
                         256,
-                        300,
+                        Math.min(400, compatiblePresets.length * 90 + 12),
                       )
                     : null,
                 );
@@ -638,10 +638,11 @@ export function WorkbenchScenarioManagerV3(
                 role="menu"
                 tabIndex={-1}
                 aria-label={strings.addFromPreset}
-                className="fixed z-[90] w-64 overflow-hidden rounded-xl bg-wb-panel p-1.5 text-xs shadow-2xl ring-1 ring-wb-line"
+                className="fixed z-[90] w-64 overflow-y-auto overscroll-contain rounded-xl bg-wb-panel p-1.5 text-xs shadow-2xl ring-1 ring-wb-line"
                 style={{
                   left: presetMenuPosition.x,
                   top: presetMenuPosition.y,
+                  maxHeight: Math.max(44, Math.min(400, window.innerHeight - presetMenuPosition.y - 8)),
                 }}
               >
                 {compatiblePresets.length === 0 ? (
@@ -657,6 +658,7 @@ export function WorkbenchScenarioManagerV3(
                       type="button"
                       role="menuitem"
                       autoFocus={index === 0}
+                      title={preset.description}
                       className="block min-h-11 min-w-0 flex-1 rounded-lg px-3 py-2 text-left text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                       onClick={() => addPreset(preset)}
                     >

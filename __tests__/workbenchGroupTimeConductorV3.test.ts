@@ -105,12 +105,14 @@ describe("WorkbenchGroupTimeConductorV3", () => {
     await conductor.pause();
   });
 
-  it("starts below real time when the calibrated tier cannot sustain 1×", async () => {
+  it.each([{ wallMs: 50, rate: 0.5 }, { wallMs: 160, rate: 0.25 }])(
+    "keeps a genuinely slow workload below real time ($wallMs ms/batch)",
+    async ({ wallMs, rate }) => {
     const clock = new GroupClockV3();
     let acceptedTimeSec = 0;
     const conductor = new WorkbenchGroupTimeConductorV3({
       lanes: () => [laneV3("baseline", acceptedTimeSec, async (stepCount) => {
-        clock.elapse(50);
+        clock.elapse(wallMs);
         const frames = framesV3("baseline", acceptedTimeSec, stepCount);
         acceptedTimeSec = frames.at(-1)!.timeSec;
         return frames;
@@ -129,15 +131,15 @@ describe("WorkbenchGroupTimeConductorV3", () => {
       if (!conductor.playbackRateState().calibrating) break;
     }
     expect(conductor.playbackRateState()).toMatchObject({
-      playbackRate: 0.5,
-      maximumRate: 0.5,
+      playbackRate: rate,
+      maximumRate: rate,
       calibrating: false,
       userSelected: false,
     });
     await conductor.pause();
   });
 
-  it("excludes hidden or background-contended batches from calibration", async () => {
+  it("excludes hidden batches from calibration", async () => {
     const clock = new GroupClockV3();
     const performance = new WorkbenchPerformanceDiagnosticsV3({
       enabled: true,
@@ -189,7 +191,7 @@ describe("WorkbenchGroupTimeConductorV3", () => {
     await conductor.pause();
   });
 
-  it("excludes a contended batch even when analysis finishes before its reply", async () => {
+  it("excludes a hidden batch even when the tab becomes visible before its reply", async () => {
     const clock = new GroupClockV3();
     const performance = new WorkbenchPerformanceDiagnosticsV3({
       enabled: true,
@@ -222,7 +224,9 @@ describe("WorkbenchGroupTimeConductorV3", () => {
     await conductor.pause();
   });
 
-  it("promotes a provisional low ceiling after stable foreground evidence", async () => {
+  it.each([false, true])(
+    "recovers from a slow startup without replacing explicit selection (%s)",
+    async (userSelected) => {
     const clock = new GroupClockV3();
     const performance = new WorkbenchPerformanceDiagnosticsV3({
       enabled: true,
@@ -230,6 +234,7 @@ describe("WorkbenchGroupTimeConductorV3", () => {
     });
     let acceptedTimeSec = 0;
     let groupWallMs = 50;
+    let visible = true;
     const conductor = new WorkbenchGroupTimeConductorV3({
       lanes: () => [laneV3("baseline", acceptedTimeSec, async (stepCount) => {
         clock.elapse(groupWallMs);
@@ -239,7 +244,7 @@ describe("WorkbenchGroupTimeConductorV3", () => {
       })],
       onFrames: vi.fn(),
       onError: vi.fn(),
-      capacityMeasurementEligible: () => true,
+      capacityMeasurementEligible: () => visible,
       nowMs: clock.now,
       schedule: clock.schedule,
       cancel: clock.cancel,
@@ -258,15 +263,28 @@ describe("WorkbenchGroupTimeConductorV3", () => {
       calibrating: false,
     });
 
+    if (userSelected) conductor.setPlaybackRate(0.5);
+    visible = false;
+    groupWallMs = 160;
+    for (let attempt = 0; attempt < 24; attempt += 1) {
+      await clock.runNextTimer();
+    }
+    expect(conductor.playbackRateState()).toMatchObject({
+      playbackRate: 0.5,
+      maximumRate: 0.5,
+      performanceLimited: false,
+    });
+
+    visible = true;
     groupWallMs = 16;
     for (let attempt = 0; attempt < 24; attempt += 1) {
       await clock.runNextTimer();
     }
     expect(conductor.playbackRateState()).toMatchObject({
-      playbackRate: 1,
+      playbackRate: userSelected ? 0.5 : 1,
       maximumRate: 1.5,
       calibrating: false,
-      userSelected: false,
+      userSelected,
       performanceLimited: false,
     });
     expect(

@@ -1478,7 +1478,7 @@ describe("V3 Dockview Workbench", () => {
       )!;
       expect("windowSec" in pane).toBe(graph.renderer === "sweep");
       expect("historyDepth" in pane).toBe(graph.renderer !== "sweep");
-      if (graph.renderer !== "structural-return") {
+      if (graph.renderer !== "structural-return" && graph.renderer !== "cycle-waveform") {
         expect(
           pane.series.every(({ seriesId }) =>
             graph.seriesCatalog.some(
@@ -1588,7 +1588,7 @@ describe("V3 Dockview Workbench", () => {
     ).toBe(canonicalRawSurface);
     expect(
       workbenchGraphDisplaySettingsAvailableV3("pressure-volume", false),
-    ).toBe(false);
+    ).toBe(true); // Raw loops still have visual-history settings.
     expect(
       workbenchGraphDisplaySettingsAvailableV3("pressure-volume", true),
     ).toBe(true);
@@ -1598,7 +1598,8 @@ describe("V3 Dockview Workbench", () => {
         true,
         "raw-exact-orbit",
       ),
-    ).toBe(false);
+    ).toBe(true);
+    expect(workbenchGraphDisplaySettingsAvailableV3("structural-return", true)).toBe(true);
     expect(workbenchGraphDisplaySettingsAvailableV3("sweep", false)).toBe(
       true,
     );
@@ -2021,7 +2022,7 @@ describe("V3 Dockview Workbench", () => {
     },
   );
 
-  it("constructs four unit-safe graph families with one circulation per structural pane", async () => {
+  it("offers only supported graph constructors and one circulation per structural pane", async () => {
     const composition =
       await loadStudioLocalCurrentClientCompositionV1();
     const original = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
@@ -2029,6 +2030,7 @@ describe("V3 Dockview Workbench", () => {
       ...new Set(WORKBENCH_GRAPH_PANE_OPTIONS_V3.map(({ graphId }) => graphId)),
     ];
     expect(constructorGraphIds).toEqual([
+      "hemodynamics.aortic-jet.cycle",
       "hemodynamics.pressure-volume",
       "hemodynamics.pressure.waveform.comprehensive-v1",
       "hemodynamics.flow.waveform.comprehensive-v1",
@@ -2038,12 +2040,12 @@ describe("V3 Dockview Workbench", () => {
       composition.modelSurface.contract.graphCatalog.map(({ graphId }) => graphId),
     ).toEqual(
       expect.arrayContaining([
-        ...constructorGraphIds,
+        ...constructorGraphIds.filter(id => id !== "hemodynamics.aortic-jet.cycle"),
         "hemodynamics.pressure.waveform",
         "hemodynamics.flow.waveform",
       ]),
     );
-    for (const option of WORKBENCH_GRAPH_PANE_OPTIONS_V3) {
+    for (const option of WORKBENCH_GRAPH_PANE_OPTIONS_V3.filter(o => composition.modelSurface.contract.graphCatalog.some(g => g.graphId === o.graphId))) {
       const added = addWorkbenchSurfacePaneV3(
         original,
         "graph",
@@ -2068,7 +2070,7 @@ describe("V3 Dockview Workbench", () => {
         );
       }
       expect(pane.series).toEqual(
-        graph.renderer === "structural-return"
+        graph.renderer === "structural-return" || graph.renderer === "cycle-waveform"
           ? []
           : expect.arrayContaining(
               graph.defaultSeriesIds.map((seriesId) =>

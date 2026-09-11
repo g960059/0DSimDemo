@@ -121,7 +121,9 @@ export function observeMainWireVentricularValveTimingV2(input: Readonly<{
   return observeSideTimingV2(input.samples, input.completedBeat, input.side);
 }
 
-function validateObservationInputV2(samples: readonly MainWireBaselineObservationTraceSampleV2[],
+// Shared by the research observer; exporting these primitives does not change
+// the published V2 first-closure or all-or-nothing observation semantics.
+export function validateObservationInputV2(samples: readonly MainWireBaselineObservationTraceSampleV2[],
   beat: MainWireBaselineObservationBeatV2) {
   validateTraceV2(samples);
   if (
@@ -227,7 +229,7 @@ function observeSideTimingV2(
   });
 }
 
-function resolvedPhasePeakV2(
+export function resolvedPhasePeakV2(
   samples: readonly MainWireBaselineObservationTraceSampleV2[],
   valve: ValveV2,
   from: number,
@@ -248,7 +250,7 @@ function resolvedPhasePeakV2(
   return Object.freeze({ timeSec: peak.acceptedTimeSec, flow: peak.valveFlowMlPerSec[valve] });
 }
 
-function transitionsV2(samples: readonly MainWireBaselineObservationTraceSampleV2[], valve: ValveV2) {
+export function transitionsV2(samples: readonly MainWireBaselineObservationTraceSampleV2[], valve: ValveV2) {
   const result: TransitionV2[] = [];
   for (let index = 1; index < samples.length; index += 1) {
     const previous = samples[index - 1]!;
@@ -297,7 +299,7 @@ function validateTraceV2(samples: readonly MainWireBaselineObservationTraceSampl
   });
 }
 
-function sameTimeV2(left: number, right: number): boolean {
+export function sameTimeV2(left: number, right: number): boolean {
   return Number.isFinite(left) && Number.isFinite(right)
     && Math.abs(left - right) <= 128 * Number.EPSILON * Math.max(1, Math.abs(left), Math.abs(right));
 }
