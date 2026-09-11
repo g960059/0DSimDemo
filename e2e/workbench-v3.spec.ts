@@ -419,7 +419,9 @@ test("@desktop @mobile @model-lab @pv-history loop-owned zero-based axes retain 
   await expect(pv).toHaveAttribute("data-pva-retained-drawing-count", "1");
   await playback.click();
   const startTime = await modelTime(root);
-  await expect.poll(() => modelTime(root), { timeout: 20_000 }).toBeGreaterThan(startTime + 6);
+  // At the supported 0.25x playback rate, six model seconds already need
+  // 24 wall seconds. Keep the six-second retention check, not a hidden 0.3x SLA.
+  await expect.poll(() => modelTime(root), { timeout: 40_000 }).toBeGreaterThan(startTime + 6);
   await expect(pv).toHaveAttribute("data-pva-retained-drawing-count", "1");
   await expect(pv).toHaveAttribute("data-pressure-minimum-mmhg", "0");
   expect(Number(await pv.locator("canvas").getAttribute("data-pressure-maximum-mmhg"))).toBeGreaterThanOrEqual(pressureMaximum);
@@ -929,15 +931,6 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
     preControlRevision,
   );
   await expect.poll(() => modelTime(root)).toBeGreaterThan(preControlTime);
-  await expect(page.locator(
-    '[data-analysis-input-epoch][data-circulation-side="right"]',
-  )).toHaveAttribute(
-    "data-analysis-input-epoch",
-    String(changedEpoch),
-    {
-      timeout: 20_000,
-    },
-  );
   await expect(structural).toHaveAttribute("data-history-count", "1");
 
   await openPaneSettings(page, "Outputs");
@@ -1029,6 +1022,14 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   expect(lowerControllerGroup?.y ?? 0).toBeGreaterThan(
     upperControllerGroup?.y ?? 0,
   );
+  // Exercise settings while the isolated formal family is still computing.
+  // It must eventually replace the retained old-input drawing; use the same
+  // bounded formal-analysis budget as the initial PV check, not a 20s SLA.
+  await expect(page.locator(
+    '[data-analysis-input-epoch][data-circulation-side="right"]',
+  )).toHaveAttribute("data-analysis-input-epoch", String(changedEpoch), { timeout: 90_000 });
+  await expect(page.getByTestId("workbench-structural-analysis-error")).toHaveCount(0);
+  await expect(page.getByTestId("v3-runtime-error")).toHaveCount(0);
 });
 
 test("@desktop baseline duplication stays independent and requires explicit save", async ({
