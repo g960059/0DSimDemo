@@ -96,15 +96,6 @@ Only synthetic or published-source case data belong in Git. Real-person data
 remain local unless an explicit data policy authorizes persistence, export and
 reuse. Plain hashes of low-entropy measurements are not anonymization.
 
-Rebuilding and resuming are different operations. A same-run resume keeps its
-original source, inputs, job identities and budgets. A material refresh creates
-a new record: re-observation retains the original numerical source; layout-only
-rendering retains the original measurements, interpretation and assessment.
-Neither is a new numerical qualification. `fit:registry:family` rebuilds the
-current roots before their AS comparisons. A selected parent's full input is
-explicitly bound to the child, with only aortic area free; a held parent blocks
-the child instead of silently substituting an old public background.
-
 Methodological context (not physiological validation):
 
 - <https://doi.org/10.1016/j.mbs.2018.07.001>
