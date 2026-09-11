@@ -21,6 +21,9 @@ import { MAIN_WIRE_MODEL_MODULES_V1, MAIN_WIRE_REFERENCE_CONSTRUCTION_MODULE_IDS
 import { resolveRegisteredModelDisclosureV1, resolveRegisteredModelDocumentationV1, resolveRegisteredPresetDocumentationV1, REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import beatSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
+import pressureSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
+import asHigh from "@/studio/presentation/modelDocumentation/packages/standard73-as-high-gradient-document-v1.json";
+import asLow from "@/studio/presentation/modelDocumentation/packages/standard73-as-low-flow-document-v1.json";
 import { assertAdditiveModelSurfaceUpgradeV1 } from "@/studio/contracts/v2/modelSurface";
 import client from "@/data/model-releases/CurrentModelReleaseV1";
 import { resolveRegisteredModelLaunchCheckpointV1 } from "@/studio/registry/RegisteredModelLaunchBaselineV1";
@@ -116,7 +119,7 @@ describe("current and historical model documentation", () => {
     expect(saved.views.en.records[1].label).toContain("independent cold");
     expect(historical.identity.releaseStatus).toBe("local-candidate-not-registered");
     expect(resolveRegisteredModelLaunchCheckpointV1(historical.identity.modelId, historical.scientificRecord.measurements.fixtureIdentity)).toBeUndefined();
-    expect(REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1.map(o => o.label)).toEqual(["Standard 73", "Standard 73 · HFrEF", "Standard 72", "Standard 71", "HFrEF · 慢性左室拡大型"]);
+    expect(REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1.map(o => o.label)).toEqual(["Standard 73", "Standard 73 · HFrEF", "Standard 73 · AS high gradient", "Standard 73 · AS low flow", "Standard 72", "Standard 71", "HFrEF · 慢性左室拡大型"]);
   });
 
   it.each(["ja", "en"] as const)("renders current and historical documents in %s without substituting identities", async locale => {
@@ -212,12 +215,13 @@ describe("separate model and preset reader, bound to preserved records", () => {
       expect(() => savedReadingHtmlV1(view, locale, "presets", "missing-record")).toThrow();
     }
   });
-  it("groups by exact model and Surface, not disease name or creation-time candidate status", () => {
+  it("groups by exact model while retaining each document's measurement-time Surface", () => {
     const current = currentModelReadingEntryV1()!;
     expect(current.identity.modelId).toBe(baseline73.identity.modelId);
     expect(current.state).toBe("current");
     expect(saved.identity.releaseStatus).toBe("reviewed-release-package");
-    expect(compatibleReadingEntriesV1(current).map(e => e.presetLabel.ja)).toEqual(["baseline", "HFrEF · 慢性左室拡大型"]);
+    expect(compatibleReadingEntriesV1(current).map(e => e.presetLabel.ja)).toEqual(["baseline", "HFrEF · 慢性左室拡大型",
+      "AS · 弁狭窄のみ・高勾配", "AS · 低EF・低流量・低勾配"]);
     expect(modelReadingPresetLabelV1(current, "ja")).toBe("baseline・プリセット");
     const disease = MODEL_READING_ENTRIES_V1.find(e => e.documentId === hfrefArchive.documentId)!;
     expect(disease.state).toBe("research");
@@ -249,9 +253,24 @@ describe("separate model and preset reader, bound to preserved records", () => {
     expect(baseline.presetKind).toBe("baseline"); expect(disease.presetKind).toBe("case");
     expect(baseline.state).toBe("current"); expect(disease.state).toBe("current");
     expect(baseline.modelLabel).toEqual(disease.modelLabel);
-    expect(compatibleReadingEntriesV1(disease).map(e => e.documentId)).toEqual([baseline73.documentId, hfref73.documentId]);
+    expect(compatibleReadingEntriesV1(disease).map(e => e.documentId)).toEqual([baseline73.documentId, hfref73.documentId, asHigh.documentId, asLow.documentId]);
     expect(resolveSavedModelDocumentIndexV1(baseline.identity.modelId, baseline.identity.surfaceReleaseId)?.documentId).toBe(baseline.documentId);
     expect(resolveSavedModelDocumentIndexV1(baseline.identity.modelId, baseline.identity.surfaceReleaseId, disease.documentId)?.documentId).toBe(disease.documentId);
+  });
+  it("links every current preset from the new Surface to its own saved assessment, not a relabelled qualification", () => {
+    expect(resolveRegisteredModelDisclosureV1(client.manifest.modelId, pressureSurface.surfaceReleaseId).badgeLabel).toBe("MW 73");
+    for (const doc of [baseline73, hfref73, asHigh, asLow]) {
+      const link = resolveRegisteredPresetDocumentationV1(client.manifest.modelId, pressureSurface.surfaceReleaseId, doc.identity.baselineId)!;
+      expect(link.documentId).toBe(doc.documentId);
+      expect(link.surfaceReleaseId).toBe(doc.identity.surfaceReleaseId);
+      expect(link.surfaceReleaseId).not.toBe(pressureSurface.surfaceReleaseId);
+    }
+    for (const doc of [asHigh, asLow]) {
+      expect(doc.scientificRecord.measurements.formalReview.status).toBe("accepted");
+      expect(doc.scientificRecord.measurements.qualification.status).toBe("review-pending");
+      expect(MODEL_READING_ENTRIES_V1.find(e => e.documentId === doc.documentId)?.state).toBe("current");
+    }
+    expect(resolveRegisteredPresetDocumentationV1(client.manifest.modelId, "unrelated-surface", asHigh.identity.baselineId)).toBeNull();
   });
   it("preserves loaded checkpoints that differ from a preset with the same fixture", () => {
     const baseline = { ...bundle.baseline, schemaId: STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID } satisfies ScenarioPresetV2;

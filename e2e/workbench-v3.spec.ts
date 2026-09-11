@@ -128,6 +128,7 @@ test("@desktop current model inherits the complete analysis Surface", async ({
   await graphGroups.first().getByRole("button", { name: "Paneを追加" }).click();
   const addGraphMenu = page.getByRole("menu", { name: "Paneを追加" });
   await expect(addGraphMenu.getByRole("menuitem")).toHaveText([
+    "AV流速・駆出時間",
     "PV loop",
     "圧波形",
     "流量波形",
@@ -147,7 +148,7 @@ test("@desktop current model inherits the complete analysis Surface", async ({
   );
   await expect(pvCanvas).toHaveAttribute(
     "data-pv-relation-semantics",
-    "area-max-common-isochrone-espvr-exponential-edpvr",
+    "full-load-pressure-envelope-measured-diastolic-locus",
     { timeout: 90_000 },
   );
   // Browser smoke owns worker wiring and at least one settled formal branch,
@@ -490,7 +491,7 @@ test("@desktop @mobile @model-lab @as-jet opt-in jet outputs preserve live and s
   expect(errors).toEqual([]);
 });
 
-test("@desktop @mobile @model-lab @as-presets settled AS presets remain reachable beside their controls", async ({ page }, testInfo) => {
+test("@desktop @mobile @as-presets public settled AS presets remain reachable beside their controls", async ({ page }, testInfo) => {
   const mobile = (page.viewportSize()?.width ?? 1440) < 768;
   const deck = page.getByTestId("workbench-mobile-task-deck"), root = page.getByTestId("v3-dockview-workbench");
   const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
@@ -530,7 +531,7 @@ test("@desktop @mobile @model-lab @as-presets settled AS presets remain reachabl
 
 for (const [key, title] of [["high-gradient AS", "AS · 弁狭窄のみ・高勾配"],
   ["low-flow AS", "AS · 低EF・低流量・低勾配"], ["HFrEF", "HFrEF · 慢性左室拡大型"]] as const) {
-test(`@desktop @model-lab @as-analysis ${key} completes formal PV analysis without stopping live execution`, async ({ page }, testInfo) => {
+test(`@desktop @as-analysis public ${key} completes formal PV analysis without stopping live execution`, async ({ page }, testInfo) => {
   const manager = page.getByRole("region", { name: "Scenarios" });
   await manager.getByRole("button", { name: "Presetから追加", exact: true }).click();
   await page.getByRole("menu", { name: "Presetから追加", exact: true })
@@ -1275,6 +1276,7 @@ test("@desktop simulation information stays human-facing", async ({
   await expect(limitations).toContainText(
     "局所ジェット、圧波の伝播・反射",
   );
+  await expect(limitations).toContainText("弁尖の接触時刻を測るものではありません");
   await expect(dialog.getByText("数理モデルのbaseline検証", { exact: true }))
     .toBeVisible();
   await expect(dialog.getByText("LV τ (Weiss / Glantz)", { exact: true }))
@@ -1460,7 +1462,8 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
   await expect(graphAddSheet).toBeVisible();
   await expect(
     graphAddSheet.locator(".workbench-mobile-pane-choice"),
-  ).toHaveCount(5);
+  ).toHaveCount(6);
+  await expect(graphAddSheet.getByText("AV流速・駆出時間", { exact: true })).toBeVisible();
   await graphAddSheet.getByRole("button", { name: "追加メニューを閉じる" })
     .click();
   await expect(graphAddSheet).toBeHidden();

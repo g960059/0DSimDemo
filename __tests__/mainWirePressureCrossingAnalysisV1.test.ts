@@ -14,8 +14,8 @@ import type { AnalysisExecutorV1 } from "@/analysis/contracts/AnalysisExecutionV
 import current from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 import candidate from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 import { CURRENT_MODEL_PRESETS_V1 } from "@/data/model-releases/CurrentModelReleaseV1";
-import high from "@/data/model-presets/research/standard73-as-high-gradient-v1.json";
-import low from "@/data/model-presets/research/standard73-as-low-flow-v1.json";
+import high from "@/data/model-presets/standard73/as-high-gradient-v1.json";
+import low from "@/data/model-presets/standard73/as-low-flow-v1.json";
 import lock from "@/data/model-releases/standard73/publication.json";
 import type { MainWireIntegratedStudioSelectedAorticOutflowFixtureV1 as Fixture,
   createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as Factory } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";

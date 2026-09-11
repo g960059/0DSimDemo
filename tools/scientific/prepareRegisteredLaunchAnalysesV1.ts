@@ -3,7 +3,6 @@ import { resolve, join } from "node:path";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 import { CURRENT_MODEL_PRESETS_V1 } from "@/data/model-releases/CurrentModelReleaseV1";
-import { localResearchPresetsV1 } from "@/studio/application/dev/StudioLocalResearchPresetsV1";
 import lock from "@/data/model-releases/standard73/publication.json";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 import { selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
@@ -17,7 +16,7 @@ import { loadRegisteredMainWireReviewArtifactV1 as buildArtifact, verifyMainWire
 async function main() {
   const { values } = parseArgs({ options: { output: { type: "string" }, case: { type: "string" } } });
   if (!values.output) throw new Error("Require --output NEW_DIRECTORY [--case PRESET_ID]");
-  const presets = [...CURRENT_MODEL_PRESETS_V1, ...localResearchPresetsV1(lock.modelId, lock.artifactRevisionId)]
+  const presets = CURRENT_MODEL_PRESETS_V1
     .filter(p => !values.case || p.presetId === values.case);
   if (!presets.length) throw new Error("No matching registered launch case");
   const output = resolve(values.output); await mkdir(output);

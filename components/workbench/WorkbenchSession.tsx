@@ -50,7 +50,7 @@ import {
   RuntimeStatusV3,
   type WorkbenchStatusV3,
 } from "@/components/workbench/WorkbenchPaneBodiesV3";
-import { WorkbenchSimulationInfoV3 } from "@/components/workbench/WorkbenchSimulationInfoV3";
+import { WorkbenchSimulationInfoV3, workbenchAnalysisLimitationsV3 } from "@/components/workbench/WorkbenchSimulationInfoV3";
 import { WorkbenchPlaybackControlV3 } from "@/components/workbench/WorkbenchPlaybackControlV3";
 import {
   WorkbenchRuntimeErrorV3,
@@ -107,7 +107,7 @@ import {
 import {
   loadStudioDefaultClientCompositionV2,
   loadStudioExperimentClientCompositionV2,
-  loadStudioLocalResearchClientCompositionV1,
+  loadStudioLocalCurrentClientCompositionV1,
   loadStudioSnapshotClientCompositionV2,
   type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
@@ -743,7 +743,7 @@ export const WorkbenchSession = ({
                   sourceSnapshot.surfaceReleaseId,
                 )
               : modelLab
-                ? await loadStudioLocalResearchClientCompositionV1()
+                ? await loadStudioLocalCurrentClientCompositionV1()
                 : await loadStudioDefaultClientCompositionV2();
       } catch (error) {
         if (
@@ -3160,9 +3160,7 @@ export const WorkbenchSession = ({
                 ...(t(modelLimitationsKey, {
                   returnObjects: true,
                 }) as string[]),
-                ...(modelLab ? [resolvedLocale === "ja"
-                  ? "PV解析では、準定常弁の前向き駆出が終わる位置を、弁前後の圧差のゼロ交差から補間します。実際の弁尖の接触時刻を測るものではありません。ライブ計算や保存状態は変更せず、独立した解析用の計算で測定します。"
-                  : "PV analysis interpolates the end of forward ejection at the quasi-steady valve's signed pressure-difference zero crossing. This is not a measurement of physical leaflet contact. Measurements use isolated analysis sessions without changing the live calculation or saved state."] : []),
+                ...workbenchAnalysisLimitationsV3(formalPvAnalysisId, resolvedLocale),
               ]}
               note={{
                 value: surface?.note.text ?? "",

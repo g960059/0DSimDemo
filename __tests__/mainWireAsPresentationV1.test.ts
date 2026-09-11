@@ -1,6 +1,6 @@
 import { it, expect } from "vitest";
-import high from "@/data/model-presets/research/standard73-as-high-gradient-v1.json";
-import low from "@/data/model-presets/research/standard73-as-low-flow-v1.json";
+import high from "@/data/model-presets/standard73/as-high-gradient-v1.json";
+import low from "@/data/model-presets/standard73/as-low-flow-v1.json";
 import { createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as release } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
 import { MainWireCardiacCycleCollectorV1 as Collector } from "@/analysis/methods/mainWire/MainWireCardiacCycleCollectorV1";
 import { buildMainWireAorticJetPresentationV1 as build, MAIN_WIRE_AORTIC_JET_PRESENTATION_INPUTS_V1 as inputs,
@@ -11,7 +11,7 @@ import { MAIN_WIRE_VALVE_BLOOD_DENSITY_KG_PER_M3_V2 as rho, MAIN_WIRE_VALVE_PA_P
 import { MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1 as valve } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 import { validateScenarioPresetV2 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import { completedEjectionWaveformV1 } from "@/components/workbench/presentation/CompletedEjectionWaveformV1";
-import { loadStudioLocalResearchClientCompositionV1 } from "@/studio/composition/StudioDefaultCompositionV2";
+import { loadStudioLocalCurrentClientCompositionV1 } from "@/studio/composition/StudioDefaultCompositionV2";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
 import { addWorkbenchSurfacePaneV3 } from "@/components/workbench/WorkbenchSurfacePaneOperationsV3";
 import { workbenchPresentationAnalysisSelectionV1 as selected } from "@/components/workbench/presentation/WorkbenchPresentationOutputSelectionV3";
@@ -62,7 +62,7 @@ it.each([high, low])("compares the live AS observer with the same ejection's nat
 }, 40_000);
 
 it("selects one existing observer from the optional graph without output cards or an exact signal placeholder", async () => {
-  const { modelSurface: model } = await loadStudioLocalResearchClientCompositionV1();
+  const { modelSurface: model } = await loadStudioLocalCurrentClientCompositionV1();
   const empty = { ...createDefaultExperimentSurfaceV3(model.contract), outputPanes: [] };
   expect(selected(empty, model.catalog, model.analysis.presentationMethods)).not.toContain(methodId);
   const withGraph = addWorkbenchSurfacePaneV3(empty, "graph", model.contract, "hemodynamics.aortic-jet.cycle").surface;

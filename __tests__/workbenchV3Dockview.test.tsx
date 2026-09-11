@@ -88,7 +88,7 @@ import {
   resolveExperimentOutputDisplayV3,
 } from "@/components/workbench/ExperimentPanePresentationV3";
 import { WorkbenchMobileStageDeckV3 } from "@/components/workbench/WorkbenchMobileStageDeckV3";
-import { WorkbenchSimulationInfoPanelV3 } from "@/components/workbench/WorkbenchSimulationInfoV3";
+import { WorkbenchSimulationInfoPanelV3, workbenchAnalysisLimitationsV3 } from "@/components/workbench/WorkbenchSimulationInfoV3";
 import {
   DEFAULT_WORKBENCH_SCENARIO_MANAGER_STRINGS_V3,
   WorkbenchScenarioManagerV3,
@@ -729,6 +729,18 @@ describe("V3 Dockview Workbench", () => {
         releaseStage: "stable",
       }),
     ).toBe(false);
+  });
+
+  it("discloses pressure-crossing measurements from the pinned Surface, not a development route", async () => {
+    const { resolveMainWireAnalysisMethodsForSurfaceV1 } = await import("@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1");
+    const { mainWireFormalPvAnalysisIdV1 } = await import("@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3");
+    const current = (await import("@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4")).default;
+    const previous = (await import("@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2")).default;
+    const currentId = mainWireFormalPvAnalysisIdV1(resolveMainWireAnalysisMethodsForSurfaceV1(current).periodicPvaDerivation);
+    const previousId = mainWireFormalPvAnalysisIdV1(resolveMainWireAnalysisMethodsForSurfaceV1(previous).periodicPvaDerivation);
+    expect(workbenchAnalysisLimitationsV3(currentId, "ja")[0]).toContain("弁尖の接触時刻を測るものではありません");
+    expect(workbenchAnalysisLimitationsV3(currentId, "en")[0]).toContain("not a measurement of physical leaflet contact");
+    expect(workbenchAnalysisLimitationsV3(previousId, "ja")).toEqual([]);
   });
 
   it("discloses human model information without implementation identities", async () => {
@@ -1477,7 +1489,7 @@ describe("V3 Dockview Workbench", () => {
         ({ graphId }) => graphId === pane.graphId,
       )!;
       expect("windowSec" in pane).toBe(graph.renderer === "sweep");
-      expect("historyDepth" in pane).toBe(graph.renderer !== "sweep");
+      expect("historyDepth" in pane).toBe(graph.renderer === "pressure-volume" || graph.renderer === "structural-return");
       if (graph.renderer !== "structural-return" && graph.renderer !== "cycle-waveform") {
         expect(
           pane.series.every(({ seriesId }) =>
@@ -2059,7 +2071,7 @@ describe("V3 Dockview Workbench", () => {
       )!;
       expect(pane.graphId).toBe(option.graphId);
       expect("windowSec" in pane).toBe(graph.renderer === "sweep");
-      expect("historyDepth" in pane).toBe(graph.renderer !== "sweep");
+      expect("historyDepth" in pane).toBe(graph.renderer === "pressure-volume" || graph.renderer === "structural-return");
       if (graph.renderer === "structural-return") {
         if (!("structuralSide" in option)) {
           throw new Error("structural pane option must select one circulation");
