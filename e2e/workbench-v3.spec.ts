@@ -1461,7 +1461,8 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
   await expect(graphAddSheet).toBeVisible();
   await expect(
     graphAddSheet.locator(".workbench-mobile-pane-choice"),
-  ).toHaveCount(5);
+  ).toHaveCount(6);
+  await expect(graphAddSheet.getByText("AV流速・駆出時間", { exact: true })).toBeVisible();
   await graphAddSheet.getByRole("button", { name: "追加メニューを閉じる" })
     .click();
   await expect(graphAddSheet).toBeHidden();
