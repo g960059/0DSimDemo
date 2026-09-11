@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { MAIN_WIRE_AS_REFERENCE_V1 as reference, MAIN_WIRE_AS_LOW_FLOW_REFERENCE_V1 as lowReference, validateMainWireAsReferenceV1 as validate, assessMainWireAsRestV1 as assess } from "@/analysis/policies/mainWire/MainWireAsReferenceV1";
-import { resolveMainWireStaticCaseDefinitionV1 as definition } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
+import { resolveMainWireStaticCaseDefinitionV1 as definition, mainWireStaticCaseContextV1 as context,
+  ownMainWireCaseInputsV1 as ownInputs, type MainWireCaseBackgroundV1 as Background } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
 import { mainWireStaticCaseFittingSeedV1 as seed } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import { withMainWireCaseSearchCoordinateV1 as update } from "@/analysis/methods/mainWire/MainWireCaseFittingSearchV1";
 import { mainWireAorticJetVelocityV1 as velocity, observeMainWireAorticJetV1 as observe } from "@/analysis/methods/mainWire/MainWireAorticJetObservationV1";
@@ -102,6 +103,24 @@ describe("source-backed high-gradient AS construction", () => {
       observation: { values: { lvef: .3 } } } } as never;
     const text = narrative(result, "en").join(" ");
     expect(text).toContain("1.10"); expect(text).not.toContain("reduced active tension");
+  });
+  it.each(["ja", "en"] as const)("names the selected research parent rather than the public baseline in %s", locale => {
+    for (const [referenceId, parentId, parentName] of [[id, "baseline", "baseline"],
+      [lowId, "hfref-chronic-dilated-v1", "HFrEF"]] as const) {
+      const adopted = seed(parentId);
+      const parent = update(adopted, "systemic-resistance", adopted.hemodynamicResearchInputs.systemicResistance + .04);
+      const background: Background = { referenceId: parentId, candidateInputs: parent,
+        sourceCandidateRecordSha256: "a".repeat(64), sourceRunSha256: "b".repeat(64) };
+      const candidateInputs = ownInputs(referenceId, update(parent, "aortic-area", .8), background);
+      const result = { candidateInputs, referenceContext: context(referenceId, background), rest: { referenceId,
+        status: "passed", observation: { values: { lvef: .3 } } } } as never;
+      const text = narrative(result, locale).join(" ");
+      expect(text).toContain(locale === "ja" ? `選択した${parentName}候補` : `${parentName} candidate selected in this fitting run`);
+      expect(text).toContain(locale === "ja" ? "正式採択を意味しません" : "Neither the parent nor this comparison is thereby adopted");
+      expect(text).toContain("0.80");
+      expect(text).not.toContain(locale === "ja" ? "採用baseline" : "adopted baseline");
+      expect(candidateInputs.hemodynamicResearchInputs.systemicResistance).not.toBe(adopted.hemodynamicResearchInputs.systemicResistance);
+    }
   });
   it("reconstructs the accepted-state jet using active EOA, not the maximum opening area", () => {
     for (const area of [.5, .75, 3.5]) for (const opening of [.1, .5, 1]) {
