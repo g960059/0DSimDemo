@@ -16,6 +16,63 @@ import {
 } from "@/studio/contracts/v2/content";
 
 describe("Studio authoring command V1", () => {
+  it("validates trace budgets before authority access and dispatches valid reads through policy", async () => {
+    const input = { experimentId: "experiment/trace", expectedVersion: 0,
+      exactModel: { modelId: "model/example", surfaceSeriesId: "surface/example", surfaceReleaseId: "surface/example-v1" },
+      scenarioIds: ["baseline"], outputIds: ["volume"], stepCount: 64, sampleStride: 1, wallClockTimeoutMs: 1_000 };
+    const command = { schemaId: STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID,
+      commandId: "a650007a-2aa4-4a91-a824-ae39fd7d6c19", action: "experiment.trace", input };
+    const repository = repositoryV1();
+    const authorize = vi.fn();
+    for (const patch of [{ scenarioIds: [] }, { outputIds: [] }, { scenarioIds: Array.from({length: 5}, (_, i) => `s${i}`) },
+      { outputIds: Array.from({length: 33}, (_, i) => `o${i}`) }, { outputIds: ["volume", "volume"] },
+      { stepCount: 20_000, outputIds: Array.from({length: 32}, (_, i) => `o${i}`) }]) {
+      await expect(executeStudioAuthoringCommandV1(repository, modelsV1(), { ...command, input: { ...input, ...patch } }, { authorize }))
+        .rejects.toThrow(/must|duplicated/);
+    }
+    expect(authorize).not.toHaveBeenCalled();
+    expect(repository.readMyExperiment).not.toHaveBeenCalled();
+    await expect(executeStudioAuthoringCommandV1(repository, modelsV1(), command, { authorize })).rejects.toThrow("Experiment is unavailable");
+    expect(authorize).toHaveBeenCalledOnce();
+    expect(repository.readMyExperiment).toHaveBeenCalledWith("experiment/trace");
+  });
+  it("rejects a time-only no-op and accepts the advertised 120-second step budget", () => {
+    const command = { schemaId: STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID,
+      commandId: "a650007a-2aa4-4a91-a824-ae39fd7d6c19", action: "experiment.preview",
+      input: { experimentId: "experiment/trace", expectedVersion: 0, title: "Advance",
+        scenarioOperations: [{ operation: "advance", scenarioId: "baseline" }],
+        presentation: { mode: "preserve", note: "" }, observeOutputIds: [],
+        executionBudget: { advanceSeconds: 0, maxPresentationSteps: 60_000, wallClockTimeoutMs: 600_000 } } };
+    expect(() => validateStudioAuthoringCommandV1(command)).toThrow(/positive advanceSeconds/);
+    expect(validateStudioAuthoringCommandV1({ ...command, input: { ...command.input,
+      executionBudget: { ...command.input.executionBudget, advanceSeconds: 120 } } }).action).toBe("experiment.preview");
+  });
+
+  it("discovers one complete action without unrelated command or result schemas", () => {
+    const full = describeStudioAuthoringProtocolV1();
+    for (const action of full.actions) {
+      const scoped = describeStudioAuthoringProtocolV1(action.action);
+      expect(scoped.actions).toEqual([action]);
+      expect(scoped.envelopes.command).toMatchObject({ oneOf: [{ properties: {
+        action: { const: action.action }, input: action.inputSchema,
+      } }] });
+      expect(scoped.envelopes.success).toMatchObject({ oneOf: [{ properties: {
+        action: { const: action.action }, result: action.resultSchema,
+      } }] });
+      expect(scoped.envelopes.error).toEqual(full.envelopes.error);
+      expect(scoped.protocol).toEqual(full.protocol);
+    }
+    expect(() => describeStudioAuthoringProtocolV1("article.nonexistent"))
+      .toThrow(/Unknown authoring action/);
+  });
+  it("advertises the same graph window limits used by saved presentation validation", () => {
+    const description = describeStudioAuthoringProtocolV1("experiment.presentation.save");
+    const schema = description.actions[0]!.inputSchema as any;
+    const properties = schema.properties.surface.properties.graphPanes.items.properties;
+    expect(properties.windowSec).toEqual({ type: "number", minimum: 1, maximum: 6, multipleOf: 0.5 });
+    expect(properties.historyDepth.minimum).toBe(0);
+    expect(properties.historyDepth.maximum).toBeGreaterThanOrEqual(3);
+  });
   it("describes nested numerical and Article commands for AI discovery", () => {
     const description = describeStudioAuthoringProtocolV1();
     const preview = description.actions.find(({ action }) =>

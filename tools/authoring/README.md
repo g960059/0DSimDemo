@@ -10,9 +10,12 @@ Do not copy action, field, block, or output catalogs from documentation. Ask
 the installed CLI for its current machine-readable contract:
 
 ```sh
-npm --silent run author:content -- --describe
+npm --silent run author:content -- --list-actions
+npm --silent run author:content -- --describe experiment.preview
 ```
 
+Start with the compact action index, then request only the action being used.
+Unfiltered `--describe` remains available for offline schema tooling.
 The discovery result owns command schemas, available actions, result
 envelopes, pagination, and recovery fields. Source and tests own the protocol
 implementation.
@@ -49,10 +52,28 @@ Scenario assignments are absolute and explicit. Omission preserves existing
 content rather than deleting it. Snapshot sealing captures the selected exact
 accepted state and does not hide an unreviewed time advance.
 
+Read-only traces restore a saved capture and return selected exact scalar
+outputs on its accepted clock. Sampling stride selects actual samples without
+interpolation; the final step is always included. Presentation steps are
+model-owned, so callers use returned times rather than assuming a timestep.
+Trace results are ephemeral measurements, not persisted analysis or proof of
+periodicity. Time-only advances preserve inputs without issuing another control
+assignment and use the same
+preview/apply boundary as other numerical mutations.
+
 Article placement projects a sealed Snapshot through a Briefing. Publication
 is always a separate explicit action. Large search, fitting, or validation
 loops remain non-persistent studies until a user explicitly selects a
 candidate for the ordinary preview/apply/seal path.
+
+Default placement materializes a Workbench active slot to the Briefing's initial
+focus Scenario (the first visible Scenario when omitted). Reader focus changes
+do not retarget these fixed output or control bindings. For comparison articles,
+read the Snapshot's actual pane items, then replace the placed experiment block
+through the block-patch command with explicit per-Scenario outputs and, when
+desired, reader-focus controls. Preserve the block and placement identities.
+Every output must belong to its source pane; every control target must be visible.
+The Reader chooses inline or companion presentation from the resulting Briefing.
 
 Client-side numerical admission protects the first-party workflow from
 ordinary invalid captures. It is not cryptographic proof against a hostile

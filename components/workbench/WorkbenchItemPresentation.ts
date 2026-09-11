@@ -273,6 +273,7 @@ export function materializeWorkbenchOutputPresentationItemsV3(
       });
       result.push({
         itemId: summary.presentationId,
+        outputId: null,
         label: presentation.label,
         ...(presentation.inlineDisclosure
           ? {
@@ -334,6 +335,7 @@ export function materializeWorkbenchOutputPresentationItemsV3(
       : presentation.description;
     result.push({
       itemId: item.outputId,
+      outputId: item.outputId,
       label: presentation.label,
       ...(presentation.inlineDisclosure
         ? {

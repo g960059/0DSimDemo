@@ -99,9 +99,20 @@ if (
 
 async function main(): Promise<void> {
   const args = parseStudioAuthoringContentArgumentsV1(process.argv.slice(2));
+  if (args.mode === "list-actions") {
+    const description = describeStudioAuthoringProtocolV1();
+    process.stdout.write(`${JSON.stringify({
+      schemaId: "circleheart-studio-authoring-action-index-v1",
+      commandSchemaId: description.commandSchemaId,
+      discovery: "--describe <action> returns its complete command and result schemas",
+      actions: description.actions.map(({ action, mutation }) => ({ action, mutation })),
+      protocol: description.protocol,
+    }, null, 2)}\n`);
+    return;
+  }
   if (args.mode === "describe") {
     process.stdout.write(`${JSON.stringify(
-      describeStudioAuthoringProtocolV1(),
+      describeStudioAuthoringProtocolV1(args.action),
       null,
       2,
     )}\n`);
@@ -599,7 +610,8 @@ function authoringSqlStateV1(error: unknown): string | null {
 }
 
 export type StudioAuthoringContentArgumentsV1 =
-  | Readonly<{ mode: "describe" }>
+  | Readonly<{ mode: "describe"; action?: string }>
+  | Readonly<{ mode: "list-actions" }>
   | Readonly<{
       mode: "execute";
       commandPath: string;
@@ -613,10 +625,19 @@ export function parseStudioAuthoringContentArgumentsV1(
   let profileName: string = DEFAULT_STUDIO_AUTHORING_PROFILE_V1;
   let sawProfile = false;
   let describe = false;
+  let action: string | undefined;
+  if (args.length === 1 && args[0] === "--list-actions") {
+    return Object.freeze({ mode: "list-actions" as const });
+  }
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === "--describe" && !describe && commandPath === null) {
       describe = true;
+      const candidate = args[index + 1];
+      if (candidate !== undefined && !candidate.startsWith("--")) {
+        action = candidate;
+        index += 1;
+      }
       continue;
     }
     if (arg === "--command" && commandPath === null) {
@@ -640,7 +661,7 @@ export function parseStudioAuthoringContentArgumentsV1(
   }
   if (describe) {
     if (commandPath !== null || sawProfile) throw contentUsageV1();
-    return Object.freeze({ mode: "describe" as const });
+    return Object.freeze({ mode: "describe" as const, ...(action === undefined ? {} : { action }) });
   }
   if (commandPath === null) throw contentUsageV1();
   return Object.freeze({
@@ -652,6 +673,6 @@ export function parseStudioAuthoringContentArgumentsV1(
 
 function contentUsageV1(): Error {
   return new Error(
-    "Usage: --describe | --command <command.json> [--profile <name>]",
+    "Usage: --list-actions | --describe [action] | --command <command.json> [--profile <name>]",
   );
 }

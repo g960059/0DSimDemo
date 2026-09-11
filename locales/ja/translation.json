@@ -678,7 +678,7 @@
     "outputs": "Outputs",
     "controls": "Controls",
     "noGraphs": "この配置ではgraphが選択されていません。",
-    "noLiveData": "開くとlive simulationが始まります。",
+    "noLiveData": "開いて再生すると、保存した状態から始まります。",
     "unavailableSnapshot": "固定されたシミュレーションを読み込めません。",
     "invalidBriefing": "この配置のBriefingを安全に読み込めません。",
     "unavailableModel": "このSnapshotのexact model releaseは、このclientでは利用できません。",

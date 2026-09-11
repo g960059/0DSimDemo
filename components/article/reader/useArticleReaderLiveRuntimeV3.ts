@@ -128,6 +128,8 @@ export function useArticleReaderLiveRuntimeV3(
       void controller.setDocumentVisible(!document.hidden);
       document.addEventListener("visibilitychange", onVisibilityChange);
     }
+    // Restore at the saved boundary; reading a collapsed card must not consume a transient.
+    void controller.pause();
     void controller.start();
     return () => {
       if (typeof document !== "undefined") {

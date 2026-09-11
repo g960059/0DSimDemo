@@ -678,7 +678,7 @@
     "outputs": "Outputs",
     "controls": "Controls",
     "noGraphs": "No graph was selected for this placement.",
-    "noLiveData": "Open this item to start its live simulation.",
+    "noLiveData": "Open and press play to start from the saved state.",
     "unavailableSnapshot": "The pinned simulation is unavailable.",
     "invalidBriefing": "This placement Briefing cannot be loaded safely.",
     "unavailableModel": "This snapshot's exact model release is not available in this client.",

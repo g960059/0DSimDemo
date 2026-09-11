@@ -32,6 +32,23 @@ import {
 } from "./helpers/standardReleaseTicketV1";
 
 describe("ArticleReaderLiveRuntimeV3", () => {
+  it("restores without consuming a transient when the Reader pauses before startup", async () => {
+    const snapshot = snapshotV3();
+    const harness = runtimeHarnessV3(snapshot);
+    const controller = new ArticleReaderLiveRuntimeV3(snapshot, { createRuntime: harness.createRuntime });
+    await controller.pause();
+    await controller.start();
+    expect(controller.getSnapshot().status).toBe("paused");
+    expect(harness.playAll).not.toHaveBeenCalled();
+    await controller.setDocumentVisible(false);
+    await controller.setDocumentVisible(true);
+    expect(harness.playAll).not.toHaveBeenCalled();
+    controller.play();
+    expect(controller.getSnapshot().status).toBe("playing");
+    expect(harness.playAll).toHaveBeenCalledTimes(1);
+    await controller.dispose();
+  });
+
   it("does not read beat outputs from a lane before initialization completes", async () => {
     const snapshot = snapshotV3();
     const initializeGate = deferredV3<StudioSimulationWorkerScenarioStateV2>();

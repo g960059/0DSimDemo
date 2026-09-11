@@ -12,6 +12,8 @@ import { incrementWorkbenchPerformanceCounterV3 } from "./runtime/WorkbenchPerfo
 
 export type ExperimentOutputPresentationItemV3 = Readonly<{
   itemId: string;
+  /** Numerical identity, independent of the row key and Scenario binding. */
+  outputId: string | null;
   label: string;
   description?: string;
   descriptionAriaLabel?: string;
@@ -213,8 +215,8 @@ export function resolveExperimentOutputDisplayV3(
   const clinicalPercent =
     item.unit === "1" &&
     (EXPERIMENT_CLINICAL_PERCENT_OUTPUT_PREFIXES_V3.some((prefix) =>
-      item.itemId.startsWith(prefix),
-    ) || item.itemId === "oxygen.extraction-ratio.required");
+      item.outputId?.startsWith(prefix),
+    ) || item.outputId === "oxygen.extraction-ratio.required");
   const value =
     item.value === null
       ? "—"

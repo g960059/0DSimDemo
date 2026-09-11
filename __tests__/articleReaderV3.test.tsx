@@ -985,6 +985,48 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).toContain("再計算中");
   });
 
+  it("formats clinical fractions using output identity even when Reader row keys include a pane and Scenario", () => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3();
+    const ids = ["hemodynamics.ejection-fraction.LV-event-defined", "oxygen.extraction-ratio.required", "oxygen.delivery-to-consumption-ratio"];
+    store.append("scenario/comparison", [{ acceptedTimeSec: 1, acceptedRevision: 1, inputEpoch: 0,
+      values: Object.fromEntries(ids.map((id, i) => [id, [0.557, 0.25, 4.25][i]!])) }]);
+    const briefing: ExperimentPlacementBriefingV2 = { ...briefingV3(), outputs: ids.map((outputId, order) => ({
+      sourcePaneId: "pane/outputs", outputId, scenarioId: "scenario/comparison", label: outputId, order,
+    })) };
+    const contract: ModelContractV2 = { ...contractV3(), outputCatalog: ids.map(outputId => ({
+      outputId, kind: "metric", unit: "1", shape: "scalar", scope: "instant", dependencies: [], significantDigits: 3,
+    })) };
+    const html = renderToStaticMarkup(<ArticleReaderOutputsV3 briefing={briefing} contract={contract} sampleStore={store} />);
+    expect(html).toContain("55.7");
+    expect(html).toContain("25.0");
+    expect(html.match(/%<\/span>/g)).toHaveLength(2);
+    expect(html).toContain("4.25");
+    expect(html).not.toContain("0.557");
+  });
+
+  it("identifies each comparison output by its fixed Scenario instead of the current Reader focus", () => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3();
+    const outputId = "hemodynamics.ejection-fraction.LV-event-defined";
+    for (const [scenarioId, value] of [["baseline", 0.55], ["higher", 0.65]] as const) {
+      store.append(scenarioId, [{ acceptedTimeSec: 1, acceptedRevision: 1, inputEpoch: 0, values: { [outputId]: value } }]);
+    }
+    const briefing: ExperimentPlacementBriefingV2 = { ...briefingV3(),
+      scenarioScope: { visibleScenarioIds: ["baseline", "higher"], initialFocusScenarioId: "higher" },
+      outputs: ["baseline", "higher"].map((scenarioId, order) => ({
+        sourcePaneId: "pane/outputs", outputId, scenarioId, label: "EF", order,
+      })),
+    };
+    const contract: ModelContractV2 = { ...contractV3(), outputCatalog: [{
+      outputId, kind: "metric", unit: "1", shape: "scalar", scope: "instant", dependencies: [], significantDigits: 3,
+    }] };
+    const html = renderToStaticMarkup(<ArticleReaderOutputsV3 briefing={briefing} contract={contract} sampleStore={store}
+      scenarioLabels={{ baseline: "基準条件", higher: "張力増加" }} />);
+    expect(html).toMatch(/<h3[^>]*>基準条件<\/h3>/);
+    expect(html).toMatch(/<h3[^>]*>張力増加<\/h3>/);
+    expect(html).toContain("55.0");
+    expect(html).toContain("65.0");
+  });
+
   it("keeps Reader outputs vertical on the mobile base breakpoint", () => {
     const store = new WorkbenchScenarioPresentationSampleStoreV3();
     const briefing: ExperimentPlacementBriefingV2 = {

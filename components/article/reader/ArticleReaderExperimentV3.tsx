@@ -34,6 +34,7 @@ import {
   ExperimentGraphPresentationV3,
   ExperimentNumericControlV3,
   ExperimentOutputGridV3,
+  type ExperimentOutputPresentationItemV3,
 } from "@/components/workbench/ExperimentPanePresentationV3";
 import {
   resolveWorkbenchControlPresentationV3,
@@ -837,6 +838,7 @@ function ArticleReaderLiveDetailV3({
               compact={inline}
               contract={contract}
               runtime={runtime}
+              scenarioLabels={Object.fromEntries(snapshot.content.scenarios.map(scenario => [scenario.scenarioId, scenario.label]))}
             />
           )}
         </>
@@ -1564,6 +1566,7 @@ export function ArticleReaderOutputsV3({
   contract,
   runtime,
   sampleStore,
+  scenarioLabels,
 }: Readonly<{
   briefing: ExperimentPlacementBriefingV2;
   compact?: boolean;
@@ -1571,6 +1574,7 @@ export function ArticleReaderOutputsV3({
   runtime?: ArticleReaderRuntimeHookV3;
   /** @deprecated Direct rendering tests may provide a store without a runtime. */
   sampleStore?: ArticleReaderRuntimeHookV3["sampleStore"];
+  scenarioLabels?: Readonly<Record<string, string>>;
 }>) {
   const { i18n, t } = useTranslation();
   const locale = i18n.language.startsWith("ja") ? "ja" : "en";
@@ -1629,65 +1633,76 @@ export function ArticleReaderOutputsV3({
     missingAnalysisKey,
     runtime?.requestAnalysis,
   ]);
+  const items = [...briefing.outputs].sort(compareOrderV3).map((output): ExperimentOutputPresentationItemV3 & { scenarioId: string } => {
+    const definition = contract.outputCatalog.find(
+      ({ outputId }) => outputId === output.outputId,
+    );
+    const latest = samples[output.scenarioId]?.at(-1);
+    const analysisKey = articleReaderAnalysisKeyV3(
+      output.scenarioId,
+      analysisId,
+    );
+    const periodicPva =
+      runtime !== undefined &&
+      ARTICLE_READER_PERIODIC_PVA_OUTPUT_ID_SET_V3.has(output.outputId)
+        ? periodicPvaFromPayloadV3(
+            runtime.state.analysisByKey[analysisKey]?.payload,
+            "left",
+            runtime.periodicPvaDerivation,
+          )
+        : undefined;
+    const presentationOutput = runtime?.presentationOutput?.(output.scenarioId, output.outputId);
+    const value = ARTICLE_READER_PERIODIC_PVA_OUTPUT_ID_SET_V3.has(
+      output.outputId,
+    )
+      ? articleReaderPeriodicPvaScalarV3(periodicPva, output.outputId)
+      : presentationOutput === undefined ? latest?.values[output.outputId] : presentationOutput.value;
+    const scalar =
+      typeof value === "number" && Number.isFinite(value) ? value : null;
+    const presentation = resolveWorkbenchOutputPresentationV3({
+      locale,
+      outputId: output.outputId,
+      outputKind: definition?.kind,
+      storedLabel: output.label,
+    });
+    return {
+      itemId: `${output.sourcePaneId}:${output.outputId}:${output.scenarioId}`,
+      outputId: output.outputId,
+      scenarioId: output.scenarioId,
+      label: presentation.label,
+      ...(presentation.inlineDisclosure
+        ? {
+            description: presentation.description,
+            descriptionAriaLabel:
+              locale === "ja"
+                ? `${presentation.label}の説明`
+                : `About ${presentation.label}`,
+          }
+        : {}),
+      value: scalar,
+      unit: definition?.unit ?? "",
+      significantDigits: definition?.significantDigits,
+      availability: scalar === null ? "unavailable" : "available",
+      quality: scalar === null ? "not-assessed" : "assessed",
+    };
+  });
+  const scenarioIds = [...new Set(items.map(item => item.scenarioId))];
+  const showScenarioLabels = briefing.scenarioScope.visibleScenarioIds.length > 1;
   return (
     <section
       className={`${compact ? "mt-5" : "mt-8"} rounded-xl bg-wb-inspector p-3`}
       aria-label={t("articleReader.outputs")}
     >
-      <ExperimentOutputGridV3
-        variant="article"
-        items={[...briefing.outputs].sort(compareOrderV3).map((output) => {
-          const definition = contract.outputCatalog.find(
-            ({ outputId }) => outputId === output.outputId,
-          );
-          const latest = samples[output.scenarioId]?.at(-1);
-          const analysisKey = articleReaderAnalysisKeyV3(
-            output.scenarioId,
-            analysisId,
-          );
-          const periodicPva =
-            runtime !== undefined &&
-            ARTICLE_READER_PERIODIC_PVA_OUTPUT_ID_SET_V3.has(output.outputId)
-              ? periodicPvaFromPayloadV3(
-                  runtime.state.analysisByKey[analysisKey]?.payload,
-                  "left",
-                  runtime.periodicPvaDerivation,
-                )
-              : undefined;
-          const presentationOutput = runtime?.presentationOutput?.(output.scenarioId, output.outputId);
-          const value = ARTICLE_READER_PERIODIC_PVA_OUTPUT_ID_SET_V3.has(
-            output.outputId,
-          )
-            ? articleReaderPeriodicPvaScalarV3(periodicPva, output.outputId)
-            : presentationOutput === undefined ? latest?.values[output.outputId] : presentationOutput.value;
-          const scalar =
-            typeof value === "number" && Number.isFinite(value) ? value : null;
-          const presentation = resolveWorkbenchOutputPresentationV3({
-            locale,
-            outputId: output.outputId,
-            outputKind: definition?.kind,
-            storedLabel: output.label,
-          });
-          return {
-            itemId: `${output.sourcePaneId}:${output.outputId}:${output.scenarioId}`,
-            label: presentation.label,
-            ...(presentation.inlineDisclosure
-              ? {
-                  description: presentation.description,
-                  descriptionAriaLabel:
-                    locale === "ja"
-                      ? `${presentation.label}の説明`
-                      : `About ${presentation.label}`,
-                }
-              : {}),
-            value: scalar,
-            unit: definition?.unit ?? "",
-            significantDigits: definition?.significantDigits,
-            availability: scalar === null ? "unavailable" : "available",
-            quality: scalar === null ? "not-assessed" : "assessed",
-          };
-        })}
-      />
+      {scenarioIds.map(scenarioId => (
+        <div key={scenarioId} className="mt-5 first:mt-0">
+          {showScenarioLabels && (
+            <h3 className="mb-2 text-sm font-semibold text-wb-text">
+              {scenarioLabels?.[scenarioId] ?? scenarioId}
+            </h3>
+          )}
+          <ExperimentOutputGridV3 variant="article" items={items.filter(item => item.scenarioId === scenarioId)} />
+        </div>
+      ))}
     </section>
   );
 }

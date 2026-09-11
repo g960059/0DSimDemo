@@ -496,7 +496,7 @@ describe("V3 Dockview Workbench", () => {
   it("renders clinical fractions as percentages and keeps dimensionless ratios unscaled", () => {
     expect(
       resolveExperimentOutputDisplayV3({
-        itemId: "hemodynamics.ejection-fraction.LV-event-defined",
+        itemId: "hemodynamics.ejection-fraction.LV-event-defined", outputId: "hemodynamics.ejection-fraction.LV-event-defined",
         label: "LVEF",
         value: 0.604,
         unit: "1",
@@ -505,7 +505,7 @@ describe("V3 Dockview Workbench", () => {
     ).toEqual({ value: "60.4", unit: "%" });
     expect(
       resolveExperimentOutputDisplayV3({
-        itemId: "oxygen.delivery-to-consumption-ratio",
+        itemId: "oxygen.delivery-to-consumption-ratio", outputId: "oxygen.delivery-to-consumption-ratio",
         label: "DO₂/VO₂",
         value: 4.25,
         unit: "1",
@@ -513,7 +513,7 @@ describe("V3 Dockview Workbench", () => {
       }),
     ).toEqual({ value: "4.25", unit: "" });
     expect(resolveExperimentOutputDisplayV3({
-      itemId: "hemodynamics.index.myocardial-performance.flow-event.LV",
+      itemId: "hemodynamics.index.myocardial-performance.flow-event.LV", outputId: "hemodynamics.index.myocardial-performance.flow-event.LV",
       label: "LV Tei", value: .702, unit: "1", significantDigits: 3,
     })).toEqual({ value: "0.702", unit: "" });
   });
@@ -524,7 +524,7 @@ describe("V3 Dockview Workbench", () => {
         addItemAction={{ label: "項目を追加", onClick: vi.fn() }}
         items={[
           {
-            itemId: "hemodynamics.ejection-fraction.LV-event-defined",
+            itemId: "hemodynamics.ejection-fraction.LV-event-defined", outputId: "hemodynamics.ejection-fraction.LV-event-defined",
             label: "LVEF",
             value: 0.604,
             unit: "1",
