@@ -8,7 +8,10 @@ import { MAIN_WIRE_STATIC_CASE_MODEL_ID_V1 as modelId } from "@/domain/model/Mai
 import { prepareRegistryCaseAssessmentV1 as assess, resolveMainWireRegistryCaseProtocolV1 as protocol } from "./MainWireRegistryCaseProtocolsV1";
 
 export type MainWireRegistryProposalV1 = { referenceId: Reference; startId: string;
-  historyFile?: string; candidateInputs?: Candidate; interpretation?: string; coordinateIds?: Coordinate[] };
+  historyFile?: string; candidateInputs?: Candidate; interpretation?: string; coordinateIds?: Coordinate[];
+  /** Sealed parent fitting run. Its selected input replaces the AS background;
+   * only the proposed aortic area is retained. Not a checkpoint warm start. */
+  parentRun?: string };
 const validId = (x: unknown) => typeof x === "string" && /^[a-z0-9][a-z0-9-]{0,63}$/.test(x);
 export function mainWireInitialCandidatePrefixV1(p: Pick<MainWireRegistryProposalV1, "referenceId" | "startId">) {
   return p.startId === "initial" ? p.referenceId : `${p.referenceId}--${p.startId}`;
@@ -22,9 +25,11 @@ export function ownMainWireRegistryProposalsV1(input: unknown, maximumEvaluation
   if (!Array.isArray(input) || !input.length || input.length > 64) throw new Error("Require 1–64 case proposals");
   const proposals = input.map(raw => {
     if (!raw || typeof raw !== "object" || !validId(raw.referenceId) || raw.startId !== undefined && !validId(raw.startId)
-      || Object.keys(raw).some(k => !["referenceId", "startId", "historyFile", "candidateInputs", "interpretation", "coordinateIds"].includes(k)))
+      || raw.parentRun !== undefined && (typeof raw.parentRun !== "string" || !raw.parentRun.trim())
+      || Object.keys(raw).some(k => !["referenceId", "startId", "historyFile", "candidateInputs", "interpretation", "coordinateIds", "parentRun"].includes(k)))
       throw new Error("Require safe case/start IDs and known proposal fields");
-    return { ...raw, startId: raw.startId ?? "initial" } as MainWireRegistryProposalV1;
+    return { ...raw, startId: raw.startId ?? "initial",
+      ...(raw.parentRun && raw.coordinateIds === undefined ? { coordinateIds: ["aortic-area"] } : {}) } as MainWireRegistryProposalV1;
   });
   if (new Set(proposals.map(mainWireInitialCandidatePrefixV1)).size !== proposals.length)
     throw new Error("Initial candidates must have distinct case/start IDs and file prefixes");
@@ -33,6 +38,7 @@ export function ownMainWireRegistryProposalsV1(input: unknown, maximumEvaluation
     if (starts.length > 4 || starts.length > maximumEvaluationsPerCase)
       throw new Error("Each case permits at most four initial candidates, all counted within its evaluation budget");
     const defaultIds = profile(referenceId).coordinateIds;
+    if (starts.some(s => s.parentRun !== starts[0]!.parentRun)) throw new Error("Initial candidates of one case must share the same comparison parent run");
     const ids = starts.map(s => s.coordinateIds ?? defaultIds);
     if (ids.some(v => !Array.isArray(v) || !v.length || new Set(v).size !== v.length || v.some(id => !defaultIds.includes(id))))
       throw new Error("Case search coordinates must be a distinct nonempty subset of the allowed profile");

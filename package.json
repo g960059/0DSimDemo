@@ -7,6 +7,8 @@
     "verify:registry:current": "vite-node --script tools/registry/verifyCurrentModelPublicationV1.ts",
     "fit:case": "vite-node --script tools/scientific/runMainWireCaseFittingV1.ts",
     "fit:registry": "vite-node --script tools/scientific/runMainWireRegistryFittingV1.ts",
+    "fit:registry:family": "vite-node --script tools/scientific/runMainWireRegistryFamilyV1.ts",
+    "fit:registry:refresh": "vite-node --script tools/scientific/refreshMainWireRegistryMaterialV1.ts",
     "fit:registry:prepare": "vite-node --script tools/scientific/prepareMainWireRegistryReviewV1.ts",
     "fit:registry:prepare-launches": "vite-node --script tools/scientific/prepareRegisteredLaunchAnalysesV1.ts",
     "audit:case-metrics": "vite-node --script tools/scientific/auditMainWireWorkbenchMetricsV1.ts",

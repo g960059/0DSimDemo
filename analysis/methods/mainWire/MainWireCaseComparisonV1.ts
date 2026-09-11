@@ -13,10 +13,14 @@ export async function reobserveMainWireCaseV1(input: unknown, analysisSourceSha2
   const d = history.diagnostics as Result["execution"]["diagnostics"];
   const cycleObservation = cycle({ samples: trace(d), completedBeat: d.completedBeat });
   const referenceId = saved.referenceId as Result["rest"]["referenceId"], previous = saved.previousAssessment as Result["rest"];
+  // Historical relationship metadata stays readable even if its parent inputs
+  // no longer bind to the current numerical owner. It is not a new qualification.
+  const comparisonBackground = (history.previousObservationContext as { background?: unknown } | null)?.background ?? null;
   const body = { schemaId: "main-wire-case-reobservation-v1", sourceResultSha256: saved.provenance.sourceRecordSha256,
     numericalSourceSha256: history.numericalSourceSha256, analysisSourceSha256, modelId: saved.modelId,
     checkpointSha256: history.checkpointSha256, nominalDtSec: history.nominalDtSec,
     candidateInputs: saved.candidateInputs, previousObservationContext: history.previousObservationContext,
+    comparisonBackground, comparisonBackgroundRequalified: false,
     previousRestStatus: previous.status, previousIssue: previous.status === "unavailable" ? previous.issue : null,
     currentFittingPolicySha256: await policyIdentity(referenceId), currentObservationContext: context(referenceId), cycleObservation,
     rest: assess(referenceId, { diagnostics: d }),

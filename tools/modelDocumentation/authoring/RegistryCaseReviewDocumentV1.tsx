@@ -55,7 +55,7 @@ function Plot({ series, side, pv }: { series: Series[]; side: "LV" | "RV"; pv: b
 /** A reusable case dossier, not a model-specific page or a publication vote.
  * Existing parameter/math components consume this case's resolved construction;
  * no historical case's measurements or completed reviews are copied forward. */
-export async function composeRegistryCaseReviewDocumentV1(input: {
+async function createScientificDocument(input: {
   referenceId: string; title: string; description: string; kind: string; context: unknown;
   modelId: string; surface: unknown; assessment: unknown; status: string; issues: readonly string[];
   comparison: Comparison; results: readonly Result[]; previousDiagnostics: unknown | null;
@@ -87,7 +87,11 @@ export async function composeRegistryCaseReviewDocumentV1(input: {
     equations, modules: moduleIds.map(id => modules.find(m => m.id === id)!), equationSpecification,
     sourceFiles: input.sourceFiles, historicalSupportingExperiments: "not-revalidated",
     clinicalValidationClaimed: false, publicPromotionAuthorized: false };
-  const document = { ...body, contentSha256: await hash(body) };
+  return { ...body, contentSha256: await hash(body) };
+}
+export async function composeRegistryCaseReviewDocumentV1(input: Parameters<typeof createScientificDocument>[0]) {
+  const document = await createScientificDocument(input);
+  const result = input.results.find(r => r.nominalDtSec === .002);
   const series: Series[] = [];
   const addSeries = (diagnostics: Result["execution"]["diagnostics"], label: string, color: string) => {
     series.push({ label, color, samples: mainWireReviewBeatSamplesV1(diagnostics) });
@@ -96,14 +100,27 @@ export async function composeRegistryCaseReviewDocumentV1(input: {
   if (input.previousDiagnostics && input.comparison.previous.status === "observed")
     addSeries(input.previousDiagnostics as Result["execution"]["diagnostics"], previousLabel, "#64748b");
   if (result) addSeries(result.execution.diagnostics, "今回 · 2 ms", "#b45309");
-  const starts = input.initialCandidates?.starts ?? [], multipleStarts = starts.length > 1;
-  const startMetrics = [...new Set(starts.flatMap(s => s.score.observations.map(o => o.metricId)))];
   const startSeries = (input.initialResults ?? []).map((s, i) => ({ label: s.startId,
     color: ["#095c91", "#b45309", "#28734c", "#7c3b87"][i % 4]!, samples: mainWireReviewBeatSamplesV1(s.result.execution.diagnostics) }));
-  const html = renderToStaticMarkup(<main>
+  const renderInput = { sourceDossierSha256: document.contentSha256, series, startSeries,
+    narrativeJa: result ? narrative(result, "ja") : [] };
+  return { document, renderInput, html: renderRegistryCaseReviewDocumentV1(document, renderInput) };
+}
+
+/** Layout-only regeneration: use the saved scientific content and plots,
+ * including its original interpretation. Never remeasure, qualify or restore. */
+export function renderRegistryCaseReviewDocumentV1(document: Awaited<ReturnType<typeof createScientificDocument>>,
+  rendering: { sourceDossierSha256: string; series: Series[]; startSeries: Series[]; narrativeJa: readonly string[] }): string {
+  if (document.contentSha256 !== rendering.sourceDossierSha256) throw new Error("Saved rendering belongs to another dossier");
+  const input = { ...document, ...document.identity, context: document.caseSpecification, assessment: document.qualification };
+  const { series, startSeries } = rendering, { equations } = document;
+  const previousLabel = input.comparisonOrigin === "initial-construction" ? "初期入力" : "引継ぎ元";
+  const starts = input.initialCandidates?.starts ?? [], multipleStarts = starts.length > 1;
+  const startMetrics = [...new Set(starts.flatMap(s => s.score.observations.map(o => o.metricId)))];
+  return renderToStaticMarkup(<main>
     <header><p>研究候補 · 未公開</p><h1>{input.title}</h1><p>{input.description}</p>
       <p>状態: <strong>{input.status}</strong>。自動確認、症例レビュー、正式採択は別の段階です。</p>
-      {result && narrative(result, "ja").map((p, i) => <p key={i}>{p}</p>)}</header>
+      {rendering.narrativeJa.map((p, i) => <p key={i}>{p}</p>)}</header>
     <nav aria-label="目次"><a href="#assessment">評価</a>{multipleStarts && <a href="#initial-candidates">初期候補</a>}<a href="#comparison">比較</a><a href="#waveforms">原波形</a>
       <a href="#settings">設定</a><a href="#evidence">測定法・根拠</a><a href="#provenance">出自</a></nav>
     <section id="assessment"><h2>評価と未完了項目</h2>
@@ -151,15 +168,14 @@ export async function composeRegistryCaseReviewDocumentV1(input: {
       <p>受理された点を直線で結んでいます。平滑化や形状の補正はしていません。時間軸は各拍の最初の保存点を0としています。</p>
       <div className="plots">{(["LV", "RV"] as const).flatMap(side => [true, false].map(pv => <Plot key={`${side}-${pv}`} series={series} side={side} pv={pv} />))}</div></section>
     <section id="settings"><h2>この症例の設定</h2>{detail("全入力・引継ぎ時の解釈", { candidateInputs: input.candidateInputs, binding: input.inputBinding })}
-      {equations && <MainWireReadingSettingsV1 document={{ moduleIds, equations }} locale="ja" />}</section>
+      {equations && <MainWireReadingSettingsV1 document={{ moduleIds: document.modules.map(m => m.id), equations }} locale="ja" />}</section>
     <section id="evidence"><h2>測定方法・条件・根拠</h2><p>条件の出典と、その資料が支持する範囲を症例仕様のまま保存しています。健常baselineの条件を他の症例へ転用しません。</p>
-      {detail("症例仕様と文献・評価規則", input.context)}{detail("共通モデルの版付き説明モジュール・数式仕様", { modules: document.modules, equationSpecification })}</section>
+      {detail("症例仕様と文献・評価規則", input.context)}{detail("共通モデルの版付き説明モジュール・数式仕様", { modules: document.modules, equationSpecification: document.equationSpecification })}</section>
     <section id="provenance"><h2>出自と保存資料</h2><p>{input.modelId}</p>
       {detail("Surface・解析方法", input.surface)}{detail("参照ファイル", input.sourceFiles)}
       <p>旧checkpointは比較のために復元していません。各症例の実行可能captureは別のbundleに保存され、公開設定は変更しません。</p>
       <p>資料SHA-256: <code>{document.contentSha256}</code></p></section>
   </main>);
-  return { document, html };
 }
 
 /** Freeze fonts/styles into the offline dossier; no CDN or runtime dependency. */

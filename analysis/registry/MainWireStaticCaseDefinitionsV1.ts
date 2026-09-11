@@ -21,6 +21,18 @@ import { assessMainWireAsRestV1 as assessAs, MAIN_WIRE_AS_LOW_FLOW_REFERENCE_V1,
 import { CURRENT_BASELINE_V1 } from "@/data/model-baselines/CurrentBaselineV1";
 
 export type MainWireStaticCaseCandidateV1 = MainWireBaselineCalibrationCandidateInputsV1 & Readonly<{ anatomyId: MainWireStaticCaseAnatomyIdV1 }>;
+/** An explicit research comparison background, not a change to the public case
+ * or a claim that its parent has been adopted. The run retains the parent proof. */
+export type MainWireCaseBackgroundV1 = Readonly<{
+  referenceId: "baseline" | "hfref-chronic-dilated-v1";
+  candidateInputs: MainWireStaticCaseCandidateV1;
+  sourceCandidateRecordSha256: string;
+  sourceRunSha256: string;
+}>;
+export const MAIN_WIRE_CASE_PARENT_V1 = Object.freeze({
+  "as-high-gradient-valve-only-v1": "baseline",
+  "as-low-flow-reduced-ef-v1": "hfref-chronic-dilated-v1",
+} as const);
 type Execution = Pick<Extract<Awaited<ReturnType<typeof settle>>, { status: "accepted" }>, "diagnostics">;
 
 /** Scope of these resting cases, not the exact model\'s full input domain. */
@@ -135,8 +147,33 @@ export function resolveMainWireStaticCaseDefinitionV1(referenceId: MainWireCaseR
   if (!Object.hasOwn(MAIN_WIRE_STATIC_CASE_DEFINITIONS_V1, referenceId)) throw new Error("Unsupported case reference");
   return MAIN_WIRE_STATIC_CASE_DEFINITIONS_V1[referenceId];
 }
-export function mainWireStaticCaseContextV1(referenceId: MainWireCaseReferenceIdV1) {
-  return resolveMainWireStaticCaseDefinitionV1(referenceId).context();
+export function ownMainWireCaseBackgroundV1(referenceId: MainWireCaseReferenceIdV1, input: MainWireCaseBackgroundV1): MainWireCaseBackgroundV1 {
+  const background = own(input) as MainWireCaseBackgroundV1;
+  if (!Object.hasOwn(MAIN_WIRE_CASE_PARENT_V1, referenceId)
+    || background.referenceId !== MAIN_WIRE_CASE_PARENT_V1[referenceId as keyof typeof MAIN_WIRE_CASE_PARENT_V1]
+    || Object.keys(background).sort().join() !== ["referenceId", "candidateInputs", "sourceCandidateRecordSha256", "sourceRunSha256"].sort().join()
+    || ![background.sourceCandidateRecordSha256, background.sourceRunSha256].every(s => typeof s === "string" && /^[a-f0-9]{64}$/.test(s)))
+    throw new Error("Invalid case comparison parent or provenance");
+  const candidate = resolveMainWireStaticCaseDefinitionV1(background.referenceId).ownInputs(background.candidateInputs);
+  if (canonical(candidate) !== canonical(background.candidateInputs)) throw new Error("Comparison parent inputs must not be silently normalized");
+  return background;
+}
+export function ownMainWireCaseInputsV1(referenceId: MainWireCaseReferenceIdV1, input: MainWireStaticCaseCandidateV1,
+  background?: MainWireCaseBackgroundV1): MainWireStaticCaseCandidateV1 {
+  if (!background) return resolveMainWireStaticCaseDefinitionV1(referenceId).ownInputs(input);
+  const parent = ownMainWireCaseBackgroundV1(referenceId, background).candidateInputs;
+  const c = ownRestingInputs(input, true);
+  const anatomyId = referenceId === "as-high-gradient-valve-only-v1" ? "baseline-v1" : "dilated-lv-v1";
+  const restored = { ...c, mechanismResearchInputs: { ...c.mechanismResearchInputs,
+    valveAreas: { ...c.mechanismResearchInputs.valveAreas, AoV: { ...c.mechanismResearchInputs.valveAreas.AoV,
+      maximumForwardEoaCm2: parent.mechanismResearchInputs.valveAreas.AoV.maximumForwardEoaCm2 } } } };
+  if (c.anatomyId !== anatomyId || c.hemodynamicResearchInputs.heartRateBpm !== 70 || canonical(restored) !== canonical(parent))
+    throw new Error("Parent-bound AS may change only maximum aortic area from its explicit HR70 background");
+  return c;
+}
+export function mainWireStaticCaseContextV1(referenceId: MainWireCaseReferenceIdV1, background?: MainWireCaseBackgroundV1) {
+  return { ...resolveMainWireStaticCaseDefinitionV1(referenceId).context(),
+    ...(background ? { background: ownMainWireCaseBackgroundV1(referenceId, background) } : {}) };
 }
 export function assessMainWireStaticCaseRestV1(referenceId: MainWireCaseReferenceIdV1, execution: Execution) {
   const definition = resolveMainWireStaticCaseDefinitionV1(referenceId);

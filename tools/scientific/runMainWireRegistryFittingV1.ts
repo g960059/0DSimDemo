@@ -1,5 +1,5 @@
 import { mkdir, readFile } from "node:fs/promises";
-import { resolve, join } from "node:path";
+import { resolve, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { canonicalJsonStringify as canonical, sha256CanonicalJsonHex as hash } from "@/engine/integrity";
@@ -7,6 +7,7 @@ import { selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { MAIN_WIRE_STATIC_CASE_MODEL_ID_V1 as modelId } from "@/domain/model/MainWireStaticCaseIdentityV1";
 import { CURRENT_MODEL_PRESETS_V1 as adopted } from "@/data/model-releases/CurrentModelReleaseV1";
 import { MAIN_WIRE_STATIC_CASE_DEFINITIONS_V1 as definitions, resolveMainWireStaticCaseDefinitionV1 as definition,
+  MAIN_WIRE_CASE_PARENT_V1 as parents, ownMainWireCaseInputsV1 as ownInputs, type MainWireCaseBackgroundV1 as Background,
   type MainWireCaseReferenceIdV1 as Reference, type MainWireStaticCaseCandidateV1 as Candidate } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
 import { mainWireStaticCaseFittingSeedV1 as seed } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import { createMainWireCaseInputRecordV1 as inputRecord, readMainWireCaseInputRecordV1 as readInput,
@@ -32,12 +33,12 @@ import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegrat
 import { resolveMainWireAnalysisMethodsForSurfaceV1 as methods } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 
 type Job = { kind: "qualification-grid" | "rest-screen"; referenceId: Reference; startId?: string; nominalDtSec: .002 | .001;
-  candidateInputs: Candidate; sourceSha256: string; reuse?: unknown };
+  candidateInputs: Candidate; background?: Background; sourceSha256: string; reuse?: unknown };
 type Outcome = { status: "completed"; grid: unknown } | { status: "operational-failed" | "qualification-error"; message: string };
 type Screen = Awaited<ReturnType<typeof fit>>;
 const message = (e: unknown) => e instanceof Error ? e.message : String(e);
 
-async function prepareInputs(p: Proposal) {
+async function prepareInputs(p: Proposal, output: string) {
   const d = definition(p.referenceId);
   if (p.coordinateIds !== undefined && (!Array.isArray(p.coordinateIds) || !p.coordinateIds.length
     || new Set(p.coordinateIds).size !== p.coordinateIds.length || p.coordinateIds.some(id => !profile(p.referenceId).coordinateIds.includes(id))))
@@ -59,12 +60,33 @@ async function prepareInputs(p: Proposal) {
         description: `Adopted full input from ${previous.presetId}; historical qualification is not reused.` } });
   }
   if (record.modelId !== modelId && !p.interpretation) throw new Error("Cross-model input transfer requires an explicit interpretation");
+  let background: Background | undefined;
+  let mappedInputs = p.historyFile && p.candidateInputs ? p.candidateInputs : undefined;
+  if (p.parentRun) {
+    const parentId = parents[p.referenceId as keyof typeof parents];
+    if (!parentId) throw new Error("Only the two declared AS comparisons have a fitting parent");
+    const run = await readSealedFittingRunV1(p.parentRun);
+    const { readRegistryReviewCandidateV1, assertMainWireRegistryParentNumericalSourceV1 } = await import("./prepareMainWireRegistryReviewV1");
+    await assertMainWireRegistryParentNumericalSourceV1(run);
+    const parent = await readRegistryReviewCandidateV1(await run.readJson(`${parentId}-candidate.json`), run);
+    if (parent.candidate.referenceId !== parentId || parent.assessment.status !== "review-pending" || parent.candidate.background)
+      throw new Error("Comparison parent must retain its own independent final checks and case targets; no automatic adoption is implied");
+    background = { referenceId: parentId, candidateInputs: parent.candidate.candidateInputs,
+      sourceCandidateRecordSha256: parent.candidate.recordSha256, sourceRunSha256: run.seal.sourceSha256 };
+    const proposed = (mappedInputs ?? record.candidateInputs) as Candidate;
+    const c = background.candidateInputs;
+    mappedInputs = { ...c, mechanismResearchInputs: { ...c.mechanismResearchInputs,
+      valveAreas: { ...c.mechanismResearchInputs.valveAreas, AoV: { ...c.mechanismResearchInputs.valveAreas.AoV,
+        maximumForwardEoaCm2: proposed.mechanismResearchInputs.valveAreas.AoV.maximumForwardEoaCm2 } } } };
+  }
+  const interpretation = p.interpretation ?? "Unchanged input meanings in the same exact model; independent cold reconstruction.";
   const binding = await bind({ record, targetModelId: modelId, referenceId: p.referenceId,
-    interpretation: p.interpretation ?? "Unchanged input meanings in the same exact model; independent cold reconstruction.",
-    ...(p.historyFile && p.candidateInputs ? { mappedInputs: p.candidateInputs } : {}),
-    validate: input => d.ownInputs(input as Candidate) });
-  preflight(p.referenceId, (binding as { candidateInputs: Candidate }).candidateInputs, p.coordinateIds);
-  return { record, binding: binding as { candidateInputs: Candidate; interpretation: string } & typeof binding, previousEvidence };
+    interpretation: background ? `${interpretation} Rebase the full background onto the selected ${background.referenceId} input; retain only the proposed maximum aortic area. Parent evidence is not a child qualification.` : interpretation,
+    ...(mappedInputs ? { mappedInputs } : {}),
+    validate: input => ownInputs(p.referenceId, input as Candidate, background) });
+  preflight(p.referenceId, (binding as { candidateInputs: Candidate }).candidateInputs, p.coordinateIds, background);
+  return { record, binding: binding as { candidateInputs: Candidate; interpretation: string } & typeof binding, previousEvidence,
+    ...(background ? { background, parentRun: relative(output, resolve(p.parentRun!)) } : {}) };
 }
 
 async function main() {
@@ -87,6 +109,7 @@ async function main() {
   if (values.help) {
     process.stdout.write("Usage: npm run fit:registry -- --output NEW_DIRECTORY [--cases baseline,hfref-chronic-dilated-v1] [--workers 4] [--minutes 30]\n"
       + "Or --plan JSON_ARRAY: referenceId, optional startId (default initial), historyFile, candidateInputs, interpretation, coordinateIds.\n"
+      + "AS proposals may set parentRun to a sealed baseline/HFrEF run: rebase its selected background, retain only aortic area, search only aortic-area.\n"
       + "Repeat one case with up to four distinct start IDs and identical ordered coordinates; all initial cold pairs run before selection.\n"
       + "Qualified initial candidates take priority, then the best searchable existing case score; ties keep declared order.\n"
       + "Default: all active adopted cases. Every case runs independent cold 2/1ms checks; baseline also runs its existing preload protocol.\n"
@@ -137,9 +160,10 @@ async function main() {
   const output = resolve(values.resume ?? values.output!);
   const prepared: Prepared[] = prior ? await Promise.all(prior.prepared.map(async p => ({ ...p, inputs: p.inputs ? {
     record: p.inputs.record, binding: p.inputs.binding,
+    ...(p.inputs.background ? { background: p.inputs.background, parentRun: p.inputs.parentRun } : {}),
     previousEvidence: p.inputs.previousEvidenceFile ? JSON.parse(await readFile(join(output, p.inputs.previousEvidenceFile), "utf8")) : null,
   } : null }))) : await Promise.all(proposals.map(async p => {
-    try { return { proposal: p, inputs: await prepareInputs(p), issue: null }; }
+    try { return { proposal: p, inputs: await prepareInputs(p, output), issue: null }; }
     catch (error) { return { proposal: p, inputs: null, issue: message(error) }; }
   }));
   if (!prior) await mkdir(output);
@@ -147,11 +171,12 @@ async function main() {
   if (prior && prior.sourceSha256 !== snapshot.sourceSha256) throw new Error("Resume plan source differs");
   const jobs: Job[] = prepared.flatMap(p => p.inputs
     ? ([.002, .001] as const).map(nominalDtSec => ({ kind: "qualification-grid" as const, referenceId: p.proposal.referenceId, startId: p.proposal.startId, nominalDtSec,
-      candidateInputs: p.inputs!.binding.candidateInputs, sourceSha256: snapshot.sourceSha256 })) : []);
+      candidateInputs: p.inputs!.binding.candidateInputs, ...(p.inputs!.background ? { background: p.inputs!.background } : {}), sourceSha256: snapshot.sourceSha256 })) : []);
   const fileFor = (j: Job) => `${prefix({ referenceId: j.referenceId, startId: j.startId ?? "initial" })}-${j.nominalDtSec === .002 ? "2ms" : "1ms"}.json`;
   const plan = prior ?? { schemaId: "main-wire-registry-resumable-run-v2", modelId, sourceSha256: snapshot.sourceSha256,
     surface, analysisMethods: methods(surface).capabilities, concurrency, minutes, finalMinutes, maximumEvaluations, maximumFinalChecks,
     prepared: prepared.map(p => ({ ...p, inputs: p.inputs ? { record: p.inputs.record, binding: p.inputs.binding,
+      ...(p.inputs.background ? { background: p.inputs.background, parentRun: p.inputs.parentRun } : {}),
       previousEvidenceFile: p.inputs.previousEvidence ? `${prefix(p.proposal)}-previous-result.json` : null } : null })),
     jobs: jobs.map(j => ({ ...j, file: fileFor(j) })), publicPromotionAuthorized: false };
   const journal = await openFittingRunJournalV1({ directory: output, identity: { sourceSha256: snapshot.sourceSha256, planSha256: await hash(plan) },
@@ -173,7 +198,7 @@ async function main() {
     for (const p of prepared) if (p.inputs) {
       const rebound = await bind({ record: p.inputs.record, targetModelId: modelId, referenceId: p.proposal.referenceId,
         interpretation: p.inputs.binding.interpretation, mappedInputs: p.inputs.binding.candidateInputs,
-        validate: v => definition(p.proposal.referenceId).ownInputs(v as Candidate) });
+        validate: v => ownInputs(p.proposal.referenceId, v as Candidate, p.inputs!.background) });
       if (canonical(rebound) !== canonical(p.inputs.binding)) throw new Error("Saved input mapping differs");
       if (p.inputs.previousEvidence) {
         if (canonical((await history(p.inputs.previousEvidence)).record) !== canonical(p.inputs.record)) throw new Error("Saved history/input origin differs");
@@ -203,7 +228,8 @@ async function main() {
       const evaluationFiles = new Map([["evaluation-001", initialFinal.files[0]!]]);
       const caseBudget = await journal.event(`${referenceId}-search-budget`, { maximumEvaluations, localMaximumEvaluations, maximumFinalChecks, finalMinutes, selectedStartId },
         () => ({ maximumWallTimeMs: remainingMs(), reservedFinalWallTimeMs: Math.min(finalMinutes * 60_000, remainingMs()) }));
-      const fitted = await searchCase({ referenceId, candidateInputs: p.inputs.binding.candidateInputs,
+      const backgroundFields = p.inputs.background ? { background: p.inputs.background } : {};
+      const fitted = await searchCase({ referenceId, candidateInputs: p.inputs.binding.candidateInputs, ...backgroundFields,
         initialOutcome, initialFinal, assess: final => assess(protocol(referenceId), final),
         checkInitialization: (evaluation, final) => initializationAgreement({
           warm: evaluation.outcome.status === "saved-result-ready" ? evaluation.outcome.result : null,
@@ -219,9 +245,9 @@ async function main() {
               checkpointSha256: e.reuse.execution.checkpoint.checkpointSha256 } : { kind: "cold" }, file: filenames[probes.indexOf(e)] })));
           const values = await batch<Screen>({ journal, scriptPath: fileURLToPath(import.meta.url), concurrency,
             remainingMs: () => Math.max(0, remainingMs() - finalMinutes * 60_000),
-            jobs: probes.map((e, i) => ({ filename: filenames[i]!, input: { ...e, kind: "rest-screen", referenceId,
+            jobs: probes.map((e, i) => ({ filename: filenames[i]!, input: { ...e, kind: "rest-screen", referenceId, ...backgroundFields,
               nominalDtSec: .002, sourceSha256: snapshot.sourceSha256 },
-              identity: { kind: "rest-screen", referenceId, candidateInputs: e.candidateInputs, nominalDtSec: .002,
+              identity: { kind: "rest-screen", referenceId, ...backgroundFields, candidateInputs: e.candidateInputs, nominalDtSec: .002,
                 sourceSha256: snapshot.sourceSha256, reuse: e.reuse ? { resultSha256: e.reuse.resultSha256,
                   checkpointSha256: e.reuse.execution.checkpoint.checkpointSha256 } : null } })),
             onResult: async (outcome, index, reused) => { evaluationFiles.set(probes[index]!.id, filenames[index]!);
@@ -235,14 +261,14 @@ async function main() {
               sourceResultSha256: reuse.resultSha256, checkpointSha256: reuse.execution.checkpoint.checkpointSha256,
               sourceCandidateInputs: reuse.candidateInputs, sourceNominalDtSec: reuse.nominalDtSec } : { kind: "cold" };
             const expected = await hash({ modelId, sourceSha256: snapshot.sourceSha256, candidateInputs: e.candidateInputs,
-              nominalDtSec: .002, initialization, policyIdentitySha256: await policyHash(referenceId) });
+              nominalDtSec: .002, initialization, policyIdentitySha256: await policyHash(referenceId, p.inputs!.background) });
             if (r.rest.referenceId !== referenceId || r.requestIdentitySha256 !== expected) throw new Error("Search result execution identity differs");
           }
           return values;
         },
         qualify: async evaluation => {
           const finalJobs: Job[] = ([.002, .001] as const).map(nominalDtSec => ({ kind: "qualification-grid", referenceId,
-            nominalDtSec, candidateInputs: evaluation.candidateInputs, sourceSha256: snapshot.sourceSha256 }));
+            nominalDtSec, candidateInputs: evaluation.candidateInputs, ...backgroundFields, sourceSha256: snapshot.sourceSha256 }));
           const filenames = finalJobs.map(j => `${referenceId}-final-${evaluation.id}-${j.nominalDtSec === .002 ? "2ms" : "1ms"}.json`);
           await save(`${referenceId}-final-${evaluation.id}-request.json`, finalJobs);
           const completed = await runGridBatch(finalJobs, filenames);
@@ -254,7 +280,7 @@ async function main() {
       const binding = await bind({ record: p.inputs.record, targetModelId: modelId, referenceId, mappedInputs: candidateInputs,
         interpretation: canonical(candidateInputs) === canonical(p.inputs.binding.candidateInputs) ? p.inputs.binding.interpretation
           : `${p.inputs.binding.interpretation} Bounded case fitting changed only its declared search coordinates; all initial inputs and failed checks remain recorded.`,
-        validate: input => definition(referenceId).ownInputs(input as Candidate) });
+        validate: input => ownInputs(referenceId, input as Candidate, p.inputs!.background) });
       const searchFile = `${referenceId}-search.json`;
       if (fitted.search) {
         const s = fitted.search;
@@ -282,6 +308,7 @@ async function main() {
       await save(comparisonFile, await compare({ referenceId, previous: p.inputs.previousEvidence, current: coarse ?? null,
         analysisSourceSha256: snapshot.sourceSha256 }));
       const candidate = { schemaId: "main-wire-registry-research-candidate-v1", modelId, surface, referenceId,
+        ...(p.inputs.background ? { background: p.inputs.background, parentRun: p.inputs.parentRun } : {}),
         sourceSha256: snapshot.sourceSha256, inputRecord: p.inputs.record, binding,
         candidateInputs, evidence, evidenceIssue, assessment,
         executionFiles: selected.final.files, comparisonFile,

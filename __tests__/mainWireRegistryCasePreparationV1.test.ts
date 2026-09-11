@@ -6,7 +6,10 @@ import { sha256CanonicalJsonHex as hash } from "@/engine/integrity";
 import { createMainWireCaseInputRecordV1 as create, readMainWireCaseInputRecordV1 as read,
   readMainWireHistoricalFittingEvidenceV1 as history, bindMainWireCaseInputRecordV1 as bind,
   compareMainWireCaseInputsV1 as compare, unwrapMainWireFittingEvidenceV1 as unwrap } from "@/analysis/registry/MainWireCaseInputRecordV1";
-import { MAIN_WIRE_STATIC_CASE_DEFINITIONS_V1 as definitions } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
+import { MAIN_WIRE_STATIC_CASE_DEFINITIONS_V1 as definitions, ownMainWireCaseInputsV1 as ownInputs,
+  ownMainWireCaseBackgroundV1 as ownBackground, mainWireStaticCaseContextV1 as context,
+  type MainWireCaseBackgroundV1 as Background } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
+import { assertMainWireCaseSearchInputsV1 as preflight, withMainWireCaseSearchCoordinateV1 as change } from "@/analysis/methods/mainWire/MainWireCaseFittingSearchV1";
 import { mainWireStaticCaseFittingSeedV1 as seed } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import { CURRENT_MODEL_PRESETS_V1 as adopted } from "@/data/model-releases/CurrentModelReleaseV1";
 import { MainWireStaticCaseSessionV1 as Session } from "@/engine/vnext/MainWireStaticCaseSessionV1";
@@ -24,6 +27,8 @@ import { assertMainWireReviewNumericalSourceV1 as assertSource } from "@/tools/r
 import { composeRegistryCaseReviewDocumentV1 as documentFor, mainWireReviewBeatSamplesV1 as beatSamples,
   registryCaseReviewIndexV1 as indexFor } from "@/tools/modelDocumentation/authoring/RegistryCaseReviewDocumentV1";
 import { readRegistryReviewCandidateV1 as reviewCandidate } from "@/tools/scientific/prepareMainWireRegistryReviewV1";
+import { refreshMainWireRegistryMaterialV1 as refresh } from "@/tools/scientific/refreshMainWireRegistryMaterialV1";
+import * as sourceSnapshots from "@/tools/scientific/FittingSourceSnapshotV1";
 import * as initialization from "@/analysis/methods/mainWire/MainWireCaseInitializationAgreementV1";
 import * as protocols from "@/tools/scientific/MainWireRegistryCaseProtocolsV1";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
@@ -35,6 +40,27 @@ const record = () => create({ modelId: "retired-model", referenceId: "third-test
   previousAssessment: { status: "historical-only" }, provenance: { kind: "new-construction", sourceRecordSha256: "a".repeat(64), description: "Test only" } });
 
 describe("registry input and candidate-material boundaries", () => {
+  it("binds AS to an explicit selected parent without changing public defaults or widening a valve-only search", async () => {
+    for (const [referenceId, parentId] of [["as-high-gradient-valve-only-v1", "baseline"],
+      ["as-low-flow-reduced-ef-v1", "hfref-chronic-dilated-v1"]] as const) {
+      const parent = change(seed(parentId), "systemic-resistance", seed(parentId).hemodynamicResearchInputs.systemicResistance + .04);
+      const background: Background = { referenceId: parentId, candidateInputs: parent,
+        sourceCandidateRecordSha256: "a".repeat(64), sourceRunSha256: "b".repeat(64) };
+      const child = change(parent, "aortic-area", seed(referenceId).mechanismResearchInputs.valveAreas.AoV.maximumForwardEoaCm2);
+      expect(ownInputs(referenceId, child, background)).toEqual(child);
+      expect(context(referenceId).background).toBeUndefined();
+      expect(context(referenceId, background).background).toEqual(background);
+      expect(await fitting.buildMainWireStaticCaseFittingPolicyIdentityV1(referenceId, background))
+        .not.toBe(await fitting.buildMainWireStaticCaseFittingPolicyIdentityV1(referenceId));
+      expect(() => ownInputs(referenceId, change(child, "tbv", child.hemodynamicResearchInputs.totalBloodVolumeMl + 10), background)).toThrow(/only maximum aortic area/);
+      expect(() => ownInputs(referenceId, change(child, "lv-active", .7), background)).toThrow(/only maximum aortic area/);
+      expect(() => preflight(referenceId, child, ["aortic-area"], background)).not.toThrow();
+      expect(() => preflight(referenceId, child, ["lv-active"], background)).toThrow();
+      expect(() => ownBackground(parentId, background)).toThrow(/parent/);
+      expect(() => ownBackground(referenceId, { ...background, sourceRunSha256: "unbound" })).toThrow(/provenance/);
+      if (referenceId === "as-high-gradient-valve-only-v1") expect(() => ownInputs(referenceId, child)).toThrow(/adopted baseline/);
+    }
+  });
   it("reads inert old evidence and binds explicitly mapped inputs without restoring any runtime", async () => {
     const restore = vi.spyOn(Session, "restore").mockImplementation(async () => { throw new Error("Retired runtime unavailable"); });
     const body = { schemaId: "main-wire-static-case-fitting-result-v1", modelId: "retired-model", sourceSha256: "a".repeat(64),
@@ -191,6 +217,34 @@ describe("registry input and candidate-material boundaries", () => {
     await rm(result);
     await expect(sealed(dir)).rejects.toThrow();
   });
+  it("refreshes layout from a sealed dossier without importing checkpoints, remeasuring or changing its assessment", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "circleheart-document-refresh-")); temporary.push(dir);
+    const d = await documentFor({ referenceId: "baseline", title: "Original scientific interpretation", description: "Original scope",
+      kind: "baseline", context: { originalThreshold: 7 }, modelId: "retired-readable-model", surface: {}, assessment: { originalStatus: "held" },
+      status: "held", issues: ["original hold"], comparison: await compareEvidence({ referenceId: "baseline", previous: null, current: null,
+        analysisSourceSha256: "a".repeat(64) }), results: [], previousDiagnostics: null, candidateInputs: {}, inputBinding: {}, sourceFiles: [] });
+    const inputs = { "report.json": { cases: [{ referenceId: "baseline", documentFile: "baseline-document.json" }] },
+      "baseline-document.json": d.document, "baseline-render-input.json": d.renderInput };
+    const results = [];
+    for (const [filename, value] of Object.entries(inputs)) {
+      const path = await save(dir, filename, value);
+      results.push({ filename, sha256: fileHash(await readFile(path)) });
+    }
+    const archive = await save(dir, "archive.json", { wiringOnly: true });
+    await save(dir, "execution.source.json", { schemaId: "fitting-source-snapshot-v1", sourceSha256: fileHash("[]"), files: [],
+      archive: { filename: "archive.json", sha256: fileHash(await readFile(archive)) }, results });
+    const restore = vi.spyOn(Session, "restore").mockRejectedValue(new Error("Retired runtime unavailable"));
+    const finish = vi.fn(async () => {});
+    vi.spyOn(sourceSnapshots, "beginFittingSourceSnapshotV1").mockResolvedValue({ sourceSha256: "b".repeat(64), finish });
+    const observed = vi.spyOn(fitting, "assessMainWireStaticCaseRestV1");
+    const out = join(dir, "new-layout");
+    const report = await refresh({ stage: "documents", input: dir, output: out });
+    expect(report).toMatchObject({ numericalStepsExecuted: 0, checkpointsRestored: 0, qualificationExecuted: false,
+      publicPromotionAuthorized: false, rows: [{ status: "rendered-original-assessment", originalAssessmentStatus: "held" }] });
+    expect(JSON.parse(await readFile(join(out, "baseline-document.json"), "utf8"))).toEqual(d.document);
+    expect(await readFile(join(out, "baseline.html"), "utf8")).toContain("original hold");
+    expect(restore).not.toHaveBeenCalled(); expect(observed).not.toHaveBeenCalled(); expect(finish).toHaveBeenCalledOnce();
+  });
   it("accepts the current CLI envelopes but never treats a failure wrapper as raw evidence", () => {
     const raw = { schemaId: "main-wire-static-case-fitting-result-v1" };
     expect(unwrap(raw)).toBe(raw);
@@ -240,7 +294,7 @@ describe("registry input and candidate-material boundaries", () => {
       referenceId: "baseline", candidateInputs, inputRecord, binding, evidence: null,
       executionFiles: ["coarse.json", "fine.json"], adjustment: { searchFile: "search.json", selectedFinalId: null }, publicPromotionAuthorized: false };
     const raw = (dt: number) => ({ schemaId: "main-wire-static-case-fitting-result-v1", modelId, sourceSha256, candidateInputs,
-      resultSha256: "b".repeat(64), rest: { referenceId: "baseline" }, nominalDtSec: dt, initialization: { kind: "cold" } });
+      resultSha256: "b".repeat(64), rest: { referenceId: "baseline" }, referenceContext: {}, nominalDtSec: dt, initialization: { kind: "cold" } });
     const search = { referenceId: "baseline", selectedFinalId: null, evaluations: [{ id: "evaluation-001", candidateInputs,
       outcome: { file: "initial.json", resultSha256: "b".repeat(64) } }] };
     let initial = { ...raw(.002), sourceSha256: "c".repeat(64) };
@@ -265,7 +319,7 @@ describe("registry input and candidate-material boundaries", () => {
         finalEvaluationId: "evaluation-002" }, publicPromotionAuthorized: false };
     const candidate = { ...body, recordSha256: await hash(body) };
     const raw = (dt: number, warm = false) => ({ schemaId: "main-wire-static-case-fitting-result-v1", modelId, sourceSha256, candidateInputs,
-      resultSha256: (warm ? "c" : "b").repeat(64), rest: { referenceId: "baseline" }, nominalDtSec: dt,
+      resultSha256: (warm ? "c" : "b").repeat(64), rest: { referenceId: "baseline" }, referenceContext: {}, nominalDtSec: dt,
       initialization: { kind: warm ? "parameter-continuation" : "cold" } });
     const warm = raw(.002, true), cold = raw(.002);
     let check = { status: "passed", issues: [] as string[], reportSha256: "d".repeat(64) };
