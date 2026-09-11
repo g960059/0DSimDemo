@@ -489,7 +489,7 @@ test("@desktop @mobile @model-lab @as-jet opt-in jet outputs preserve live and s
   expect(errors).toEqual([]);
 });
 
-test("@desktop @mobile @model-lab @as-presets settled AS presets remain reachable beside their controls", async ({ page }, testInfo) => {
+test("@desktop @mobile @as-presets public settled AS presets remain reachable beside their controls", async ({ page }, testInfo) => {
   const mobile = (page.viewportSize()?.width ?? 1440) < 768;
   const deck = page.getByTestId("workbench-mobile-task-deck"), root = page.getByTestId("v3-dockview-workbench");
   const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
@@ -529,7 +529,7 @@ test("@desktop @mobile @model-lab @as-presets settled AS presets remain reachabl
 
 for (const [key, title] of [["high-gradient AS", "AS · 弁狭窄のみ・高勾配"],
   ["low-flow AS", "AS · 低EF・低流量・低勾配"], ["HFrEF", "HFrEF · 慢性左室拡大型"]] as const) {
-test(`@desktop @model-lab @as-analysis ${key} completes formal PV analysis without stopping live execution`, async ({ page }, testInfo) => {
+test(`@desktop @as-analysis public ${key} completes formal PV analysis without stopping live execution`, async ({ page }, testInfo) => {
   const manager = page.getByRole("region", { name: "Scenarios" });
   await manager.getByRole("button", { name: "Presetから追加", exact: true }).click();
   await page.getByRole("menu", { name: "Presetから追加", exact: true })
