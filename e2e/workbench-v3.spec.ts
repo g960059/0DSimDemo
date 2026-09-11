@@ -773,7 +773,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   );
   await expect(
     page.locator(
-      '[data-pv-relation-semantics="area-max-common-isochrone-espvr-exponential-edpvr"]',
+      '[data-pv-relation-semantics="full-load-pressure-envelope-measured-diastolic-locus"]',
     ),
   ).toBeVisible();
   await expectFormalPvaProgressOrResult(
@@ -855,6 +855,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   await graphGroups.first().getByRole("button", { name: "Paneを追加" }).click();
   const addGraphMenu = page.getByRole("menu", { name: "Paneを追加" });
   await expect(addGraphMenu.getByRole("menuitem")).toHaveText([
+    "AV流速・駆出時間",
     "PV loop",
     "圧波形",
     "流量波形",
