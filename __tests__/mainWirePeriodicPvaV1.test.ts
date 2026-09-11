@@ -64,10 +64,12 @@ describe("settled hot-start PVA V1", () => {
     expect(root + (end - root)).toBeGreaterThan(end);
     const pressure = (v: number) => v > end ? NaN : v - root;
     const edpvr = { scale: 0, exponent: .02, volumeOffset: 0, rSquared: 1, parameterBoundaryHit: false };
-    const crossing = pressureRelationsLeftIntersectionV1(pressure, edpvr, 16, end);
+    // Published V13/V14 retain their old result; the new V15 opts into the fix.
+    expect(pressureRelationsLeftIntersectionV1(pressure, edpvr, 16, end)).toBeNull();
+    const crossing = pressureRelationsLeftIntersectionV1(pressure, edpvr, 16, end, true);
     expect(crossing).toBeCloseTo(root, 12);
-    expect(pressureRelationsLeftIntersectionV1(v => v > 60 ? -1 : pressure(v), edpvr, 16, end)).toBeNull();
-    expect(pressureRelationsLeftIntersectionV1(v => v > 45 && v < 55 ? -1 : pressure(v), edpvr, 16, end)).toBeNull();
+    expect(pressureRelationsLeftIntersectionV1(v => v > 60 ? -1 : pressure(v), edpvr, 16, end, true)).toBeNull();
+    expect(pressureRelationsLeftIntersectionV1(v => v > 45 && v < 55 ? -1 : pressure(v), edpvr, 16, end, true)).toBeNull();
   });
   it("uses the exact case mass only in V14 MVO2, retaining every PV relation and numerical area", () => {
     const locus = formalLocusV1(settledPointsV1());

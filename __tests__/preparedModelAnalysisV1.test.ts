@@ -1,6 +1,9 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { readFile } from "node:fs/promises";
 import { sha256CanonicalJsonHex as hash } from "@/engine/integrity";
+import * as integrity from "@/engine/integrity";
+import { loadPreparedModelAnalysisV1 as load } from "@/components/workbench/runtime/PreparedModelAnalysisRegistryV1";
+import type { StudioModelWorkerReleaseTicketV2 } from "@/studio/contracts/v2/release";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 import oldSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 import { buildPreparedModelAnalysisV1 as build, readPreparedModelAnalysisV1 as read,
@@ -36,6 +39,12 @@ function complete() {
   return vi.spyOn(pva, "buildMainWirePeriodicPvaMethodV15").mockReturnValue({ status: "available", completionStatus: "complete",
     loadRelations: { systolic: { completionStatus: "complete" }, diastolic: { completionStatus: "complete" } } } as never);
 }
+
+it("does not hash a large capture when the pinned method has no launch assets", async () => {
+  const digest = vi.spyOn(integrity, "sha256CanonicalJsonHex");
+  expect(await load({ surfaceRelease: oldSurface } as StudioModelWorkerReleaseTicketV2, capture)).toBeNull();
+  expect(digest).not.toHaveBeenCalled();
+});
 
 it("accepts identical captures and method pins across presentation-only Surface changes", async () => {
   complete();

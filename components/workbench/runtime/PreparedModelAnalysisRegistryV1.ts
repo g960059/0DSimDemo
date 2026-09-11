@@ -13,7 +13,9 @@ export async function loadPreparedModelAnalysisV1(ticket: StudioModelWorkerRelea
   const pva = methods(ticket.surfaceRelease).periodicPvaDerivation;
   if (!pva?.sourceAnalysisId) return null;
   // Incompatible Surfaces do not download a different method's data at all.
-  const load = assets[`/data/model-analysis/prepared/${pva.sourceAnalysisId}/${pva.methodId}/${await hash(capture)}.json`];
+  const prefix = `/data/model-analysis/prepared/${pva.sourceAnalysisId}/${pva.methodId}/`;
+  if (!Object.keys(assets).some(path => path.startsWith(prefix))) return null;
+  const load = assets[`${prefix}${await hash(capture)}.json`];
   if (!load) return null;
   try {
     const url = await load();

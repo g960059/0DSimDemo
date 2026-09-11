@@ -384,18 +384,20 @@ export function buildMainWirePeriodicPvaMethodV15(
 ): MainWirePeriodicPvaV1 {
   if (locus.status !== "measured-fixed-tbv-protocol" || locus.protocolId !== MAIN_WIRE_PRESSURE_CROSSING_PV_PROTOCOL_V1_ID)
     throw new Error("Pressure-crossing PVA requires its pinned measured protocol, not a legacy family");
-  return Object.freeze({ ...buildMainWirePeriodicPvaMethodV14(locus, ventricleId), methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID });
+  return Object.freeze({ ...buildMeasuredLoadPva(locus, ventricleId, MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID, true), methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID });
 }
 
 function buildMeasuredLoadPva(locus: MainWireIntegratedModelStarlingLocusV3,
   ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
   methodId: typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID,
+  exactIntersectionEndpoint = false,
 ): MainWirePeriodicPvaV1 {
   const pva = buildMainWirePeriodicPvaByPolicyV1(locus, ventricleId, {
     methodId,
     systolicLoadDomain: "preload-reduction-through-anchor",
     showMeasuredHighLoadIsochrone: true,
     includeAreaDisplay: true,
+    exactIntersectionEndpoint,
   });
   return Object.freeze({ ...pva, loadRelations: Object.freeze({
     systolic: buildMainWireSystolicPressureEnvelopeV1(locus),
@@ -632,6 +634,7 @@ function buildMainWirePeriodicPvaByPolicyV1(
       | "preload-reduction-through-anchor";
     showMeasuredHighLoadIsochrone?: boolean;
     includeAreaDisplay?: boolean;
+    exactIntersectionEndpoint?: boolean;
   }>,
 ): MainWirePeriodicPvaV1 {
   const familyProgress: PeriodicPvaProgressV1 = Object.freeze({
@@ -915,6 +918,7 @@ function buildMainWirePeriodicPvaByPolicyV1(
     edpvr,
     Math.max(0, lowVolumeExtension.zeroPressureVolumeMl),
     anchorEndSystolic.volumeMl,
+    method.exactIntersectionEndpoint,
   );
   if (peLeftIntersectionVolumeMl === null) {
     return incomplete(
@@ -1975,6 +1979,7 @@ export function pressureRelationsLeftIntersectionV1(
   edpvr: ExponentialFitV1,
   searchStartVolumeMl: number,
   endVolumeMl: number,
+  exactEndpoint = false,
 ): number | null {
   if (
     ![searchStartVolumeMl, endVolumeMl].every(Number.isFinite) ||
@@ -2034,9 +2039,10 @@ export function pressureRelationsLeftIntersectionV1(
   for (let index = 1; index <= CURVE_SAMPLE_COUNT_V1; index += 1) {
     // Reconstructing the known right endpoint can overshoot the measured
     // domain by one ULP. Keep the endpoint exact, without widening the domain
-    // or accepting a nonpositive pressure gap.
+    // or accepting a nonpositive pressure gap. This V15 fix is opt-in so
+    // already-published methods retain even their former edge-case behaviour.
     const volumeMl =
-      index === CURVE_SAMPLE_COUNT_V1 ? endVolumeMl : intersectionVolumeMl +
+      exactEndpoint && index === CURVE_SAMPLE_COUNT_V1 ? endVolumeMl : intersectionVolumeMl +
         (index / CURVE_SAMPLE_COUNT_V1) * (endVolumeMl - intersectionVolumeMl);
     if (!(pressureDifferenceMmHg(volumeMl) > 0)) return null;
   }
