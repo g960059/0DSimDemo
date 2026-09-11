@@ -1477,7 +1477,7 @@ describe("V3 Dockview Workbench", () => {
         ({ graphId }) => graphId === pane.graphId,
       )!;
       expect("windowSec" in pane).toBe(graph.renderer === "sweep");
-      expect("historyDepth" in pane).toBe(graph.renderer !== "sweep");
+      expect("historyDepth" in pane).toBe(graph.renderer === "pressure-volume" || graph.renderer === "structural-return");
       if (graph.renderer !== "structural-return" && graph.renderer !== "cycle-waveform") {
         expect(
           pane.series.every(({ seriesId }) =>
@@ -2059,7 +2059,7 @@ describe("V3 Dockview Workbench", () => {
       )!;
       expect(pane.graphId).toBe(option.graphId);
       expect("windowSec" in pane).toBe(graph.renderer === "sweep");
-      expect("historyDepth" in pane).toBe(graph.renderer !== "sweep");
+      expect("historyDepth" in pane).toBe(graph.renderer === "pressure-volume" || graph.renderer === "structural-return");
       if (graph.renderer === "structural-return") {
         if (!("structuralSide" in option)) {
           throw new Error("structural pane option must select one circulation");

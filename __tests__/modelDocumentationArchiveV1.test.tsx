@@ -219,7 +219,8 @@ describe("saved model documentation, independent of retired source", () => {
     const result = await build({ entryPoints: ["studio/presentation/modelDocumentation/SavedModelDocumentCatalogV1.ts"],
       bundle: true, write: false, metafile: true, platform: "browser", alias: { "@": process.cwd() }, logLevel: "silent" });
     expect(Object.keys(result.metafile!.inputs).some(p => /standard7[12]-document-v1\.json$/.test(p))).toBe(false);
-    expect(result.outputFiles[0].contents.byteLength).toBeLessThan(10_000);
+    // Budget the fixed reader plus small per-case indexes, not a fixed case count.
+    expect(result.outputFiles[0].contents.byteLength).toBeLessThan(10_000 + 2 * 1_500);
   });
   it.each([false, true])("loads independent document chunks; research visibility = %s", async dev => {
     const result = await build({ entryPoints: ["studio/presentation/modelDocumentation/SavedModelDocumentLibraryV1.ts"],
@@ -228,9 +229,9 @@ describe("saved model documentation, independent of retired source", () => {
       outdir: "unused-in-memory-reader-build", alias: { "@": process.cwd() }, logLevel: "silent" });
     const outputs = Object.values(result.metafile!.outputs);
     const library = outputs.find(output => output.entryPoint?.endsWith("SavedModelDocumentLibraryV1.ts"))!;
-    expect(library.bytes).toBeLessThan(10_000);
-    expect(library.imports.filter(item => item.kind === "dynamic-import")).toHaveLength(dev ? 9 : 7);
-    for (const id of ["standard73-document-v2", "standard73-hfref-document-v2"]) {
+    expect(library.bytes).toBeLessThan(10_000 + 2 * 2_000);
+    expect(library.imports.filter(item => item.kind === "dynamic-import")).toHaveLength(dev ? 13 : 11);
+    for (const id of ["standard73-document-v2", "standard73-hfref-document-v2", "standard73-as-high-gradient-document-v1", "standard73-as-low-flow-document-v1"]) {
       expect(outputs.some(output => output.entryPoint?.endsWith(`${id}.json`))).toBe(true);
       expect(outputs.some(output => output.entryPoint?.endsWith(`${id}.reading-v1.json`))).toBe(true);
     }

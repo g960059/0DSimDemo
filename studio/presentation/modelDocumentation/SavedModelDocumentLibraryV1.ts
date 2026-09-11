@@ -5,6 +5,8 @@ import { readingMatchesDocumentV1, type SavedModelReadingV1 } from "./SavedModel
 // Each package is a separate chunk. Adding historical documents must not make
 // reading the current model download every earlier document and embedded font.
 const loaders: Readonly<Record<string, () => Promise<SavedModelDocumentV1>>> = {
+  "standard73-as-high-gradient-document-v1": () => import("./packages/standard73-as-high-gradient-document-v1.json").then(m => m.default as SavedModelDocumentV1),
+  "standard73-as-low-flow-document-v1": () => import("./packages/standard73-as-low-flow-document-v1.json").then(m => m.default as SavedModelDocumentV1),
   "standard71-document-v1": () => import("./packages/standard71-document-v1.json").then(m => m.default as SavedModelDocumentV1),
   "standard72-document-v1": () => import("./packages/standard72-document-v1.json").then(m => m.default as SavedModelDocumentV1),
   "standard73-document-v2": () => import("./packages/standard73-document-v2.json").then(m => m.default as SavedModelDocumentV1),
@@ -29,6 +31,8 @@ export async function resolveSavedModelDocumentV1(modelId: string | undefined,
 }
 
 const readingLoaders: Readonly<Record<string, () => Promise<SavedModelReadingV1>>> = {
+  "standard73-as-high-gradient-document-v1": () => import("./packages/standard73-as-high-gradient-document-v1.reading-v1.json").then(m => m.default as SavedModelReadingV1),
+  "standard73-as-low-flow-document-v1": () => import("./packages/standard73-as-low-flow-document-v1.reading-v1.json").then(m => m.default as SavedModelReadingV1),
   "standard72-document-v1": () => import("./packages/standard72-document-v1.reading-v1.json").then(m => m.default as SavedModelReadingV1),
   "standard73-document-v2": () => import("./packages/standard73-document-v2.reading-v1.json").then(m => m.default as SavedModelReadingV1),
   "standard73-hfref-document-v2": () => import("./packages/standard73-hfref-document-v2.reading-v1.json").then(m => m.default as SavedModelReadingV1),

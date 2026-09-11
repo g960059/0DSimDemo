@@ -11,11 +11,10 @@ import { buildPreparedModelAnalysisV1 as build, readPreparedModelAnalysisV1 as r
 import * as decoder from "@/components/workbench/presentation/GuytonStarlingOrientationCanvasV3";
 import * as registry from "@/analysis/registry/RegisteredAnalysisMethodsV1";
 import * as pva from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
-import high from "@/data/model-presets/research/standard73-as-high-gradient-v1.json";
+import high from "@/data/model-presets/standard73/as-high-gradient-v1.json";
 import { validateScenarioPresetV2 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import { prepareMainWireSurfaceAnalysisV1 as prepare, PreparedSurfaceAnalysisErrorV1 } from "@/tools/registry/PrepareMainWireSurfaceAnalysisV1";
 import { CURRENT_MODEL_PRESETS_V1 } from "@/data/model-releases/CurrentModelReleaseV1";
-import { localResearchPresetsV1 } from "@/studio/application/dev/StudioLocalResearchPresetsV1";
 import lock from "@/data/model-releases/standard73/publication.json";
 import { REGISTERED_ANALYSIS_EXECUTOR_V1 as executor } from "@/analysis/runtime/RegisteredAnalysisExecutorV1";
 import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
@@ -95,7 +94,7 @@ it("retains the expensive measured payload when final derivation fails", async (
   expect(failure.message).toContain("intersection rejected");
 });
 
-it.each([...CURRENT_MODEL_PRESETS_V1, ...localResearchPresetsV1(lock.modelId, lock.artifactRevisionId)])(
+it.each(CURRENT_MODEL_PRESETS_V1)(
   "reconstructs both complete PV/Starling/PVA results from the registered launch asset: $title", async preset => {
     // No mocks/ODE: actual payload decoder, derived method, digest and capture.
     const pin = registry.resolveRegisteredAnalysisMethodsV1(surface).periodicPvaDerivation!;

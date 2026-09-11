@@ -65,7 +65,7 @@ describe("registry input and candidate-material boundaries", () => {
   it("derives every active initial input from its adopted record and preserves reference scope", () => {
     const active = Object.values(definitions).filter(d => d.adoptedPresetId !== null);
     expect(active).toHaveLength(adopted.length);
-    expect(() => seed("as-high-gradient-valve-only-v1")).toThrow(/Adopted case/);
+    expect(seed("as-high-gradient-valve-only-v1").mechanismResearchInputs.valveAreas.AoV.maximumForwardEoaCm2).toBe(.8);
     for (const d of active) {
       const preset = adopted.find(p => p.presetId === d.adoptedPresetId)!;
       const fixture = preset.capture.fixture as unknown as Record<string, unknown>;

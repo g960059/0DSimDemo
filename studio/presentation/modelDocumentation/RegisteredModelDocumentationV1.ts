@@ -1,12 +1,14 @@
 import { SAVED_MODEL_DOCUMENT_CATALOG_V1, resolveSavedModelDocumentIndexV1 } from "./SavedModelDocumentCatalogV1";
 import qualified from "./packages/standard73-document-v2.index.json";
 
-/** V2 only adds optional beat observations. Link to the original model/case
- * qualification, retaining its Surface ID and archive hash, not relabelling it
- * as a validation of those new observations (defined in the output picker). */
+/** Reuse the unchanged exact-model/case explanation across these compatible
+ * presentations. Return the archive's own Surface and hash, never relabel its
+ * qualification as a validation of later observations or pressure-crossing PVA. */
 function documentationReferenceSurfaceV1(modelId: string | undefined, surfaceReleaseId: string | null | undefined) {
   return modelId === qualified.identity.modelId
-    && surfaceReleaseId === "circleheart.main-wire.surface.static-anatomy.standard-73.workbench-v2"
+    && ["circleheart.main-wire.surface.static-anatomy.standard-73.workbench-v2",
+      "circleheart.main-wire.surface.static-anatomy.standard-73.workbench-v3",
+      "circleheart.main-wire.surface.static-anatomy.standard-73.pressure-crossing-v1"].includes(surfaceReleaseId ?? "")
     ? qualified.identity.surfaceReleaseId : surfaceReleaseId;
 }
 
@@ -40,7 +42,11 @@ export const REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1 = Object.freeze(
 export function resolveRegisteredModelDocumentationV1(
   modelId: string | undefined, surfaceReleaseId: string | null | undefined, documentId?: string | null,
 ): RegisteredModelDocumentationIdentityV1 | null {
-  const saved = resolveSavedModelDocumentIndexV1(modelId, documentationReferenceSurfaceV1(modelId, surfaceReleaseId), documentId);
+  const referenceSurface = documentationReferenceSurfaceV1(modelId, surfaceReleaseId);
+  const explicit = documentId ? SAVED_MODEL_DOCUMENT_CATALOG_V1.find(e => e.document.documentId === documentId
+    && e.document.identity.modelId === modelId
+    && documentationReferenceSurfaceV1(modelId, e.document.identity.surfaceReleaseId) === referenceSurface)?.document : undefined;
+  const saved = explicit ?? resolveSavedModelDocumentIndexV1(modelId, referenceSurface, documentId);
   return saved ? { kind: "saved-model-document", modelId: saved.identity.modelId,
     surfaceReleaseId: saved.identity.surfaceReleaseId, surfaceSeriesId: saved.identity.surfaceSeriesId,
     documentId: saved.documentId } : null;
@@ -49,7 +55,8 @@ export function resolveRegisteredModelDocumentationV1(
 export function resolveRegisteredPresetDocumentationV1(modelId: string, surfaceReleaseId: string | null | undefined, presetId: string) {
   const referenceSurface = documentationReferenceSurfaceV1(modelId, surfaceReleaseId);
   const entry = SAVED_MODEL_DOCUMENT_CATALOG_V1.find(e => e.document.identity.modelId === modelId
-    && e.document.identity.surfaceReleaseId === referenceSurface && e.document.identity.baselineId === presetId);
+    && documentationReferenceSurfaceV1(modelId, e.document.identity.surfaceReleaseId) === referenceSurface
+    && e.document.identity.baselineId === presetId);
   return entry ? resolveRegisteredModelDocumentationV1(modelId, surfaceReleaseId, entry.document.documentId) : null;
 }
 

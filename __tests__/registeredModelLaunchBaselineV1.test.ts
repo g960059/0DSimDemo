@@ -4,13 +4,12 @@ import { resolveRegisteredModelLaunchCheckpointV1, resolveRegisteredModelLaunchD
 import { mainWireStaticCaseFittingSeedV1 } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import { registeredCurrentBaselinePresentationV1 } from "@/studio/presentation/CurrentBaselinePresentationV1";
 import { loadStudioLocalCurrentClientCompositionV1 as localComposition,
-  loadStudioLocalResearchClientCompositionV1 as researchComposition,
   loadStudioDefaultClientCompositionV2, loadStudioExperimentClientCompositionV2,
   loadStudioSnapshotClientCompositionV2, invalidateStudioClientCompositionCachesV2 } from "@/studio/composition/StudioDefaultCompositionV2";
 import * as releaseResolvers from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
-import currentSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
-import researchSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
+import oldSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
+import currentSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 import descriptor from "@/data/model-releases/CurrentModelReleaseV1";
 import lock from "@/data/model-releases/standard73/publication.json";
 import savedCurrentDocument from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.json";
@@ -18,27 +17,26 @@ import { materializeExactModelControlValuesV1 } from "@/studio/application/model
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import { CURRENT_BASELINE_V1 as adopted } from "@/data/model-baselines/CurrentBaselineV1";
 import selected from "@/data/model-baselines/current-baseline-selection-v1.json";
-import { localResearchPresetsV1, STUDIO_LOCAL_RESEARCH_PRESET_ARTIFACT_V1 } from "@/studio/application/dev/StudioLocalResearchPresetsV1";
+import { CURRENT_MODEL_PRESETS_V1 } from "@/data/model-releases/CurrentModelReleaseV1";
+import { MAIN_WIRE_STATIC_CASE_DEFINITIONS_V1 } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
 
 describe("current Standard73 launch baseline", () => {
-  it("uses the pressure-crossing Surface only for the explicit local research composition", async () => {
-    const production = await localComposition(), research = await researchComposition();
-    expect(production.modelSurface.identity.surfaceReleaseId).toBe(currentSurface.surfaceReleaseId);
-    expect(research.modelSurface.identity.surfaceReleaseId).toBe(researchSurface.surfaceReleaseId);
-    expect(research.exactModel.defaultCheckpoint).toBe(baseline.checkpoint);
-    expect(research.modelSurface.contract.controlCatalog).toEqual(production.modelSurface.contract.controlCatalog);
-    expect(research.modelSurface.analysis.periodicPvaDerivation?.methodId).not.toBe(production.modelSurface.analysis.periodicPvaDerivation?.methodId);
-    expect(production.presets).toHaveLength(2);
-    expect(research.presets).toHaveLength(4);
-    expect(research.presets!.slice(0, 2)).toEqual(production.presets);
-    expect(research.presets!.slice(2).map(p => p.title)).toEqual(["AS · 弁狭窄のみ・高勾配", "AS · 低EF・低流量・低勾配"]);
-  });
-  it("keeps settled AS research captures distinct from production and matched to their normal-valve inputs", async () => {
+  it("defaults to pressure-crossing analysis and exposes four independently owned presets", async () => {
     const production = await localComposition();
-    const presets = localResearchPresetsV1(baseline.modelId, STUDIO_LOCAL_RESEARCH_PRESET_ARTIFACT_V1);
+    expect(production.modelSurface.identity.surfaceReleaseId).toBe(currentSurface.surfaceReleaseId);
+    expect(production.exactModel.defaultCheckpoint).toBe(baseline.checkpoint);
+    expect(currentSurface.controlCatalog).toEqual(oldSurface.controlCatalog);
+    expect(production.presets).toHaveLength(4);
+    expect(new Set(production.presets!.map(p => p.presetId)).size).toBe(4);
+    expect(production.presets!.slice(2).map(p => p.title)).toEqual(["AS · 弁狭窄のみ・高勾配", "AS · 低EF・低流量・低勾配"]);
+    expect(Object.values(MAIN_WIRE_STATIC_CASE_DEFINITIONS_V1).map(d => d.adoptedPresetId).sort())
+      .toEqual(production.presets!.map(p => p.presetId).sort());
+    for (const d of Object.values(MAIN_WIRE_STATIC_CASE_DEFINITIONS_V1)) expect(mainWireStaticCaseFittingSeedV1(d.referenceId)).toBeDefined();
+  });
+  it("keeps settled AS captures matched to their normal-valve inputs without rewriting original admission", async () => {
+    const production = await localComposition();
+    const presets = CURRENT_MODEL_PRESETS_V1.slice(2);
     expect(presets[0]!.description).not.toContain("PVAが出ない");
-    expect(() => localResearchPresetsV1("other-model", STUDIO_LOCAL_RESEARCH_PRESET_ARTIFACT_V1)).toThrow(/revalidation/);
-    expect(() => localResearchPresetsV1(baseline.modelId, "other-build")).toThrow(/revalidation/);
     for (const [i, p] of presets.entries()) {
       const { checkpointSha256, ...body } = p.capture.checkpoint.payload as Record<string, unknown>;
       expect(await sha256CanonicalJsonHex(body)).toBe(checkpointSha256);
@@ -51,7 +49,9 @@ describe("current Standard73 launch baseline", () => {
       expect(f.mechanismResearchInputs.valveAreas.AoV.maximumForwardEoaCm2).toBe(.8);
       f.mechanismResearchInputs.valveAreas.AoV.maximumForwardEoaCm2 = 3.5;
       expect(f).toEqual(production.presets![i]!.capture.fixture);
-      expect(production.presets!.some(existing => existing.presetId === p.presetId)).toBe(false);
+      expect(p.presetId.startsWith("research/")).toBe(false);
+      expect(p.modelId).toBe(lock.modelId);
+      expect(lock.cases.some(existing => existing.presetId === p.presetId)).toBe(false);
     }
   });
   afterEach(() => { vi.restoreAllMocks(); invalidateStudioClientCompositionCachesV2(); });
@@ -77,7 +77,7 @@ describe("current Standard73 launch baseline", () => {
     });
     expect(Object.isFrozen(baseline.checkpoint)).toBe(true);
   });
-  it("materializes all53 controls, both presets and inherited analyses without loading numerical source", async () => {
+  it("materializes all53 controls, four presets and inherited analyses without loading numerical source", async () => {
     const composition = await localComposition();
     expect(composition.exactModel.modelId).toBe(baseline.modelId);
     expect(composition.exactModel.defaultCheckpoint).toBe(baseline.checkpoint);
@@ -86,7 +86,7 @@ describe("current Standard73 launch baseline", () => {
     const controls = materializeExactModelControlValuesV1(composition.modelSurface.contract,
       composition.exactModel.defaultFixture, composition.exactModel.fixtureProjection);
     expect(Object.keys(controls)).toHaveLength(53);
-    expect(composition.presets?.map(p => p.presetId)).toEqual(lock.cases.map(c => c.presetId));
+    expect(composition.presets?.slice(0, 2).map(p => p.presetId)).toEqual(lock.cases.map(c => c.presetId));
     expect(controls["rhythm.heart-rate-bpm"]).toEqual({ status: "value", value: 70 });
     expect(controls["hemodynamics.total-blood-volume-ml"]).toEqual({ status: "value", value: 4935 });
     expect(controls["myocardium.active-tension-scale.LVFW"]).toEqual({ status: "value", value: 1 });
@@ -96,7 +96,7 @@ describe("current Standard73 launch baseline", () => {
   it("resolves new, pinned experiment, and snapshot through the same current Surface", async () => {
     vi.spyOn(releaseResolvers, "studioSupabaseModelReleaseResolverV1").mockReturnValue(null);
     const current = await loadStudioDefaultClientCompositionV2();
-    for (const loaded of [await loadStudioExperimentClientCompositionV2(baseline.modelId, surface.surfaceSeriesId),
+    for (const loaded of [await loadStudioExperimentClientCompositionV2(baseline.modelId, currentSurface.surfaceSeriesId),
       await loadStudioSnapshotClientCompositionV2(baseline.modelId, currentSurface.surfaceSeriesId, currentSurface.surfaceReleaseId)]) {
       expect(loaded).toBe(current);
       expect(loaded.exactModel.defaultCheckpoint).toBe(baseline.checkpoint);

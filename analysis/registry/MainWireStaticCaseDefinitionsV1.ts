@@ -72,7 +72,7 @@ function asAssessment<R extends "as-high-gradient-valve-only-v1" | "as-low-flow-
  * Adding a case does not silently add an anatomy or relax an exact contract. */
 export const MAIN_WIRE_STATIC_CASE_DEFINITIONS_V1 = Object.freeze({
   "as-high-gradient-valve-only-v1": Object.freeze({
-    referenceId: "as-high-gradient-valve-only-v1" as const, adoptedPresetId: null,
+    referenceId: "as-high-gradient-valve-only-v1" as const, adoptedPresetId: "standard73-as-high-gradient-valve-only-v1",
     title: "AS · 弁狭窄のみ・高勾配", titleEn: "AS · valve-only high gradient", kind: "preset" as const,
     description: "採用baselineから大動脈弁の最大有効弁口面積だけを変更した比較例。慢性肥大・線維化やEF保持型AS全体を代表するものではありません。",
     context: () => { const reference = resolveReference("as-high-gradient-valve-only-v1");
@@ -92,7 +92,7 @@ export const MAIN_WIRE_STATIC_CASE_DEFINITIONS_V1 = Object.freeze({
     reviewItems: ["native-jet-law-and-doppler-method-difference", "raw-lv-aortic-pressure-flow-pv", "valve-area-only-relief-control", "fixed-anatomy-scope"],
   }),
   "as-low-flow-reduced-ef-v1": Object.freeze({
-    referenceId: "as-low-flow-reduced-ef-v1" as const, adoptedPresetId: null,
+    referenceId: "as-low-flow-reduced-ef-v1" as const, adoptedPresetId: "standard73-as-low-flow-reduced-ef-v1",
     title: "AS · 低EF・低流量・低勾配", titleEn: "AS · low EF, low flow, low gradient", kind: "preset" as const,
     description: "拡大した左室の収縮能低下と大動脈弁狭窄を組み合わせた固定構成。低い勾配だけでは弁口狭小化を否定できないことを示す教育例です。",
     context: () => { const reference = resolveReference("as-low-flow-reduced-ef-v1");

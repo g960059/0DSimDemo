@@ -1,0 +1,13 @@
+{
+  "schemaId": "circleheart.saved-model-document.v1",
+  "documentId": "standard73-as-low-flow-document-v1",
+  "identity": {
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.static-anatomy.standard-73",
+    "surfaceReleaseId": "circleheart.main-wire.surface.static-anatomy.standard-73.workbench-v2",
+    "surfaceSeriesId": "circleheart.main-wire.surface.static-anatomy.workbench",
+    "baselineId": "standard73-as-low-flow-reduced-ef-v1",
+    "title": "AS · 低EF・低流量・低勾配",
+    "releaseStatus": "adopted-case"
+  },
+  "contentSha256": "55fdc122554a4b76186e46513ac3cea62ad71951e30e188ea1e2187aa67b8500"
+}

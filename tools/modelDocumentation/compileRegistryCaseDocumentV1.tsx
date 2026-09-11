@@ -29,6 +29,10 @@ import type { MainWireStaticCaseCheckpointV1 as Checkpoint } from "@/engine/myoc
 type Dossier = Awaited<ReturnType<typeof composeRegistryCaseReviewDocumentV1>>["document"];
 type Launch = Awaited<ReturnType<typeof mainWireReviewPresetV1>>;
 type Continuation = Awaited<ReturnType<typeof verifyMainWireReviewContinuationV1>>;
+export type RegistryCaseReviewReceiptV1 = Readonly<{
+  sourceDossierSha256: string; recordUrl: string;
+  decisions: readonly Readonly<{ reviewer: string; vote: "accept" | "hold" }>[];
+}>;
 const sha = (value: string | Uint8Array) => createHash("sha256").update(value).digest("hex");
 const details = (label: string, value: unknown) => <details className="my-5"><summary className="cursor-pointer text-sm font-medium">{label}</summary>
   <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap break-words text-xs">{JSON.stringify(value, null, 2)}</pre></details>;
@@ -57,6 +61,7 @@ function Assessment({ rows, locale, dtMs }: { rows: readonly Row[]; locale: Loca
 export async function compileRegistryCaseDocumentV1(input: {
   documentId: string; dossier: Dossier; results: readonly Result[]; grids: readonly unknown[];
   launch: Launch; continuation: Continuation; preparationSourceSha256: string;
+  review?: RegistryCaseReviewReceiptV1;
 }) {
   const { dossier: d, launch, continuation, documentId } = input;
   if (!/^[a-z0-9][a-z0-9.-]+$/.test(documentId) || d.status !== "review-pending" || d.publicPromotionAuthorized !== false
@@ -68,6 +73,11 @@ export async function compileRegistryCaseDocumentV1(input: {
     throw new Error("Archive requires this case's qualified cold pair and verified launch, with review still pending");
   const { contentSha256: dossierSha256, ...dossierBody } = d;
   if (await hash(dossierBody) !== dossierSha256) throw new Error("Archive dossier digest differs");
+  const review = input.review;
+  if (review && (review.sourceDossierSha256 !== dossierSha256 || !/^https:\/\//.test(review.recordUrl)
+    || review.decisions.length !== 2 || new Set(review.decisions.map(r => r.reviewer)).size !== 2
+    || !review.decisions.some(r => r.vote === "accept") || review.decisions.some(r => !["accept", "hold"].includes(r.vote))))
+    throw new Error("Adopted case document requires a source-bound 1-of-2 review receipt");
   const surface = d.surface as { surfaceReleaseId: string; surfaceSeriesId: string };
   const checkpoint = launch.preset.capture.checkpoint.payload as unknown as Checkpoint;
   const c = input.results[0]!.candidateInputs, fixture = fixtureFor(c.anatomyId, c.hemodynamicResearchInputs, 1, c.mechanismResearchInputs);
@@ -81,15 +91,17 @@ export async function compileRegistryCaseDocumentV1(input: {
   const content = { moduleIds: d.modules.map(m => m.id), equations };
   const render = (node: React.ReactNode) => renderToStaticMarkup(
     <MainWireEquationSpecificationContextV1.Provider value={d.equationSpecification}>{node}</MainWireEquationSpecificationContextV1.Provider>);
-  const identity = { ...d.identity, ...surface, baselineId: launch.preset.presetId, title: d.title, releaseStatus: "research-review-pending" };
+  const identity = { modelId: d.identity.modelId, surfaceReleaseId: surface.surfaceReleaseId,
+    surfaceSeriesId: surface.surfaceSeriesId, baselineId: launch.preset.presetId, title: d.title,
+    releaseStatus: review ? "adopted-case" : "research-review-pending" };
   const rows = { ja: input.results.map((r, i) => rowsFor(r, input.grids[i], "ja")), en: input.results.map((r, i) => rowsFor(r, input.grids[i], "en")) };
   const measurements = { schemaId: "main-wire-registry-case-archive-measurements-v1", identity: d.identity,
-    title: d.title, kind: d.kind, description: d.description, status: "review-pending", surface: d.surface,
+    title: d.title, kind: d.kind, description: d.description, status: review ? "reviewed-case" : "review-pending", surface: d.surface,
     caseSpecification: d.caseSpecification, candidateInputs: d.candidateInputs, inputBinding: d.inputBinding,
     observations: d.observations, qualification: d.qualification, comparison: d.comparison,
     sourceFiles: d.sourceFiles, researchDossierSha256: dossierSha256,
     launch: { ...launch, continuation }, preparationSourceSha256: input.preparationSourceSha256,
-    assessmentRows: rows, formalReview: { gate: "1-of-2", status: "pending" },
+    assessmentRows: rows, formalReview: review ? { gate: "1-of-2", status: "accepted", ...review } : { gate: "1-of-2", status: "pending" },
     supportingExperiments: "not-revalidated", publicPromotionAuthorized: false };
   const files = ["tools/modelDocumentation/compileRegistryCaseDocumentV1.tsx",
     ...["RegistryCaseAssessmentRowsV1.ts", "MainWireReadingV1.tsx", "MainWireModuleExplanationsV1.tsx", "MainWireEquationDetailsV1.tsx",
@@ -133,9 +145,10 @@ export async function compileRegistryCaseDocumentV1(input: {
     };
     for (const locale of ["ja", "en"] as const) {
       const t = (ja: string, en: string) => locale === "ja" ? ja : en;
-      const header = render(<header className="mb-8"><p className="text-sm text-wb-muted">{t("研究候補 · レビュー待ち · 未公開", "Research candidate · review pending · unpublished")}</p>
+      const header = render(<header className="mb-8"><p className="text-sm text-wb-muted">{review ? t("採用プリセット · 教育用の比較例", "Adopted preset · educational comparison") : t("研究候補 · レビュー待ち · 未公開", "Research candidate · review pending · unpublished")}</p>
         <h1 className="my-3 text-2xl font-semibold">{locale === "ja" ? d.title : definition(d.identity.referenceId).titleEn}</h1>
-        <p className="text-sm leading-7">{t("自動確認は通過していますが、原波形・構成のレビューと正式採択は未完了です。過去の症例の採択や追加解析を引き継いだとは扱いません。",
+        <p className="text-sm leading-7">{review ? t("この症例の入力・独立した2/1 ms計算・原波形を確認し、1/2レビューを経て採用しています。疾患全体の代表値や、臨床診断の妥当性を保証するものではありません。",
+          "This construction was adopted after its own inputs, independent 2/1 ms checks and raw waveforms were reviewed through a 1-of-2 gate. It does not establish population representativeness or clinical diagnostic validity.") : t("自動確認は通過していますが、原波形・構成のレビューと正式採択は未完了です。過去の症例の採択や追加解析を引き継いだとは扱いません。",
           "Automated checks passed. Raw-waveform/construction review and formal adoption remain pending. Previous case approvals and additional analyses are not carried forward.")}</p>
         {narrative(input.results[0]!, locale).map((p, i) => <p className="my-3 text-sm leading-7" key={i}>{p}</p>)}</header>);
       const settingsHref = modelDocumentationHref({ locale, ...identity, documentId, view: "presets" }) + "#settings";
@@ -147,17 +160,20 @@ export async function compileRegistryCaseDocumentV1(input: {
         <p className="my-3 text-sm text-wb-muted">{t("ノブの倍率だけでなく、起動に用いる全入力と状態を記録します。", "Complete inputs and the launch state are retained, not just knob multipliers.")}</p>
         <MainWireReadingSettingsV1 document={content} locale={locale} />
       </section><section id="record" className="scroll-mt-24 border-t border-wb-line py-8">
-        <h2 className="text-xl font-semibold">{t("測定記録・根拠・未完了項目", "Records, evidence and pending review")}</h2>
+        <h2 className="text-xl font-semibold">{t("測定記録・根拠・評価の範囲", "Records, evidence and assessment scope")}</h2>
         <p className="my-4 text-sm text-wb-muted">{t("各資料の対象集団と測定条件を、今回の測定と区別して読みます。下の原記録には出典の言語をそのまま残しています。", "Source populations and measurement conditions are distinct from this simulation. Raw records below retain their source language.")}</p>
         {sourcesFor(input.results[0]!.rest.referenceId, locale).map(source => <details className="my-4 text-sm" key={source.id}>
           <summary className="cursor-pointer">{source.title}</summary><p className="my-3 text-wb-muted">{source.description}</p>
           <a href={source.url} className="underline" rel="noreferrer">{t("出典を見る", "Open source")}</a></details>)}
-        {details(t("自動確認と未完了のレビュー", "Automated checks and pending review"), d.qualification)}
+        {review && <details className="my-4 text-sm"><summary className="cursor-pointer">{t("採択記録", "Adoption record")}</summary>
+          <p className="my-3 text-wb-muted">{t("以下の原記録は資料生成時の状態を保持しています。採択前のreview-pendingを成功へ書き換えず、その後の判断を別に記録します。", "The raw preparation records retain their original review-pending status. The later decision is recorded separately, not written over that history.")}</p>
+          <a href={review.recordUrl} className="underline">{t("レビューと採択判断を見る", "Read reviews and adoption decision")}</a></details>}
+        {details(t("資料生成時の自動確認・レビュー項目", "Automated checks and review items at preparation"), d.qualification)}
         {details(t("症例仕様・文献・測定法", "Case specification, sources and methods"), d.caseSpecification)}
         {details(t("2 / 1 msの全観測値と評価", "Complete 2 / 1 ms observations and assessments"), d.observations)}
         {details(t("全入力と起動checkpointの出自", "Full inputs and launch-checkpoint provenance"), { inputs: d.candidateInputs, inputBinding: d.inputBinding, launchBinding: launch.binding, continuation })}
-        <p className="text-sm text-wb-muted">{t("過去のESPVR・EDPVR・PVAや受動力学の試験は、今回の成功例として再利用していません。必要な追加検証はレビュー後に行います。",
-          "Previous ESPVR, EDPVR, PVA and passive-mechanics tests are not claimed as fresh successes. Required supporting experiments follow review.")}</p>
+        <p className="text-sm text-wb-muted">{t("この文書は保存された症例評価と測定時のSurfaceを示します。新しいSurfaceによるESPVR・EDPVR・PVAや表示方法の検証とは区別します。過去の受動力学試験を今回の成功例として読み替えていません。",
+          "This document records the case assessment and its measurement-time Surface. Validation of ESPVR, EDPVR, PVA and presentation under a later Surface is separate. Historical passive-mechanics tests are not relabelled as fresh successes.")}</p>
       </section></>);
       const records = input.results.map((r, i) => ({ recordId: `dt-${r.nominalDtSec}`, label: `${r.nominalDtSec * 1000} ms · independent cold`,
         html: render(<Assessment rows={rows[locale][i]!} locale={locale} dtMs={r.nominalDtSec * 1000} />) }));

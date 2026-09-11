@@ -62,7 +62,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         await import("@/studio/composition/StudioDefaultCompositionV2");
       const current = (await import("@/data/model-releases/CurrentModelReleaseV1")).default;
       const currentLock = (await import("@/data/model-releases/standard73/publication.json")).default;
-      const surface = (await import("@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2")).default;
+      const surface = (await import("@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4")).default;
       const revisioned = composition.localCurrentArtifactRevisionUrlV1(
         new URL("http://127.0.0.1:4176/standard72.artifact.mjs?keep=1"),
       );

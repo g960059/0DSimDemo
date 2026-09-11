@@ -17,6 +17,7 @@ import localPackage from "@/data/model-releases/standard73/package.json";
 import baselineDoc from "@/studio/presentation/modelDocumentation/packages/standard73-document-v1.json";
 import hfrefDoc from "@/studio/presentation/modelDocumentation/packages/standard73-hfref-document-v1.json";
 import cycleSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
+import currentSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 import { MainWireCardiacCycleCollectorV1 } from "@/analysis/methods/mainWire/MainWireCardiacCycleCollectorV1";
 import { buildMainWireCardiacCycleMetricsV1, MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1 as cycleInputs,
   MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1 as cycleOutputs,
@@ -37,11 +38,12 @@ const fixture = (dilated: boolean) => ({ ...template, schemaId, anatomyId: dilat
     activeTensionScaleByWall: { ...mechanism.chamberMechanics.activeTensionScaleByWall, LVFW: dilated ? .35 : 1, SEP: dilated ? .35 : 1 } } } });
 
 describe("static case exact adapter and inherited Surface", () => {
-  it("launches the current additive beat-metric Surface from the same exact baseline capture", async () => {
+  it("launches the new analysis Surface from the same exact baseline capture", async () => {
     const composition = await loadStudioLocalCurrentClientCompositionV1();
-    expect(composition.modelSurface.identity.surfaceReleaseId).toBe(cycleSurface.surfaceReleaseId);
-    expect(composition.modelSurface.analysis.presentationMethods).toHaveLength(2);
-    expect(composition.modelSurface.analysis.periodicPvaDerivation).toBe(methods(surface).periodicPvaDerivation);
+    expect(composition.modelSurface.identity.surfaceReleaseId).toBe(currentSurface.surfaceReleaseId);
+    expect(composition.modelSurface.analysis.presentationMethods).toHaveLength(3);
+    expect(composition.modelSurface.analysis.periodicPvaDerivation).toBe(methods(currentSurface).periodicPvaDerivation);
+    expect(composition.modelSurface.analysis.periodicPvaDerivation?.methodId).not.toBe(methods(cycleSurface).periodicPvaDerivation?.methodId);
     expect(composition.exactModel.modelId).toBe(localBundle.manifest.modelId);
     expect(composition.exactModel.defaultCheckpoint).toEqual(CURRENT_BASELINE_V1.capture.checkpoint);
     expect(composition.exactModel.workerReleaseTicket.artifactRevisionId).toBe(localPackage.artifactRevisionId);

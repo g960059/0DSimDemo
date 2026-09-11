@@ -4,7 +4,7 @@ import { MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID as oldPva, MAIN_WIRE_PERIODIC_PVA_
 import { MAIN_WIRE_PRESSURE_CROSSING_PV_ANALYSIS_V1_ID as formal } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import { analysisCapabilityV1, derivationCapabilityV1, type ModelSurfaceReleaseManifestV1 } from "@/studio/contracts/v2/modelSurface";
 
-/** Local analysis candidate. A changed method pin starts a distinct Surface
+/** A changed method pin starts a distinct Surface
  * series, not an exact-model mint or an overwrite of the production method. */
 export default Object.freeze({ ...previous,
   surfaceReleaseId: "circleheart.main-wire.surface.static-anatomy.standard-73.pressure-crossing-v1",
