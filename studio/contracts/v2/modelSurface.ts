@@ -368,6 +368,8 @@ export function assertModelSurfaceReleaseManifestV1(
   (surface.graphCatalog as readonly ModelSurfaceGraphDefinitionV1[]).forEach(
     (graph, index) => {
       const requiredCapabilities = new Set(graph.requiredCapabilities);
+      if (graph.renderer === "cycle-waveform" && !requiredCapabilities.has(derivationCapabilityV1(graph.derivationId)))
+        throw new ModelSurfaceValidationErrorV1(`$.surfaceRelease.graphCatalog[${index}].derivationId`, "requires the pinned presentation derivation");
       if (
         graph.renderer === "structural-return"
         && !requiredCapabilities.has(analysisCapabilityV1(graph.analysisId))
@@ -1081,7 +1083,7 @@ function graphOutputIdsV1(graphs: readonly unknown[]): Set<string> {
   graphs.forEach((graph, graphIndex) => {
     const path = `$.surfaceRelease.graphCatalog[${graphIndex}]`;
     assertRecordV1(graph, path);
-    if (graph.renderer === "structural-return") return;
+    if (graph.renderer === "structural-return" || graph.renderer === "cycle-waveform") return;
     if (!Array.isArray(graph.seriesCatalog)) {
       throw new ModelSurfaceValidationErrorV1(
         `${path}.seriesCatalog`,

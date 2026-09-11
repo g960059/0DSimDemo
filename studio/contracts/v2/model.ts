@@ -66,7 +66,8 @@ export type StructuralReturnGraphDefinitionV2 = Readonly<{
 export type GraphDefinitionV2 =
   | SweepGraphDefinitionV2
   | PressureVolumeGraphDefinitionV2
-  | StructuralReturnGraphDefinitionV2;
+  | StructuralReturnGraphDefinitionV2
+  | Readonly<{ graphId: string; renderer: "cycle-waveform"; derivationId: string }>;
 
 export type SignalOutputDefinitionV2 = Readonly<{
   outputId: string;
@@ -741,10 +742,12 @@ export function assertGraphCatalogV2(
         definitionPath,
         STRUCTURAL_RETURN_GRAPH_KEYS_V2,
       );
+    } else if (graph.renderer === "cycle-waveform") {
+      assertExactKeysV2(definition, definitionPath, ["derivationId", "graphId", "renderer"]);
     } else {
       throw new ModelContractValidationErrorV2(
         `${definitionPath}.renderer`,
-        'must be "sweep", "pressure-volume", or "structural-return"',
+        'must be "sweep", "pressure-volume", "structural-return", or "cycle-waveform"',
       );
     }
     const graphId = graph.graphId;
@@ -756,6 +759,10 @@ export function assertGraphCatalogV2(
       );
     }
     graphIds.add(graphId);
+    if (graph.renderer === "cycle-waveform") {
+      assertPortableModelIdentifierV2(graph.derivationId, `${definitionPath}.derivationId`);
+      continue;
+    }
     if (graph.renderer === "structural-return") {
       assertPortableModelIdentifierV2(
         graph.analysisId,

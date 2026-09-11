@@ -12,7 +12,7 @@ import { qualifyMainWirePreloadReserveAdmissionV1 as assessReserve } from "@/ana
 import { compareMainWirePressureRateObservationsV1 as comparePressureRate } from "./MainWireBaselinePressureRateQualityV1";
 import { measureMainWireRelaxationTauV1 as tau, assertMainWireRelaxationTauMeasuredV1 as assertTau,
   assertMainWireRelaxationTraceReviewedV1 as assertRelaxation } from "./MainWireRelaxationTauV1";
-import { observeMainWireBaselineV2 as observe } from "./MainWireBaselineObservationV2";
+import { observeMainWireBaselineV2 as observe, MainWireBaselineObservationUnavailableErrorV2 } from "./MainWireBaselineObservationV2";
 import { mainWireStandard70TimingAndInletObservationTraceV1 as observationTrace } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3 as periodic,
   MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3 as numerical } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
@@ -36,7 +36,16 @@ export async function runMainWireStaticBaselineQualificationGridV1(request: Read
   if (fitResult.status !== "saved-result-ready") return { qualifierId, modelId, status: "grid-failed" as const, fitResult };
   const result = fitResult.result, d = result.execution.diagnostics;
   const issues: string[] = [];
-  const samples = observationTrace(d), native = observe({ samples, completedBeat: d.completedBeat });
+  const samples = observationTrace(d);
+  let native: ReturnType<typeof observe>;
+  try { native = observe({ samples, completedBeat: d.completedBeat }); }
+  catch (error) {
+    if (!(error instanceof MainWireBaselineObservationUnavailableErrorV2)) throw error;
+    // A measurement hold must not erase its converged raw evidence or turn
+    // into an unexplained worker-process failure.
+    return { qualifierId, modelId, status: "grid-observation-held" as const, result,
+      issue: { code: error.code, side: error.side, message: error.message }, wallTimeMs: performance.now() - started };
+  }
   const relaxation = tau(samples, native.left.events);
   try { assertTau(relaxation); assertRelaxation(relaxation); }
   catch (error) { issues.push(error instanceof Error ? error.message : String(error)); }
@@ -67,7 +76,10 @@ export async function assessMainWireStaticBaselineQualificationV1(input: Readonl
   for (const [key, dt] of [["coarse", .002], ["fine", .001]] as const) {
     const grid = grids[key];
     require(grid.qualifierId === qualifierId && grid.modelId === modelId, `${key}:identity`);
-    if (grid.status !== "grid-evaluated") { issues.push(`${key}:execution-failed`); continue; }
+    if (grid.status !== "grid-evaluated") {
+      issues.push(grid.status === "grid-observation-held" ? `${key}:observation:${grid.issue.code}` : `${key}:execution-failed`);
+      continue;
+    }
     const result = await read(grid.result), d = result.execution.diagnostics;
     require(result.policyIdentitySha256 === await policyIdentity("baseline"), `${key}:current-policy-binding`);
     require(result.requestIdentitySha256 === await hash({ modelId, sourceSha256: result.sourceSha256,

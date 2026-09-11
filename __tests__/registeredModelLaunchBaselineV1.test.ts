@@ -4,11 +4,13 @@ import { resolveRegisteredModelLaunchCheckpointV1, resolveRegisteredModelLaunchD
 import { mainWireStaticCaseFittingSeedV1 } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
 import { registeredCurrentBaselinePresentationV1 } from "@/studio/presentation/CurrentBaselinePresentationV1";
 import { loadStudioLocalCurrentClientCompositionV1 as localComposition,
+  loadStudioLocalResearchClientCompositionV1 as researchComposition,
   loadStudioDefaultClientCompositionV2, loadStudioExperimentClientCompositionV2,
   loadStudioSnapshotClientCompositionV2, invalidateStudioClientCompositionCachesV2 } from "@/studio/composition/StudioDefaultCompositionV2";
 import * as releaseResolvers from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import currentSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
+import researchSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 import descriptor from "@/data/model-releases/CurrentModelReleaseV1";
 import lock from "@/data/model-releases/standard73/publication.json";
 import savedCurrentDocument from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.json";
@@ -16,8 +18,42 @@ import { materializeExactModelControlValuesV1 } from "@/studio/application/model
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import { CURRENT_BASELINE_V1 as adopted } from "@/data/model-baselines/CurrentBaselineV1";
 import selected from "@/data/model-baselines/current-baseline-selection-v1.json";
+import { localResearchPresetsV1, STUDIO_LOCAL_RESEARCH_PRESET_ARTIFACT_V1 } from "@/studio/application/dev/StudioLocalResearchPresetsV1";
 
 describe("current Standard73 launch baseline", () => {
+  it("uses the pressure-crossing Surface only for the explicit local research composition", async () => {
+    const production = await localComposition(), research = await researchComposition();
+    expect(production.modelSurface.identity.surfaceReleaseId).toBe(currentSurface.surfaceReleaseId);
+    expect(research.modelSurface.identity.surfaceReleaseId).toBe(researchSurface.surfaceReleaseId);
+    expect(research.exactModel.defaultCheckpoint).toBe(baseline.checkpoint);
+    expect(research.modelSurface.contract.controlCatalog).toEqual(production.modelSurface.contract.controlCatalog);
+    expect(research.modelSurface.analysis.periodicPvaDerivation?.methodId).not.toBe(production.modelSurface.analysis.periodicPvaDerivation?.methodId);
+    expect(production.presets).toHaveLength(2);
+    expect(research.presets).toHaveLength(4);
+    expect(research.presets!.slice(0, 2)).toEqual(production.presets);
+    expect(research.presets!.slice(2).map(p => p.title)).toEqual(["AS · 弁狭窄のみ・高勾配", "AS · 低EF・低流量・低勾配"]);
+  });
+  it("keeps settled AS research captures distinct from production and matched to their normal-valve inputs", async () => {
+    const production = await localComposition();
+    const presets = localResearchPresetsV1(baseline.modelId, STUDIO_LOCAL_RESEARCH_PRESET_ARTIFACT_V1);
+    expect(presets[0]!.description).not.toContain("PVAが出ない");
+    expect(() => localResearchPresetsV1("other-model", STUDIO_LOCAL_RESEARCH_PRESET_ARTIFACT_V1)).toThrow(/revalidation/);
+    expect(() => localResearchPresetsV1(baseline.modelId, "other-build")).toThrow(/revalidation/);
+    for (const [i, p] of presets.entries()) {
+      const { checkpointSha256, ...body } = p.capture.checkpoint.payload as Record<string, unknown>;
+      expect(await sha256CanonicalJsonHex(body)).toBe(checkpointSha256);
+      expect(checkpointSha256).toBe([
+        "f520d1aed1c19838af986ee082eec3bd2cb0b96b475f754d8be471ecfad4a1d0",
+        "8afed77d2f489b75b968e1104193e8a9f72066ab35e99bd513d0f394a7716a16",
+      ][i]);
+      expect(p.capture.checkpoint.acceptedTimeSec).toBeGreaterThan(40);
+      const f = structuredClone(p.capture.fixture) as typeof descriptor.defaultFixture;
+      expect(f.mechanismResearchInputs.valveAreas.AoV.maximumForwardEoaCm2).toBe(.8);
+      f.mechanismResearchInputs.valveAreas.AoV.maximumForwardEoaCm2 = 3.5;
+      expect(f).toEqual(production.presets![i]!.capture.fixture);
+      expect(production.presets!.some(existing => existing.presetId === p.presetId)).toBe(false);
+    }
+  });
   afterEach(() => { vi.restoreAllMocks(); invalidateStudioClientCompositionCachesV2(); });
   it("binds own settled capture to the reviewed fixture and fitting selection", async () => {
     const { recordSha256, ...recordBody } = adopted;

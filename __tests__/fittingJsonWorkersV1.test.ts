@@ -57,4 +57,35 @@ describe("bounded fitting JSON process transport", () => {
     expect(children.every(c => c.kill.mock.calls.length === 1)).toBe(true);
     expect(process.listenerCount("SIGTERM")).toBe(listeners);
   });
+  it("saves each completion before reusing its slot, without waiting for siblings", async () => {
+    let saved!: () => void;
+    const storage = new Promise<void>(resolve => { saved = resolve; });
+    const onResult = vi.fn(async (_value: number, index: number) => { if (index === 1) await storage; });
+    const pending = run<number>({ scriptPath: "x", jobs: jobs(), concurrency: 2, onResult });
+    children[1]!.finish("1"); await Promise.resolve();
+    expect(onResult).toHaveBeenCalledWith(1, 1);
+    expect(children).toHaveLength(2);
+    saved(); await storage; await Promise.resolve();
+    expect(children).toHaveLength(3);
+    children[2]!.finish("2"); children[0]!.finish("0");
+    expect(await pending).toEqual([0, 1, 2]);
+  });
+  it("optionally isolates a failed job while preserving its failure and all other outcomes", async () => {
+    const onResult = vi.fn(async () => {});
+    const pending = run<number | string>({ scriptPath: "x", jobs: jobs(), concurrency: 2,
+      onFailure: async error => error.message, onResult });
+    children[0]!.finish("bad-json");
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    expect(children).toHaveLength(3); expect(children[1]!.kill).not.toHaveBeenCalled();
+    children[2]!.finish("2"); children[1]!.finish("1");
+    expect(await pending).toEqual([expect.stringContaining("invalid JSON"), 1, 2]);
+    expect(onResult).toHaveBeenCalledTimes(3);
+  });
+  it("does not isolate a persistence failure as a physiological or process result", async () => {
+    const pending = run({ scriptPath: "x", jobs: jobs(), concurrency: 2,
+      onFailure: async () => ({ ignored: true }), onResult: async () => { throw new Error("disk full"); } });
+    const rejected = expect(pending).rejects.toThrow("disk full");
+    children[0]!.finish("{}"); await rejected;
+    expect(children).toHaveLength(2); expect(children[1]!.kill).toHaveBeenCalled();
+  });
 });

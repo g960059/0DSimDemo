@@ -116,6 +116,12 @@ const SAMPLE_MS_V3 = boundedEnvironmentIntegerV3(
   300_000,
 );
 const ENFORCE_BUDGETS_V3 = process.env.CIRCLEHEART_PERF_ENFORCE === "1";
+const AS_PRESET_V1 = process.env.CIRCLEHEART_PERF_AS;
+if (AS_PRESET_V1 !== undefined && AS_PRESET_V1 !== "high" && AS_PRESET_V1 !== "low") {
+  throw new Error("CIRCLEHEART_PERF_AS must be high or low");
+}
+const AS_TITLE_V1 = AS_PRESET_V1 === "high" ? "AS · 弁狭窄のみ・高勾配"
+  : AS_PRESET_V1 === "low" ? "AS · 低EF・低流量・低勾配" : undefined;
 
 test("measures exact live Workbench throughput under background contention", async ({
   page,
@@ -124,7 +130,7 @@ test("measures exact live Workbench throughput under background contention", asy
   const scenarioCount = boundedEnvironmentIntegerV3(
     "CIRCLEHEART_PERF_SCENARIOS",
     profile.defaultScenarioCount,
-    1,
+    AS_TITLE_V1 ? 2 : 1,
     4,
   );
   const cdp = await page.context().newCDPSession(page);
@@ -151,7 +157,7 @@ test("measures exact live Workbench throughput under background contention", asy
       / threadCalibrationBefore.dedicatedWorkerMs,
   });
 
-  await page.goto("/ja/experiments/new?workbenchPerf=1");
+  await page.goto(AS_TITLE_V1 ? "/ja/dev/model-lab?workbenchPerf=1" : "/ja/experiments/new?workbenchPerf=1");
   const root = page.getByTestId("v3-dockview-workbench");
   await expect(root).toBeVisible();
   await expect(root).toHaveAttribute(
@@ -176,6 +182,9 @@ test("measures exact live Workbench throughput under background contention", asy
   await page.waitForTimeout(WARMUP_MS_V3);
   const concurrentStartup = await measureWindowV3(page, SAMPLE_MS_V3);
   const controlLatencyMs = await measureControlLatencyV3(page);
+  const controlTimings = Object.fromEntries(Object.entries(
+    (await performanceSnapshotV3(page)).metrics,
+  ).filter(([name]) => name.startsWith("runtime.control.")));
   const postControlContention = await measureWindowV3(page, SAMPLE_MS_V3);
   const runtimeMetricsAfter = await browserPerformanceMetricsV3(cdp);
 
@@ -194,11 +203,15 @@ test("measures exact live Workbench throughput under background contention", asy
         + "dedicated-worker-unthrottled",
     threadThrottleProbe,
     scenarioCount,
+    researchPreset: AS_PRESET_V1 ?? null,
+    optionalAsOutputsSelected: AS_TITLE_V1 !== undefined,
     environment,
     warmupMs: WARMUP_MS_V3,
     sampleMs: SAMPLE_MS_V3,
     concurrentStartup,
     controlLatencyMs,
+    controlLatencyMeasurement: "native-keyup-to-accepted-checkpoint-dom-mutation",
+    controlTimings,
     postControlContention,
     browserMetrics: Object.freeze({
       before: runtimeMetricsBefore,
@@ -285,6 +298,26 @@ async function ensureScenarioCountV3(
     name: /Scenarioメニュー:/,
   });
   await expect(menuButtons).toHaveCount(1);
+  if (AS_TITLE_V1) {
+    await scenarioHost.getByRole("button", { name: "Presetから追加", exact: true }).click();
+    await page.getByRole("menu", { name: "Presetから追加", exact: true })
+      .getByRole("menuitem").filter({ hasText: AS_TITLE_V1 }).click();
+    await expect(menuButtons).toHaveCount(2);
+    if (mobile) {
+      await mobileTaskDeck.getByRole("tab", { name: "出力", exact: true }).click();
+      await mobileTaskDeck.locator(".workbench-mobile-pane-group-settings").first().click();
+    } else {
+      await page.getByRole("button", { name: "Pane設定: Outputs", exact: true }).click();
+      await page.getByRole("menu", { name: "Outputs", exact: true })
+        .getByRole("menuitem", { name: "Pane設定", exact: true }).click();
+    }
+    const settings = page.getByRole("dialog", { name: "Pane設定" });
+    await settings.getByRole("button", { name: "AS関連の5項目を追加", exact: true }).click();
+    await settings.getByRole("button", { name: "完了", exact: true }).click();
+    await expect(page.locator('[data-output-id="hemodynamics.velocity.peak-quasi-steady-jet.AoV"]'))
+      .toHaveAttribute("data-output-availability", "available");
+    if (mobile) await openMobileScenarioManagerV3(mobileTaskDeck);
+  }
   while (await menuButtons.count() < targetCount) {
     const before = await menuButtons.count();
     const baseline = scenarioHost.getByRole("button", {
@@ -420,18 +453,53 @@ async function measureControlLatencyV3(page: Page): Promise<number> {
   }).first();
   await slider.scrollIntoViewIfNeeded();
   const initial = await acceptedCheckpointV3(page);
-  const startedAtMs = Date.now();
+  const measureName = "circleheart.perf.control-to-accepted-dom";
+  await slider.evaluate((element, { initial, measureName }) => {
+    const root = document.querySelector('[data-testid="v3-dockview-workbench"]');
+    if (root === null) throw new Error("Workbench root is unavailable");
+    const startMark = `${measureName}.start`;
+    const endMark = `${measureName}.end`;
+    performance.clearMarks(startMark);
+    performance.clearMarks(endMark);
+    performance.clearMeasures(measureName);
+    let started = false;
+    // The slider commits on keyup. Observe that native event before React's
+    // handler, then timestamp the accepted checkpoint's actual DOM update.
+    // Playwright's 100/250/500-ms polling used to dominate this measurement.
+    const onKeyUp = (event: Event) => {
+      if ((event as KeyboardEvent).key !== "ArrowRight" || started) return;
+      started = true;
+      performance.mark(startMark);
+    };
+    const observer = new MutationObserver(() => {
+      if (!started
+        || Number(root.getAttribute("data-input-epoch")) <= initial.inputEpoch
+        || Number(root.getAttribute("data-accepted-revision")) <= 0
+        || Number(root.getAttribute("data-model-time-sec")) <= 0) return;
+      performance.mark(endMark);
+      performance.measure(measureName, startMark, endMark);
+      cleanup();
+    });
+    const cleanup = () => {
+      observer.disconnect();
+      element.removeEventListener("keyup", onKeyUp, true);
+      window.clearTimeout(timeout);
+    };
+    const timeout = window.setTimeout(cleanup, 10_000);
+    element.addEventListener("keyup", onKeyUp, true);
+    observer.observe(root, { attributes: true, attributeFilter: [
+      "data-input-epoch", "data-accepted-revision", "data-model-time-sec",
+    ] });
+  }, { initial, measureName });
   await slider.press("ArrowRight");
 
   // Current exact controls may continue from a qualified checkpoint instead
-  // of rewinding time. Measure the accepted new epoch, not a retired reset ABI.
-  await expect.poll(async () => {
-    const current = await acceptedCheckpointV3(page);
-    return current.inputEpoch > initial.inputEpoch
-      && current.acceptedRevision > 0
-      && current.acceptedTimeSec > 0;
-  }).toBe(true);
-  return Date.now() - startedAtMs;
+  // of rewinding time. Poll only for completion, never to measure latency.
+  await page.waitForFunction((name) =>
+    performance.getEntriesByName(name, "measure").length === 1,
+  measureName, { timeout: 10_000 });
+  return page.evaluate((name) =>
+    performance.getEntriesByName(name, "measure")[0]!.duration, measureName);
 }
 
 function evaluatePerformanceBudgetV3(

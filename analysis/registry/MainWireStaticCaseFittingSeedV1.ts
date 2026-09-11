@@ -1,15 +1,17 @@
-import { MAIN_WIRE_STANDARD71_BASELINE_HEMODYNAMIC_INPUTS_V1 as hemodynamics,
-  MAIN_WIRE_STANDARD71_BASELINE_MECHANISM_INPUTS_V1 as mechanism } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
-import type { MainWireStaticCaseCandidateV1, MainWireCaseReferenceIdV1 } from "@/analysis/methods/mainWire/MainWireStaticCaseFittingWorkflowV1";
+import { CURRENT_MODEL_PRESETS_V1 } from "@/data/model-releases/CurrentModelReleaseV1";
+import { resolveMainWireStaticCaseDefinitionV1 as definition,
+  type MainWireStaticCaseCandidateV1, type MainWireCaseReferenceIdV1 } from "./MainWireStaticCaseDefinitionsV1";
+import { canonicalJsonStringify as canonical } from "@/engine/integrity";
+import { MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1 as template }
+  from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
 
-/** Input suggestions from the selected finite-case study, not physiology
- * targets, registered presets, or a license to relabel an older checkpoint. */
+/** Starting inputs have one adopted source. This never reuses its checkpoint. */
 export function mainWireStaticCaseFittingSeedV1(referenceId: MainWireCaseReferenceIdV1): MainWireStaticCaseCandidateV1 {
-  if (referenceId !== "baseline" && referenceId !== "hfref-chronic-dilated-v1") throw new Error("Unsupported case reference");
-  const hfref = referenceId === "hfref-chronic-dilated-v1";
-  return { anatomyId: hfref ? "dilated-lv-v1" : "baseline-v1", ventricularContractilityScale: 1,
-    hemodynamicResearchInputs: { ...hemodynamics, systemicResistance: hfref ? 1.2 : hemodynamics.systemicResistance },
-    mechanismResearchInputs: { ...mechanism, chamberMechanics: { ...mechanism.chamberMechanics,
-      activeTensionScaleByWall: { ...mechanism.chamberMechanics.activeTensionScaleByWall,
-        LVFW: hfref ? .35 : 1, SEP: hfref ? .35 : 1 } } } };
+  const d = definition(referenceId), preset = CURRENT_MODEL_PRESETS_V1.find(p => p.presetId === d.adoptedPresetId);
+  if (!preset) throw new Error(`Adopted case is missing: ${d.adoptedPresetId}`);
+  const fixture = preset.capture.fixture as unknown as Record<string, unknown>;
+  for (const key of ["rhythm", "coronary", "dynamicMechanicalSupport"] as const)
+    if (canonical(fixture[key]) !== canonical(template[key])) throw new Error(`Adopted case has unsupported fixed ${key}`);
+  return d.ownInputs({ anatomyId: fixture.anatomyId, ventricularContractilityScale: 1,
+    hemodynamicResearchInputs: fixture.hemodynamicResearchInputs, mechanismResearchInputs: fixture.mechanismResearchInputs } as MainWireStaticCaseCandidateV1);
 }

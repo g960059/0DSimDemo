@@ -1,4 +1,4 @@
-import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
+import { mainWireFormalPvAnalysisIdV1 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import type { ExperimentSurfaceV2 } from "@/studio/contracts/v2/content";
 import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 import type {
@@ -135,11 +135,12 @@ export function workbenchStructuralAnalysisRenderableV3(
 export function workbenchStructuralHistoryAnalysisIdsV3(
   surface: ExperimentSurfaceV2 | null,
   contract: ModelContractV2 | null,
+  sourceAnalysisId: string = mainWireFormalPvAnalysisIdV1(),
 ): readonly string[] {
   if (surface === null || contract === null) return Object.freeze([]);
   const analysisIds = new Set<string>();
   for (const pane of surface.graphPanes) {
-    if ((pane.historyDepth ?? 0) <= 0) continue;
+    if ((pane.historyDepth ?? 1) <= 0) continue;
     const graph = contract.graphCatalog.find(
       ({ graphId }) => graphId === pane.graphId,
     );
@@ -149,7 +150,7 @@ export function workbenchStructuralHistoryAnalysisIdsV3(
         pane.pressureVolumeAnalysisMode !== "raw-exact-orbit")
     ) {
       analysisIds.add(
-        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+        sourceAnalysisId,
       );
     }
   }

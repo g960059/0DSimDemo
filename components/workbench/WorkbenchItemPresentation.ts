@@ -8,7 +8,7 @@ import {
   outputLabelV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import type { MainWirePeriodicPvaV1 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
-import { mainWireCardiacCycleOutputValueV1, mainWireFillingFlowOutputValueV1 } from "@/analysis/methods/mainWire/MainWireCardiacCyclePresentationV1";
+import { mainWireCardiacCycleOutputValueV1, mainWireFillingFlowOutputValueV1, mainWireAorticJetOutputValueV1 } from "@/analysis/methods/mainWire/MainWireCardiacCyclePresentationV1";
 import {
   MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
   MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
@@ -307,7 +307,8 @@ export function materializeWorkbenchOutputPresentationItemsV3(
     const definition = outputById.get(item.outputId);
     if (definition === undefined) continue;
     const observation = mainWireCardiacCycleOutputValueV1(input.presentationAnalyses, input.frame, item.outputId)
-      ?? mainWireFillingFlowOutputValueV1(input.presentationAnalyses, input.frame, item.outputId);
+      ?? mainWireFillingFlowOutputValueV1(input.presentationAnalyses, input.frame, item.outputId)
+      ?? mainWireAorticJetOutputValueV1(input.presentationAnalyses, input.frame, item.outputId);
     const outputValue =
       workbenchPeriodicPvaOutputValueV3(input.periodicPva, item.outputId)
       ?? observation

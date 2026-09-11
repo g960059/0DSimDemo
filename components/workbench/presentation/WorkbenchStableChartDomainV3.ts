@@ -207,7 +207,9 @@ export function nextStableNumericDomainStateV3(
     0.4,
   );
   const inset = previousSpan * insetFraction;
-  const safelyInset = observed[0] >= previous.domain[0] + inset
+  const fixedZeroFloor = observed[0] === 0 && previous.domain[0] === 0
+    && (options.includeZero === true || options.softZeroFloor === true);
+  const safelyInset = (fixedZeroFloor || observed[0] >= previous.domain[0] + inset)
     && observed[1] <= previous.domain[1] - inset;
   const canContract = candidateSpan <= previousSpan * spanRatio && safelyInset;
   const contractionCommitCount = canContract

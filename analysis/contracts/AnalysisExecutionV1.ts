@@ -2,6 +2,8 @@ import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
+import type { ScenarioCaptureV2 } from "@/studio/contracts/v2/content";
+import type { ModelSurfaceReleaseManifestV1 } from "@/studio/contracts/v2/modelSurface";
 
 export type AnalysisExecutionRequestV1 = Readonly<{
   runtimeSessionId: string;
@@ -28,6 +30,10 @@ export type LegacyExactAnalysisExecutionPortV1 = Readonly<{
 export type AnalysisExecutionSourceV1 = Readonly<{
   acceptedFrame: StudioSimulationFrameV2;
   legacyExact: LegacyExactAnalysisExecutionPortV1 | null;
+  surfaceRelease?: ModelSurfaceReleaseManifestV1;
+  /** Detached exact-owned capture, created lazily on the accepted boundary.
+   * Capturing never advances, resets, or lends the live numerical session. */
+  capture?: () => Promise<Readonly<{ artifactRevisionId: string; scenario: ScenarioCaptureV2 }>>;
 }>;
 
 /** Analysis-owned execution boundary selected independently of an exact model. */

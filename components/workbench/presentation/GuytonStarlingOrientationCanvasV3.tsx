@@ -1,7 +1,9 @@
 import React from "react";
+import { useAppTheme } from "@/appTheme";
 import { useTranslation } from "react-i18next";
 import { LoaderCircle } from "lucide-react";
 import { workbenchLoadRelationDescriptionV1 } from "./WorkbenchLoadRelationDescriptionV1";
+import { WorkbenchAnalysisErrorPopoverV3 } from "./WorkbenchAnalysisErrorPopoverV3";
 
 import type {
   MainWireIntegratedModelGuytonSideV3,
@@ -86,8 +88,12 @@ export function structuralReturnOrientationFromPayloadV3(
 
 export function guytonStarlingPlotDomainV3(
   orientation: MainWireIntegratedModelStructuralReturnOrientationV3,
-  _historyOrientations: readonly MainWireIntegratedModelStructuralReturnOrientationV3[] = [],
+  historyOrientations: readonly MainWireIntegratedModelStructuralReturnOrientationV3[] = [],
 ): GuytonStarlingPlotDomainV3 {
+  if (historyOrientations.length > 0) return unionGuytonStarlingDomainsV3([
+    guytonStarlingPlotDomainV3(orientation),
+    ...historyOrientations.filter(previous => previous.side === orientation.side).map(previous => guytonStarlingPlotDomainV3(previous)),
+  ]);
   const starling =
     orientation.starlingLocus.status === "requires-protocol"
       ? []
@@ -223,6 +229,8 @@ export type GuytonStarlingComparisonTraceV3 = Readonly<{
   color: string;
   orientation: MainWireIntegratedModelStructuralReturnOrientationV3;
   orientationAlpha?: number;
+  stale?: boolean;
+  error?: string | null;
   pending?: boolean;
   historyOrientations?: readonly MainWireIntegratedModelStructuralReturnOrientationV3[];
 }>;
@@ -239,11 +247,13 @@ export function guytonStarlingComparisonPlotDomainV3(
       "Guyton / Starling comparison cannot mix circulation sides",
     );
   }
-  // Historical traces are clipped into the current comparison viewport. A
-  // prior extreme parameter state must never make today's curves unreadable.
-  const domains = traces.map(({ orientation }) =>
-    guytonStarlingPlotDomainV3(orientation),
-  );
+  // Only the pane's selected (bounded) history participates in comparison.
+  return unionGuytonStarlingDomainsV3(traces.map(({ orientation, historyOrientations }) =>
+    guytonStarlingPlotDomainV3(orientation, historyOrientations),
+  ));
+}
+
+function unionGuytonStarlingDomainsV3(domains: readonly GuytonStarlingPlotDomainV3[]): GuytonStarlingPlotDomainV3 {
   return Object.freeze({
     pressureMinimumMmHg: Math.min(
       ...domains.map((domain) => domain.pressureMinimumMmHg),
@@ -292,16 +302,19 @@ export function GuytonStarlingOrientationCanvasV3({
 export function GuytonStarlingComparisonCanvasV3({
   traces,
   className,
+  onRetryAnalysis,
   recalculatingLabel = "Recalculating Guyton / Starling",
 }: Readonly<{
   traces: readonly GuytonStarlingComparisonTraceV3[];
   className?: string;
+  onRetryAnalysis?: () => boolean;
   recalculatingLabel?: string;
 }>) {
   if (traces.length === 0) {
     throw new Error("Guyton / Starling comparison requires one Scenario");
   }
   const firstTrace = traces[0]!;
+  const { appTheme } = useAppTheme();
   const { i18n } = useTranslation();
   const side = firstTrace.orientation.side;
   if (traces.some(({ orientation }) => orientation.side !== side)) {
@@ -324,8 +337,8 @@ export function GuytonStarlingComparisonCanvasV3({
   const selection = visibleTraces.some((trace) =>
     workbenchLegendSelectionMatchesTraceV3(hoveredSelection, descriptor(trace))) ? hoveredSelection : null;
   const domain = React.useMemo(
-    () => guytonStarlingComparisonPlotDomainV3(traces),
-    [traces],
+    () => guytonStarlingComparisonPlotDomainV3(visibleTraces.length === 0 ? traces : visibleTraces),
+    [traces, hiddenSelections],
   );
   const draw = React.useCallback(
     (context: CanvasRenderingContext2D, width: number, height: number) => {
@@ -398,7 +411,7 @@ export function GuytonStarlingComparisonCanvasV3({
       });
       context.restore();
     },
-    [domain, side, traces, selection, hiddenSelections],
+    [appTheme, domain, side, traces, selection, hiddenSelections],
   );
   useResponsiveCanvasFrameV3(
     containerRef,
@@ -412,6 +425,9 @@ export function GuytonStarlingComparisonCanvasV3({
   const singleProgress =
     traces.length === 1 ? starlingProgressV3(firstTrace.orientation) : null;
   const pendingTraces = traces.filter(({ pending }) => pending === true);
+  const hasPrevious = visibleTraces.some(trace => trace.stale || (trace.historyOrientations?.length ?? 0) > 0);
+  const staleLabels = visibleTraces.filter(trace => trace.stale).map(trace => trace.scenarioLabel);
+  const analysisError = visibleTraces.filter(trace => trace.error).map(trace => `${trace.scenarioLabel}: ${trace.error}`).join("\n");
   return (
     <div
       className={`flex min-h-56 h-full w-full flex-col overflow-hidden ${className ?? ""}`}
@@ -420,7 +436,7 @@ export function GuytonStarlingComparisonCanvasV3({
       data-structural-semantics={firstTrace.orientation.semantics}
       data-scenario-count={traces.length}
       data-history-count={traces.reduce(
-        (total, trace) => total + (trace.historyOrientations?.length ?? 0),
+        (total, trace) => total + (trace.historyOrientations?.length ?? 0) + Number(trace.stale === true),
         0,
       )}
       data-starling-status={singleProgress?.status}
@@ -430,6 +446,7 @@ export function GuytonStarlingComparisonCanvasV3({
       data-starling-hypovolemic-point-count={singleProgress?.hypovolemic}
       data-starling-hypervolemic-point-count={singleProgress?.hypervolemic}
       data-pending-scenario-count={pendingTraces.length}
+      data-stale-scenario-count={visibleTraces.filter(trace => trace.stale).length}
       data-visible-scenario-count={visibleTraces.length}
       data-starling-display-extrapolation="none"
       data-pressure-minimum-mmhg={domain.pressureMinimumMmHg}
@@ -443,13 +460,21 @@ export function GuytonStarlingComparisonCanvasV3({
           current.some((item) => JSON.stringify(item) === JSON.stringify(candidate))
             ? current.filter((item) => JSON.stringify(item) !== JSON.stringify(candidate))
             : [...current, candidate])} />
+      {hasPrevious && <div className="flex items-center gap-1.5 px-3 pb-0.5 text-[10px] text-wb-subtle" data-chart-history-key="true">
+        <span aria-hidden="true" className="w-4 border-t border-current opacity-40" />
+        <span>{i18n.language?.startsWith("ja") ? "薄い線：変更前" : "Faded: previous inputs"}</span>
+        {staleLabels.length > 0 && <span className="sr-only">{staleLabels.join(", ")}: {i18n.language?.startsWith("ja") ? "現在の条件の解析はまだありません。変更前の結果です。" : "No current analysis; showing previous input conditions."}</span>}
+      </div>}
       <div ref={containerRef} className="relative min-h-0 flex-1 overflow-hidden">
       <canvas
         ref={canvasRef}
         className="block h-full w-full"
         role="img"
-        aria-label={`${sideLabel}; ${traces.length} Scenario comparison`}
+        aria-label={`${sideLabel}; ${traces.length} Scenario comparison${staleLabels.length === 0 ? "" : `; previous input conditions: ${staleLabels.join(", ")}`}`}
       />
+      {analysisError && <WorkbenchAnalysisErrorPopoverV3 error={analysisError} onRetry={onRetryAnalysis}
+        label={i18n.language?.startsWith("ja") ? "解析を更新できませんでした" : "Analysis update unavailable"}
+        testId="workbench-structural-analysis-error" />}
       {pendingTraces.length > 0 && traces.length > 1 && (
         <div
           className="pointer-events-none absolute right-2 top-2 flex gap-2 text-[10px] text-wb-muted"
@@ -503,8 +528,9 @@ export function GuytonStarlingComparisonCanvasV3({
           <span
             key={trace.scenarioId}
             data-starling-scenario-id={trace.scenarioId}
-            data-starling-history-count={trace.historyOrientations?.length ?? 0}
+            data-starling-history-count={(trace.historyOrientations?.length ?? 0) + Number(trace.stale === true)}
             data-starling-pending={trace.pending === true ? "true" : "false"}
+            data-starling-stale={trace.stale ? "true" : "false"}
           >
             {trace.scenarioLabel}: {starlingStatusTextV3(trace.orientation)}
           </span>
@@ -602,10 +628,7 @@ function guytonHistoryAlphaV3(
   historyIndex: number,
   historyCount: number,
 ): number {
-  return Math.min(
-    0.36,
-    workbenchHistoryAlphaV3(historyIndex, historyCount) * 1.7,
-  );
+  return workbenchHistoryAlphaV3(historyIndex, historyCount);
 }
 
 function starlingProgressV3(

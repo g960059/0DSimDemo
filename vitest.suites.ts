@@ -184,6 +184,14 @@ export const prSmokeTests = [
 ] as const;
 
 export const regressionTests = [
+  "__tests__/fittingRunJournalV1.test.ts",
+  "__tests__/mainWireRegistryCasePreparationV1.test.ts",
+  "__tests__/mainWireRegistryInitialCandidatesV1.test.ts",
+  "__tests__/mainWireAsCaseV1.test.ts",
+  "__tests__/mainWireAsPresentationV1.test.ts",
+  "__tests__/preparedModelAnalysisV1.test.ts",
+  "__tests__/mainWirePressureCrossingAnalysisV1.test.ts",
+  "__tests__/registryCaseDocumentationV1.test.ts",
   "__tests__/mainWireIntegratedStudioStructuralAnalysisV3.test.ts",
   "__tests__/studioNumericalAuthoringV1.test.ts",
   "__tests__/acceptedEventTriggeredIabpActuatorCheckpointV1.test.ts",

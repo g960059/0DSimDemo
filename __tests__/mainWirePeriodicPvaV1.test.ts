@@ -16,6 +16,7 @@ import {
   buildMainWireSystolicPressureEnvelopeV1,
   buildMainWireDiastolicLoadRelationV1,
   mainWirePvaLowVolumeTangentPressureV1,
+  pressureRelationsLeftIntersectionV1,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID,
@@ -35,7 +36,7 @@ import {
 import { MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import {
   PressureVolumeLoopCanvasV3,
-  retainWorkbenchPvRelationDrawingV3,
+  workbenchPvHistoryDescriptionV3,
   workbenchPvMeasuredHighLoadPointsV1,
   drawWorkbenchPvHighLoadIsochroneV1,
   drawWorkbenchPvaAreasV1,
@@ -56,6 +57,18 @@ import * as canvasRuntime from "@/components/workbench/presentation/WorkbenchCan
 import * as chartTraceStyle from "@/components/workbench/presentation/WorkbenchChartTraceStyleV3";
 
 describe("settled hot-start PVA V1", () => {
+  it("keeps the measured right endpoint exact during the PE intersection check", () => {
+    // High-gradient AS launch: the reconstructed endpoint is one ULP beyond
+    // the measured domain. This must not look like a second intersection.
+    const root = 16.313061283923183, end = 94.31853952379744;
+    expect(root + (end - root)).toBeGreaterThan(end);
+    const pressure = (v: number) => v > end ? NaN : v - root;
+    const edpvr = { scale: 0, exponent: .02, volumeOffset: 0, rSquared: 1, parameterBoundaryHit: false };
+    const crossing = pressureRelationsLeftIntersectionV1(pressure, edpvr, 16, end);
+    expect(crossing).toBeCloseTo(root, 12);
+    expect(pressureRelationsLeftIntersectionV1(v => v > 60 ? -1 : pressure(v), edpvr, 16, end)).toBeNull();
+    expect(pressureRelationsLeftIntersectionV1(v => v > 45 && v < 55 ? -1 : pressure(v), edpvr, 16, end)).toBeNull();
+  });
   it("uses the exact case mass only in V14 MVO2, retaining every PV relation and numerical area", () => {
     const locus = formalLocusV1(settledPointsV1());
     const old = buildMainWirePeriodicPvaMethodV13(locus, "LV");
@@ -398,7 +411,7 @@ describe("settled hot-start PVA V1", () => {
     expect(energy).toContain('data-pva-result-count="1"');
   });
 
-  it("keeps a valid measured isochrone visible but exposes the reason when its PE tail is not admitted", () => {
+  it("clips a drawable isochrone to loop-owned axes while exposing why its PE tail is not admitted", () => {
     const available = buildMainWirePeriodicPvaMethodV13(
       formalLocusV1(settledPointsV1([1.16, 1.08, 1, 0.92, 0.84, 0.76, 0.68, 0.6, 0.5])), "LV",
     );
@@ -411,17 +424,27 @@ describe("settled hot-start PVA V1", () => {
         strokeWork: available.strokeWork, espvr: available.espvr, edpvr: available.edpvr,
         potentialEnergy: null, pva: null, estimatedMvo2: null },
     };
-    const traces = [{ scenarioId: "a", scenarioLabel: "A", chamberId: "LV", chamberLabel: "LV", samples: [],
+    const samples = [[40, 10], [38, 60], [30, 60], [20, 50], [20, 5], [26, 5], [35, 7], [40, 10], [40, 10]].map(([volume, pressure], index) => ({
+      inputEpoch: 0, acceptedRevision: index, acceptedTimeSec: index / 8, presentationTimeSec: index / 8,
+      values: { "LV.volume": volume!, "LV.pressure": pressure!, phase: (index % 8) / 8 },
+    }));
+    const traces = [{ scenarioId: "a", scenarioLabel: "A", chamberId: "LV", chamberLabel: "LV", samples,
       volumeOutputId: "LV.volume", pressureOutputId: "LV.pressure", pressureBasis: "transmural" as const,
       cyclePhaseOutputId: "phase", chamberColor: "#d9822b", periodicPva: unavailable }];
-    // Execute the canvas callback: a retained drawing count alone cannot
-    // detect a valid low-volume isochrone clipped by the automatic domain.
+    // Execute the canvas callback: auxiliary support outside the live loop's
+    // viewport must be clipped, not widen the axes or paint over the labels.
     const context = new Proxy({ measureText: () => ({ width: 20 }) }, {
       get: (target, key) => key in target ? (target as any)[key] : vi.fn(),
     }) as unknown as CanvasRenderingContext2D;
     let pathXs: number[] = [];
     const isochronePaths: number[][] = [];
     let clipBounds: readonly [number, number] | undefined;
+    let clipped = false;
+    const clipStack: boolean[] = [];
+    const isochroneClips: boolean[] = [];
+    context.save = vi.fn(() => { clipStack.push(clipped); });
+    context.restore = vi.fn(() => { clipped = clipStack.pop() ?? false; });
+    context.clip = vi.fn(() => { clipped = true; });
     context.beginPath = vi.fn(() => { pathXs = []; });
     context.moveTo = vi.fn((x) => { pathXs.push(x); });
     context.lineTo = vi.fn((x) => { pathXs.push(x); });
@@ -429,6 +452,7 @@ describe("settled hot-start PVA V1", () => {
     context.stroke = vi.fn(() => {
       if (context.lineWidth === 1.5 && pathXs.length === available.espvr.curve.length) {
         isochronePaths.push([...pathXs]);
+        isochroneClips.push(clipped);
       }
     });
     const hook = vi.spyOn(canvasRuntime, "useResponsiveCanvasFrameV3").mockImplementation((_root, _canvas, draw) => {
@@ -441,7 +465,10 @@ describe("settled hot-start PVA V1", () => {
     expect(isochronePaths).toHaveLength(1);
     expect(clipBounds).toBeDefined();
     expect(Math.min(...isochronePaths[0]!)).toBeGreaterThanOrEqual(clipBounds![0]);
-    expect(Math.max(...isochronePaths[0]!)).toBeLessThanOrEqual(clipBounds![1]);
+    expect(Math.min(...isochronePaths[0]!)).toBeLessThan(clipBounds![1]);
+    expect(Math.max(...isochronePaths[0]!)).toBeGreaterThan(clipBounds![1]);
+    expect(isochroneClips).toEqual([true]);
+    expect(energy).toContain('data-pv-ready-trace-count="1"');
     expect(energy).toContain('data-pva-drawing-count="1"');
     expect(energy).toContain('data-pva-result-count="0"');
     expect(energy).toContain('data-pv-energy-area-count="0"');
@@ -1155,29 +1182,38 @@ describe("settled hot-start PVA V1", () => {
     expect(html).toContain("PVA ready · Starling extension 5 settled points");
   });
 
-  it("retains the last valid relation drawing only while an update is pending", () => {
-    const previous: Readonly<{ relationId: string }> = Object.freeze({
-      relationId: "settled/five-points",
-    });
+  it.each(["queued", "pending", "failed", "ready"])("preserves old PV relations through %s without promoting them to a current result", state => {
+    const previous = buildMainWirePeriodicPvaMethodV8(formalLocusV1(settledPointsV1()), "LV");
+    const html = renderToStaticMarkup(React.createElement(PressureVolumeLoopCanvasV3, {
+      traces: [{ scenarioId: "scenario/current", scenarioLabel: "Current", samples: [],
+        volumeOutputId: "LV.volume", pressureOutputId: "LV.pressure", pressureBasis: "transmural" as const,
+        cyclePhaseOutputId: "clock.phase", chamberId: "LV", chamberLabel: "LV", chamberColor: "#d9822b",
+        periodicPvaHistory: [{ value: previous, inputEpoch: 0 }], periodicPvaAnalysisPending: state === "pending",
+        ...(state === "failed" ? { periodicPvaAnalysisError: "protocol rejected" } : {}),
+        ...(state === "ready" ? { periodicPva: previous } : {}),
+      }],
+    }));
+    expect(html).toContain(`data-pva-result-count="${state === "ready" ? 1 : 0}"`);
+    expect(html).toContain('data-pva-retained-drawing-count="1"');
+    expect(html).toContain('data-pva-history-input-epochs="0"');
+    expect(html).toContain('data-chart-history-key="true"');
+    expect(html).toContain('data-volume-minimum-ml="0"');
+    expect(html).toContain('data-pressure-minimum-mmhg="0"');
+    if (state === "failed") expect(html).toContain("workbench-pva-analysis-error");
+  });
 
-    expect(retainWorkbenchPvRelationDrawingV3(null, previous, true)).toEqual({
-      drawing: previous,
-      retainedFromPriorUpdate: true,
-    });
-    expect(
-      retainWorkbenchPvRelationDrawingV3(
-        Object.freeze({ relationId: "settled/six-points" }),
-        previous,
-        true,
-      ),
-    ).toMatchObject({
-      drawing: { relationId: "settled/six-points" },
-      retainedFromPriorUpdate: false,
-    });
-    expect(retainWorkbenchPvRelationDrawingV3(null, previous, false)).toEqual({
-      drawing: null,
-      retainedFromPriorUpdate: false,
-    });
+  it("does not relabel an older completed relation as the immediately previous loop", () => {
+    const previous = buildMainWirePeriodicPvaMethodV8(formalLocusV1(settledPointsV1()), "LV");
+    const sample = (inputEpoch: number) => ({ inputEpoch, acceptedRevision: 1, acceptedTimeSec: 0, presentationTimeSec: 0, values: {} });
+    const description = workbenchPvHistoryDescriptionV3({
+      scenarioId: "baseline", scenarioLabel: "baseline", samples: [sample(3)],
+      volumeOutputId: "LV.volume", pressureOutputId: "LV.pressure", pressureBasis: "transmural",
+      cyclePhaseOutputId: "clock.phase", chamberId: "LV", chamberLabel: "LV", chamberColor: "#d9822b",
+      historySampleSets: [[sample(2)]], periodicPvaHistory: [{ value: previous, inputEpoch: 0 }],
+    }, true);
+    expect(description).toContain("3回前の設定: 解析曲線");
+    expect(description).toContain("1回前の設定: PV loop");
+    expect(description).not.toContain("1回前の設定: PV loop / 解析曲線");
   });
 
   it("keeps live SW separate while materializing PE, PVA, and estimated MVO2", async () => {

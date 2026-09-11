@@ -1,4 +1,5 @@
 import React from "react";
+import { STUDIO_AS_OUTPUT_SELECTION_V1 } from "@/studio/presentation/StudioOutputSelectionSetsV1";
 import { createPortal } from "react-dom";
 import {
   ArrowDown,
@@ -25,6 +26,7 @@ import type {
   ExperimentSurfaceOutputPaneV2,
   ExperimentSurfaceV2,
 } from "@/studio/contracts/v2/content";
+import { STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2 } from "@/studio/contracts/v2/content";
 import type {
   GraphDefinitionV2,
   ModelContractV2,
@@ -128,6 +130,9 @@ export type WorkbenchPaneEditorStringsV3 = Readonly<{
   pressureEnvelopeOverlayHint: string;
   pvaBoundaryView: string;
   pvaBoundaryViewHint: string;
+  previousResults: string;
+  previousResultsHint: string;
+  noPreviousResults: string;
   label: string;
   itemsSection: string;
   moveDown: string;
@@ -206,6 +211,9 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     pvaBoundaryView: "PVA",
     pvaBoundaryViewHint:
       "Show the common-time PVA boundary instead of ESPVR. SW and PE are illustrated separately when available; these are not measurements of stored elastic energy.",
+    previousResults: "Previous inputs",
+    previousResultsHint: "Keep up to three earlier loops and available analysis results as faded comparisons, including while an update is pending or fails. 0 hides them.",
+    noPreviousResults: "Off",
     label: "Label",
     itemsSection: "Items",
     moveDown: "Move down",
@@ -250,14 +258,11 @@ export function canonicalWorkbenchColorHexV3(
 
 export function workbenchGraphDisplaySettingsAvailableV3(
   renderer: GraphDefinitionV2["renderer"] | undefined,
-  periodicPvaSupported: boolean,
-  pressureVolumeAnalysisMode?:
+  _periodicPvaSupported: boolean,
+  _pressureVolumeAnalysisMode?:
     ExperimentSurfaceGraphPaneV2["pressureVolumeAnalysisMode"],
 ): boolean {
-  return renderer === "sweep" ||
-    (renderer === "pressure-volume" &&
-      periodicPvaSupported &&
-      pressureVolumeAnalysisMode !== "raw-exact-orbit");
+  return renderer === "sweep" || renderer === "pressure-volume" || renderer === "structural-return";
 }
 
 export function WorkbenchPaneEditorV3({
@@ -448,7 +453,7 @@ export function WorkbenchPaneEditorV3({
       : pane?.role === "control"
         ? strings.controlCatalog
         : pane?.role === "graph" &&
-            graphDefinition?.renderer !== "structural-return"
+            graphDefinition?.renderer !== "structural-return" && graphDefinition?.renderer !== "cycle-waveform"
           ? strings.seriesCatalog
           : strings.dataSection;
   const graphDisplaySettingsAvailable =
@@ -753,6 +758,25 @@ function GraphPaneEditorV3({
           <EditorSectionHeadingV3>
             {strings.displaySection}
           </EditorSectionHeadingV3>
+          {(graph?.renderer === "pressure-volume" || graph?.renderer === "structural-return") && (
+            <fieldset className="space-y-2">
+              <legend className="text-xs font-medium text-wb-text">{strings.previousResults}</legend>
+              <div className="flex gap-1 rounded-lg bg-wb-soft/55 p-1">
+                {Array.from({ length: STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2 + 1 }, (_, depth) => (
+                  <label key={depth} className={`relative flex min-h-9 flex-1 cursor-pointer items-center justify-center rounded-md text-xs ${
+                    (pane.historyDepth ?? 1) === depth ? "bg-wb-selected text-wb-text" : "text-wb-muted hover:bg-wb-hover"}`}>
+                    <input type="radio" name={`previous-inputs-${pane.paneId}`} value={depth}
+                      checked={(pane.historyDepth ?? 1) === depth}
+                      className="peer sr-only"
+                      onChange={() => onChange({ ...pane, historyDepth: depth })} />
+                    <span className="absolute inset-0 rounded-md peer-focus-visible:ring-2 peer-focus-visible:ring-wb-accent" aria-hidden="true" />
+                    {depth === 0 ? strings.noPreviousResults : String(depth)}
+                  </label>
+                ))}
+              </div>
+              <p className="text-[10px] leading-4 text-wb-subtle">{strings.previousResultsHint}</p>
+            </fieldset>
+          )}
           {graph?.renderer === "sweep" && (
             <div className="grid gap-1.5">
               <PaneRangeInputV3
@@ -854,7 +878,7 @@ function GraphPaneEditorV3({
             onChange={onChange}
           />
         )}
-        {graph !== undefined && graph.renderer !== "structural-return" ? (
+        {graph !== undefined && graph.renderer !== "structural-return" && graph.renderer !== "cycle-waveform" ? (
           <CatalogSelectionV3
             emptyText={strings.emptyCatalog}
             entries={graph.seriesCatalog.map((series) => {
@@ -991,8 +1015,8 @@ function GraphTraceVisibilityEditorV3({
   onChange: (pane: ExperimentSurfaceGraphPaneV2) => void;
 }>) {
   const traceItems =
-    graph.renderer === "structural-return"
-      ? [{ seriesId: null, label: "Guyton / Starling" }]
+    graph.renderer === "structural-return" || graph.renderer === "cycle-waveform"
+      ? [{ seriesId: null, label: graph.renderer === "structural-return" ? "Guyton / Starling" : "AV" }]
       : [...pane.series]
           .sort((left, right) => left.order - right.order)
           .map(({ seriesId, label }) => ({
@@ -1195,11 +1219,11 @@ function ScenarioTraceColorEditorV3({
                 {scenario.label}
               </h4>
               <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                {graph.renderer === "structural-return" && (
+                {(graph.renderer === "structural-return" || graph.renderer === "cycle-waveform") && (
                   <TraceColorInputV3
                     colorHex={structuralTraceColor}
                     customized={scenarioTrace?.customColorHex !== undefined}
-                    label="Guyton / Starling"
+                    label={graph.renderer === "cycle-waveform" ? "AV" : "Guyton / Starling"}
                     resetLabel={strings.resetColor}
                     onChange={(colorHex) =>
                       onChange(
@@ -1221,7 +1245,7 @@ function ScenarioTraceColorEditorV3({
                     }
                   />
                 )}
-                {graph.renderer !== "structural-return" &&
+                {graph.renderer !== "structural-return" && graph.renderer !== "cycle-waveform" &&
                   series.map((item) => {
                     const exactTrace = pane.traceColors?.find(
                       (trace) =>
@@ -1344,6 +1368,8 @@ function OutputPaneEditorV3({
     ]),
   );
   const entries = outputPaneItemManagerEntriesV3({ contract, locale, pane });
+  const hasAsSet = STUDIO_AS_OUTPUT_SELECTION_V1.every(id => contract.outputCatalog.some(o => o.outputId === id));
+  const missingAsOutputs = STUDIO_AS_OUTPUT_SELECTION_V1.filter(id => !pane.items.some(i => i.outputId === id));
   return (
     <>
       <section
@@ -1376,6 +1402,15 @@ function OutputPaneEditorV3({
           }
         />
       </section>
+      {hasAsSet && missingAsOutputs.length > 0 && <div className="px-1">
+        <button type="button" className="rounded-md border border-wb-line px-3 py-2 text-sm text-wb-muted hover:text-wb-text"
+          onClick={() => {
+            const order = nextOrderV3(pane.items);
+            onChange({ ...pane, items: [...pane.items, ...missingAsOutputs.map((outputId, index) => ({
+              outputId, label: outputLabelV3(outputId), order: order + index,
+            }))] });
+          }}>{locale === "ja" ? "AS関連の5項目を追加" : "Add 5 AS-related outputs"}</button>
+      </div>}
       <PaneItemManagerV3
         sectionId="pane-settings-data-v3"
         initialItemIntent={initialItemIntent}

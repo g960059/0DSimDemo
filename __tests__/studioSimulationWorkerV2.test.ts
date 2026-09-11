@@ -2007,10 +2007,16 @@ describe("Studio simulation worker V2 runtime", () => {
     const execute = vi.fn<AnalysisExecutorV1["execute"]>(
       async ({ source, request }) => {
         expect(source.acceptedFrame).toMatchObject({
+          runtimeSessionId: request.runtimeSessionId,
           acceptedRevision: request.expectedAcceptedRevision,
           acceptedTimeSec: request.expectedAcceptedTimeSec,
           inputEpoch: request.expectedInputEpoch,
         });
+        const capture = await source.capture!();
+        expect(capture.scenario.checkpoint).toMatchObject({
+          acceptedRevision: request.expectedAcceptedRevision, acceptedTimeSec: request.expectedAcceptedTimeSec,
+        });
+        expect(source.surfaceRelease).toBeDefined();
         return analysisV2({
           analysisId: request.analysisId,
           inputEpoch: request.expectedInputEpoch,

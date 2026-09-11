@@ -12,6 +12,10 @@ import { MainWireFillingFlowCollectorV1 } from "@/analysis/methods/mainWire/Main
 import { buildMainWireFillingFlowMetricsV1 as fillingMetrics, MAIN_WIRE_FILLING_FLOW_METHOD_V1_ID as fillingMethodId,
   MAIN_WIRE_FILLING_FLOW_OUTPUT_IDS_V1 as fillingIds, MAIN_WIRE_FILLING_FLOW_REQUIRED_EXACT_OUTPUT_IDS_V1 as fillingInputs } from "@/analysis/methods/mainWire/MainWireFillingFlowMetricsV1";
 import { mainWireFillingFlowOutputValueV1 } from "@/analysis/methods/mainWire/MainWireCardiacCyclePresentationV1";
+import jetSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV3";
+import { MAIN_WIRE_AORTIC_JET_PRESENTATION_V1_ID as jetMethodId, MAIN_WIRE_AORTIC_JET_PRESENTATION_INPUTS_V1 as jetInputs,
+  MAIN_WIRE_AORTIC_JET_PRESENTATION_OUTPUTS_V1 as jetOutputs, buildMainWireAorticJetPresentationV1 as jetBuild } from "@/analysis/methods/mainWire/MainWireAorticJetPresentationV1";
+import { MAIN_WIRE_VALVE_BLOOD_DENSITY_KG_PER_M3_V2 as rho, MAIN_WIRE_VALVE_PA_PER_MMHG_V2 as pa } from "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
 
 import {
   MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
@@ -25,6 +29,40 @@ import {
 const DT_SEC = 0.002;
 
 describe("bounded presentation analysis collector", () => {
+  it("adds opt-in jet outputs without changing the production Surface or inherited methods", () => {
+    expect(() => assertAdditiveModelSurfaceUpgradeV1(next, jetSurface)).not.toThrow();
+    expect(jetSurface.controlCatalog).toEqual(next.controlCatalog);
+    expect(jetSurface.graphCatalog).toEqual(next.graphCatalog);
+    expect(jetSurface.derivedOutputCatalog).toHaveLength(next.derivedOutputCatalog.length + 8);
+    const old = resolveMainWireAnalysisMethodsForSurfaceV1(next), current = resolveMainWireAnalysisMethodsForSurfaceV1(jetSurface);
+    expect(current.periodicPvaDerivation).toBe(old.periodicPvaDerivation);
+    expect(old.presentationMethods.some(m => m.methodId === jetMethodId)).toBe(false);
+    expect(selectPresentationAnalysisIdsV1([], jetSurface, current.presentationMethods)).toEqual([]);
+    expect(selectPresentationAnalysisIdsV1(jetOutputs.map(o => o.outputId), jetSurface, current.presentationMethods)).toEqual([jetMethodId]);
+  });
+  it("uses the shared bounded collector for jet metrics and rejects missing pressure instead of guessing", () => {
+    const samples = samplesV1().map(s => {
+      const q = s.values["hemodynamics.flow.valve.AoV"]!;
+      return { ...s, values: { ...s.values, "hemodynamics.pressure.absolute.Ao": 80,
+        "hemodynamics.pressure.absolute.LV": 80 + .0015 * q + rho / (2 * pa) * (q / 75) ** 2 } };
+    });
+    const direct = jetBuild(samples);
+    expect(direct.status).toBe("available");
+    expect(direct.values[jetOutputs[0].outputId]).toBeCloseTo(4 / 3, 8);
+    expect(direct.values[jetOutputs[4].outputId]).toBeCloseTo(.5, 8);
+    expect(direct.values[jetOutputs[5].outputId]).toBeCloseTo(.75, 8);
+    expect(direct.values[jetOutputs[7].outputId]).toBeCloseTo(buildMainWireCardiacCycleMetricsV1(samples).status === "available"
+      ? (buildMainWireCardiacCycleMetricsV1(samples) as Extract<ReturnType<typeof buildMainWireCardiacCycleMetricsV1>, { status: "available" }>).aorticEjection.forwardVolumeMl / 1.9 : NaN, 8);
+    let builds = 0;
+    const collector = new MainWireCardiacCycleCollectorV1({ methodId: jetMethodId, requiredIds: jetInputs,
+      build: s => { builds++; return jetBuild(s); } });
+    let last: StudioSimulationAnalysisV2 | undefined;
+    for (let i = 0; i < samples.length; i += 16) last = collector.ingest(sampleBatch(samples.slice(i, i + 16), jetInputs)) ?? last;
+    expect(last?.analysisId).toBe(jetMethodId);
+    expect(last?.payload).toEqual(direct);
+    expect(builds).toBe(2); // Empty result plus one completed cycle, not one calculation per packet.
+    expect(jetBuild(samples.map(s => ({ ...s, values: { ...s.values, "hemodynamics.pressure.absolute.Ao": null } }))).status).toBe("unavailable");
+  });
   it("inherits every current control, graph and PVA method; selection is opt-in", () => {
     expect(() => assertAdditiveModelSurfaceUpgradeV1(previous, next)).not.toThrow();
     const old = resolveMainWireAnalysisMethodsForSurfaceV1(previous);
@@ -116,7 +154,7 @@ describe("bounded presentation analysis collector", () => {
   });
 });
 
-function sampleBatch(samples: readonly MainWireCardiacCycleAcceptedSampleV1[]) {
+function sampleBatch(samples: readonly MainWireCardiacCycleAcceptedSampleV1[], ids: readonly string[] = MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1) {
   const frames: StudioSimulationFrameV2[] = samples.map(s => ({
     modelId: "model/test", runtimeSessionId: "runtime/test", scenarioId: "scenario/test",
     inputEpoch: s.inputEpoch, acceptedRevision: s.acceptedRevision, acceptedTimeSec: s.acceptedTimeSec,
@@ -125,7 +163,7 @@ function sampleBatch(samples: readonly MainWireCardiacCycleAcceptedSampleV1[]) {
       quality: value === null ? "not-assessed" : "authoritative-state",
     }])),
   }));
-  return createStudioSimulationPresentationBatchV2(frames, MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1);
+  return createStudioSimulationPresentationBatchV2(frames, ids);
 }
 
 describe("Flow-event timing and windowed pressure-rate analysis", () => {

@@ -2,86 +2,28 @@ import { canonicalJsonStringify as canonical, cloneAndFreezeCanonicalJson as own
 import { hotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { MainWireStaticCaseSessionV1 as Session } from "@/engine/vnext/MainWireStaticCaseSessionV1";
 import { createMainWireIntegratedModelStaticCaseFixtureV1 as fixtureFor } from "@/engine/myocardium/experiments/MainWireIntegratedModelStaticCaseFixtureV1";
-import type { MainWireStaticCaseAnatomyIdV1 } from "@/engine/myocardium/mechanics/MainWireStaticCaseAnatomyV1";
 import { MAIN_WIRE_STATIC_CASE_MODEL_ID_V1 as modelId } from "@/domain/model/MainWireStaticCaseIdentityV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3 as periodic,
   MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3 as numerical } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3 as scales } from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
-import { validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3 as hemodynamic } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
-import { validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3 as mechanism } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
-import { MAIN_WIRE_STANDARD71_BASELINE_MECHANISM_INPUTS_V1 as referenceMechanism } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
-import { assertUnaliasedMainWireFittingCandidateV1, type MainWireBaselineCalibrationCandidateInputsV1 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 import { settleMainWireFittingSessionV1 as settle, MAIN_WIRE_FITTING_OBSERVATION_WINDOW_V1_ID as observationWindowId,
+  type MainWireFittingFailureDiagnosticsV1,
   type MainWireFittingNominalDtV1 as Dt } from "./MainWireFittingCycleV1";
-import { resolveMainWireFittingReferenceV1 as resolveReference } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
-import { MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1 as baselinePolicy, assessMainWireProspectiveRestV1 as assessBaseline } from "@/analysis/policies/mainWire/MainWireProspectiveBaselineAdmissionV1";
-import { buildMainWireProspectiveBaselineChecksV1 as buildChecks } from "@/analysis/policies/mainWire/MainWireProspectiveBaselineChecksV1";
-import { measureMainWireIntegratedModelStandard70CandidateEvidenceV1 as measure,
-  mainWireStandard70TimingAndInletObservationTraceV1 as observationTrace } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
-import { observeMainWireStandard70TimingAndInletV2 as timing } from "./MainWireStandard70BaselineAssessmentV2";
-import { MAIN_WIRE_BASELINE_OBSERVATION_V2_ID, MainWireBaselineObservationUnavailableErrorV2 } from "./MainWireBaselineObservationV2";
-import { observeMainWireHfrefCaseV3 as observeHfref, MAIN_WIRE_HFREF_CASE_OBSERVATION_V3_ID } from "./MainWireHfrefCaseObservationV3";
-import { assessMainWireHfrefDilatedRestV1 as assessHfref } from "@/analysis/policies/mainWire/MainWireHfrefDilatedReferenceV1";
-import baselineEvidence from "@/data/physiology/main-wire-prospective-reference-evidence-v1.json";
+import { ownMainWireStaticCaseCandidateV1, assessMainWireStaticCaseRestV1,
+  mainWireStaticCaseContextV1 as context, resolveMainWireStaticCaseDefinitionV1 as definition,
+  type MainWireStaticCaseCandidateV1, type MainWireCaseReferenceIdV1 } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
+export { ownMainWireStaticCaseCandidateV1, assessMainWireStaticCaseRestV1 };
+export type { MainWireStaticCaseCandidateV1, MainWireCaseReferenceIdV1 };
 
 const schemaId = "main-wire-static-case-fitting-result-v1" as const;
 export const MAIN_WIRE_STATIC_CASE_FITTING_V1_ID = "main-wire-static-case-periodic-rest-fitting-v1";
-export type MainWireCaseReferenceIdV1 = "baseline" | "hfref-chronic-dilated-v1";
-export type MainWireStaticCaseCandidateV1 = MainWireBaselineCalibrationCandidateInputsV1 & Readonly<{ anatomyId: MainWireStaticCaseAnatomyIdV1 }>;
 const digest = (s: unknown): s is string => typeof s === "string" && /^[a-f0-9]{64}$/.test(s);
 
-export function ownMainWireStaticCaseCandidateV1(input: MainWireStaticCaseCandidateV1): MainWireStaticCaseCandidateV1 {
-  const value = own(input) as MainWireStaticCaseCandidateV1;
-  if (Object.keys(value).sort().join() !== ["anatomyId", "hemodynamicResearchInputs", "mechanismResearchInputs", "ventricularContractilityScale"].sort().join())
-    throw new Error("Unexpected case candidate field set");
-  assertUnaliasedMainWireFittingCandidateV1(value);
-  const result = { anatomyId: value.anatomyId, ventricularContractilityScale: 1,
-    hemodynamicResearchInputs: hemodynamic(value.hemodynamicResearchInputs), mechanismResearchInputs: mechanism(value.mechanismResearchInputs) };
-  if (![60, 70].includes(result.hemodynamicResearchInputs.heartRateBpm) || result.hemodynamicResearchInputs.peepCmH2O !== 0)
-    throw new Error("Resting case fitting requires HR60 or70 and zero PEEP");
-  for (const key of ["valveAreas", "pericardium", "coronaryDisease", "oxygenTransport"] as const)
-    if (canonical(result.mechanismResearchInputs[key]) !== canonical(referenceMechanism[key]))
-      throw new Error(`These resting references do not qualify changed ${key}`);
-  fixtureFor(result.anatomyId, result.hemodynamicResearchInputs, 1, result.mechanismResearchInputs);
-  return own(result) as MainWireStaticCaseCandidateV1;
-}
-
-function context(referenceId: MainWireCaseReferenceIdV1) {
-  if (referenceId !== "baseline" && referenceId !== "hfref-chronic-dilated-v1") throw new Error("Unsupported case reference");
-  const reference = resolveReference(referenceId);
-  return { reference, methodId: referenceId === "baseline" ? MAIN_WIRE_BASELINE_OBSERVATION_V2_ID : MAIN_WIRE_HFREF_CASE_OBSERVATION_V3_ID,
-    assessmentPolicy: referenceId === "baseline" ? { policy: baselinePolicy, evidence: baselineEvidence } : reference.target };
-}
 export async function buildMainWireStaticCaseFittingPolicyIdentityV1(referenceId: MainWireCaseReferenceIdV1) {
   return hash({ periodic, numerical, scales, referenceContext: context(referenceId), observationWindowId,
     methodId: MAIN_WIRE_STATIC_CASE_FITTING_V1_ID });
 }
 type Settled = Extract<Awaited<ReturnType<typeof settle<Awaited<ReturnType<Session["checkpoint"]>>>>>, { status: "accepted" }>;
-
-/** Assessment is a separate operation: applying a different reference cannot
- * change the numerical trajectory, manufacture a clinical claim, or adopt it. */
-export function assessMainWireStaticCaseRestV1(referenceId: MainWireCaseReferenceIdV1, execution: Pick<Settled, "diagnostics">) {
-  context(referenceId);
-  const d = execution.diagnostics;
-  try {
-    if (referenceId === "hfref-chronic-dilated-v1") {
-      const observation = observeHfref(d.completedBeat, observationTrace(d));
-      const assessment = assessHfref(observation);
-      return { referenceId, status: assessment.screenPassed && observation.measurementReview.status === "clear"
-        ? "passed" as const : "held" as const, observation, assessment };
-    }
-    const measured = measure({ ...d, timingAndInletObserver: timing });
-    const checks = buildChecks(measured, true);
-    const assessment = assessBaseline(d.completedBeat, checks, measured.cardiacSizeAndFunction.bodySurfaceAreaM2);
-    return { referenceId, status: assessment.status, observation: { measured, checks }, assessment };
-  } catch (error) {
-    if (!(error instanceof MainWireBaselineObservationUnavailableErrorV2)) throw error;
-    // Keep converged raw evidence when the measurement's event assumptions do
-    // not hold. This is neither a pass nor a numerical non-convergence result.
-    return { referenceId, status: "unavailable" as const,
-      issue: { code: error.code, side: error.side, message: error.message } };
-  }
-}
 
 export type MainWireStaticCaseFittingRequestV1 = Readonly<{
   referenceId: MainWireCaseReferenceIdV1;
@@ -98,17 +40,16 @@ export type MainWireStaticCaseFittingRequestV1 = Readonly<{
 export async function runMainWireStaticCaseFittingV1(request: MainWireStaticCaseFittingRequestV1) {
   const started = performance.now(), abortSignal = request.abortSignal;
   let phase = "request-validation";
+  let failureDiagnostics: MainWireFittingFailureDiagnosticsV1 | null = null;
   const fail = (status: "invalid-or-physical" | "numerical-unresolved" | "nonsettled-or-event-change" | "operational-interrupted", message: string) =>
-    ({ status, phase, message, modelId, wallTimeMs: performance.now() - started });
+    ({ status, phase, message, modelId, wallTimeMs: performance.now() - started, ...(failureDiagnostics ? { failureDiagnostics } : {}) });
   try {
     const { referenceId, sourceSha256 } = request, nominalDtSec = request.nominalDtSec ?? .002;
-    const candidateInputs = ownMainWireStaticCaseCandidateV1(request.candidateInputs);
+    const candidateInputs = definition(referenceId).ownInputs(request.candidateInputs);
     const referenceContext = context(referenceId), reuse = request.reuse === undefined ? null : own(request.reuse);
     if (!digest(sourceSha256)) throw new Error("A content-bound source SHA-256 is required for the mutable research model");
     if (nominalDtSec !== .002 && nominalDtSec !== .001) throw new Error("Case fitting supports only 2ms or1ms schedules");
     if (hotPathIntegrityTierV1() !== "hot-path-lean") throw new Error("Case fitting requires hot-path-lean");
-    if (referenceId === "hfref-chronic-dilated-v1" && candidateInputs.hemodynamicResearchInputs.heartRateBpm !== 70)
-      throw new Error("The current HFrEF reference is HR70-only; HR60 requires a different assessment scope");
     if (abortSignal?.aborted) return fail("operational-interrupted", "Evaluation interrupted");
     const saved = reuse === null ? null : await readMainWireStaticCaseFittingResultV1(reuse);
     if (saved && (saved.sourceSha256 !== sourceSha256 || saved.candidateInputs.anatomyId !== candidateInputs.anatomyId))
@@ -127,7 +68,7 @@ export async function runMainWireStaticCaseFittingV1(request: MainWireStaticCase
     if (initialization.kind === "parameter-continuation") session = session.warmStart(candidateInputs.hemodynamicResearchInputs, candidateInputs.mechanismResearchInputs);
     const fixture = fixtureFor(candidateInputs.anatomyId, candidateInputs.hemodynamicResearchInputs, 1, candidateInputs.mechanismResearchInputs);
     const execution = await settle({ session, fixture, nominalDtSec, abortSignal, requestIdentitySha256,
-      checkpoint: () => session.checkpoint(), onPhase: p => { phase = p; } });
+      checkpoint: () => session.checkpoint(), onPhase: p => { phase = p; }, onFailureDiagnostics: d => { failureDiagnostics = d; } });
     if (execution.status !== "accepted") return fail(execution.status, execution.message);
     phase = "observation";
     const rest = assessMainWireStaticCaseRestV1(referenceId, execution);
@@ -164,7 +105,7 @@ export async function readMainWireStaticCaseFittingResultV1(input: unknown): Pro
     || !digest(value.resultSha256) || !digest(value.policyIdentitySha256)) throw new Error("Invalid static-case fitting identity");
   const { resultSha256, ...body } = value;
   if (await hash(body) !== resultSha256) throw new Error("Static-case fitting result digest differs");
-  const c = ownMainWireStaticCaseCandidateV1(value.candidateInputs);
+  const c = definition(value.rest.referenceId).ownInputs(value.candidateInputs);
   context(value.referenceContext.reference.referenceId);
   if (value.rest.referenceId !== value.referenceContext.reference.referenceId || value.execution.status !== "accepted"
     || value.execution.classification.status !== "period1-converged"

@@ -497,6 +497,16 @@ function assertExperimentModelAndSurfaceMatchV2(
       throw validationErrorV2(`${panePath}.showPvaBoundary`,
         "only analysis-enabled pressure-volume graphs may configure an energy view");
     }
+    if (graph.renderer === "cycle-waveform") {
+      if (pane.series.length || pane.windowSec !== undefined || pane.structuralSide !== undefined
+        || pane.historyDepth !== undefined || pane.pressureVolumeAnalysisMode !== undefined
+        || pane.showPressureEnvelope !== undefined || pane.showPvaBoundary !== undefined
+        || pane.excludedTraces.some(trace => trace.seriesId !== null))
+        throw validationErrorV2(panePath, "completed-cycle graphs only configure whole-Scenario traces");
+      if (scopedScenarioIds.every(id => pane.excludedTraces.some(trace => trace.scenarioId === id)))
+        throw validationErrorV2(panePath, "must leave at least one visible Scenario trace");
+      return;
+    }
     if (graph.renderer === "structural-return") {
       if (pane.series.length !== 0) {
         throw validationErrorV2(

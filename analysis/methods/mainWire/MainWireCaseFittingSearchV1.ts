@@ -1,9 +1,15 @@
 import { canonicalJsonStringify as canonical } from "@/engine/integrity";
 import { MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3 as hemoRanges } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import { MAIN_WIRE_LV_ACTIVE_TENSION_RESEARCH_RANGE_V1 as lvRange } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
-import { ownMainWireStaticCaseCandidateV1 as ownCandidate, type MainWireStaticCaseCandidateV1 as Candidate,
+import { MAIN_WIRE_FOUR_VALVE_AREA_INPUT_RANGES_V1 as valveRanges } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
+import { type MainWireStaticCaseCandidateV1 as Candidate,
   type MainWireStaticCaseFittingResultV1 as Saved, type runMainWireStaticCaseFittingV1,
   type MainWireCaseReferenceIdV1 as Reference } from "./MainWireStaticCaseFittingWorkflowV1";
+import { resolveMainWireStaticCaseDefinitionV1 as definition } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
+import { resolveMainWireCaseSearchProfileV1 as profile, scoreMainWireCaseFittingResultV1,
+  type MainWireCaseSearchScoreV1 } from "@/analysis/registry/MainWireCaseSearchProfilesV1";
+export { scoreMainWireCaseFittingResultV1 };
+export type { MainWireCaseSearchScoreV1, MainWireCaseSearchObservationV1 } from "@/analysis/registry/MainWireCaseSearchProfilesV1";
 
 export const MAIN_WIRE_CASE_FITTING_SEARCH_V1_ID = "main-wire-case-bounded-pattern-search-v1";
 export const MAIN_WIRE_CASE_FITTING_COORDINATES_V1 = Object.freeze([
@@ -11,16 +17,13 @@ export const MAIN_WIRE_CASE_FITTING_COORDINATES_V1 = Object.freeze([
   { id: "systemic-resistance", unit: "1", ...hemoRanges.systemicResistance, initialStep: .04, affectedInputs: ["systemicResistance"] },
   { id: "arterial-stiffness", unit: "1", ...hemoRanges.arterialStiffness, initialStep: .1, affectedInputs: ["arterialStiffness"] },
   { id: "lv-active", unit: "1", ...lvRange, initialStep: .05, affectedInputs: ["activeTensionScaleByWall.LVFW", "activeTensionScaleByWall.SEP"] },
+  { id: "aortic-area", unit: "cm²", ...valveRanges.AoV.maximumForwardEoaCm2, initialStep: .05, affectedInputs: ["valveAreas.AoV.maximumForwardEoaCm2"] },
 ] as const);
 export type MainWireCaseFittingCoordinateIdV1 = typeof MAIN_WIRE_CASE_FITTING_COORDINATES_V1[number]["id"];
 type CoordinateId = MainWireCaseFittingCoordinateIdV1;
 type Coordinate = typeof MAIN_WIRE_CASE_FITTING_COORDINATES_V1[number];
 type Outcome = Awaited<ReturnType<typeof runMainWireStaticCaseFittingV1>>;
-export type MainWireCaseSearchObservationV1 = Readonly<{ metricId: string; actual: number | null; lower: number | null; upper: number; scale: number }>;
-export type MainWireCaseSearchScoreV1 = Readonly<{
-  status: string; rank: readonly (number | null)[] | null; targetsMet: boolean;
-  observations: readonly MainWireCaseSearchObservationV1[]; holds: readonly string[];
-}>;
+export class MainWireCaseCoordinateInputErrorV1 extends Error {}
 
 const descriptors = (ids: readonly CoordinateId[]) => {
   if (!ids.length || new Set(ids).size !== ids.length) throw new Error("Select distinct search coordinates");
@@ -34,48 +37,27 @@ export function readMainWireCaseSearchCoordinateV1(c: Candidate, id: CoordinateI
   if (id === "tbv") return c.hemodynamicResearchInputs.totalBloodVolumeMl;
   if (id === "systemic-resistance") return c.hemodynamicResearchInputs.systemicResistance;
   if (id === "arterial-stiffness") return c.hemodynamicResearchInputs.arterialStiffness;
+  if (id === "aortic-area") return c.mechanismResearchInputs.valveAreas.AoV.maximumForwardEoaCm2;
   const wall = c.mechanismResearchInputs.chamberMechanics.activeTensionScaleByWall;
-  if (id !== "lv-active" || wall.LVFW !== wall.SEP) throw new Error("The LVFW/SEP coordinate requires equal explicit wall scales; it must not overwrite an asymmetric construction");
+  if (id !== "lv-active" || wall.LVFW !== wall.SEP) throw new MainWireCaseCoordinateInputErrorV1("The LVFW/SEP coordinate requires equal explicit wall scales; it must not overwrite an asymmetric construction");
   return wall.LVFW;
+}
+/** Cheap preflight before any cold jobs; never silently remove a coordinate. */
+export function assertMainWireCaseSearchInputsV1(referenceId: Reference, candidate: Candidate, ids: readonly CoordinateId[] = profile(referenceId).coordinateIds) {
+  if (ids.some(id => !profile(referenceId).coordinateIds.includes(id))) throw new Error("Search coordinate is not allowed by this case");
+  for (const d of descriptors(ids)) readMainWireCaseSearchCoordinateV1(candidate, d.id);
 }
 export function withMainWireCaseSearchCoordinateV1(c: Candidate, id: CoordinateId, value: number): Candidate {
   const d = descriptors([id])[0]!;
   if (!Number.isFinite(value) || value < d.minimum || value > d.maximum) throw new Error("Search coordinate outside the existing exact research domain");
   readMainWireCaseSearchCoordinateV1(c, id);
+  if (id === "aortic-area") return { ...c, mechanismResearchInputs: { ...c.mechanismResearchInputs,
+    valveAreas: { ...c.mechanismResearchInputs.valveAreas, AoV: { ...c.mechanismResearchInputs.valveAreas.AoV, maximumForwardEoaCm2: value } } } };
   if (id === "lv-active") return { ...c, mechanismResearchInputs: { ...c.mechanismResearchInputs,
     chamberMechanics: { ...c.mechanismResearchInputs.chamberMechanics,
       activeTensionScaleByWall: { ...c.mechanismResearchInputs.chamberMechanics.activeTensionScaleByWall, LVFW: value, SEP: value } } } };
   const key = id === "tbv" ? "totalBloodVolumeMl" : id === "systemic-resistance" ? "systemicResistance" : "arterialStiffness";
   return { ...c, hemodynamicResearchInputs: { ...c.hemodynamicResearchInputs, [key]: value } };
-}
-
-/** Uses CURRENT freshly computed reference assessments. No new normal ranges,
- * point targets, penalties for historical warnings, or missing-value imputation.
- * The existing HFrEF tuple ranks correlated targets jointly, not as likelihoods. */
-export function scoreMainWireCaseFittingResultV1(result: Outcome): MainWireCaseSearchScoreV1 {
-  const unknown = (status: string, holds: string[]): MainWireCaseSearchScoreV1 => ({ status, rank: null, targetsMet: false, observations: [], holds });
-  if (result.status !== "saved-result-ready") return unknown(result.status, [result.message]);
-  const rest = result.result.rest;
-  if (rest.status === "unavailable") return unknown(rest.status, [rest.issue.code]);
-  if (rest.referenceId === "hfref-chronic-dilated-v1") {
-    const a = rest.assessment;
-    const review = rest.observation.measurementReview;
-    return { status: rest.status, rank: review.status === "clear" ? a.ranking : null,
-      targetsMet: rest.status === "passed" && a.preferredTargetsMet,
-      observations: a.targets.map(t => ({ metricId: t.metricId, actual: t.actual, lower: t.lower, upper: t.upper, scale: t.upper - t.lower })),
-      holds: [...review.issues.map(i => `measurement:${i.side}:${i.code}`),
-        ...a.screen.filter(s => s.status !== "passed").map(s => `screen:${s.metricId}:${s.status}`),
-        ...a.targets.filter(s => s.status !== "passed").map(s => `target:${s.metricId}:${s.status}`)] };
-  }
-  const a = rest.assessment;
-  const observations = a.operating.map(t => ({ metricId: t.metricId, actual: t.actual,
-    lower: t.lower, upper: t.upper, scale: t.lower === null ? t.upper : t.upper - t.lower }));
-  const holds = [...a.invalidOrFailedRetained, ...a.unavailable, ...a.operating.filter(t => t.status !== "passed").map(t => `operating:${t.metricId}:${t.status}`),
-    ...(a.anatomyReviewRequired ? ["demographic-method-review-required"] : [])];
-  if (a.unavailable.length || a.operating.some(t => t.status === "unresolved")) return { ...unknown(rest.status, holds), observations };
-  const violation = Math.max(0, ...observations.map(t => Math.max((t.lower ?? -Infinity) - t.actual!, t.actual! - t.upper, 0) / t.scale));
-  return { status: rest.status, rank: [rest.status === "passed" ? 0 : 1, a.invalidOrFailedRetained.length + Number(a.anatomyReviewRequired), violation],
-    targetsMet: rest.status === "passed", observations, holds };
 }
 
 /** A missing soft component cannot win a tie or stand in for zero. Known
@@ -96,6 +78,7 @@ export type MainWireCaseSearchJobV1 = Readonly<{ id: string; candidateInputs: Ca
 export type MainWireCaseSearchEvaluationV1 = Readonly<{ id: string; candidateInputs: Candidate; score: MainWireCaseSearchScoreV1;
   outcome: Outcome; iteration: number; coordinateId: CoordinateId | null; delta: number }>;
 type Evaluation = MainWireCaseSearchEvaluationV1;
+export type MainWireCaseFinalDecisionV1 = Readonly<{ status: "accepted" | "rejected" | "held"; issues: readonly string[]; initializationCheck?: unknown }>;
 type Probe = { candidateInputs: Candidate; coordinate: Coordinate; delta: number };
 
 function localResponse(center: Evaluation, evaluations: readonly Evaluation[], coords: readonly Coordinate[]) {
@@ -128,20 +111,39 @@ function localResponse(center: Evaluation, evaluations: readonly Evaluation[], c
 
 /** Small bounded coordinate-pattern search. One parallel poll per iteration,
  * stable input-order selection, exact-input cache, and nearest settled capture
- * continuation. Final cold/fine-grid/preload and waveform qualifications remain
- * separate; neither a result score nor this search can adopt a baseline/preset. */
+ * continuation. Repeated probes select the already recorded observation; they
+ * are not fresh executions from a different anchor. Optional final checks are
+ * separate executions, never input-cache hits or permission to publish. */
 export async function searchMainWireCaseFittingV1(request: Readonly<{
   referenceId: Reference; candidateInputs: Candidate; reuse?: Saved;
+  /** Current-run coarse evidence may seed the search without being rerun. */
+  initialOutcome?: Outcome;
   coordinateIds?: readonly CoordinateId[]; maximumEvaluations: number; maximumWallTimeMs: number;
   evaluateBatch: (jobs: readonly MainWireCaseSearchJobV1[]) => Promise<readonly Outcome[]>;
+  assessFinalCandidate?: (evaluation: Evaluation) => Promise<MainWireCaseFinalDecisionV1>;
+  maximumFinalChecks?: number;
+  /** Reserved part of the total wall budget, unavailable to new search polls. */
+  reservedFinalWallTimeMs?: number;
+  /** Named active-time observations allow same-run deterministic replay. */
+  timeSnapshot?: (key: string) => Promise<number>;
   now?: () => number;
 }>) {
-  const now = request.now ?? (() => performance.now()), started = now();
+  const now = request.now ?? (() => performance.now());
+  const clock = request.timeSnapshot ?? (async (_key: string) => now()), started = await clock("started");
+  const reservedFinalWallTimeMs = request.reservedFinalWallTimeMs ?? 0;
   if (!Number.isInteger(request.maximumEvaluations) || request.maximumEvaluations < 1 || request.maximumEvaluations > 128
     || !Number.isFinite(request.maximumWallTimeMs) || request.maximumWallTimeMs <= 0 || request.maximumWallTimeMs > 3_600_000)
     throw new Error("Search requires 1–128 evaluations and at most one hour");
-  const seed = ownCandidate(request.candidateInputs);
-  const coords = descriptors(request.coordinateIds ?? MAIN_WIRE_CASE_FITTING_COORDINATES_V1.map(d => d.id));
+  if (!Number.isFinite(reservedFinalWallTimeMs) || reservedFinalWallTimeMs < 0 || reservedFinalWallTimeMs > request.maximumWallTimeMs)
+    throw new Error("Final-time reservation must fit within the total search budget");
+  const seed = definition(request.referenceId).ownInputs(request.candidateInputs), policy = profile(request.referenceId);
+  const ids = request.coordinateIds ?? policy.coordinateIds;
+  const maximumFinalChecks = request.maximumFinalChecks ?? 3;
+  if (!Number.isInteger(maximumFinalChecks) || maximumFinalChecks < 1 || maximumFinalChecks > 8)
+    throw new Error("Final checks require a budget of 1–8 candidates");
+  if (ids.some(id => !policy.coordinateIds.includes(id))) throw new Error("Search coordinate is not allowed by this case");
+  if (request.initialOutcome && request.reuse) throw new Error("Select initial evidence or a new checkpoint evaluation, not both");
+  const coords = descriptors(ids);
   for (const d of coords) readMainWireCaseSearchCoordinateV1(seed, d.id);
   const evaluations: Evaluation[] = [], cache = new Map<string, Evaluation>();
   const iterations: { iteration: number; centerId: string; selectedId: string; stepScale: number; pollComplete: boolean; probes: { id: string; cached: boolean }[];
@@ -154,11 +156,29 @@ export async function searchMainWireCaseFittingV1(request: Readonly<{
       throw new Error("Search worker result belongs to another candidate/reference");
   };
   const initialJob = { id: nextId(), candidateInputs: seed, ...(request.reuse ? { reuse: request.reuse } : {}) };
-  const initialResults = await request.evaluateBatch([initialJob]); checkResults([initialJob], initialResults);
+  const initialResults = request.initialOutcome ? [request.initialOutcome] : await request.evaluateBatch([initialJob]);
+  checkResults([initialJob], initialResults);
   let best: Evaluation = { id: initialJob.id, candidateInputs: seed, outcome: initialResults[0]!, score: scoreMainWireCaseFittingResultV1(initialResults[0]!),
     iteration: 0, coordinateId: null, delta: 0 };
   evaluations.push(best); cache.set(canonical(seed), best);
   let stepScale = 1, stopReason = "evaluation-budget";
+  const finalChecks: { evaluationId: string; decision: MainWireCaseFinalDecisionV1 }[] = [];
+  let selectedFinalId: string | null = null;
+  let finalHeld = false;
+  const checkFinalists = async () => {
+    if (!request.assessFinalCandidate) return;
+    const pending = evaluations.filter(e => e.score.targetsMet && !finalChecks.some(f => f.evaluationId === e.id))
+      .sort((a, b) => mainWireCaseScoreImprovesV1(a.score, b.score) ? -1 : mainWireCaseScoreImprovesV1(b.score, a.score) ? 1 : 0);
+    for (const e of pending) {
+      if (finalChecks.length >= maximumFinalChecks || (await clock(`final-${e.id}`)) - started >= request.maximumWallTimeMs) break;
+      const decision = await request.assessFinalCandidate(e);
+      if (!["accepted", "rejected", "held"].includes(decision.status) || !Array.isArray(decision.issues)) throw new Error("Invalid final-check decision");
+      finalChecks.push({ evaluationId: e.id, decision });
+      if (decision.status === "accepted") { selectedFinalId = e.id; break; }
+      if (decision.status === "held") { finalHeld = true; break; }
+    }
+  };
+  await checkFinalists();
   const nearest = (candidate: Candidate) => {
     let distance = Infinity, saved: Saved | undefined;
     for (const evaluation of evaluations) {
@@ -170,8 +190,13 @@ export async function searchMainWireCaseFittingV1(request: Readonly<{
     return saved;
   };
   while (evaluations.length < request.maximumEvaluations) {
-    if (best.score.targetsMet) { stopReason = "reference-targets-met"; break; }
-    if (now() - started >= request.maximumWallTimeMs) { stopReason = "wall-time-budget"; break; }
+    if (selectedFinalId !== null) { stopReason = "final-checks-passed"; break; }
+    if (finalHeld) { stopReason = "final-check-held"; break; }
+    if (!request.assessFinalCandidate && best.score.targetsMet) { stopReason = "reference-targets-met"; break; }
+    if (request.assessFinalCandidate && finalChecks.length >= maximumFinalChecks) { stopReason = "final-check-budget"; break; }
+    const elapsed = (await clock(`poll-${iterations.length + 1}`)) - started;
+    if (elapsed >= request.maximumWallTimeMs) { stopReason = "wall-time-budget"; break; }
+    if (elapsed >= request.maximumWallTimeMs - reservedFinalWallTimeMs) { stopReason = "final-time-reserved"; break; }
     if (stepScale < .125) { stopReason = "local-step-exhausted"; break; }
     const iteration = iterations.length + 1, center = best;
     const probes: Probe[] = coords.flatMap(coordinate => [-1, 1].flatMap(sign => {
@@ -198,20 +223,27 @@ export async function searchMainWireCaseFittingV1(request: Readonly<{
     for (const e of observed) if (mainWireCaseScoreImprovesV1(e.score, best.score)) best = e;
     iterations.push({ iteration, centerId: center.id, selectedId: best.id, stepScale, pollComplete: observed.length === probes.length,
       probes: observed.map(e => ({ id: e.id, cached: !jobs.some(j => j.id === e.id) })), response: localResponse(center, observed, coords) });
+    await checkFinalists();
     if (best.id === center.id) stepScale /= 2;
   }
-  if (best.score.targetsMet) stopReason = "reference-targets-met";
+  if (selectedFinalId !== null) stopReason = "final-checks-passed";
+  else if (finalHeld) stopReason = "final-check-held";
+  else if (!request.assessFinalCandidate && best.score.targetsMet) stopReason = "reference-targets-met";
+  else if (request.assessFinalCandidate && finalChecks.length >= maximumFinalChecks) stopReason = "final-check-budget";
   return { methodId: MAIN_WIRE_CASE_FITTING_SEARCH_V1_ID, referenceId: request.referenceId,
     scope: "research-periodic-rest-search-only", coordinateDomain: coords.map(d => ({ ...d, boundProvenance: "existing-exact-research-domain-not-clinical-normality" })),
     fixedInputs: "All inputs outside selected coordinates, including HR, anatomy, calcium, Land kinetics, venous tone and other walls, remain fixed.",
     maximumEvaluations: request.maximumEvaluations, maximumWallTimeMs: request.maximumWallTimeMs,
-    evaluationCount: evaluations.length, wallTimeMs: now() - started, stopReason, bestId: best.id, bestCandidateInputs: best.candidateInputs,
-    bestScore: best.score, evaluations, iterations,
+    reservedFinalWallTimeMs, evaluationCount: evaluations.length, wallTimeMs: (await clock("finished")) - started,
+    stopReason, bestId: best.id, bestCandidateInputs: best.candidateInputs,
+    bestScore: best.score, evaluations, iterations, selectedFinalId, finalChecks, maximumFinalChecks,
+    initialObservation: request.initialOutcome ? "provided-current-run-evidence" : "new-screen-evaluation",
     coordinateHeadroom: coords.map(d => {
       const value = readMainWireCaseSearchCoordinateV1(best.candidateInputs, d.id);
       return { coordinateId: d.id, value, initialStepsToLower: (value - d.minimum) / d.initialStep,
         initialStepsToUpper: (d.maximum - value) / d.initialStep, atBound: value <= d.minimum + 1e-9 || value >= d.maximum - 1e-9 };
     }),
-    qualification: { pairedGrid: "not-evaluated", preloadReserve: "not-evaluated", waveformReview: "not-performed",
+    qualification: { pairedGrid: request.assessFinalCandidate ? "see-final-checks" : "not-evaluated",
+      preloadReserve: request.assessFinalCandidate ? "see-case-final-protocol" : "not-evaluated", waveformReview: "not-performed",
       clinicalValidationClaimed: false, publicPromotionAuthorized: false } };
 }

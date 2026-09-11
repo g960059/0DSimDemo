@@ -537,6 +537,49 @@ const OUTPUT_PRESENTATION_V1: Readonly<
     inlineDisclosure: true,
     aliases: ["ICT", "IVCT", "isovolumic contraction time", "等容性収縮時間"],
   },
+  "hemodynamics.velocity.peak-quasi-steady-jet.AoV": {
+    category: "valves", label: textV1("AV Vmax", "AV Vmax"), inlineDisclosure: true,
+    description: textV1("Peak jet velocity reconstructed from the current valve law. Not Doppler acquisition; no LVOT velocity correction or pressure recovery. Updates once per complete beat from 2-ms samples.",
+      "現行の弁の式から求めた最大流速。Dopplerの実測値ではなく、LVOT速度補正や圧回復を含みません。2 msごとのデータから、心拍ごとに更新します。"),
+    aliases: ["aortic velocity", "AS", "最大流速"],
+  },
+  "hemodynamics.pressure-gradient.mean-bernoulli-jet.AoV": {
+    category: "valves", label: textV1("AV mean PG (4v²)", "AV mean PG (4v²)"), inlineDisclosure: true,
+    description: textV1("Forward-flow time average of instantaneous 4v². In this model it nearly equals the hydraulic LV−Ao mean PG; the clinical Doppler–catheter gap is not reproduced. No pressure recovery or Doppler acquisition; not a peak-to-peak gradient.",
+      "瞬時4v²の順流時間平均。このモデルではLV−Aoの平均勾配とほぼ同じで、臨床のDopplerとカテーテルの測定差は再現しません。圧回復やDoppler計測過程を含まず、peak-to-peak勾配でもありません。"),
+    aliases: ["AS", "Bernoulli", "ベルヌーイ", "平均圧較差"],
+  },
+  "hemodynamics.pressure-gradient.peak-bernoulli-jet.AoV": {
+    category: "valves", label: textV1("AV peak PG (4v²)", "AV peak PG (4v²)"), inlineDisclosure: true,
+    description: textV1("4×AV Vmax², not an independent observation or a peak-to-peak gradient. Nearly equals the hydraulic peak PG in this model; pressure recovery and the clinical Doppler–catheter gap are not reproduced.",
+      "4×AV Vmax²で求める最大勾配。Vmaxと独立した指標ではなく、peak-to-peak勾配でもありません。このモデルではLV−Aoの最大勾配とほぼ同じで、圧回復や臨床のDopplerとカテーテルの測定差は再現しません。"), aliases: ["AS", "最大圧較差"],
+  },
+  "hemodynamics.duration.jet-acceleration.AoV": {
+    category: "valves", label: textV1("AV AT", "AV AT"), inlineDisclosure: true,
+    description: textV1("Time from modeled forward-flow onset to the first maximum jet velocity, sampled at 2 ms. Not arterial pressure upstroke time. Absolute timing has not been validated against clinical Doppler; the valve omits inertance and Doppler acquisition.",
+      "モデルの順流開始から最初の最大流速までの時間。2 msごとのデータから求め、動脈圧の立ち上がり時間とは異なります。弁の慣性やDoppler計測過程を含まず、臨床Dopplerの時間基準との一致は未検証です。"), aliases: ["acceleration time", "加速時間"],
+  },
+  "hemodynamics.ratio.jet-AT-to-ET.AoV": {
+    category: "valves", label: textV1("AV AT/ET", "AV AT/ET"), inlineDisclosure: true,
+    description: textV1("Modeled jet acceleration time divided by forward ejection time. Depends on flow and contraction as well as stenosis. Clinical Doppler timing has not been validated here; 0.35 is not a universal AS criterion.",
+      "モデルの流速加速時間を駆出時間で割った値。狭窄だけでなく流量や収縮にも影響されます。臨床Dopplerの時間基準との一致は未検証で、0.35を全ASの必須条件とはしません。"), aliases: ["AT/ET", "AS"],
+  },
+  "hemodynamics.area.forward-SV-over-jet-VTI.AoV": {
+    category: "valves", label: textV1("AVA (SV/VTI)", "AVA (SV/VTI)"), inlineDisclosure: true,
+    description: textV1("Forward SV divided by jet VTI. A cycle-effective model area, not independent planimetry or a new control; it can differ from the maximum AVA setting during opening/closure.",
+      "AV順流量を流速時間積分VTIで割った有効面積。弁の開閉中の影響で、設定する最大AVAとは異なる場合があります。独立した形態計測値や別の操作項目ではありません。"), aliases: ["EOA", "有効弁口面積"],
+  },
+  "hemodynamics.flow.mean-ejection.AoV": {
+    category: "valves", label: textV1("AV mean flow", "AV mean flow"), inlineDisclosure: true,
+    description: textV1("Forward stroke volume divided by ejection time (SV/ET). Flow while the AV is ejecting, not cardiac output averaged over the entire beat.",
+      "AVの順流量を駆出時間で割った値（SV/ET）。駆出中の平均流量で、1心拍全体で平均するCOとは異なります。"), aliases: ["SV/ET", "flow rate", "駆出中平均流量"],
+  },
+  "hemodynamics.stroke-volume-index.forward.AoV-reference-bsa1p9": {
+    category: "valves", label: textV1("Forward SVI", "順行SVI"), inlineDisclosure: true,
+    description: textV1("Beat-forward AV volume divided by the declared reference BSA of 1.9 m², not an inferred patient body size. Different from net SVI with regurgitation, and from SV/ET. Updates each complete beat from 2-ms samples.",
+      "AVの1拍の順行量を、参照症例のBSA 1.9 m²で割った値。患者の体格を推定した値ではありません。逆流時の正味SVIや、駆出中流量SV/ETとは区別し、2 msごとのデータから拍ごとに更新します。"),
+    aliases: ["AS", "low flow", "低流量", "stroke volume index"],
+  },
   "hemodynamics.ratio.peak-E-to-A.volumetric.MV": {
     category: "valves", label: textV1("MV E/A", "MV E/A"), inlineDisclosure: true,
     description: textV1(

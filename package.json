@@ -6,6 +6,9 @@
   "scripts": {
     "verify:registry:current": "vite-node --script tools/registry/verifyCurrentModelPublicationV1.ts",
     "fit:case": "vite-node --script tools/scientific/runMainWireCaseFittingV1.ts",
+    "fit:registry": "vite-node --script tools/scientific/runMainWireRegistryFittingV1.ts",
+    "fit:registry:prepare": "vite-node --script tools/scientific/prepareMainWireRegistryReviewV1.ts",
+    "fit:registry:prepare-launches": "vite-node --script tools/scientific/prepareRegisteredLaunchAnalysesV1.ts",
     "audit:case-metrics": "vite-node --script tools/scientific/auditMainWireWorkbenchMetricsV1.ts",
     "observe:case": "vite-node --script tools/scientific/reobserveMainWireCaseV1.ts",
     "export:model-document": "vite-node --script tools/modelDocumentation/exportSavedDocumentV1.ts",
@@ -64,8 +67,7 @@
     "characterize:coronary:v3-structural-cmd-active-reserve:v2": "vite-node --script tools/scientific/runCoronaryV3StructuralCmdActiveReserveCharacterizationV2.ts --output artifacts/coronary-v3/structural-cmd-active-reserve-v2.json",
     "render:coronary:v3-reduced-pressure-step-diagnostic:v1": "vite-node --script tools/scientific/renderCoronaryV3ReducedPressureStepArtifactsSvgV1.ts --v1-input artifacts/coronary-v3/reduced-pressure-step-numerical-v1.json --v2-input artifacts/coronary-v3/reduced-pressure-step-numerical-v2.json --output artifacts/coronary-v3/reduced-pressure-step-raw-diagnostic-v1.svg",
     "validate:mechanical-support:v1": "vite-node --script tools/devices/generateMechanicalSupportValidationV1.ts",
-    "qualify:baseline": "vite-node --script tools/scientific/qualifyMainWireStaticBaselineV1.ts",
-    "generate:docs": "vite-node --script tools/modelDocumentation/generateSavedModelDocumentV1.tsx"
+    "qualify:baseline": "vite-node --script tools/scientific/qualifyMainWireStaticBaselineV1.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.1",

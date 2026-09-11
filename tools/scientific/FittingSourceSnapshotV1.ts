@@ -1,14 +1,15 @@
 import { spawn, execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFile, writeFile, open } from "node:fs/promises";
-import { resolve, basename } from "node:path";
+import { readFile, open, access } from "node:fs/promises";
+import { resolve, basename, dirname } from "node:path";
 import { promisify } from "node:util";
+import { writeFittingRunJsonV1 as writeJson } from "./FittingRunFilesV1";
 
 const execute = promisify(execFile);
 const hash = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 // Include numerical/analysis code, their data, CLI entry points and build inputs;
 // not generated research runs or installed dependencies.
-const roots = ["engine", "analysis", "domain", "data", "studio", "tools",
+const roots = ["engine", "analysis", "domain", "runtime", "data", "studio", "tools", "components", "index.css", "homeLinks.ts", "localeRouting.ts",
   "package.json", "package-lock.json", "tsconfig.json", "tsconfig.node.json",
   "vite.config.ts", "vitest.config.ts"];
 
@@ -50,12 +51,47 @@ export async function beginFittingSourceSnapshotV1(prefix: string) {
     archive: { filename: basename(archivePath), sha256: hash(await readFile(archivePath)) }, files,
     environment: { node: process.version, platform: process.platform, architecture: process.arch },
     dependencyInstallationArchived: false };
+  if (hash(JSON.stringify(await inventory(root))) !== sourceSha256)
+    throw new Error("Fitting source changed while archiving; do not execute this snapshot");
+  // An interrupted run still has its input source, but no completed-run seal.
+  await writeJson(dirname(resolve(prefix)), basename(`${prefix}.started.json`), { ...source, status: "started-not-sealed" });
+  return sourceSession(prefix, root, source);
+}
+
+type Source = { schemaId: string; sourceSha256: string; archive: { filename: string; sha256: string };
+  files: { path: string; sha256: string }[]; environment: { node: string; platform: string; architecture: string } };
+
+/** Resume the same source, not merely the same commit/model name. The original
+ * archive is retained; a changed source or environment requires a new run. */
+export async function resumeFittingSourceSnapshotV1(prefix: string) {
+  try { await access(`${prefix}.source.json`); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    const { stdout } = await execute("git", ["rev-parse", "--show-toplevel"]), root = stdout.trim();
+    const { status, ...source } = JSON.parse(await readFile(`${prefix}.started.json`, "utf8")) as Source & { status: string };
+    if (status !== "started-not-sealed" || source.schemaId !== "fitting-source-snapshot-v1"
+      || source.archive.filename !== basename(`${prefix}.source.tar.gz`)
+      || hash(JSON.stringify(source.files)) !== source.sourceSha256
+      || hash(await readFile(`${prefix}.source.tar.gz`)) !== source.archive.sha256
+      || hash(JSON.stringify(await inventory(root))) !== source.sourceSha256
+      || source.environment.node !== process.version || source.environment.platform !== process.platform
+      || source.environment.architecture !== process.arch)
+      throw new Error("Fitting resume source/archive/environment differs; start a new run");
+    return sourceSession(prefix, root, source);
+  }
+  throw new Error("Fitting run is already sealed; no execution may be appended");
+}
+
+function sourceSession(prefix: string, root: string, source: Source) {
+  const { sourceSha256 } = source;
   return Object.freeze({ sourceSha256, finish: async (outputs: readonly string[]) => {
+    if (!Array.isArray(outputs)) throw new Error("Fitting source seal requires an explicit output-file list; use [] only for a source-only record");
     if (hash(JSON.stringify(await inventory(root))) !== sourceSha256) {
       throw new Error("Fitting source changed during this run; retained results are not source-bound. Rerun from a stable worktree.");
     }
     const results = [];
-    for (const path of outputs) results.push({ filename: basename(path), sha256: hash(await readFile(path)) });
-    await writeFile(`${prefix}.source.json`, JSON.stringify({ ...source, results }, null, 2) + "\n", { flag: "wx" });
+    for (const path of [...new Set(outputs)]) results.push({ filename: basename(path), sha256: hash(await readFile(path)) });
+    // A killed writer must not expose a truncated seal that blocks replay of
+    // otherwise complete jobs. Publish the whole seal atomically, without overwrite.
+    await writeJson(dirname(resolve(prefix)), basename(`${prefix}.source.json`), { ...source, results });
   } });
 }

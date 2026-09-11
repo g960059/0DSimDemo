@@ -16,6 +16,8 @@ import { runMainWireStaticBaselineQualificationGridV1 as qualifyGrid,
 import { observeMainWireBaselineV2 as observeNative } from "@/analysis/methods/mainWire/MainWireBaselineObservationV2";
 import { measureMainWireRelaxationTauV1 as measureTau } from "@/analysis/methods/mainWire/MainWireRelaxationTauV1";
 import { reobserveMainWireCaseV1 as reobserve } from "@/tools/scientific/reobserveMainWireCaseV1";
+import { compareMainWireCaseEvidenceV1 as compare } from "@/analysis/methods/mainWire/MainWireCaseComparisonV1";
+import { assessMainWireCaseInitializationAgreementV1 as initializationAgreement } from "@/analysis/methods/mainWire/MainWireCaseInitializationAgreementV1";
 
 // Test token, not a source-authenticated research run. The CLI owns real snapshots.
 const sourceSha256 = "a".repeat(64), hfref = "hfref-chronic-dilated-v1";
@@ -92,6 +94,10 @@ describe("one finite-case fitting path with independent reference assessment", (
     expect(rerun.result.initialization.kind).toBe("exact-checkpoint");
     expect(rerun.result.execution.completedCycleCount).toBe(3);
     expect(rerun.result.rest.status).toBe("passed");
+    const agreement = await initializationAgreement({ warm: rerun.result, cold: disease });
+    expect(agreement.status, JSON.stringify(agreement)).toBe("passed");
+    expect(agreement.comparison?.rows).toHaveLength(17);
+    expect((await initializationAgreement({ warm: baseline, cold: disease })).status).toBe("held");
     expect(JSON.stringify(disease)).toBe(before);
   }, 20_000);
   it("does not miss inlet reflow in the native beat before the last controller window", () => {
@@ -159,6 +165,35 @@ describe("one finite-case fitting path with independent reference assessment", (
     expect(await hash(body)).toBe(reobservationSha256); expect(JSON.stringify(disease)).toBe(before);
     await expect(reobserve(disease, "invented-source")).rejects.toThrow(/digest/);
     await expect(reobserve({ ...disease, resultSha256: "f".repeat(64) }, analysisSource)).rejects.toThrow(/digest/);
+  });
+  it("reobserves compatible raw evidence after the old model and checkpoint become unrestorable", async () => {
+    const { resultSha256: _, ...body } = { ...disease, modelId: "retired-numerical-owner",
+      execution: { ...disease.execution, checkpoint: { checkpointSha256: disease.execution.checkpoint.checkpointSha256 } } };
+    const old = { ...body, resultSha256: await hash(body) };
+    await expect(read(old)).rejects.toThrow(/identity/);
+    const observation = await reobserve(old, "b".repeat(64));
+    expect(observation.modelId).toBe("retired-numerical-owner");
+    expect(observation).toMatchObject({ historicalCheckpointRestored: false, numericalStepsExecuted: 0, publicPromotionAuthorized: false });
+    expect(observation.rest).toEqual(disease.rest);
+  });
+  it("compares baseline and disease history using each case's current measurement method without relabelling old evidence", async () => {
+    for (const current of [baseline, disease]) {
+      const { resultSha256: _, ...body } = { ...current, modelId: "retired-owner-for-test",
+        rest: { ...current.rest, status: "historical-held" },
+        execution: { ...current.execution, checkpoint: { intentionallyNotRestorable: true } } };
+      const old = { ...body, resultSha256: await hash(body) };
+      const result = await compare({ referenceId: current.rest.referenceId, previous: old, current, analysisSourceSha256: "b".repeat(64) });
+      expect(result).toMatchObject({ status: "compared", inputChanges: [], sameNominalDt: true,
+        numericalStepsExecuted: 0, historicalCheckpointRestored: false, publicPromotionAuthorized: false });
+      expect(result.previous.observation?.modelId).toBe("retired-owner-for-test");
+      expect(result.previous.observation?.previousRestStatus).toBe("historical-held");
+      expect(result.previous.observation?.rest).toEqual(current.rest);
+      expect(result.current.observation?.rest).toEqual(current.rest);
+      expect(result.rows.length).toBeGreaterThan(15);
+      expect(result.rows.every(r => r.delta === 0 || r.previous === null && r.current === null && r.delta === null)).toBe(true);
+    }
+    const wrongCase = await compare({ referenceId: "baseline", previous: disease, current: baseline, analysisSourceSha256: "b".repeat(64) });
+    expect(wrongCase).toMatchObject({ status: "incomplete", rows: [], previous: { status: "unavailable", issue: expect.stringContaining("Different case") } });
   });
   it("can use the fitted checkpoint in the real exact adapter without baseline-state substitution", async () => {
     const c = disease.candidateInputs;

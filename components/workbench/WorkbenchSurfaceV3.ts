@@ -56,6 +56,7 @@ const WORKBENCH_PROXIMAL_AORTIC_PRESSURE_SIGNAL_OUTPUT_ID_V3 =
  * without asking the author to choose a left/right catalog fragment first.
  */
 export const WORKBENCH_GRAPH_PANE_OPTIONS_V3 = Object.freeze([
+  Object.freeze({ optionId: "hemodynamics.aortic-jet.cycle", graphId: "hemodynamics.aortic-jet.cycle", kind: "aortic-jet-cycle" as const }),
   Object.freeze({
     optionId: "hemodynamics.pressure-volume",
     graphId: "hemodynamics.pressure-volume",
@@ -154,7 +155,7 @@ export function workbenchGraphIdForPaneKindV3(
 export function workbenchDefaultGraphSeriesIdsV3(
   graph: GraphDefinitionV2,
 ): readonly string[] {
-  return graph.renderer === "structural-return"
+  return graph.renderer === "structural-return" || graph.renderer === "cycle-waveform"
     ? Object.freeze([])
     : graph.defaultSeriesIds;
 }
@@ -629,7 +630,7 @@ function createDefaultGraphPaneV3(
         (graph.side === "both" ? "right" : graph.side))
       : undefined;
   const selectedSeriesIds =
-    graph.renderer === "structural-return"
+    graph.renderer === "structural-return" || graph.renderer === "cycle-waveform"
       ? []
       : (options.seriesIds ?? graph.defaultSeriesIds).filter((seriesId) =>
           graph.seriesCatalog.some((series) => series.seriesId === seriesId),
@@ -646,7 +647,7 @@ function createDefaultGraphPaneV3(
     ...(graph.renderer === "sweep"
       ? { windowSec: WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3 }
       : {
-          historyDepth: WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3,
+          ...(graph.renderer === "cycle-waveform" ? {} : { historyDepth: WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3 }),
           ...(graph.renderer === "pressure-volume"
             ? options.periodicPvaSupported === false
               ? {
@@ -663,7 +664,7 @@ function createDefaultGraphPaneV3(
         }),
     traceColors: Object.freeze([]),
     series: Object.freeze(
-      graph.renderer === "structural-return"
+      graph.renderer === "structural-return" || graph.renderer === "cycle-waveform"
         ? []
         : selectedSeriesIds.map((seriesId, seriesIndex) =>
             Object.freeze({
@@ -865,6 +866,7 @@ export function graphTitleV3(
   graphId: string,
   structuralSide?: "left" | "right",
 ): string {
+  if (graphId === "hemodynamics.aortic-jet.cycle") return "AV velocity / AT–ET";
   if (
     graphId === "hemodynamics.pressure.waveform" ||
     graphId === "hemodynamics.pressure.waveform.comprehensive-v1"

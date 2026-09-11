@@ -1,9 +1,16 @@
 import type { StudioSimulationAnalysisV2, StudioSimulationFrameV2, StudioSimulationOutputValueV2 } from "@/studio/contracts/v2/simulation";
 import { MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1, MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID } from "./MainWireCardiacCycleMetricsV1";
 import { MAIN_WIRE_FILLING_FLOW_ANALYSIS_OUTPUT_IDS_V1, MAIN_WIRE_FILLING_FLOW_METHOD_V1_ID } from "./MainWireFillingFlowMetricsV1";
+import { MAIN_WIRE_AORTIC_JET_PRESENTATION_OUTPUTS_V1 as jetOutputs, MAIN_WIRE_AORTIC_JET_PRESENTATION_V1_ID as jetMethodId } from "./MainWireAorticJetPresentationV1";
 
 const outputIds = new Set<string>(MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1);
 const fillingIds = new Set<string>(MAIN_WIRE_FILLING_FLOW_ANALYSIS_OUTPUT_IDS_V1);
+const jetIds = new Set<string>(jetOutputs.map(o => o.outputId));
+
+export function mainWireAorticJetOutputValueV1(analyses: readonly StudioSimulationAnalysisV2[] | undefined,
+  frame: StudioSimulationFrameV2 | null, outputId: string): StudioSimulationOutputValueV2 | undefined {
+  return jetIds.has(outputId) ? readOutput(analyses, frame, outputId, jetMethodId) : undefined;
+}
 
 /** Read an ephemeral analysis result, without inserting derived fields into an exact frame. */
 export function mainWireCardiacCycleOutputValueV1(

@@ -40,9 +40,9 @@ export type WorkbenchGroupTimeConductorDependenciesV3<TFrame> = Readonly<{
   onError(error: Error): void;
   onPlaybackRateChange?(state: WorkbenchGroupPlaybackRateStateV3): void;
   /**
-   * True only when this batch is representative foreground evidence.
-   * Background numerical work and hidden documents must not lower or raise
-   * the device capability ceiling.
+   * True when this batch represents visible playback. The conservative limit
+   * describes the current workload, not an unloaded hardware benchmark.
+   * Include background contention; exclude hidden/suspended documents.
    */
   capacityMeasurementEligible?(): boolean;
   nowMs?: () => number;
@@ -383,8 +383,8 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     // throughput information.
     if (groupWallMs <= 0) return;
     const measuredCapacity = this.#batchModelDurationMs() / groupWallMs;
-    // The first foreground batch finishing after analysis may still have
-    // started under contention. Do not use that tail as clean calibration.
+    // A batch starting while hidden is not evidence even if the tab becomes
+    // visible before its reply. Ordinary background contention IS evidence.
     const eligible = capacityEligibleAtStart
       && this.#capacityMeasurementEligible();
     if (this.#performance.enabled) {
@@ -398,18 +398,17 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
           : "scheduler.group.capacity-samples-rejected",
       );
     }
+    if (!eligible) return;
     if (this.#maximumRate === null) {
-      if (eligible) {
-        this.#calibrationMeasurementCount += 1;
-        if (
-          this.#calibrationMeasurementCount
-            > WORKBENCH_GROUP_CALIBRATION_DISCARD_COUNT_V3
-        ) this.#calibrationCapacitySamples.push(measuredCapacity);
-        if (
-          this.#calibrationCapacitySamples.length
-            >= WORKBENCH_GROUP_CALIBRATION_SAMPLE_COUNT_V3
-        ) this.#finishCalibration(completedAtMs);
-      }
+      this.#calibrationMeasurementCount += 1;
+      if (
+        this.#calibrationMeasurementCount
+          > WORKBENCH_GROUP_CALIBRATION_DISCARD_COUNT_V3
+      ) this.#calibrationCapacitySamples.push(measuredCapacity);
+      if (
+        this.#calibrationCapacitySamples.length
+          >= WORKBENCH_GROUP_CALIBRATION_SAMPLE_COUNT_V3
+      ) this.#finishCalibration(completedAtMs);
     } else {
       this.#steadyCapacitySamples.push(measuredCapacity);
       if (
@@ -425,8 +424,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
         ) < this.#playbackRate * WORKBENCH_GROUP_OVERLOAD_RATIO_V3
       ) this.#performanceLimited = true;
       if (
-        eligible
-        && this.#maximumRate < this.#maximumPlaybackRate
+        this.#maximumRate < this.#maximumPlaybackRate
       ) {
         this.#requalificationCapacitySamples.push(measuredCapacity);
         if (
