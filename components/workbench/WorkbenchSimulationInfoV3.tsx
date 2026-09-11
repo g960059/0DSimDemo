@@ -13,6 +13,15 @@ import {
 import { useTranslation } from "react-i18next";
 
 import type { ModelContractV2 } from "@/studio/contracts/v2/model";
+import { MAIN_WIRE_PRESSURE_CROSSING_PV_ANALYSIS_V1_ID } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
+
+/** Disclosure follows the pinned measurement, including on public routes. */
+export function workbenchAnalysisLimitationsV3(analysisId: string, locale: string): readonly string[] {
+  if (analysisId !== MAIN_WIRE_PRESSURE_CROSSING_PV_ANALYSIS_V1_ID) return [];
+  return [locale === "ja"
+    ? "PV解析では、準定常弁の前向き駆出が終わる位置を、弁前後の圧差のゼロ交差から補間します。実際の弁尖の接触時刻を測るものではありません。ライブ計算や保存状態は変更せず、独立した解析用の計算で測定します。"
+    : "PV analysis interpolates the end of forward ejection at the quasi-steady valve's signed pressure-difference zero crossing. This is not a measurement of physical leaflet contact. Measurements use isolated analysis sessions without changing the live calculation or saved state."];
+}
 
 export type WorkbenchSimulationInfoModelV3 = Readonly<{
   contract: ModelContractV2;

@@ -128,6 +128,7 @@ test("@desktop current model inherits the complete analysis Surface", async ({
   await graphGroups.first().getByRole("button", { name: "Paneを追加" }).click();
   const addGraphMenu = page.getByRole("menu", { name: "Paneを追加" });
   await expect(addGraphMenu.getByRole("menuitem")).toHaveText([
+    "AV流速・駆出時間",
     "PV loop",
     "圧波形",
     "流量波形",
@@ -147,7 +148,7 @@ test("@desktop current model inherits the complete analysis Surface", async ({
   );
   await expect(pvCanvas).toHaveAttribute(
     "data-pv-relation-semantics",
-    "area-max-common-isochrone-espvr-exponential-edpvr",
+    "full-load-pressure-envelope-measured-diastolic-locus",
     { timeout: 90_000 },
   );
   // Browser smoke owns worker wiring and at least one settled formal branch,
@@ -773,7 +774,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   );
   await expect(
     page.locator(
-      '[data-pv-relation-semantics="area-max-common-isochrone-espvr-exponential-edpvr"]',
+      '[data-pv-relation-semantics="full-load-pressure-envelope-measured-diastolic-locus"]',
     ),
   ).toBeVisible();
   await expectFormalPvaProgressOrResult(
@@ -855,6 +856,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   await graphGroups.first().getByRole("button", { name: "Paneを追加" }).click();
   const addGraphMenu = page.getByRole("menu", { name: "Paneを追加" });
   await expect(addGraphMenu.getByRole("menuitem")).toHaveText([
+    "AV流速・駆出時間",
     "PV loop",
     "圧波形",
     "流量波形",
@@ -1273,6 +1275,7 @@ test("@desktop simulation information stays human-facing", async ({
   await expect(limitations).toContainText(
     "局所ジェット、圧波の伝播・反射",
   );
+  await expect(limitations).toContainText("弁尖の接触時刻を測るものではありません");
   await expect(dialog.getByText("数理モデルのbaseline検証", { exact: true }))
     .toBeVisible();
   await expect(dialog.getByText("LV τ (Weiss / Glantz)", { exact: true }))
