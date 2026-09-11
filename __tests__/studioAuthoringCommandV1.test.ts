@@ -1,3 +1,4 @@
+import { createStudioArticleBriefingV1, type StudioArticleBriefingSelectionV1 } from "@/studio/application/authoring/StudioArticleBriefingPlacementV1";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/studio/application/authoring/StudioAuthoringCommandV1";
 import { STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID } from "@/studio/contracts/v2/article";
 import {
+  type ExperimentSnapshotV2,
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_V2_SCHEMA_ID,
@@ -420,6 +422,8 @@ describe("Studio authoring command V1", () => {
         selection: {
           title: "PV loop",
           visibleScenarioIds: null,
+          outputScenarioMode: "source-fixed",
+          controlBindingMode: "source-fixed",
           initialFocusScenarioId: null,
           graphPaneIds: null,
           outputIds: null,
@@ -794,3 +798,67 @@ function contentV1() {
     },
   };
 }
+
+
+describe("Article comparison placement", () => {
+  const selection: StudioArticleBriefingSelectionV1 = {
+    title: "Compare filling", visibleScenarioIds: ["baseline", "loaded"], initialFocusScenarioId: "loaded",
+    graphPaneIds: [], outputIds: null, controlIds: null,
+    outputScenarioMode: "each-visible", controlBindingMode: "reader-focus",
+  };
+  function snapshot(): ExperimentSnapshotV2 {
+    const output = { paneId: "output/active", role: "output" as const, label: "Flow", order: 0, priority: 1,
+      binding: { mode: "active-slot" as const }, items: [{ outputId: "sv", label: "SV", order: 0 }, { outputId: "lap", label: "LAP", order: 1 }] };
+    const control = { paneId: "control/active", role: "control" as const, label: "Volume", order: 0, priority: 1,
+      binding: { mode: "active-slot" as const }, items: [{ controlId: "tbv", label: "TBV", order: 0, presentation: { kind: "slider" as const } }] };
+    return { schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID, snapshotId: "snapshot/compare", surfaceReleaseId: "surface/1", createdAt: "2026-09-12T00:00:00Z",
+      content: { modelId: "model/1", surfaceSeriesId: "surface", scenarios: ["baseline", "loaded", "hidden"].map(scenarioId => ({ scenarioId, label: scenarioId,
+        capture: { fixture: {}, checkpoint: { acceptedRevision: 1, acceptedTimeSec: .002, payload: {} } } })),
+        surface: { graphPanes: [], note: { text: "" },
+          outputPanes: [output, { ...output, paneId: "output/fixed", order: 1, binding: { mode: "fixed", scenarioId: "baseline" } }],
+          controlPanes: [control, { ...control, paneId: "control/fixed", order: 1, binding: { mode: "fixed", scenarioIds: ["baseline", "hidden"] } }] } } };
+  }
+
+  it("expands active outputs across visible scenarios while retaining fixed source scopes", () => {
+    const s = snapshot(); const before = JSON.stringify(s); const b = createStudioArticleBriefingV1(s, selection);
+    expect(b.outputs.map(o => [o.sourcePaneId, o.outputId, o.scenarioId, o.order])).toEqual([
+      ["output/active", "sv", "baseline", 0], ["output/active", "sv", "loaded", 1],
+      ["output/active", "lap", "baseline", 2], ["output/active", "lap", "loaded", 3],
+      ["output/fixed", "sv", "baseline", 4], ["output/fixed", "lap", "baseline", 5],
+    ]);
+    expect(b.controls.map(c => c.binding)).toEqual([
+      { mode: "reader-focus", allowedScenarioIds: ["baseline", "loaded"] },
+      { mode: "reader-focus", allowedScenarioIds: ["baseline"] },
+    ]);
+    expect(JSON.stringify(s)).toBe(before);
+  });
+  it("materializes source-fixed active slots at the explicit initial focus", () => {
+    const b = createStudioArticleBriefingV1(snapshot(), { ...selection, outputScenarioMode: "source-fixed", controlBindingMode: "source-fixed" });
+    expect(b.outputs.map(o => o.scenarioId)).toEqual(["loaded", "loaded", "baseline", "baseline"]);
+    expect(b.controls.map(c => c.binding)).toEqual([
+      { mode: "fixed", scenarioIds: ["loaded"], application: "absolute" },
+      { mode: "fixed", scenarioIds: ["baseline"], application: "absolute" },
+    ]);
+  });
+  it("omits hidden fixed scopes instead of silently retargeting them", () => {
+    const b = createStudioArticleBriefingV1(snapshot(), { ...selection, visibleScenarioIds: ["loaded"] });
+    expect(b.outputs.map(o => o.sourcePaneId)).toEqual(["output/active", "output/active"]);
+    expect(b.controls.map(c => c.sourcePaneId)).toEqual(["control/active"]);
+    expect(() => createStudioArticleBriefingV1(snapshot(), { ...selection, outputIds: ["missing"] })).toThrow(/unavailable output/);
+  });
+  it("requires explicit projection choices and advertises exactly the accepted enums", () => {
+    const schema = describeStudioAuthoringProtocolV1("article.briefing.place").actions[0]!.inputSchema as any;
+    const command = { schemaId: "circleheart-studio-authoring-command-v1", commandId: "c42363ce-3ad5-4c5c-a3dd-28cbe4c21e91", action: "article.briefing.place",
+      input: { articleId: "article/1", expectedVersion: 1, snapshotId: "snapshot/compare", selection, target: { mode: "append" } } };
+    expect(schema.properties.selection.required).toContain("outputScenarioMode");
+    expect(schema.properties.selection.required).toContain("controlBindingMode");
+    for (const outputScenarioMode of schema.properties.selection.properties.outputScenarioMode.enum) {
+      for (const controlBindingMode of schema.properties.selection.properties.controlBindingMode.enum) {
+        expect(validateStudioAuthoringCommandV1({ ...command, input: { ...command.input, selection: { ...selection, outputScenarioMode, controlBindingMode } } }).action).toBe("article.briefing.place");
+      }
+    }
+    for (const patch of [{ outputScenarioMode: "all" }, { controlBindingMode: "relative" }, { outputScenarioMode: undefined }]) {
+      expect(() => validateStudioAuthoringCommandV1({ ...command, input: { ...command.input, selection: { ...selection, ...patch } } })).toThrow();
+    }
+  });
+});

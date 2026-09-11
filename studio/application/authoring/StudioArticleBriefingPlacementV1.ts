@@ -21,6 +21,8 @@ export type StudioArticleBriefingSelectionV1 = Readonly<{
   graphPaneIds: readonly string[] | null;
   outputIds: readonly string[] | null;
   controlIds: readonly string[] | null;
+  outputScenarioMode: "source-fixed" | "each-visible";
+  controlBindingMode: "source-fixed" | "reader-focus";
 }>;
 
 export type StudioArticleBriefingPlacementTargetV1 =
@@ -34,9 +36,8 @@ export type StudioArticleBriefingPlacementIdentityV1 = Readonly<{
 }>;
 
 /**
- * Creates the same explicit, fixed Reader projection used by the Article UI.
- * Active-slot pane bindings are materialized now; later Scenario Manager
- * changes cannot retarget an already placed Briefing.
+ * Projects sealed pane membership into explicit Reader bindings. Comparison
+ * expansion applies only to active-slot panes; fixed source scopes are retained.
  */
 export function createStudioArticleBriefingV1(
   snapshot: ExperimentSnapshotV2,
@@ -77,16 +78,21 @@ export function createStudioArticleBriefingV1(
       .map((item) => ({ pane, item })))
     .filter(({ item }) =>
       selection.outputIds === null || selection.outputIds.includes(item.outputId))
-    .map(({ pane, item }, order) => Object.freeze({
-      sourcePaneId: pane.paneId,
-      outputId: item.outputId,
-      scenarioId: pane.binding.mode === "fixed"
-        && visibleScenarioIds.includes(pane.binding.scenarioId)
-        ? pane.binding.scenarioId
-        : initialFocusScenarioId,
-      label: item.label,
-      order,
-    }));
+    .flatMap(({ pane, item }) => {
+      const binding = pane.binding;
+      const scenarioIds = binding.mode === "fixed"
+        ? visibleScenarioIds.filter(id => id === binding.scenarioId)
+        : selection.outputScenarioMode === "each-visible"
+          ? visibleScenarioIds
+          : [initialFocusScenarioId];
+      return scenarioIds.map(scenarioId => ({
+        sourcePaneId: pane.paneId,
+        outputId: item.outputId,
+        scenarioId,
+        label: item.label,
+      }));
+    })
+    .map((item, order) => Object.freeze({ ...item, order }));
   assertSelectedIdsResolvedV1(
     selection.outputIds,
     outputs.map(({ outputId }) => outputId),
@@ -98,26 +104,32 @@ export function createStudioArticleBriefingV1(
       .map((item) => ({ pane, item })))
     .filter(({ item }) =>
       selection.controlIds === null || selection.controlIds.includes(item.controlId))
-    .map(({ pane, item }, order) => {
+    .flatMap(({ pane, item }) => {
       const fixed = pane.binding.mode === "fixed"
         ? pane.binding.scenarioIds.filter((scenarioId) =>
             visibleScenarioIds.includes(scenarioId))
-        : [];
-      return Object.freeze({
+        : [initialFocusScenarioId];
+      if (fixed.length === 0) return [];
+      return [{
         sourcePaneId: pane.paneId,
         controlId: item.controlId,
         label: item.label,
-        order,
         presentation: item.presentation,
-        binding: Object.freeze({
-          mode: "fixed" as const,
-          scenarioIds: Object.freeze(fixed.length > 0
-            ? fixed
-            : [initialFocusScenarioId]),
-          application: "absolute" as const,
-        }),
-      });
-    });
+        binding: selection.controlBindingMode === "reader-focus"
+          ? Object.freeze({
+              mode: "reader-focus" as const,
+              allowedScenarioIds: Object.freeze(pane.binding.mode === "fixed"
+                ? fixed
+                : [...visibleScenarioIds]),
+            })
+          : Object.freeze({
+              mode: "fixed" as const,
+              scenarioIds: Object.freeze(fixed),
+              application: "absolute" as const,
+            }),
+      }];
+    })
+    .map((item, order) => Object.freeze({ ...item, order }));
   assertSelectedIdsResolvedV1(
     selection.controlIds,
     controls.map(({ controlId }) => controlId),

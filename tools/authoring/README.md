@@ -66,14 +66,14 @@ is always a separate explicit action. Large search, fitting, or validation
 loops remain non-persistent studies until a user explicitly selects a
 candidate for the ordinary preview/apply/seal path.
 
-Default placement materializes a Workbench active slot to the Briefing's initial
-focus Scenario (the first visible Scenario when omitted). Reader focus changes
-do not retarget these fixed output or control bindings. For comparison articles,
-read the Snapshot's actual pane items, then replace the placed experiment block
-through the block-patch command with explicit per-Scenario outputs and, when
-desired, reader-focus controls. Preserve the block and placement identities.
-Every output must belong to its source pane; every control target must be visible.
-The Reader chooses inline or companion presentation from the resulting Briefing.
+Placement requires an explicit projection choice for outputs and controls.
+Active-slot outputs can materialize at initial focus or expand across visible
+Scenarios; fixed source panes retain their visible targets. Reader-focus controls
+follow selection within their allowed targets. Fixed panes with no visible target
+are omitted, never silently redirected. Every projected item still belongs to its
+source pane. The Reader chooses inline or companion presentation from the
+resulting Briefing. Read the placed block to verify the projection; use block
+patches only for presentation choices beyond the placement selection contract.
 
 Client-side numerical admission protects the first-party workflow from
 ordinary invalid captures. It is not cryptographic proof against a hostile

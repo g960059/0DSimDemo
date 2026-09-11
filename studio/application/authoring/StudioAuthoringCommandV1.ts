@@ -701,7 +701,7 @@ export function describeStudioAuthoringProtocolV1(selectedAction?: string): Read
   ] });
   const briefingSelection = object([
     "controlIds", "graphPaneIds", "initialFocusScenarioId", "outputIds",
-    "title", "visibleScenarioIds",
+    "title", "visibleScenarioIds", "outputScenarioMode", "controlBindingMode",
   ], {
     title: id,
     visibleScenarioIds: nullableStringArray,
@@ -709,6 +709,8 @@ export function describeStudioAuthoringProtocolV1(selectedAction?: string): Read
     graphPaneIds: nullableStringArray,
     outputIds: nullableStringArray,
     controlIds: nullableStringArray,
+    outputScenarioMode: { enum: ["source-fixed", "each-visible"] },
+    controlBindingMode: { enum: ["source-fixed", "reader-focus"] },
   });
   const briefingTarget = Object.freeze({ oneOf: [
     object(["mode"], { mode: { const: "append" } }),
@@ -1851,8 +1853,14 @@ function briefingSelectionV1(value: unknown): StudioArticleBriefingSelectionV1 {
   const record = recordV1(value, path);
   exactKeysV1(record, [
     "controlIds", "graphPaneIds", "initialFocusScenarioId", "outputIds",
-    "title", "visibleScenarioIds",
+    "title", "visibleScenarioIds", "outputScenarioMode", "controlBindingMode",
   ], path);
+  if (record.outputScenarioMode !== "source-fixed" && record.outputScenarioMode !== "each-visible") {
+    throw new Error(`${path}.outputScenarioMode must be source-fixed or each-visible`);
+  }
+  if (record.controlBindingMode !== "source-fixed" && record.controlBindingMode !== "reader-focus") {
+    throw new Error(`${path}.controlBindingMode must be source-fixed or reader-focus`);
+  }
   return Object.freeze({
     title: trimmedV1(record.title, `${path}.title`),
     visibleScenarioIds: nullableStringArrayV1(record.visibleScenarioIds, `${path}.visibleScenarioIds`),
@@ -1860,6 +1868,8 @@ function briefingSelectionV1(value: unknown): StudioArticleBriefingSelectionV1 {
     graphPaneIds: nullableStringArrayV1(record.graphPaneIds, `${path}.graphPaneIds`),
     outputIds: nullableStringArrayV1(record.outputIds, `${path}.outputIds`),
     controlIds: nullableStringArrayV1(record.controlIds, `${path}.controlIds`),
+    outputScenarioMode: record.outputScenarioMode,
+    controlBindingMode: record.controlBindingMode,
   });
 }
 
