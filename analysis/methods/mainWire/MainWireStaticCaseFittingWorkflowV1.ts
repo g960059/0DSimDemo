@@ -10,8 +10,8 @@ import { settleMainWireFittingSessionV1 as settle, MAIN_WIRE_FITTING_OBSERVATION
   type MainWireFittingFailureDiagnosticsV1,
   type MainWireFittingNominalDtV1 as Dt } from "./MainWireFittingCycleV1";
 import { ownMainWireStaticCaseCandidateV1, assessMainWireStaticCaseRestV1,
-  mainWireStaticCaseContextV1 as context, resolveMainWireStaticCaseDefinitionV1 as definition,
-  type MainWireStaticCaseCandidateV1, type MainWireCaseReferenceIdV1 } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
+  mainWireStaticCaseContextV1 as context, ownMainWireCaseInputsV1 as ownInputs,
+  type MainWireCaseBackgroundV1, type MainWireStaticCaseCandidateV1, type MainWireCaseReferenceIdV1 } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
 export { ownMainWireStaticCaseCandidateV1, assessMainWireStaticCaseRestV1 };
 export type { MainWireStaticCaseCandidateV1, MainWireCaseReferenceIdV1 };
 
@@ -19,8 +19,8 @@ const schemaId = "main-wire-static-case-fitting-result-v1" as const;
 export const MAIN_WIRE_STATIC_CASE_FITTING_V1_ID = "main-wire-static-case-periodic-rest-fitting-v1";
 const digest = (s: unknown): s is string => typeof s === "string" && /^[a-f0-9]{64}$/.test(s);
 
-export async function buildMainWireStaticCaseFittingPolicyIdentityV1(referenceId: MainWireCaseReferenceIdV1) {
-  return hash({ periodic, numerical, scales, referenceContext: context(referenceId), observationWindowId,
+export async function buildMainWireStaticCaseFittingPolicyIdentityV1(referenceId: MainWireCaseReferenceIdV1, background?: MainWireCaseBackgroundV1) {
+  return hash({ periodic, numerical, scales, referenceContext: context(referenceId, background), observationWindowId,
     methodId: MAIN_WIRE_STATIC_CASE_FITTING_V1_ID });
 }
 type Settled = Extract<Awaited<ReturnType<typeof settle<Awaited<ReturnType<Session["checkpoint"]>>>>>, { status: "accepted" }>;
@@ -28,6 +28,7 @@ type Settled = Extract<Awaited<ReturnType<typeof settle<Awaited<ReturnType<Sessi
 export type MainWireStaticCaseFittingRequestV1 = Readonly<{
   referenceId: MainWireCaseReferenceIdV1;
   candidateInputs: MainWireStaticCaseCandidateV1;
+  background?: MainWireCaseBackgroundV1;
   /** Content snapshot, not Git HEAD or this mutable research model's name. */
   sourceSha256: string;
   nominalDtSec?: Dt;
@@ -45,8 +46,8 @@ export async function runMainWireStaticCaseFittingV1(request: MainWireStaticCase
     ({ status, phase, message, modelId, wallTimeMs: performance.now() - started, ...(failureDiagnostics ? { failureDiagnostics } : {}) });
   try {
     const { referenceId, sourceSha256 } = request, nominalDtSec = request.nominalDtSec ?? .002;
-    const candidateInputs = definition(referenceId).ownInputs(request.candidateInputs);
-    const referenceContext = context(referenceId), reuse = request.reuse === undefined ? null : own(request.reuse);
+    const candidateInputs = ownInputs(referenceId, request.candidateInputs, request.background);
+    const referenceContext = context(referenceId, request.background), reuse = request.reuse === undefined ? null : own(request.reuse);
     if (!digest(sourceSha256)) throw new Error("A content-bound source SHA-256 is required for the mutable research model");
     if (nominalDtSec !== .002 && nominalDtSec !== .001) throw new Error("Case fitting supports only 2ms or1ms schedules");
     if (hotPathIntegrityTierV1() !== "hot-path-lean") throw new Error("Case fitting requires hot-path-lean");
@@ -59,7 +60,7 @@ export async function runMainWireStaticCaseFittingV1(request: MainWireStaticCase
       kind: canonical(sourceInputs) === canonical(candidateInputs) ? "exact-checkpoint" as const : "parameter-continuation" as const,
       sourceResultSha256: saved.resultSha256, checkpointSha256: saved.execution.checkpoint.checkpointSha256,
       sourceCandidateInputs: sourceInputs, sourceNominalDtSec: saved.nominalDtSec };
-    const policyIdentitySha256 = await buildMainWireStaticCaseFittingPolicyIdentityV1(referenceId);
+    const policyIdentitySha256 = await buildMainWireStaticCaseFittingPolicyIdentityV1(referenceId, request.background);
     const identity = { modelId, sourceSha256, candidateInputs, nominalDtSec, initialization, policyIdentitySha256 };
     const requestIdentitySha256 = await hash(identity);
     phase = "initialization";
@@ -105,8 +106,8 @@ export async function readMainWireStaticCaseFittingResultV1(input: unknown): Pro
     || !digest(value.resultSha256) || !digest(value.policyIdentitySha256)) throw new Error("Invalid static-case fitting identity");
   const { resultSha256, ...body } = value;
   if (await hash(body) !== resultSha256) throw new Error("Static-case fitting result digest differs");
-  const c = definition(value.rest.referenceId).ownInputs(value.candidateInputs);
-  context(value.referenceContext.reference.referenceId);
+  const c = ownInputs(value.rest.referenceId, value.candidateInputs, value.referenceContext.background);
+  context(value.referenceContext.reference.referenceId, value.referenceContext.background);
   if (value.rest.referenceId !== value.referenceContext.reference.referenceId || value.execution.status !== "accepted"
     || value.execution.classification.status !== "period1-converged"
     || ![.002, .001].includes(value.nominalDtSec) || value.qualification.scope !== "periodic-rest-screen-only"

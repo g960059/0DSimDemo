@@ -13,6 +13,7 @@ import * as protocols from "@/tools/scientific/MainWireRegistryCaseProtocolsV1";
 import { searchMainWireRegistryCaseV1 as search } from "@/tools/scientific/MainWireRegistryCaseSearchV1";
 import { compareMainWireCaseEvidenceV1 as compareEvidence } from "@/analysis/methods/mainWire/MainWireCaseComparisonV1";
 import { composeRegistryCaseReviewDocumentV1 as documentFor } from "@/tools/modelDocumentation/authoring/RegistryCaseReviewDocumentV1";
+import { mainWireRegistryFamilyLayersV1 as family } from "@/tools/scientific/runMainWireRegistryFamilyV1";
 
 afterEach(() => vi.restoreAllMocks());
 // Scheduling/material fixtures only. No physiological evidence is synthesized.
@@ -49,6 +50,23 @@ describe("preregistered initial candidates", () => {
     expect(() => own([{ ...four[0], coordinateIds: ["tbv", "lv-active"] },
       { ...four[1], coordinateIds: ["lv-active", "tbv"] }], 4)).toThrow(/same ordered/);
     expect(() => own([{ referenceId: "baseline", coordinateIds: ["tbv", "tbv"] }], 1)).toThrow(/distinct/);
+  });
+  it("keeps a selected parent explicit and shared across AS starts", () => {
+    const referenceId = "as-low-flow-reduced-ef-v1";
+    expect(own([{ referenceId, parentRun: "/sealed/parents" }], 3)[0])
+      .toMatchObject({ parentRun: "/sealed/parents", coordinateIds: ["aortic-area"] });
+    expect(() => own([{ referenceId, parentRun: "" }], 3)).toThrow();
+    expect(() => own([{ referenceId, parentRun: "/a" }, { referenceId, startId: "other", parentRun: "/b" }], 3)).toThrow(/same comparison parent/);
+  });
+  it("orders the two current comparison layers without substituting missing parents or broadening AS search", () => {
+    const proposals = own(Object.values(definitions).map(d => ({ referenceId: d.referenceId })), 3);
+    const layers = family(proposals);
+    expect(layers.roots.map(p => p.referenceId).sort()).toEqual(["baseline", "hfref-chronic-dilated-v1"]);
+    expect(layers.children).toHaveLength(2);
+    expect(layers.children.every(p => p.coordinateIds?.join() === "aortic-area")).toBe(true);
+    expect(() => family(proposals.filter(p => p.referenceId !== "baseline"))).toThrow(/include baseline/);
+    expect(() => family(proposals.map(p => p.referenceId === "as-low-flow-reduced-ef-v1" ? { ...p, coordinateIds: ["lv-active"] } : p)))
+      .toThrow(/only aortic-area/);
   });
   it("prefers an independently qualified start over a better-scoring but held start", () => {
     const starts = [start("better-but-held", 0, "review-pending", true), start("qualified", 3, "review-pending"), start("searchable", 1)];
@@ -98,7 +116,7 @@ describe("preregistered initial candidates", () => {
     const prepared = own([{ referenceId: "baseline", startId: "first" }, { referenceId: "baseline", startId: "second" }], 4)
       .map(proposal => ({ proposal, inputs: { record: inputRecord, binding, previousEvidenceFile: null }, issue: null }));
     const plan = { modelId, sourceSha256, maximumEvaluations: 4, prepared };
-    const raw = (dt: number) => ({ modelId, sourceSha256, candidateInputs, nominalDtSec: dt, initialization: { kind: "cold" },
+    const raw = (dt: number) => ({ modelId, sourceSha256, candidateInputs, nominalDtSec: dt, initialization: { kind: "cold" }, referenceContext: {},
       rest: { referenceId: "baseline", status: "passed", assessment: { operating: [], invalidOrFailedRetained: [], unavailable: [], anatomyReviewRequired: false } } });
     const score = { status: "passed", rank: [0, 0, 0], targetsMet: true, observations: [], holds: [] };
     const assessment = { status: "review-pending" as const, qualification: { issues: [] }, searchHoldIssues: [], caseTargetIssues: [] };

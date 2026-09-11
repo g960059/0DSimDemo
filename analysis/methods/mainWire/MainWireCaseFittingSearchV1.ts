@@ -5,7 +5,7 @@ import { MAIN_WIRE_FOUR_VALVE_AREA_INPUT_RANGES_V1 as valveRanges } from "@/engi
 import { type MainWireStaticCaseCandidateV1 as Candidate,
   type MainWireStaticCaseFittingResultV1 as Saved, type runMainWireStaticCaseFittingV1,
   type MainWireCaseReferenceIdV1 as Reference } from "./MainWireStaticCaseFittingWorkflowV1";
-import { resolveMainWireStaticCaseDefinitionV1 as definition } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
+import { ownMainWireCaseInputsV1 as ownInputs, type MainWireCaseBackgroundV1 as Background } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
 import { resolveMainWireCaseSearchProfileV1 as profile, scoreMainWireCaseFittingResultV1,
   type MainWireCaseSearchScoreV1 } from "@/analysis/registry/MainWireCaseSearchProfilesV1";
 export { scoreMainWireCaseFittingResultV1 };
@@ -43,8 +43,13 @@ export function readMainWireCaseSearchCoordinateV1(c: Candidate, id: CoordinateI
   return wall.LVFW;
 }
 /** Cheap preflight before any cold jobs; never silently remove a coordinate. */
-export function assertMainWireCaseSearchInputsV1(referenceId: Reference, candidate: Candidate, ids: readonly CoordinateId[] = profile(referenceId).coordinateIds) {
+export function assertMainWireCaseSearchInputsV1(referenceId: Reference, candidate: Candidate, ids: readonly CoordinateId[] = profile(referenceId).coordinateIds,
+  background?: Background) {
   if (ids.some(id => !profile(referenceId).coordinateIds.includes(id))) throw new Error("Search coordinate is not allowed by this case");
+  if (background) {
+    ownInputs(referenceId, candidate, background);
+    if (ids.some(id => id !== "aortic-area")) throw new Error("Parent-bound AS search must keep its background fixed; select only aortic-area");
+  }
   for (const d of descriptors(ids)) readMainWireCaseSearchCoordinateV1(candidate, d.id);
 }
 export function withMainWireCaseSearchCoordinateV1(c: Candidate, id: CoordinateId, value: number): Candidate {
@@ -115,7 +120,7 @@ function localResponse(center: Evaluation, evaluations: readonly Evaluation[], c
  * are not fresh executions from a different anchor. Optional final checks are
  * separate executions, never input-cache hits or permission to publish. */
 export async function searchMainWireCaseFittingV1(request: Readonly<{
-  referenceId: Reference; candidateInputs: Candidate; reuse?: Saved;
+  referenceId: Reference; candidateInputs: Candidate; reuse?: Saved; background?: Background;
   /** Current-run coarse evidence may seed the search without being rerun. */
   initialOutcome?: Outcome;
   coordinateIds?: readonly CoordinateId[]; maximumEvaluations: number; maximumWallTimeMs: number;
@@ -136,8 +141,9 @@ export async function searchMainWireCaseFittingV1(request: Readonly<{
     throw new Error("Search requires 1–128 evaluations and at most one hour");
   if (!Number.isFinite(reservedFinalWallTimeMs) || reservedFinalWallTimeMs < 0 || reservedFinalWallTimeMs > request.maximumWallTimeMs)
     throw new Error("Final-time reservation must fit within the total search budget");
-  const seed = definition(request.referenceId).ownInputs(request.candidateInputs), policy = profile(request.referenceId);
+  const seed = ownInputs(request.referenceId, request.candidateInputs, request.background), policy = profile(request.referenceId);
   const ids = request.coordinateIds ?? policy.coordinateIds;
+  assertMainWireCaseSearchInputsV1(request.referenceId, seed, ids, request.background);
   const maximumFinalChecks = request.maximumFinalChecks ?? 3;
   if (!Number.isInteger(maximumFinalChecks) || maximumFinalChecks < 1 || maximumFinalChecks > 8)
     throw new Error("Final checks require a budget of 1–8 candidates");

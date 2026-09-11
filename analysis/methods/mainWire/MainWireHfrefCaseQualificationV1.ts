@@ -43,7 +43,7 @@ export async function assessMainWireDiseaseCaseQualificationV1(input: Readonly<{
       const r = await read(input[key]), d = r.execution.diagnostics;
       results.push(r);
       if (r.nominalDtSec !== dt || r.initialization.kind !== "cold" || r.candidateInputs.anatomyId !== anatomyId
-        || r.rest.referenceId !== referenceId || r.policyIdentitySha256 !== await policyIdentity(referenceId))
+        || r.rest.referenceId !== referenceId || r.policyIdentitySha256 !== await policyIdentity(referenceId, r.referenceContext.background))
         issues.push(`${key}:independent-current-reference-grid`);
       if (r.requestIdentitySha256 !== await hash({ modelId: r.modelId, sourceSha256: r.sourceSha256,
         candidateInputs: r.candidateInputs, nominalDtSec: r.nominalDtSec,
@@ -67,6 +67,7 @@ export async function assessMainWireDiseaseCaseQualificationV1(input: Readonly<{
   if (results.length === 2) {
     if (results[0]!.sourceSha256 !== results[1]!.sourceSha256) issues.push("paired-source");
     if (canonical(results[0]!.candidateInputs) !== canonical(results[1]!.candidateInputs)) issues.push("paired-inputs");
+    if (canonical(results[0]!.referenceContext) !== canonical(results[1]!.referenceContext)) issues.push("paired-reference-context");
   }
   const comparisons = observations.length === 2 ? keys.map(key => compareMainWireDiseasePairedMetricV1(
     key, observations[0]!.values[key] ?? null, observations[1]!.values[key] ?? null)) : [];

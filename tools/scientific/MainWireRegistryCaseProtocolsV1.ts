@@ -1,5 +1,6 @@
 import { MAIN_WIRE_STATIC_CASE_DEFINITIONS_V1 as definitions,
-  type MainWireCaseReferenceIdV1 as Reference, type MainWireStaticCaseCandidateV1 as Candidate } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
+  type MainWireCaseReferenceIdV1 as Reference, type MainWireCaseBackgroundV1 as Background,
+  type MainWireStaticCaseCandidateV1 as Candidate } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
 import { runMainWireStaticCaseFittingV1 as fit } from "@/analysis/methods/mainWire/MainWireStaticCaseFittingWorkflowV1";
 import { runMainWireStaticBaselineQualificationGridV1 as baselineGrid,
   assessMainWireStaticBaselineQualificationV1 as baselinePair } from "@/analysis/methods/mainWire/MainWireStaticBaselineQualificationV1";
@@ -7,7 +8,7 @@ import { assessMainWireHfrefCaseQualificationV1 as hfrefPair } from "@/analysis/
 import { assessMainWireAsCaseQualificationV1 as asPair } from "@/analysis/methods/mainWire/MainWireAsCaseQualificationV1";
 import { resolveMainWireCaseSearchProfileV1 as profile, type MainWireCaseSearchScoreV1 as Score } from "@/analysis/registry/MainWireCaseSearchProfilesV1";
 
-type GridRequest = Readonly<{ candidateInputs: Candidate; sourceSha256: string; nominalDtSec: .002 | .001; abortSignal?: AbortSignal }>;
+type GridRequest = Readonly<{ candidateInputs: Candidate; background?: Background; sourceSha256: string; nominalDtSec: .002 | .001; abortSignal?: AbortSignal }>;
 export type RegistryCaseProtocolV1 = Readonly<{
   referenceId: string; title: string; adoptedPresetId: string | null; reviewItems: readonly string[];
   runGrid: (request: GridRequest) => Promise<unknown>;

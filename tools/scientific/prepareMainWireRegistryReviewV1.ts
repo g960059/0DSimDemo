@@ -1,11 +1,13 @@
 import { mkdir, readFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join, resolve, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { canonicalJsonStringify as canonical, sha256CanonicalJsonHex as hash } from "@/engine/integrity";
 import { selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { MAIN_WIRE_STATIC_CASE_MODEL_ID_V1 as modelId } from "@/domain/model/MainWireStaticCaseIdentityV1";
 import { resolveMainWireStaticCaseDefinitionV1 as definition, type MainWireCaseReferenceIdV1 as Reference,
+  ownMainWireCaseInputsV1 as ownInputs, ownMainWireCaseBackgroundV1 as ownBackground,
+  mainWireStaticCaseContextV1 as context, type MainWireCaseBackgroundV1 as Background,
   type MainWireStaticCaseCandidateV1 as Candidate } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
 import { bindMainWireCaseInputRecordV1 as bind, readMainWireHistoricalFittingEvidenceV1 as history,
   readMainWireCaseInputRecordV1 as readInput, unwrapMainWireFittingEvidenceV1 as unwrap } from "@/analysis/registry/MainWireCaseInputRecordV1";
@@ -47,15 +49,39 @@ type CandidateRecord = {
   previousEvidenceFile?: string | null; publicPromotionAuthorized: boolean;
   adjustment?: { searchFile?: string | null; selectedFinalId?: string | null; finalEvaluationId?: string };
   initialCandidatesFile?: string; selectedStartId?: string;
+  background?: Background; parentRun?: string;
 };
+
+type ReviewRun = Pick<Awaited<ReturnType<typeof sealedRun>>, "readJson" | "seal"> & Partial<Pick<Awaited<ReturnType<typeof sealedRun>>, "directory">>;
+let comparisonArtifact: ReturnType<typeof buildArtifact> | undefined;
+export async function assertMainWireRegistryParentNumericalSourceV1(run: Pick<ReviewRun, "seal">): Promise<void> {
+  comparisonArtifact ??= buildArtifact();
+  assertSource((await comparisonArtifact).sourceFiles, run.seal.files);
+}
+async function assertComparisonParent(background: Background, parentRun: string | undefined, directory?: string): Promise<void> {
+  if (!parentRun) throw new Error("Comparison background has no sealed parent run");
+  if (!isAbsolute(parentRun) && !directory) throw new Error("Relative parent proof requires its child run directory");
+  const run = await sealedRun(isAbsolute(parentRun) ? parentRun : resolve(directory!, parentRun));
+  // A model name or a rest reassessment alone cannot certify old numerical
+  // evidence after code changes. Reuse the existing actual artifact source
+  // graph; documentation-only differences need not invalidate the parent.
+  await assertMainWireRegistryParentNumericalSourceV1(run);
+  const parent = await readRegistryReviewCandidateV1(await run.readJson(`${background.referenceId}-candidate.json`), run);
+  if (parent.candidate.background || parent.assessment.status !== "review-pending"
+    || parent.candidate.referenceId !== background.referenceId
+    || parent.candidate.recordSha256 !== background.sourceCandidateRecordSha256 || run.seal.sourceSha256 !== background.sourceRunSha256)
+    throw new Error("Comparison background is not its independently qualified parent candidate");
+  same(parent.candidate.candidateInputs, background.candidateInputs, "selected parent inputs");
+}
 
 /** Rebuild every initial assessment in declared order from its sealed cold pair.
  * The run plan, not the winning summary, owns the set of attempted starts. */
 export async function readRegistryInitialCandidatesV1(referenceId: Reference, file: string,
-  run: Pick<Awaited<ReturnType<typeof sealedRun>>, "readJson" | "seal">) {
+  run: ReviewRun) {
   const plan = await run.readJson("plan.json") as { modelId: string; sourceSha256: string; maximumEvaluations: number;
     prepared: { proposal: Proposal; issue: string | null; inputs: { record: unknown;
-      binding: { candidateInputs: Candidate; interpretation: string }; previousEvidenceFile: string | null } | null }[] };
+      binding: { candidateInputs: Candidate; interpretation: string }; previousEvidenceFile: string | null;
+      background?: Background; parentRun?: string } | null }[] };
   if (plan.modelId !== modelId || plan.sourceSha256 !== run.seal.sourceSha256 || !Array.isArray(plan.prepared))
     throw new Error("Initial candidate plan identity differs");
   ownProposals(plan.prepared.map(p => p.proposal), plan.maximumEvaluations);
@@ -64,9 +90,13 @@ export async function readRegistryInitialCandidatesV1(referenceId: Reference, fi
     const executionFiles = p.inputs ? [`${prefix(p.proposal)}-2ms.json`, `${prefix(p.proposal)}-1ms.json`] : [];
     const grids: unknown[] = [], results: Result[] = [];
     if (p.inputs) {
+      if (p.inputs.background) {
+        ownBackground(referenceId, p.inputs.background);
+        await assertComparisonParent(p.inputs.background, p.inputs.parentRun, run.directory);
+      }
       const bound = await bind({ record: p.inputs.record, targetModelId: modelId, referenceId,
         mappedInputs: p.inputs.binding.candidateInputs, interpretation: p.inputs.binding.interpretation,
-        validate: v => definition(referenceId).ownInputs(v as Candidate) });
+        validate: v => ownInputs(referenceId, v as Candidate, p.inputs!.background) });
       same(bound, p.inputs.binding, "initial input mapping");
       if (p.inputs.previousEvidenceFile) same((await history(await run.readJson(p.inputs.previousEvidenceFile))).record,
         p.inputs.record, "initial historical evidence/input origin");
@@ -78,6 +108,7 @@ export async function readRegistryInitialCandidatesV1(referenceId: Reference, fi
       if (!raw) continue;
       const result = await readResult(raw);
       same(result.candidateInputs, p.inputs!.binding.candidateInputs, "initial full inputs");
+      same(result.referenceContext.background ?? null, p.inputs!.background ?? null, "initial comparison background");
       if (result.sourceSha256 !== run.seal.sourceSha256 || result.rest.referenceId !== referenceId
         || result.nominalDtSec !== [.002, .001][index] || result.initialization.kind !== "cold")
         throw new Error("Initial candidate source, case, grid or initialization differs");
@@ -95,7 +126,7 @@ export async function readRegistryInitialCandidatesV1(referenceId: Reference, fi
 }
 /** Revalidate the files behind one candidate. A summary's status is never used
  * as a vote, and edited inputs cannot borrow another case's successful result. */
-export async function readRegistryReviewCandidateV1(raw: unknown, run: Pick<Awaited<ReturnType<typeof sealedRun>>, "readJson" | "seal">) {
+export async function readRegistryReviewCandidateV1(raw: unknown, run: ReviewRun) {
   const candidate = raw as CandidateRecord;
   if (!candidate || candidate.schemaId !== "main-wire-registry-research-candidate-v1"
     || candidate.modelId !== modelId || candidate.sourceSha256 !== run.seal.sourceSha256 || candidate.publicPromotionAuthorized !== false
@@ -104,10 +135,14 @@ export async function readRegistryReviewCandidateV1(raw: unknown, run: Pick<Awai
   const { recordSha256, ...body } = candidate;
   if (recordSha256 !== await hash(body)) throw new Error("Candidate digest differs");
   same(candidate.surface, fittingSurface, "numerical run Surface/analysis pins");
+  if (candidate.background) {
+    ownBackground(candidate.referenceId, candidate.background);
+    await assertComparisonParent(candidate.background, candidate.parentRun, run.directory);
+  } else if (candidate.parentRun) throw new Error("Parent run without comparison background");
   const d = definition(candidate.referenceId);
   const binding = await bind({ record: candidate.inputRecord, targetModelId: modelId, referenceId: candidate.referenceId,
     mappedInputs: candidate.candidateInputs, interpretation: candidate.binding.interpretation,
-    validate: v => d.ownInputs(v as Candidate) });
+    validate: v => ownInputs(candidate.referenceId, v as Candidate, candidate.background) });
   same(binding, candidate.binding, "input mapping");
   const results: Result[] = [], grids: unknown[] = [];
   for (const [index, file] of candidate.executionFiles.entries()) {
@@ -117,6 +152,7 @@ export async function readRegistryReviewCandidateV1(raw: unknown, run: Pick<Awai
     if (!rawResult) continue;
     const r = await readResult(rawResult);
     same(r.candidateInputs, candidate.candidateInputs, "full case inputs");
+    same(r.referenceContext.background ?? null, candidate.background ?? null, "candidate comparison background");
     if (r.rest.referenceId !== candidate.referenceId || r.sourceSha256 !== candidate.sourceSha256 || r.nominalDtSec !== [.002, .001][index])
       throw new Error("Wrong case, numerical source or grid in candidate");
     results.push(r);
@@ -158,6 +194,7 @@ export async function readRegistryReviewCandidateV1(raw: unknown, run: Pick<Awai
     if (!first) throw new Error("Search has no initial evidence");
     initial = await readResult(unwrap(await run.readJson(first.outcome.file)));
     same(initial.candidateInputs, first.candidateInputs, "initial search inputs");
+    same(initial.referenceContext.background ?? null, candidate.background ?? null, "search comparison background");
     if (initial.resultSha256 !== first.outcome.resultSha256 || initial.sourceSha256 !== candidate.sourceSha256
       || initial.rest.referenceId !== candidate.referenceId || initial.nominalDtSec !== .002 || initial.initialization.kind !== "cold")
       throw new Error("Initial search evidence source or identity differs");
@@ -237,6 +274,9 @@ async function main() {
         const loaded = await readRegistryReviewCandidateV1(await run.readJson(row.candidateFile), run);
         if (loaded.candidate.referenceId !== row.referenceId) throw new Error("Report/candidate case differs");
         const { candidate, definition: d, results, assessment, coarse, previous, initial, initialCandidates, initializationWarm } = loaded;
+        const description = candidate.background
+          ? `今回のfittingで選択した${candidate.background.referenceId === "baseline" ? "baseline" : "HFrEF"}を背景に、大動脈弁口面積だけを変更した研究上の比較例です。親症例・この症例とも正式採択を意味しません。`
+          : d.description;
         const historicalComparison = await compare({ referenceId: candidate.referenceId, previous, current: coarse ?? null, analysisSourceSha256: snapshot.sourceSha256 });
         const comparison = initial ? await compare({ referenceId: candidate.referenceId, previous: initial,
           current: coarse ?? null, analysisSourceSha256: snapshot.sourceSha256 }) : historicalComparison;
@@ -249,10 +289,11 @@ async function main() {
         const issues = [...assessment.qualification.issues, ...assessment.caseTargetIssues];
         if (status === "review-pending" && coarse) {
           try {
-            artifact ??= await buildArtifact();
+            comparisonArtifact ??= buildArtifact();
+            artifact ??= await comparisonArtifact;
             assertSource(artifact.sourceFiles, run.seal.files);
             launch = await presetFor(coarse, { presetId: `research/${candidate.referenceId}/${coarse.resultSha256.slice(0, 12)}`,
-              title: d.title, description: d.description });
+              title: d.title, description });
             checked = await continuation(artifact, launch.preset);
             const analysisInput = { preset: launch.preset, surface, artifactRevisionId: artifact.artifactRevisionId,
               preparationSourceSha256: snapshot.sourceSha256 };
@@ -290,8 +331,8 @@ async function main() {
         }
         const assessmentSummary = { ...assessment, runStatus: row.status,
           qualification: Object.fromEntries(Object.entries(assessment.qualification).filter(([key]) => key !== "grids")) };
-        const document = await documentFor({ referenceId: row.referenceId, title: d.title, description: d.description, kind: d.kind,
-          context: d.context(), modelId, surface, assessment: assessmentSummary, status, issues, comparison,
+        const document = await documentFor({ referenceId: row.referenceId, title: d.title, description, kind: d.kind,
+          context: context(row.referenceId, candidate.background), modelId, surface, assessment: assessmentSummary, status, issues, comparison,
           results, previousDiagnostics: initial?.execution.diagnostics ?? (previous ? (await history(previous)).diagnostics : null),
           comparisonOrigin, historicalComparison: initial && previous ? historicalComparison : null,
           candidateInputs: candidate.candidateInputs, inputBinding: candidate.binding, sourceFiles: [...executionFiles, ...initialSourceFiles],
@@ -299,6 +340,7 @@ async function main() {
           initialResults: initialCandidates?.starts.flatMap(s => s.results.filter(r => r.nominalDtSec === .002).map(result => ({ startId: s.startId, result }))) });
         const documentFile = `${row.referenceId}-document.json`, htmlFile = `${row.referenceId}.html`;
         await save(documentFile, document.document);
+        await save(`${row.referenceId}-render-input.json`, document.renderInput);
         await save(`${row.referenceId}-comparison.json`, comparison);
         if (initial && previous) await save(`${row.referenceId}-historical-comparison.json`, historicalComparison);
         await saveText(htmlFile, await htmlFor(document.html));

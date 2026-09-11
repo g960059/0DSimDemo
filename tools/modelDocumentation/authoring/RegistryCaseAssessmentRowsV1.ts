@@ -23,11 +23,20 @@ export function registryCaseNarrativeV1(result: Result, locale: Locale): readonl
   const area = n(c.mechanismResearchInputs.valveAreas.AoV.maximumForwardEoaCm2, 2);
   const active = c.mechanismResearchInputs.chamberMechanics.activeTensionScaleByWall;
   const lowFlow = result.rest.referenceId === "as-low-flow-reduced-ef-v1";
+  const background = result.referenceContext?.background;
+  const parentName = background?.referenceId === "baseline" ? "baseline" : "HFrEF";
+  const construction = background
+    ? t(`今回のfittingで選択した${parentName}候補を背景に、大動脈弁の最大弁口面積だけを ${area} cm² に変更した研究上の比較例です。親症例・この比較例の正式採択を意味しません。`,
+      `A research comparison changing only maximum aortic area to ${area} cm² from the ${parentName} candidate selected in this fitting run. Neither the parent nor this comparison is thereby adopted.`)
+    : lowFlow ? t(`拡大した左室の収縮能低下と、最大弁口面積 ${area} cm² の弁狭窄を組み合わせた固定構成です。`,
+      `A fixed dilated LV with maximum aortic area ${area} cm².`)
+      : t(`採用baselineから最大弁口面積だけを ${area} cm² に変更した比較例です。`,
+        `A fixed, non-remodelled baseline ventricle with maximum aortic area ${area} cm².`);
   return [
-    lowFlow ? t(`拡大した左室の収縮能低下と、最大弁口面積 ${area} cm² の弁狭窄を組み合わせた固定構成です。能動張力の倍率はLV自由壁 ${n(active.LVFW, 2)}、中隔 ${n(active.SEP, 2)}。AMIや経時的なリモデリングを再現したものではありません。`,
-      `A fixed dilated LV with maximum aortic area ${area} cm². Active-tension scales: LV free wall ${n(active.LVFW, 2)}, septum ${n(active.SEP, 2)}. These are the actual inputs, not inferred from EF. This is not AMI or a simulated remodeling trajectory.`)
-      : t(`採用baselineから最大弁口面積だけを ${area} cm² に変更した比較例です。能動張力の倍率はLV自由壁 ${n(active.LVFW, 2)}、中隔 ${n(active.SEP, 2)}。心筋量を増した慢性肥大や、その適応過程の再現ではありません。`,
-      `A fixed, non-remodelled baseline ventricle with maximum aortic area ${area} cm². Active-tension scales: LV free wall ${n(active.LVFW, 2)}, septum ${n(active.SEP, 2)}. These amplitudes do not add myocardial mass or reproduce chronic hypertrophy/adaptation.`),
+    `${construction} ${lowFlow ? t(`能動張力の倍率はLV自由壁 ${n(active.LVFW, 2)}、中隔 ${n(active.SEP, 2)}。AMIや経時的なリモデリングを再現したものではありません。`,
+      `Active-tension scales: LV free wall ${n(active.LVFW, 2)}, septum ${n(active.SEP, 2)}. These are the actual inputs, not inferred from EF. This is not AMI or a simulated remodeling trajectory.`)
+      : t(`能動張力の倍率はLV自由壁 ${n(active.LVFW, 2)}、中隔 ${n(active.SEP, 2)}。心筋量を増した慢性肥大や、その適応過程の再現ではありません。`,
+        `Active-tension scales: LV free wall ${n(active.LVFW, 2)}, septum ${n(active.SEP, 2)}. These amplitudes do not add myocardial mass or reproduce chronic hypertrophy/adaptation.`)}`,
     lowFlow ? t(`今回のLVEFは ${n(v.lvef * 100, 2)}%。EF<50%、順行SVI≤35 mL/m²、平均勾配<40 mmHgと小さなAVAの組合せで、この教材の低EF・低流量・低勾配を確認します。真性・偽性ASの鑑別やDSEの応答を検証したわけではありません。`,
       `Measured LVEF is ${n(v.lvef * 100, 2)}%. This example combines EF<50%, forward SVI≤35 mL/m², mean gradient<40 mmHg and a small AVA. It does not establish true/pseudo-severe discrimination or a DSE response.`)
       : t(`今回のLVEFは ${n(v.lvef * 100, 2)}%。EFは観測値として示し、この弁狭窄のみの比較例ではEF保持を採用条件にしていません。EF保持型AS全体の代表例や、正常収縮性の保証としては扱いません。`,
