@@ -4,6 +4,10 @@ import {
 } from "@/studio/contracts/v2/content";
 import { assertStudioAuthoringTraceSamplingV1, traceStudioExperimentV1, type StudioAuthoringTraceInputV1 } from "./StudioAuthoringTraceV1";
 import {
+  analyzeStudioSnapshotV1, type StudioSnapshotAnalysisInputV1,
+  type StudioSnapshotAnalysisModelPortV1, type StudioSnapshotAnalysisProgressV1,
+} from "./StudioSnapshotAnalysisV1";
+import {
   validateStudioArticleDraftV2,
 } from "@/studio/application/authoring/StudioArticleDataV2";
 import {
@@ -82,6 +86,12 @@ export type StudioAuthoringArticleBlockOperationV1 =
     }>;
 
 export type StudioAuthoringCommandV1 =
+  | Readonly<{
+      schemaId: typeof STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID;
+      commandId: string;
+      action: "snapshot.analyze";
+      input: StudioSnapshotAnalysisInputV1;
+    }>
   | Readonly<{
       schemaId: typeof STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID;
       commandId: string;
@@ -276,7 +286,7 @@ export interface StudioAuthoringRepositoryPortV1 {
 }
 
 export interface StudioAuthoringModelPortV1
-  extends StudioAuthoringNumericalModelPortV1 {
+  extends StudioAuthoringNumericalModelPortV1, StudioSnapshotAnalysisModelPortV1 {
   resolveModel(input: StudioAuthoringExactModelPinV1): Promise<ModelContractV2>;
 }
 
@@ -1025,6 +1035,42 @@ export function describeStudioAuthoringProtocolV1(selectedAction?: string): Read
     Object.freeze({ action: "snapshot.read", mutation: false,
       inputSchema: object(["snapshotId"], { snapshotId: id }),
       resultSchema: nullable(snapshot) }),
+    Object.freeze({ action: "snapshot.analyze", mutation: false,
+      inputSchema: object(["snapshotId", "scenarioIds", "includeAnalysis"], {
+        snapshotId: id,
+        scenarioIds: { type: "array", minItems: 1, maxItems: 4, uniqueItems: true, items: id },
+        includeAnalysis: { type: "boolean", description: "Include the portable measured analysis payload (including partial progress on failure). False returns only source bindings and completeness assessments. Always ephemeral; never writes the Snapshot." },
+      }),
+      resultSchema: object(["source", "analysisId", "allComplete", "scenarios"], {
+        source: object(["snapshotId", "exactModel", "artifactRevisionId"], { snapshotId: id, exactModel, artifactRevisionId: id }),
+        analysisId: id,
+        allComplete: { type: "boolean", description: "True only when every requested scenario passes both sides of the pinned PV/Starling/PVA display assessment. Command ok does not imply allComplete." },
+        scenarios: { type: "array", items: object(["scenarioId", "source", "status", "assessment", "analysis", "error"], {
+          scenarioId: id,
+          source: object(["captureSha256", "inputEpoch", "acceptedRevision", "acceptedTimeSec"], {
+            captureSha256: { type: "string", pattern: "^[0-9a-f]{64}$" }, inputEpoch: { const: 0 },
+            acceptedRevision: version, acceptedTimeSec: finiteNumber,
+          }),
+          status: { enum: ["complete", "incomplete", "failed"] },
+          assessment: nullable(object(["analysisId", "pvaMethodId", "sides"], {
+            analysisId: id, pvaMethodId: id,
+            sides: { type: "array", items: object(["side", "settledPoints", "completedPointCount", "totalPointCount", "protocolId", "pvaMethodId", "status", "measurementStatus", "systolicLoadStatus", "diastolicLoadStatus", "pvaStatus", "reason"], {
+              side: { enum: ["left", "right"] }, settledPoints: version, completedPointCount: version, totalPointCount: version,
+              protocolId: nullableId, pvaMethodId: id, status: { enum: ["complete", "incomplete"] },
+              measurementStatus: { enum: ["complete", "incomplete"] },
+              systolicLoadStatus: { enum: ["complete", "progressive", "unavailable"] },
+              diastolicLoadStatus: { enum: ["complete", "progressive", "unavailable"] },
+              pvaStatus: { enum: ["complete", "progressive", "collecting", "unavailable", "not-evaluated"] }, reason: nullableId,
+            }) },
+          })),
+          analysis: nullable(object(["modelId", "runtimeSessionId", "scenarioId", "inputEpoch", "sourceAcceptedRevision", "sourceAcceptedTimeSec", "analysisId", "payload"], {
+            modelId: id, runtimeSessionId: id, scenarioId: id, inputEpoch: { const: 0 },
+            sourceAcceptedRevision: version, sourceAcceptedTimeSec: finiteNumber, analysisId: id,
+            payload: { type: "object", description: "Portable JSON owned by the pinned analysis method." },
+          })),
+          error: nullable(object(["stage", "message"], { stage: { enum: ["execution", "assessment"] }, message: id })),
+        }) },
+      }) }),
     Object.freeze({ action: "article.read", mutation: false,
       inputSchema: object(["articleId"], { articleId: id }),
       resultSchema: nullable(articleDraft) }),
@@ -1254,6 +1300,17 @@ export function validateStudioAuthoringCommandV1(
       return deepFreezeV1({ ...base, action: command.action, input: {
         snapshotId: trimmedV1(input.snapshotId, "$.command.input.snapshotId"),
       } });
+    case "snapshot.analyze": {
+      exactKeysV1(input, ["snapshotId", "scenarioIds", "includeAnalysis"], "$.command.input");
+      const scenarioIds = stringArrayV1(input.scenarioIds, "$.command.input.scenarioIds");
+      if (scenarioIds.length < 1 || scenarioIds.length > 4)
+        throw new Error("$.command.input.scenarioIds must select 1–4 distinct scenarios");
+      if (typeof input.includeAnalysis !== "boolean")
+        throw new Error("$.command.input.includeAnalysis must be a boolean");
+      return deepFreezeV1({ ...base, action: command.action, input: {
+        snapshotId: trimmedV1(input.snapshotId, "$.command.input.snapshotId"), scenarioIds, includeAnalysis: input.includeAnalysis,
+      } });
+    }
     case "article.read":
       exactKeysV1(input, ["articleId"], "$.command.input");
       return deepFreezeV1({ ...base, action: command.action, input: {
@@ -1413,6 +1470,7 @@ export async function executeStudioAuthoringCommandV1(
   models: StudioAuthoringModelPortV1,
   commandValue: StudioAuthoringCommandV1 | unknown,
   policy: StudioAuthoringPolicyPortV1 = ALLOW_STUDIO_AUTHORING_POLICY_V1,
+  observer: Readonly<{ onSnapshotAnalysisProgress?: (progress: StudioSnapshotAnalysisProgressV1) => void }> = {},
 ): Promise<unknown> {
   const command = validateStudioAuthoringCommandV1(commandValue);
   await policy.authorize(command);
@@ -1422,6 +1480,8 @@ export async function executeStudioAuthoringCommandV1(
     case "article.list": return repository.listMyArticles(command.input);
     case "experiment.read": return repository.readMyExperiment(command.input.experimentId);
     case "snapshot.read": return repository.readSnapshot(command.input.snapshotId);
+    case "snapshot.analyze":
+      return analyzeStudioSnapshotV1(repository, models, command.input, observer.onSnapshotAnalysisProgress);
     case "article.read": return repository.readArticle(command.input.articleId);
     case "operation.read":
       return repository.readMyAuthoringOperationReceipt(command.input.operationId);

@@ -171,6 +171,10 @@ async function main(): Promise<void> {
     }),
     createAuthoringModelPortV1(client, configuration.url),
     command,
+    undefined,
+    { onSnapshotAnalysisProgress: progress => process.stderr.write(`${JSON.stringify({
+      schemaId: "circleheart-studio-snapshot-analysis-progress-v1", commandId: command.commandId, ...progress,
+    })}\n`) },
   );
   commandContextV1 = Object.freeze({ ...commandContextV1, phase: "output" });
   process.stdout.write(`${JSON.stringify({
@@ -241,6 +245,14 @@ function createAuthoringModelPortV1(
     });
   };
   return Object.freeze({
+    async resolveAnalysisModel(input) {
+      // Registry validation binds model, artifact and Surface. The registered executor
+      // uses reviewed local analysis code; no remote ESM enters this authenticated process.
+      const { ticket } = await exactModels.resolveExactModel(input.modelId, {
+        kind: "release" as const, surfaceSeriesId: input.surfaceSeriesId, surfaceReleaseId: input.surfaceReleaseId,
+      });
+      return { modelId: ticket.modelId, artifactRevisionId: ticket.artifactRevisionId, surfaceRelease: ticket.surfaceRelease };
+    },
     async resolveModel(input) {
       const release = await exactModels.resolveExactModel(
         input.modelId,

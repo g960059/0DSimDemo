@@ -7,7 +7,7 @@ import type { StudioModelWorkerReleaseTicketV2 } from "@/studio/contracts/v2/rel
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 import oldSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 import { buildPreparedModelAnalysisV1 as build, readPreparedModelAnalysisV1 as read,
-  assessPreparedModelAnalysisV1 as assess } from "@/components/workbench/presentation/PreparedModelAnalysisV1";
+  assessPreparedModelAnalysisV1 as assess, inspectModelAnalysisV1 as inspect } from "@/components/workbench/presentation/PreparedModelAnalysisV1";
 import * as decoder from "@/components/workbench/presentation/GuytonStarlingOrientationCanvasV3";
 import * as registry from "@/analysis/registry/RegisteredAnalysisMethodsV1";
 import * as pva from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
@@ -71,6 +71,18 @@ it.each(["missing-curve", "progressive-energy", "unavailable-energy"])("holds in
   if (state === "progressive-energy") derive.mockReturnValue({ status: "available", completionStatus: "progressive" } as never);
   if (state === "unavailable-energy") derive.mockReturnValue({ status: "unavailable" } as never);
   expect(() => assess(surface, analysis)).toThrow(/ESPVR\/EDPVR\/PVA/);
+});
+
+it("reports complete measured load relations when energy extrapolation is unavailable without relaxing registry admission", () => {
+  complete().mockImplementation((_locus, ventricleId) => ({ status: ventricleId === "LV" ? "unavailable" : "available",
+    completionStatus: "complete", reason: "unresolved PE tail",
+    loadRelations: { systolic: { completionStatus: "complete" }, diastolic: { completionStatus: "complete" } },
+  }) as never);
+  const result = inspect(surface, analysis);
+  expect(result.sides[0]).toMatchObject({ status: "incomplete", measurementStatus: "complete", settledPoints: 3,
+    systolicLoadStatus: "complete", diastolicLoadStatus: "complete", pvaStatus: "unavailable", reason: expect.stringContaining("unresolved PE tail") });
+  expect(result.sides[1]).toMatchObject({ status: "complete", measurementStatus: "complete", pvaStatus: "complete", reason: null });
+  expect(() => assess(surface, analysis)).toThrow("unresolved PE tail");
 });
 
 it("executes through the Surface registry and retains the actual source clocks", async () => {

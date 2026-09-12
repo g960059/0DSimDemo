@@ -214,7 +214,7 @@ export function AuthoringCliDocsPage() {
             label={text.readLabel}
             actions={[
               "experiment.list", "experiment.read", "snapshot.list",
-              "snapshot.read", "article.list", "article.read",
+              "snapshot.read", "snapshot.analyze", "article.list", "article.read",
               "operation.read", "model.describe", "experiment.trace", "experiment.preview",
             ]}
           />

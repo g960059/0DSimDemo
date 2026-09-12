@@ -1,5 +1,14 @@
 import { createStudioArticleBriefingV1, type StudioArticleBriefingSelectionV1 } from "@/studio/application/authoring/StudioArticleBriefingPlacementV1";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFile } from "node:fs/promises";
+import { sha256CanonicalJsonHex as hash } from "@/engine/integrity";
+import { CURRENT_MODEL_PRESETS_V1 } from "@/data/model-releases/CurrentModelReleaseV1";
+import publication from "@/data/model-releases/standard73/publication.json";
+import analysisSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
+import { resolveRegisteredAnalysisMethodsV1 } from "@/analysis/registry/RegisteredAnalysisMethodsV1";
+import { REGISTERED_ANALYSIS_EXECUTOR_V1 as analysisExecutor } from "@/analysis/runtime/RegisteredAnalysisExecutorV1";
+import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
+vi.mock("@/analysis/runtime/RegisteredAnalysisExecutorV1", () => ({ REGISTERED_ANALYSIS_EXECUTOR_V1: { execute: vi.fn() } }));
 
 import {
   STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID,
@@ -18,6 +27,165 @@ import {
 } from "@/studio/contracts/v2/content";
 
 describe("Studio authoring command V1", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("discovers bounded read-only Snapshot analysis and rejects invalid selections before authority access", async () => {
+    const command = snapshotAnalysisCommandV1(["baseline"], false);
+    const repository = repositoryV1();
+    const authorize = vi.fn();
+    const schema = describeStudioAuthoringProtocolV1("snapshot.analyze").actions[0]!;
+    expect(schema.mutation).toBe(false);
+    expect(schema.inputSchema).toMatchObject({ required: ["snapshotId", "scenarioIds", "includeAnalysis"],
+      properties: { scenarioIds: { minItems: 1, maxItems: 4, uniqueItems: true }, includeAnalysis: { type: "boolean" } } });
+    for (const patch of [{ scenarioIds: [] }, { scenarioIds: ["baseline", "baseline"] },
+      { scenarioIds: ["1", "2", "3", "4", "5"] }, { includeAnalysis: "true" }, { analysisId: "unreviewed-method" }]) {
+      await expect(executeStudioAuthoringCommandV1(repository, modelsV1(), {
+        ...command, input: { ...command.input, ...patch },
+      }, { authorize })).rejects.toThrow();
+    }
+    expect(authorize).not.toHaveBeenCalled();
+    expect(repository.readSnapshot).not.toHaveBeenCalled();
+    await expect(executeStudioAuthoringCommandV1(repository, modelsV1(), command,
+      { authorize: () => { throw new Error("denied"); } })).rejects.toThrow("denied");
+    expect(repository.readSnapshot).not.toHaveBeenCalled();
+    await expect(executeStudioAuthoringCommandV1(repository, modelsV1(), command, { authorize }))
+      .rejects.toThrow("Snapshot is unavailable");
+    expect(authorize).toHaveBeenCalledOnce();
+  });
+
+  it("analyzes detached Snapshot captures with pinned methods, actual source clocks and display completeness", async () => {
+    const { repository, models, snapshot, payload, execute } = await snapshotAnalysisFixtureV1();
+    const before = JSON.stringify(snapshot);
+    const progress = vi.fn();
+    execute.mockImplementation(async ({ source, request }) => {
+      expect(source.legacyExact).toBeNull();
+      expect(source.surfaceRelease).toBe(analysisSurface);
+      expect(request.analysisPartition).toBeUndefined();
+      expect(request).toMatchObject({ analysisId: payload.analysisId, scenarioId: "baseline",
+        expectedInputEpoch: 0, expectedAcceptedRevision: payload.sourceAcceptedRevision,
+        expectedAcceptedTimeSec: payload.sourceAcceptedTimeSec });
+      expect(source.acceptedFrame).toEqual({ modelId: snapshot.content.modelId,
+        runtimeSessionId: request.runtimeSessionId, scenarioId: "baseline", inputEpoch: 0,
+        acceptedRevision: payload.sourceAcceptedRevision, acceptedTimeSec: payload.sourceAcceptedTimeSec, outputs: {} });
+      const detached = await source.capture!();
+      expect(detached.artifactRevisionId).toBe(publication.artifactRevisionId);
+      expect(detached.scenario).toEqual(snapshot.content.scenarios[0]!.capture);
+      (detached.scenario.fixture as Record<string, unknown>).testMutation = true;
+      const result = { ...payload, runtimeSessionId: request.runtimeSessionId, scenarioId: request.scenarioId };
+      request.onProgress!(result);
+      return result;
+    });
+    const result = await executeStudioAuthoringCommandV1(repository, models,
+      snapshotAnalysisCommandV1(["baseline"], true), undefined, { onSnapshotAnalysisProgress: progress }) as any;
+    expect(result.allComplete).toBe(true);
+    expect(result.source.exactModel).toEqual({ modelId: snapshot.content.modelId,
+      surfaceSeriesId: analysisSurface.surfaceSeriesId, surfaceReleaseId: analysisSurface.surfaceReleaseId });
+    expect(models.resolveAnalysisModel).toHaveBeenCalledWith(result.source.exactModel);
+    expect(models.resolveExactNumericalModel).not.toHaveBeenCalled();
+    expect(result.scenarios[0].source).toEqual({ captureSha256: await hash(snapshot.content.scenarios[0]!.capture),
+      inputEpoch: 0, acceptedRevision: payload.sourceAcceptedRevision, acceptedTimeSec: payload.sourceAcceptedTimeSec });
+    expect(result.scenarios[0].assessment.sides.map((s: any) => [s.side, s.status])).toEqual([["left", "complete"], ["right", "complete"]]);
+    expect(result.scenarios[0].analysis.payload).toEqual(payload.payload);
+    expect(progress.mock.calls.map(c => c[0].phase)).toEqual(["started", "progress", "complete"]);
+    expect(progress.mock.calls[1]![0].sides).toEqual(result.scenarios[0].assessment.sides.map((s: any) => ({
+      side: s.side, completedPointCount: s.settledPoints, totalPointCount: s.settledPoints,
+    })));
+    expect(JSON.stringify(snapshot)).toBe(before);
+    expect(repository.commitSnapshot).not.toHaveBeenCalled();
+    expect(repository.saveExperiment).not.toHaveBeenCalled();
+    expect(repository.saveArticle).not.toHaveBeenCalled();
+  });
+
+  it("checks all selected captures and exact Surface pins before executing any analysis", async () => {
+    const { repository, models, snapshot, execute } = await snapshotAnalysisFixtureV1();
+    await expect(executeStudioAuthoringCommandV1(repository, models,
+      snapshotAnalysisCommandV1(["baseline", "missing"], false))).rejects.toThrow("scenario is unavailable");
+    expect(models.resolveAnalysisModel).not.toHaveBeenCalled();
+    vi.mocked(repository.readSnapshot).mockResolvedValue({ ...snapshot, content: { ...snapshot.content,
+      scenarios: [{ ...snapshot.content.scenarios[0]!, capture: { fixture: {}, checkpoint: null } }] } });
+    await expect(executeStudioAuthoringCommandV1(repository, models,
+      snapshotAnalysisCommandV1(["baseline"], false))).rejects.toThrow("accepted checkpoint");
+    vi.mocked(repository.readSnapshot).mockResolvedValue(snapshot);
+    for (const patch of [{ modelId: "other-model" }, { surfaceRelease: { ...analysisSurface, surfaceReleaseId: "other-release" } },
+      { surfaceRelease: { ...analysisSurface, surfaceSeriesId: "other-series" } }]) {
+      vi.mocked(models.resolveAnalysisModel).mockResolvedValue({ modelId: publication.modelId,
+        artifactRevisionId: publication.artifactRevisionId, surfaceRelease: analysisSurface, ...patch });
+      await expect(executeStudioAuthoringCommandV1(repository, models,
+        snapshotAnalysisCommandV1(["baseline"], false))).rejects.toThrow("Model Surface pin");
+    }
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("rejects a different Snapshot identity and a Surface without a pinned periodic analysis", async () => {
+    const { repository, models, snapshot, execute } = await snapshotAnalysisFixtureV1();
+    const command = snapshotAnalysisCommandV1(["baseline"], false);
+    vi.mocked(repository.readSnapshot).mockResolvedValue({ ...snapshot, snapshotId: "other-snapshot" });
+    await expect(executeStudioAuthoringCommandV1(repository, models, command)).rejects.toThrow("Snapshot identity differs");
+    expect(models.resolveAnalysisModel).not.toHaveBeenCalled();
+    vi.mocked(repository.readSnapshot).mockResolvedValue(snapshot);
+    vi.mocked(models.resolveAnalysisModel).mockResolvedValue({ modelId: publication.modelId,
+      artifactRevisionId: publication.artifactRevisionId,
+      surfaceRelease: { ...analysisSurface, derivedOutputCatalog: [], graphCatalog: [] } });
+    await expect(executeStudioAuthoringCommandV1(repository, models, command)).rejects.toThrow("no pinned periodic");
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("retains valid progress on failure, distinguishes incomplete assessment and continues later scenarios", async () => {
+    const { repository, models, snapshot, payload, execute } = await snapshotAnalysisFixtureV1();
+    vi.mocked(repository.readSnapshot).mockResolvedValue({ ...snapshot, content: { ...snapshot.content,
+      scenarios: ["failed", "incomplete", "complete"].map(scenarioId => ({ ...snapshot.content.scenarios[0]!, scenarioId })) } });
+    execute.mockImplementation(async ({ request }) => {
+      const analysis = { ...payload, runtimeSessionId: request.runtimeSessionId, scenarioId: request.scenarioId };
+      if (request.scenarioId === "failed") { request.onProgress!(analysis); throw new Error("numerical protocol failed"); }
+      return request.scenarioId === "incomplete" ? { ...analysis, payload: { status: "available" } } : analysis;
+    });
+    const result = await executeStudioAuthoringCommandV1(repository, models,
+      snapshotAnalysisCommandV1(["failed", "incomplete", "complete"], true)) as any;
+    expect(result.allComplete).toBe(false);
+    expect(result.scenarios.map((s: any) => s.status)).toEqual(["failed", "incomplete", "complete"]);
+    expect(result.scenarios[0].analysis.payload).toEqual(payload.payload);
+    expect(result.scenarios[0].error).toEqual({ stage: "execution", message: "numerical protocol failed" });
+    expect(result.scenarios[1].error.stage).toBe("assessment");
+    expect(result.scenarios[1].assessment.sides.map((s: any) => [s.measurementStatus, s.pvaStatus]))
+      .toEqual([["incomplete", "not-evaluated"], ["incomplete", "not-evaluated"]]);
+    const compact = await executeStudioAuthoringCommandV1(repository, models,
+      snapshotAnalysisCommandV1(["complete"], false)) as any;
+    expect(compact.allComplete).toBe(true);
+    expect(compact.scenarios[0].analysis).toBeNull();
+  });
+
+  it("rejects stale or misbound analysis payloads without reporting completion", async () => {
+    const { repository, models, payload, execute } = await snapshotAnalysisFixtureV1();
+    for (const patch of [{ modelId: "other" }, { runtimeSessionId: "other" }, { scenarioId: "other" },
+      { analysisId: "other" }, { inputEpoch: 1 }, { sourceAcceptedRevision: payload.sourceAcceptedRevision + 1 },
+      { sourceAcceptedTimeSec: payload.sourceAcceptedTimeSec + 1 }]) {
+      execute.mockImplementation(async ({ request }) => ({ ...payload,
+        runtimeSessionId: request.runtimeSessionId, scenarioId: request.scenarioId, ...patch }));
+      const result = await executeStudioAuthoringCommandV1(repository, models,
+        snapshotAnalysisCommandV1(["baseline"], true)) as any;
+      expect(result.allComplete).toBe(false);
+      expect(result.scenarios[0]).toMatchObject({ status: "failed", analysis: null, assessment: null,
+        error: { stage: "execution", message: expect.stringContaining("identity or accepted clocks differ") } });
+    }
+  });
+
+  it("rejects misbound progress while retaining the last valid analysis for diagnosis", async () => {
+    const { repository, models, payload, execute } = await snapshotAnalysisFixtureV1();
+    const progress = vi.fn();
+    execute.mockImplementation(async ({ request }) => {
+      const valid = { ...payload, runtimeSessionId: request.runtimeSessionId, scenarioId: request.scenarioId };
+      request.onProgress!(valid);
+      request.onProgress!({ ...valid, inputEpoch: 1 });
+      return valid;
+    });
+    const result = await executeStudioAuthoringCommandV1(repository, models,
+      snapshotAnalysisCommandV1(["baseline"], true), undefined, { onSnapshotAnalysisProgress: progress }) as any;
+    expect(result.allComplete).toBe(false);
+    expect(result.scenarios[0]).toMatchObject({ status: "failed", assessment: null,
+      analysis: { inputEpoch: 0, payload: payload.payload }, error: { stage: "execution" } });
+    expect(progress.mock.calls.map(c => c[0].phase)).toEqual(["started", "progress", "failed"]);
+  });
+
   it("validates trace budgets before authority access and dispatches valid reads through policy", async () => {
     const input = { experimentId: "experiment/trace", expectedVersion: 0,
       exactModel: { modelId: "model/example", surfaceSeriesId: "surface/example", surfaceReleaseId: "surface/example-v1" },
@@ -701,6 +869,30 @@ function repositoryV1(): StudioAuthoringRepositoryPortV1 {
   };
 }
 
+function snapshotAnalysisCommandV1(scenarioIds: string[], includeAnalysis: boolean) {
+  return { schemaId: STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID,
+    commandId: "a650007a-2aa4-4a91-a824-ae39fd7d6c19", action: "snapshot.analyze" as const,
+    input: { snapshotId: "snapshot/analysis", scenarioIds, includeAnalysis } };
+}
+
+async function snapshotAnalysisFixtureV1() {
+  const preset = CURRENT_MODEL_PRESETS_V1[0]!;
+  const methods = resolveRegisteredAnalysisMethodsV1(analysisSurface).periodicPvaDerivation!;
+  const record = JSON.parse(await readFile(`data/model-analysis/prepared/${methods.sourceAnalysisId}/${methods.methodId}/${await hash(preset.capture)}.json`, "utf8"));
+  const payload = record.analysis as StudioSimulationAnalysisV2;
+  const snapshot: ExperimentSnapshotV2 = { schemaId: STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
+    snapshotId: "snapshot/analysis", surfaceReleaseId: analysisSurface.surfaceReleaseId, createdAt: "2026-09-12T00:00:00.000Z",
+    content: { ...contentV1(), modelId: preset.modelId, surfaceSeriesId: analysisSurface.surfaceSeriesId,
+      scenarios: [{ scenarioId: "baseline", label: "Baseline", capture: preset.capture }] } };
+  const repository = repositoryV1();
+  vi.mocked(repository.readSnapshot).mockResolvedValue(snapshot);
+  const models = modelsV1();
+  vi.mocked(models.resolveAnalysisModel).mockResolvedValue({ modelId: preset.modelId,
+    artifactRevisionId: publication.artifactRevisionId, surfaceRelease: analysisSurface });
+  const execute = vi.mocked(analysisExecutor.execute).mockReset();
+  return { repository, models, snapshot, payload, execute };
+}
+
 function modelsV1(
   options: Readonly<{
     periodicPvaSupported?: boolean;
@@ -734,6 +926,7 @@ function modelsV1(
     graphCatalog,
   });
   return {
+    resolveAnalysisModel: vi.fn(),
     resolveModel: vi.fn().mockResolvedValue(contract),
     resolveActiveNumericalModel: vi.fn(),
     resolveLatestNumericalModel: vi.fn(),

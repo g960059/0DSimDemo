@@ -61,6 +61,23 @@ periodicity. Time-only advances preserve inputs without issuing another control
 assignment and use the same
 preview/apply boundary as other numerical mutations.
 
+Read-only Snapshot analysis resolves the sealed Model Surface and invokes its
+registered analysis executor on detached captures. Its result carries capture
+hashes and accepted clocks, plus the same PV/Starling/PVA completeness assessment
+used by the display. A successful command may report failed or incomplete
+Scenarios: consumers must check `allComplete` and each Scenario's status.
+The per-side assessment separates the measured family, systolic/diastolic load
+curves, and energy derivation. A PE/PVA extrapolation rejection can coexist with
+complete measured curves; select the relevant diagnostics for the authored claim.
+Measured payloads are optional and ephemeral, including partial results when
+execution or final derivation fails. Analysis never rewrites a Snapshot or an
+Experiment. Scenarios run sequentially under the method's numerical bounds;
+this command does not promise a wall-clock deadline. Progress goes to stderr.
+The registered executor uses the checkout's analysis and engine source under
+an explicit exact-artifact compatibility pin; unlike a trace, this is not execution
+of the packaged artifact bytes. Retain the checkout revision and local diff with
+research results to identify the implementation that ran.
+
 Article placement projects a sealed Snapshot through a Briefing. Publication
 is always a separate explicit action. Large search, fitting, or validation
 loops remain non-persistent studies until a user explicitly selects a
