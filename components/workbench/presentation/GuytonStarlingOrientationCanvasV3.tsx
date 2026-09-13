@@ -856,6 +856,7 @@ type CanvasThemeV3 = Readonly<{
   axis: string;
   text: string;
   background: string;
+  font: string;
 }>;
 
 function plotRectV3(width: number, height: number): PlotRectV3 {
@@ -863,7 +864,7 @@ function plotRectV3(width: number, height: number): PlotRectV3 {
     left: Math.min(48, Math.max(34, width * 0.13)),
     right: Math.max(56, width - 12),
     top: 25,
-    bottom: Math.max(50, height - 27),
+    bottom: Math.max(50, height - 44),
   });
 }
 
@@ -876,7 +877,7 @@ function drawAxesV3(
 ): void {
   context.save();
   context.lineWidth = 1;
-  context.font = "9px ui-monospace, SFMono-Regular, Menlo, monospace";
+  context.font = theme.font;
   context.textBaseline = "middle";
   for (let index = 0; index <= 4; index += 1) {
     const ratio = index / 4;
@@ -919,7 +920,7 @@ function drawAxesV3(
   context.fillText(
     labels.horizontal,
     (plot.left + plot.right) / 2,
-    plot.bottom + 23,
+    plot.bottom + 35,
   );
   context.save();
   context.translate(10, (plot.top + plot.bottom) / 2);
@@ -997,22 +998,25 @@ function drawFillingPressureMarkerV3(
 }
 
 function readThemeV3(element: HTMLElement | null): CanvasThemeV3 {
-  const [grid, axis, text, background] = readWorkbenchCanvasThemeVariablesV3(element, [
+  const [grid, axis, text, background, font] = readWorkbenchCanvasThemeVariablesV3(element, [
     ["--wb-grid", "rgba(165, 185, 200, 0.10)"],
     ["--wb-axis", "rgba(165, 185, 200, 0.32)"],
     ["--wb-muted", "rgba(203, 213, 225, 0.72)"],
     ["--wb-zone-main-bg", "#0a141d"],
+    ["--wb-chart-small-font", "9px ui-monospace, SFMono-Regular, Menlo, monospace"],
   ]);
   return Object.freeze({
     grid: grid!,
     axis: axis!,
     text: text!,
     background: background!,
+    font: font!,
   });
 }
 
 function formatNumberV3(value: number): string {
   if (!Number.isFinite(value)) return "—";
+  if (value === 0) return "0";
   return Math.abs(value) >= 10 ? value.toFixed(0) : value.toFixed(1);
 }
 

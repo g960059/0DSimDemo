@@ -1,3 +1,4 @@
+import { assertArticleReadingReadyV1 } from "@/studio/application/article/StudioArticleReadingV1";
 import {
   validateStudioArticleDraftV2,
 } from "@/studio/application/authoring/StudioArticleDataV2";
@@ -86,6 +87,7 @@ export function validateStudioPublishedArticleV1(
     title: detached.title,
     blocks: detached.blocks,
   });
+  assertArticleReadingReadyV1(detached.blocks);
   return detached;
 }
 

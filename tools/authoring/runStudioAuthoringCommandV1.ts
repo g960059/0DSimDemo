@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -28,6 +29,9 @@ import {
   resolveRegisteredAnalysisMethodsV1,
 } from "@/analysis/registry/RegisteredAnalysisMethodsV1";
 import {
+  inspectModelAnalysisV1,
+} from "@/components/workbench/presentation/PreparedModelAnalysisV1";
+import {
   StudioSupabaseContentRepositoryV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import {
@@ -49,6 +53,10 @@ import {
 } from "./LocalTrustedAuthoringRuntimeLoaderV1";
 import { resolveRegisteredModelLaunchDefaultsV1 } from
   "@/studio/registry/RegisteredModelLaunchBaselineV1";
+import { beginFittingSourceSnapshotV1 } from "../scientific/FittingSourceSnapshotV1";
+import { writeFittingRunJsonV1 } from "../scientific/FittingRunFilesV1";
+import { exportPreparedSnapshotAnalysesV1 } from "./PrepareSnapshotAnalysisAssetsV1";
+import type { analyzeStudioSnapshotV1 } from "@/studio/application/authoring/StudioSnapshotAnalysisV1";
 
 let commandContextV1: Readonly<{
   commandId: string | null;
@@ -79,6 +87,10 @@ const AUTHORING_MUTATION_ACTIONS_V1 = new Set([
   "article.publish",
 ]);
 
+const PREPARED_ASSETS_HOST_OPTION_V1 = {
+  "--prepare-assets <new-directory>": "For snapshot.analyze with includeAnalysis:true. Requires an output outside the repository and stable source during execution. Writes analysis.json, capture-addressed assets, source archive and prepared-assets.json (promoteTo paths); stdout contains assessments only. Install the assets at promoteTo and rebuild the app for deployment.",
+};
+
 if (
   process.argv[1] !== undefined
   && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
@@ -107,12 +119,13 @@ async function main(): Promise<void> {
       discovery: "--describe <action> returns its complete command and result schemas",
       actions: description.actions.map(({ action, mutation }) => ({ action, mutation })),
       protocol: description.protocol,
+      hostOptions: PREPARED_ASSETS_HOST_OPTION_V1,
     }, null, 2)}\n`);
     return;
   }
   if (args.mode === "describe") {
     process.stdout.write(`${JSON.stringify(
-      describeStudioAuthoringProtocolV1(args.action),
+      { ...describeStudioAuthoringProtocolV1(args.action), hostOptions: PREPARED_ASSETS_HOST_OPTION_V1 },
       null,
       2,
     )}\n`);
@@ -121,6 +134,10 @@ async function main(): Promise<void> {
   const command = validateStudioAuthoringCommandV1(
     JSON.parse(readFileSync(args.commandPath, "utf8")) as unknown,
   );
+  if (args.prepareAssetsDirectory !== undefined
+    && (command.action !== "snapshot.analyze" || !command.input.includeAnalysis))
+    throw new Error("--prepare-assets requires snapshot.analyze with includeAnalysis: true");
+  if (args.prepareAssetsDirectory) assertPreparedAssetsOutputDirectoryV1(args.prepareAssetsDirectory);
   commandContextV1 = Object.freeze({
     commandId: command.commandId,
     action: command.action,
@@ -165,25 +182,57 @@ async function main(): Promise<void> {
   });
   const { client, configuration } = authenticated;
   commandContextV1 = Object.freeze({ ...commandContextV1, phase: "execution" });
-  const result = await executeStudioAuthoringCommandV1(
-    new StudioSupabaseContentRepositoryV1(client, {
+  const repository = new StudioSupabaseContentRepositoryV1(client, {
       fixedMutationOperationId: command.commandId,
-    }),
-    createAuthoringModelPortV1(client, configuration.url),
+    });
+  const models = createAuthoringModelPortV1(client, configuration.url);
+  const output = args.prepareAssetsDirectory;
+  if (output) {
+    await mkdir(path.dirname(output), { recursive: true });
+    await mkdir(output); // Refuse to overwrite a prior preparation run.
+  }
+  const preparationSource = output ? await beginFittingSourceSnapshotV1(path.join(output, "execution")) : null;
+  const result = await executeStudioAuthoringCommandV1(
+    repository,
+    models,
     command,
     undefined,
     { onSnapshotAnalysisProgress: progress => process.stderr.write(`${JSON.stringify({
       schemaId: "circleheart-studio-snapshot-analysis-progress-v1", commandId: command.commandId, ...progress,
     })}\n`) },
   );
+  let preparedAssets;
+  if (output && preparationSource && command.action === "snapshot.analyze") {
+    const rawFile = await writeFittingRunJsonV1(output, "analysis.json", result);
+    const snapshot = await repository.readSnapshot(command.input.snapshotId);
+    if (!snapshot) throw new Error("Snapshot is unavailable");
+    const release = await models.resolveAnalysisModel({ modelId: snapshot.content.modelId,
+      surfaceSeriesId: snapshot.content.surfaceSeriesId, surfaceReleaseId: snapshot.surfaceReleaseId });
+    preparedAssets = await exportPreparedSnapshotAnalysesV1({ snapshot, release,
+      result: result as Awaited<ReturnType<typeof analyzeStudioSnapshotV1>>,
+      preparationSourceSha256: preparationSource.sourceSha256, output });
+    const report = await writeFittingRunJsonV1(output, "prepared-assets.json", preparedAssets);
+    await preparationSource.finish([rawFile, report, ...preparedAssets.rows.flatMap(row => row.file ? [row.file] : [])]);
+  }
   commandContextV1 = Object.freeze({ ...commandContextV1, phase: "output" });
   process.stdout.write(`${JSON.stringify({
     schemaId: "circleheart-studio-authoring-command-result-v1",
     ok: true,
     commandId: command.commandId,
     action: command.action,
-    result,
+    // Full measured data is in analysis.json and the portable asset, not repeated
+    // in the AI-facing command response. Assessment remains visible on stdout.
+    result: preparedAssets ? { ...result as Awaited<ReturnType<typeof analyzeStudioSnapshotV1>>,
+      scenarios: (result as Awaited<ReturnType<typeof analyzeStudioSnapshotV1>>).scenarios.map(entry => ({ ...entry, analysis: null })),
+    } : result,
+    ...(preparedAssets ? { preparedAssets, analysisFile: path.join(output!, "analysis.json") } : {}),
   }, null, 2)}\n`);
+}
+
+export function assertPreparedAssetsOutputDirectoryV1(directory: string, repository = process.cwd()): void {
+  const relative = path.relative(path.resolve(repository), path.resolve(directory));
+  if (relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative)))
+    throw new Error("--prepare-assets output must be outside the repository so source sealing excludes generated assets");
 }
 
 function createAuthoringModelPortV1(
@@ -253,6 +302,8 @@ function createAuthoringModelPortV1(
       });
       return { modelId: ticket.modelId, artifactRevisionId: ticket.artifactRevisionId, surfaceRelease: ticket.surfaceRelease };
     },
+    // Host-owned display completeness: the Workbench decoder plus the pinned derivation.
+    assessAnalysis: inspectModelAnalysisV1,
     async resolveModel(input) {
       const release = await exactModels.resolveExactModel(
         input.modelId,
@@ -628,6 +679,7 @@ export type StudioAuthoringContentArgumentsV1 =
       mode: "execute";
       commandPath: string;
       profileName: string;
+      prepareAssetsDirectory?: string;
     }>;
 
 export function parseStudioAuthoringContentArgumentsV1(
@@ -636,6 +688,7 @@ export function parseStudioAuthoringContentArgumentsV1(
   let commandPath: string | null = null;
   let profileName: string = DEFAULT_STUDIO_AUTHORING_PROFILE_V1;
   let sawProfile = false;
+  let prepareAssetsDirectory: string | undefined;
   let describe = false;
   let action: string | undefined;
   if (args.length === 1 && args[0] === "--list-actions") {
@@ -643,6 +696,12 @@ export function parseStudioAuthoringContentArgumentsV1(
   }
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === "--prepare-assets" && prepareAssetsDirectory === undefined) {
+      const candidate = args[++index];
+      if (candidate === undefined || candidate.startsWith("--")) throw contentUsageV1();
+      prepareAssetsDirectory = path.resolve(process.cwd(), candidate);
+      continue;
+    }
     if (arg === "--describe" && !describe && commandPath === null) {
       describe = true;
       const candidate = args[index + 1];
@@ -672,7 +731,7 @@ export function parseStudioAuthoringContentArgumentsV1(
     throw contentUsageV1();
   }
   if (describe) {
-    if (commandPath !== null || sawProfile) throw contentUsageV1();
+    if (commandPath !== null || sawProfile || prepareAssetsDirectory !== undefined) throw contentUsageV1();
     return Object.freeze({ mode: "describe" as const, ...(action === undefined ? {} : { action }) });
   }
   if (commandPath === null) throw contentUsageV1();
@@ -680,11 +739,12 @@ export function parseStudioAuthoringContentArgumentsV1(
     mode: "execute" as const,
     commandPath,
     profileName,
+    ...(prepareAssetsDirectory === undefined ? {} : { prepareAssetsDirectory }),
   });
 }
 
 function contentUsageV1(): Error {
   return new Error(
-    "Usage: --list-actions | --describe [action] | --command <command.json> [--profile <name>]",
+    "Usage: --list-actions | --describe [action] | --command <command.json> [--profile <name>] [--prepare-assets <new-directory>] (snapshot.analyze, includeAnalysis: true)",
   );
 }

@@ -4,26 +4,21 @@ import type { ModelSurfaceReleaseManifestV1 } from "@/studio/contracts/v2/modelS
 import { validateStudioSimulationAnalysisV2, type StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 import { resolveRegisteredAnalysisMethodsV1 as methods } from "@/analysis/registry/RegisteredAnalysisMethodsV1";
 import { structuralReturnOrientationFromPayloadV3 as decode } from "@/components/workbench/presentation/GuytonStarlingOrientationCanvasV3";
+import type {
+  StudioSnapshotAnalysisAssessmentV1,
+  StudioSnapshotAnalysisSideAssessmentV1,
+} from "@/studio/application/authoring/StudioSnapshotAnalysisV1";
 
-export type ModelAnalysisSideAssessmentV1 = Readonly<{
-  side: "left" | "right";
-  status: "complete" | "incomplete";
-  settledPoints: number;
-  completedPointCount: number;
-  totalPointCount: number;
-  protocolId: string | null;
-  pvaMethodId: string;
-  measurementStatus: "complete" | "incomplete";
-  systolicLoadStatus: "complete" | "progressive" | "unavailable";
-  diastolicLoadStatus: "complete" | "progressive" | "unavailable";
-  pvaStatus: "complete" | "progressive" | "collecting" | "unavailable" | "not-evaluated";
-  reason: string | null;
-}>;
+/** The application's assessment port owns this shape; the Workbench implements it. */
+export type ModelAnalysisSideAssessmentV1 = StudioSnapshotAnalysisSideAssessmentV1;
 
 /** Workbench boundary: use the display's decoder and pinned derivation. Measured load
  * curves may be complete while PE/PVA rejects its extrapolation. These are separate
- * diagnostics, not additional healthy/disease physiology thresholds. */
-export function inspectModelAnalysisV1(surface: ModelSurfaceReleaseManifestV1, analysis: StudioSimulationAnalysisV2) {
+ * diagnostics, not additional healthy/disease physiology thresholds. Also serves as
+ * the read-only Snapshot analysis `assessAnalysis` port for headless authoring hosts. */
+export function inspectModelAnalysisV1(
+  surface: ModelSurfaceReleaseManifestV1, analysis: StudioSimulationAnalysisV2,
+): StudioSnapshotAnalysisAssessmentV1 {
   const pva = methods(surface).periodicPvaDerivation;
   if (!pva || pva.sourceAnalysisId !== analysis.analysisId) throw new Error("Prepared analysis is not pinned by this Surface");
   const sides = (["left", "right"] as const).map((side): ModelAnalysisSideAssessmentV1 => {
@@ -105,6 +100,53 @@ export async function readPreparedModelAnalysisV1(value: unknown, expected: {
     || record.artifactRevisionId !== expected.artifactRevisionId
     || record.captureSha256 !== await hash(expected.capture)) throw new Error("Prepared analysis binding differs");
   const rebuilt = await buildPreparedModelAnalysisV1({ ...expected, analysis: record.analysis,
+    preparationSourceSha256: record.preparationSourceSha256 });
+  if (rebuilt.recordSha256 !== recordSha256) throw new Error("Prepared analysis assessment/method pins differ");
+  return rebuilt;
+}
+
+/** Article/Scenario preparation retains complete measured curves even when a
+ * separate energy extrapolation is unavailable. Registry preset qualification
+ * above still requires complete PVA. Both records keep the actual method result. */
+export type PreparedScenarioAnalysisV1 = Omit<PreparedModelAnalysisV1, "schemaId" | "assessment"> & Readonly<{
+  schemaId: "prepared-scenario-analysis-v1";
+  assessment: StudioSnapshotAnalysisAssessmentV1;
+}>;
+
+export async function buildPreparedScenarioAnalysisV1(
+  input: Parameters<typeof buildPreparedModelAnalysisV1>[0],
+): Promise<PreparedScenarioAnalysisV1> {
+  const analysis = validateStudioSimulationAnalysisV2(input.analysis);
+  const checkpoint = input.capture.checkpoint;
+  if (!checkpoint || analysis.modelId !== input.modelId || analysis.inputEpoch !== 0
+    || analysis.sourceAcceptedRevision !== checkpoint.acceptedRevision
+    || analysis.sourceAcceptedTimeSec !== checkpoint.acceptedTimeSec)
+    throw new Error("Prepared analysis source differs from the launch capture");
+  const assessment = inspectModelAnalysisV1(input.surface, analysis);
+  for (const side of assessment.sides) {
+    if (side.measurementStatus !== "complete" || side.systolicLoadStatus !== "complete"
+      || side.diastolicLoadStatus !== "complete"
+      || (side.pvaStatus !== "complete" && side.pvaStatus !== "unavailable"))
+      throw new Error(side.reason ?? "Prepared Scenario measurements are incomplete");
+  }
+  const body = { schemaId: "prepared-scenario-analysis-v1" as const, modelId: input.modelId,
+    artifactRevisionId: input.artifactRevisionId, captureSha256: await hash(input.capture),
+    preparationSourceSha256: input.preparationSourceSha256, assessment, analysis };
+  return { ...body, recordSha256: await hash(body) };
+}
+
+export async function readPreparedScenarioAnalysisV1(
+  value: unknown,
+  expected: Parameters<typeof readPreparedModelAnalysisV1>[1],
+): Promise<PreparedModelAnalysisV1 | PreparedScenarioAnalysisV1> {
+  const record = value as PreparedScenarioAnalysisV1 | PreparedModelAnalysisV1;
+  if (record?.schemaId === "prepared-model-analysis-v1") return readPreparedModelAnalysisV1(value, expected);
+  if (record?.schemaId !== "prepared-scenario-analysis-v1") throw new Error("Unknown prepared analysis format");
+  const { recordSha256, ...body } = record;
+  if (recordSha256 !== await hash(body) || record.modelId !== expected.modelId
+    || record.artifactRevisionId !== expected.artifactRevisionId
+    || record.captureSha256 !== await hash(expected.capture)) throw new Error("Prepared analysis binding differs");
+  const rebuilt = await buildPreparedScenarioAnalysisV1({ ...expected, analysis: record.analysis,
     preparationSourceSha256: record.preparationSourceSha256 });
   if (rebuilt.recordSha256 !== recordSha256) throw new Error("Prepared analysis assessment/method pins differ");
   return rebuilt;

@@ -97,6 +97,17 @@ export function ArticleAccordionBlockEditorV3({
       className="my-5 rounded-xl bg-wb-soft/60 px-4 py-4 sm:px-5"
       data-article-block-kind="accordion"
     >
+      <label className="mb-2 block text-xs text-wb-muted">{t("articleEditor.accordion.role")}
+        <select value={block.role ?? "disclosure"} onChange={(e) => onChange({ ...block, role: e.currentTarget.value as "disclosure" | "note" })}
+          className="ml-2 rounded bg-wb-panel px-2 py-1 text-wb-text">
+          <option value="disclosure">{t("articleEditor.accordion.disclosure")}</option>
+          <option value="note">{t("articleEditor.accordion.note")}</option>
+        </select>
+      </label>
+      {block.role === "note" && <label className="mb-2 block text-xs text-wb-muted">{t("articleEditor.readingMarker")}
+        <input readOnly value={`[^${block.blockId}]`} onFocus={(e) => e.currentTarget.select()}
+          className="mt-1 block w-full rounded bg-wb-panel px-2 py-1 font-mono text-xs text-wb-text" />
+      </label>}
       <label className="flex items-center gap-2.5">
         <ListCollapse className="h-4 w-4 shrink-0 text-wb-accent" aria-hidden="true" />
         <span className="sr-only">{t("articleEditor.accordion.title")}</span>

@@ -662,6 +662,7 @@ type CanvasThemeV3 = Readonly<{
   grid: string;
   axis: string;
   text: string;
+  font: string;
 }>;
 
 function waveformPlotRectV3(
@@ -687,7 +688,7 @@ function drawWaveformAxesV3(
   theme: CanvasThemeV3,
 ): void {
   context.save();
-  context.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  context.font = theme.font;
   context.fillStyle = theme.text;
   context.strokeStyle = theme.grid;
   context.lineWidth = 1;
@@ -759,18 +760,20 @@ function waveformAxisTitleV3(
 }
 
 function readCanvasThemeV3(element: HTMLElement | null): CanvasThemeV3 {
-  const [canvas, grid, axis, text] =
+  const [canvas, grid, axis, text, font] =
     readWorkbenchCanvasThemeVariablesV3(element, [
       ["--wb-canvas-bg", "#0a141d"],
       ["--wb-grid", "rgba(165, 185, 200, 0.10)"],
       ["--wb-axis", "rgba(165, 185, 200, 0.32)"],
       ["--wb-text-muted", "#94a3b8"],
+      ["--wb-chart-font", "10px ui-monospace, SFMono-Regular, Menlo, monospace"],
     ]);
   return Object.freeze({
     canvas: canvas!,
     grid: grid!,
     axis: axis!,
     text: text!,
+    font: font!,
   });
 }
 

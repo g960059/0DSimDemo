@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { StudioExperimentSessionHandoffStoreV3 } from "@/studio/infrastructure/browser/StudioExperimentSessionHandoffV3";
 
 import {
   ArticleReaderLiveRuntimeV3,
@@ -32,6 +33,175 @@ import {
 } from "./helpers/standardReleaseTicketV1";
 
 describe("ArticleReaderLiveRuntimeV3", () => {
+  it("carries exact captures, edited controls, scenario selection and pace into a restored reader or Workbench", async () => {
+    const snapshot = snapshotV3();
+    const original = JSON.stringify(snapshot);
+    const harness = runtimeHarnessV3(snapshot);
+    const first = new ArticleReaderLiveRuntimeV3(snapshot, { createRuntime: harness.createRuntime });
+    await first.start();
+    await first.applyControl({ controlInstanceId: "test", controlId: "preload", scenarioIds: ["scenario/one"], value: 42 });
+    first.selectScenario("scenario/two");
+    first.setPlaybackRate(0.75);
+    await first.pause();
+    const continuation = await first.captureContinuation(false);
+    await first.dispose();
+    expect(continuation.content.scenarios[0]!.capture.fixture).toMatchObject({ preload: 42 });
+    expect(continuation.content.scenarios[0]!.capture.checkpoint).toEqual(snapshot.content.scenarios[0]!.capture.checkpoint);
+    expect(JSON.stringify(snapshot)).toBe(original);
+    const storage = new Map<string, string>();
+    const handoff = new StudioExperimentSessionHandoffStoreV3({
+      getItem: key => storage.get(key) ?? null,
+      setItem: (key, value) => { storage.set(key, value); },
+      removeItem: key => { storage.delete(key); },
+    });
+    handoff.begin({ sessionToken: "test-session", snapshotId: snapshot.snapshotId,
+      returnHref: "/ja/articles/test/preview#placement-test", continuation });
+    expect(handoff.read()?.continuation).toEqual(continuation);
+    const nextHarness = runtimeHarnessV3(snapshot);
+    const restored = new ArticleReaderLiveRuntimeV3(snapshot, { createRuntime: nextHarness.createRuntime, continuation });
+    await restored.start();
+    expect(restored.getSnapshot()).toMatchObject({ status: "paused", activeScenarioId: "scenario/two", playbackRate: { playbackRate: 0.75 } });
+    expect(nextHarness.initializeInput?.scenarios[0]?.fixture).toMatchObject({ preload: 42 });
+    expect(nextHarness.initializeInput?.scenarios[0]?.checkpoint).toEqual(continuation.content.scenarios[0]!.capture.checkpoint);
+    expect(nextHarness.playAll).not.toHaveBeenCalled();
+    await restored.dispose();
+    expect(() => new ArticleReaderLiveRuntimeV3(snapshot, { createRuntime: harness.createRuntime,
+      continuation: { ...continuation, surfaceReleaseId: "another-surface" } })).toThrow(/pinned model and Surface/);
+  });
+
+  it("waits for an in-flight control before taking a continuation and keeps retiring lanes stopped", async () => {
+    const snapshot = snapshotV3();
+    const pauseGate = deferredV3<void>();
+    const harness = runtimeHarnessV3(snapshot, { pauseGate });
+    const controller = new ArticleReaderLiveRuntimeV3(snapshot, { createRuntime: harness.createRuntime });
+    await controller.start();
+    const editing = controller.applyControl({ controlInstanceId: "test", controlId: "afterload", scenarioIds: ["scenario/one"], value: 7 });
+    const capturing = controller.captureContinuation(false);
+    pauseGate.resolve();
+    await editing;
+    const continuation = await capturing;
+    expect(continuation.content.scenarios[0]!.capture.fixture).toMatchObject({ afterload: 7 });
+    expect(continuation.playing).toBe(true);
+    expect(harness.playAll).toHaveBeenCalledTimes(1);
+    await controller.dispose();
+  });
+
+  it("keeps the playback status synchronized when analysis finishes during a resumable capture", async () => {
+    const snapshot = snapshotV3();
+    const analysisGate = deferredV3<void>();
+    const captureGate = deferredV3<void>();
+    const harness = runtimeHarnessV3(snapshot, { analysisGate, captureGate });
+    const controller = new ArticleReaderLiveRuntimeV3(snapshot, { createRuntime: harness.createRuntime });
+    await controller.start();
+    const analysis = controller.requestAnalysis({ analysisId: "analysis/return", scenarioIds: ["scenario/one"] });
+    const capture = controller.captureContinuation();
+    await vi.waitFor(() => expect(harness.captureScenario).toHaveBeenCalled());
+    analysisGate.resolve();
+    await analysis;
+    expect(controller.getSnapshot().status).toBe("paused");
+    captureGate.resolve();
+    expect((await capture).playing).toBe(true);
+    expect(controller.getSnapshot().status).toBe("playing");
+    expect(harness.playAll).toHaveBeenCalledTimes(2);
+    await controller.dispose();
+  });
+
+  it("shares a concurrent capture and lets retirement prevent any resume", async () => {
+    const snapshot = snapshotV3();
+    const captureGate = deferredV3<void>();
+    const harness = runtimeHarnessV3(snapshot, { captureGate });
+    const controller = new ArticleReaderLiveRuntimeV3(snapshot, { createRuntime: harness.createRuntime });
+    await controller.start();
+    const handoff = controller.captureContinuation();
+    const retiring = controller.captureContinuation(false);
+    expect(retiring).toBe(handoff);
+    captureGate.resolve();
+    await retiring;
+    expect(harness.captureScenario).toHaveBeenCalledTimes(snapshot.content.scenarios.length);
+    expect(harness.playAll).toHaveBeenCalledTimes(1);
+    expect(controller.getSnapshot().status).toBe("paused");
+    await controller.dispose();
+  });
+
+  it("autoplays at 1× after restore and leaves a collapsed presentation at its saved boundary", async () => {
+    const snapshot = snapshotV3();
+    const harness = runtimeHarnessV3(snapshot);
+    const setRate = vi.fn();
+    const controller = new ArticleReaderLiveRuntimeV3(snapshot, { createRuntime: input => {
+      const runtime = harness.createRuntime(input);
+      return { ...runtime, setPlaybackRate: rate => { setRate(rate); return runtime.setPlaybackRate(rate); } };
+    } });
+    await controller.setPresentationVisible(false);
+    await controller.start();
+    expect(setRate).toHaveBeenCalledTimes(1);
+    expect(setRate).toHaveBeenCalledWith(1);
+    expect(harness.playAll).not.toHaveBeenCalled();
+    expect(controller.getSnapshot()).toMatchObject({ status: "paused", playbackRate: { playbackRate: 1 } });
+    await controller.setPresentationVisible(true);
+    expect(harness.playAll).toHaveBeenCalledTimes(1);
+    await controller.pause();
+    await controller.setPresentationVisible(false);
+    await controller.setPresentationVisible(true);
+    expect(controller.getSnapshot().status).toBe("paused");
+    expect(harness.playAll).toHaveBeenCalledTimes(1);
+    await controller.dispose();
+  });
+
+  it("requires both the document and presentation to be visible, including startup and pending pauses", async () => {
+    const snapshot = snapshotV3();
+    const initializeGate = deferredV3<StudioSimulationWorkerScenarioStateV2>();
+    const pauseGate = deferredV3<void>();
+    const harness = runtimeHarnessV3(snapshot, { initializeGate, pauseGate });
+    const controller = new ArticleReaderLiveRuntimeV3(snapshot, { createRuntime: harness.createRuntime });
+    const starting = controller.start();
+    await controller.setPresentationVisible(false);
+    initializeGate.resolve(workerStateV3(snapshot, "scenario/one"));
+    await starting;
+    expect(harness.playAll).not.toHaveBeenCalled();
+    await controller.setDocumentVisible(false);
+    await controller.setPresentationVisible(true);
+    controller.play();
+    expect(harness.playAll).not.toHaveBeenCalled();
+    await controller.setDocumentVisible(true);
+    expect(harness.playAll).toHaveBeenCalledTimes(1);
+    const hiding = controller.setPresentationVisible(false);
+    await controller.setPresentationVisible(true);
+    pauseGate.resolve(); await hiding;
+    expect(controller.getSnapshot().status).toBe("playing");
+    expect(harness.playAll).toHaveBeenCalledTimes(2);
+    await controller.dispose();
+  });
+
+  it("retains explicit reader pause and speed when a viewport owner is recreated", async () => {
+    const snapshot = snapshotV3();
+    const harness = runtimeHarnessV3(snapshot);
+    const first = new ArticleReaderLiveRuntimeV3(snapshot, { createRuntime: harness.createRuntime });
+    await first.start(); first.setPlaybackRate(0.75); await first.pause();
+    const preference = first.playbackPreference();
+    await first.dispose();
+    const second = new ArticleReaderLiveRuntimeV3(snapshot, { createRuntime: harness.createRuntime, initialPlaybackPreference: preference });
+    await second.start();
+    expect(second.getSnapshot()).toMatchObject({ status: "paused", playbackRate: { playbackRate: 0.75 } });
+    expect(harness.playAll).toHaveBeenCalledTimes(1);
+    await second.setDocumentVisible(false); await second.setDocumentVisible(true);
+    expect(harness.playAll).toHaveBeenCalledTimes(1);
+    await second.dispose();
+  });
+
+  it("keeps the reader pace when initialization emits the conductor calibration rate", async () => {
+    const snapshot = snapshotV3();
+    const initializeGate = deferredV3<StudioSimulationWorkerScenarioStateV2>();
+    const harness = runtimeHarnessV3(snapshot, { initializeGate });
+    const controller = new ArticleReaderLiveRuntimeV3(snapshot, { createRuntime: harness.createRuntime });
+    const starting = controller.start();
+    harness.dependencies?.onPlaybackRateChange?.({ ...controller.getSnapshot().playbackRate, playbackRate: 0.5, userSelected: false });
+    expect(controller.getSnapshot().playbackRate.playbackRate).toBe(1);
+    initializeGate.resolve(workerStateV3(snapshot, "scenario/one"));
+    await starting;
+    expect(controller.getSnapshot()).toMatchObject({ status: "playing", playbackRate: { playbackRate: 1 } });
+    await controller.dispose();
+  });
+
   it("restores without consuming a transient when the Reader pauses before startup", async () => {
     const snapshot = snapshotV3();
     const harness = runtimeHarnessV3(snapshot);
@@ -786,6 +956,7 @@ function runtimeHarnessV3(
     applyControlError?: Error;
     applyControlErrorByScenarioId?: Readonly<Record<string, Error>>;
     captureScenarioError?: Error;
+    captureGate?: DeferredV3<void>;
   }> = {},
 ) {
   let dependencies: ArticleReaderParallelRuntimeFactoryInputV3 | undefined;
@@ -833,6 +1004,7 @@ function runtimeHarnessV3(
     return next;
   });
   const captureScenario = vi.fn(async (scenarioId: string) => {
+    await gates.captureGate?.promise;
     if (gates.captureScenarioError !== undefined) {
       throw gates.captureScenarioError;
     }

@@ -1,5 +1,7 @@
 import type { ExperimentScenarioV2, ExperimentSnapshotV2 } from
   "@/studio/contracts/v2/content";
+import type { StudioReaderContinuationV3 } from "@/studio/infrastructure/browser/StudioExperimentSessionHandoffV3";
+import { loadPreparedScenarioAnalysisV1 } from "@/components/workbench/runtime/PreparedModelAnalysisRegistryV1";
 import { mainWireCardiacCycleOutputValueV1, mainWireFillingFlowOutputValueV1, mainWireAorticJetOutputValueV1 } from "@/analysis/methods/mainWire/MainWireCardiacCyclePresentationV1";
 import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
@@ -90,6 +92,8 @@ export type ArticleReaderParallelRuntimeFactoryInputV3 = Readonly<{
 }>;
 
 type ArticleReaderLiveRuntimeCommonDependenciesV3 = Readonly<{
+  continuation?: StudioReaderContinuationV3;
+  initialPlaybackPreference?: ArticleReaderPlaybackPreferenceV3;
   initialActiveScenarioId?: string;
   visibleScenarioIds?: readonly string[];
   structuralAnalyses?: readonly ArticleReaderStructuralAnalysisRequestV3[];
@@ -100,6 +104,8 @@ type ArticleReaderLiveRuntimeCommonDependenciesV3 = Readonly<{
   presentationOutputIds?: ReadonlySet<string>;
   presentationAnalysisIds?: readonly string[];
 }>;
+
+export type ArticleReaderPlaybackPreferenceV3 = Readonly<{ playing: boolean; rate: number }>;
 
 export type ArticleReaderLiveRuntimeDependenciesV3 =
   ArticleReaderLiveRuntimeCommonDependenciesV3 & (
@@ -139,7 +145,12 @@ export class ArticleReaderLiveRuntimeV3 {
   #startPromise: Promise<void> | null = null;
   #playIntent = true;
   #documentVisible = true;
+  #presentationVisible = true;
   #analysisOperation: Promise<void> | null = null;
+  #controlOperation: Promise<void> | null = null;
+  #capturing = false;
+  #retiring = false;
+  #captureOperation: Promise<StudioReaderContinuationV3> | null = null;
 
   constructor(
     snapshot: ExperimentSnapshotV2,
@@ -152,14 +163,21 @@ export class ArticleReaderLiveRuntimeV3 {
       snapshot,
       dependencies.visibleScenarioIds,
     );
-    const activeScenarioId = dependencies.initialActiveScenarioId
+    const continuation = dependencies.continuation;
+    if (continuation && (continuation.content.modelId !== snapshot.content.modelId
+      || continuation.content.surfaceSeriesId !== snapshot.content.surfaceSeriesId
+      || continuation.surfaceReleaseId !== snapshot.surfaceReleaseId)) {
+      throw new Error("Reader continuation does not match its pinned model and Surface");
+    }
+    const activeScenarioId = continuation?.activeScenarioId ?? dependencies.initialActiveScenarioId
       ?? scenarioIds[0]!;
     if (!scenarioIds.includes(activeScenarioId)) {
       throw new Error(
         "Article Reader active Scenario is not in the visible Scenario scope",
       );
     }
-    this.#snapshot = snapshot;
+    this.#snapshot = continuation ? { ...snapshot, content: continuation.content } : snapshot;
+    this.#playIntent = continuation?.playing ?? dependencies.initialPlaybackPreference?.playing ?? true;
     this.#scenarioIds = scenarioIds;
     this.#structuralHistoryDepthByAnalysisId =
       normalizedArticleReaderStructuralAnalysesV3(
@@ -180,6 +198,11 @@ export class ArticleReaderLiveRuntimeV3 {
           ...input,
           releaseTicket: dependencies.releaseTicket,
           backgroundWorkerPool,
+          loadPreparedAnalysis: seed => seed.checkpoint === undefined
+            ? Promise.resolve(null)
+            : loadPreparedScenarioAnalysisV1(dependencies.releaseTicket, {
+                fixture: seed.fixture, checkpoint: seed.checkpoint,
+              }),
           presentationOutputIds: () =>
             this.#presentationOutputIds ?? Object.freeze([]),
           presentationAnalysisIds: () => dependencies.presentationAnalysisIds ?? [],
@@ -198,7 +221,7 @@ export class ArticleReaderLiveRuntimeV3 {
       pendingControlInstanceId: null,
       pendingAnalysisKeys: EMPTY_ARTICLE_READER_ANALYSIS_KEYS_V3,
       fixtureByScenario: articleReaderFixtureByScenarioV3(
-        snapshot,
+        this.#snapshot,
         scenarioIds,
       ),
       analysisByKey: EMPTY_ARTICLE_READER_ANALYSES_V3,
@@ -206,7 +229,7 @@ export class ArticleReaderLiveRuntimeV3 {
       analysisErrorByKey: EMPTY_ARTICLE_READER_ANALYSIS_ERRORS_V3,
       controlErrorByInstanceId: EMPTY_ARTICLE_READER_CONTROL_ERRORS_V3,
       error: null,
-      playbackRate: INITIAL_ARTICLE_PLAYBACK_RATE_STATE_V3,
+      playbackRate: { ...INITIAL_ARTICLE_PLAYBACK_RATE_STATE_V3, playbackRate: continuation?.playbackRate ?? dependencies.initialPlaybackPreference?.rate ?? 1 },
     });
   }
 
@@ -257,7 +280,7 @@ export class ArticleReaderLiveRuntimeV3 {
         },
         onError: (error) => this.#fail(errorAsErrorV3(error), runtime),
         onPlaybackRateChange: (playbackRate) => {
-          if (this.#runtime === runtime && this.#acceptsFrames()) {
+          if (this.#runtime === runtime && this.#acceptsFrames() && this.#state.status !== "starting") {
             this.#publish({ playbackRate });
           }
         },
@@ -284,6 +307,8 @@ export class ArticleReaderLiveRuntimeV3 {
     })).then(() => {
       if (this.#runtime !== runtime || this.#state.status !== "starting") return;
       runtime.selectScenario(this.#state.activeScenarioId);
+      // Article playback has an explicit reading pace, independent of calibration defaults.
+      this.#publish({ playbackRate: runtime.setPlaybackRate(this.#state.playbackRate.playbackRate) });
       appendArticleReaderFramesV3(
         scenarios.map(({ scenarioId }) => runtime.latestFrame(scenarioId)),
         this.sampleStore,
@@ -314,7 +339,7 @@ export class ArticleReaderLiveRuntimeV3 {
     if (
       runtime === null
       || this.#state.status !== "paused"
-      || !this.#documentVisible
+      || !this.#shouldPlayV3()
     ) return;
     try {
       runtime.playAll();
@@ -324,6 +349,10 @@ export class ArticleReaderLiveRuntimeV3 {
     } catch (error) {
       this.#fail(errorAsErrorV3(error), runtime);
     }
+  }
+
+  playbackPreference(): ArticleReaderPlaybackPreferenceV3 {
+    return { playing: this.#playIntent, rate: this.#state.playbackRate.playbackRate };
   }
 
   setPlaybackRate(rate: number): void {
@@ -361,10 +390,20 @@ export class ArticleReaderLiveRuntimeV3 {
   /** Pauses hidden article simulations without changing user play intent. */
   async setDocumentVisible(visible: boolean): Promise<void> {
     this.#documentVisible = visible;
+    await this.#reconcileVisibilityV3();
+  }
+
+  /** A collapsed Peek is not a visible simulation, even when its anchor is on screen. */
+  async setPresentationVisible(visible: boolean): Promise<void> {
+    this.#presentationVisible = visible;
+    await this.#reconcileVisibilityV3();
+  }
+
+  async #reconcileVisibilityV3(): Promise<void> {
     const runtime = this.#runtime;
     if (runtime === null) return;
-    if (visible) {
-      if (this.#state.status === "paused" && this.#playIntent) {
+    if (this.#shouldPlayV3()) {
+      if (this.#state.status === "paused") {
         runtime.playAll();
         if (this.#runtime === runtime) {
           this.#publish({ status: "playing", error: null });
@@ -552,7 +591,21 @@ export class ArticleReaderLiveRuntimeV3 {
     return operation;
   }
 
-  async applyControl(input: Readonly<{
+  applyControl(input: Readonly<{
+    controlInstanceId: string;
+    controlId: string;
+    scenarioIds: readonly string[];
+    value: number;
+  }>): Promise<void> {
+    if (this.#capturing) return Promise.reject(new Error("Reader is capturing its state"));
+    const operation = this.#applyControl(input).finally(() => {
+      if (this.#controlOperation === operation) this.#controlOperation = null;
+    });
+    this.#controlOperation = operation;
+    return operation;
+  }
+
+  async #applyControl(input: Readonly<{
     controlInstanceId: string;
     controlId: string;
     scenarioIds: readonly string[];
@@ -699,6 +752,46 @@ export class ArticleReaderLiveRuntimeV3 {
     this.#ownedBackgroundWorkerPool?.dispose();
   }
 
+  /** Capture visible lanes at a drained boundary; retain saved hidden scenarios. */
+  captureContinuation(resume = true): Promise<StudioReaderContinuationV3> {
+    this.#retiring ||= !resume;
+    if (this.#captureOperation) return this.#captureOperation;
+    this.#capturing = true;
+    const operation = this.#captureContinuation().finally(() => {
+      if (this.#captureOperation === operation) this.#captureOperation = null;
+    });
+    this.#captureOperation = operation;
+    return operation;
+  }
+
+  async #captureContinuation(): Promise<StudioReaderContinuationV3> {
+    try {
+      await this.#startPromise;
+      await this.#controlOperation;
+      const runtime = this.#runtime;
+      if (!runtime || !this.#acceptsFrames()) throw this.#state.error ?? new Error("Reader capture is unavailable");
+      await runtime.pauseAll();
+      if (this.#state.status === "playing") this.#publish({ status: "paused" });
+      const captures = await Promise.all(this.#scenarioIds.map(id => runtime.captureScenario(id)));
+      if (runtime !== this.#runtime) throw new Error("Reader changed while capturing");
+      return {
+        content: { ...this.#snapshot.content, scenarios: this.#snapshot.content.scenarios.map(source =>
+          captures.find(item => item.scenarioId === source.scenarioId) ?? source) },
+        surfaceReleaseId: this.#snapshot.surfaceReleaseId,
+        activeScenarioId: this.#state.activeScenarioId,
+        playing: this.#playIntent,
+        playbackRate: this.#state.playbackRate.playbackRate,
+      };
+    } finally {
+      // A retiring controller remains gated until dispose has revoked it.
+      this.#capturing = this.#retiring;
+      if (!this.#retiring && this.#runtime
+        && (this.#state.status === "playing" || this.#state.status === "paused")) {
+        this.#resumeAfterExclusiveOperationV3(this.#runtime, {});
+      }
+    }
+  }
+
   #acceptsFrames(): boolean {
     return this.#state.status === "starting"
       || this.#state.status === "playing"
@@ -723,7 +816,7 @@ export class ArticleReaderLiveRuntimeV3 {
   }
 
   #shouldPlayV3(): boolean {
-    return this.#playIntent && this.#documentVisible;
+    return !this.#capturing && this.#playIntent && this.#documentVisible && this.#presentationVisible;
   }
 
   #fail(error: Error, authority: ArticleReaderParallelRuntimeV3): void {
@@ -765,12 +858,12 @@ const EMPTY_ARTICLE_READER_ANALYSIS_ERRORS_V3 = Object.freeze(
 const EMPTY_ARTICLE_READER_CONTROL_ERRORS_V3 = Object.freeze(
   Object.create(null),
 ) as Readonly<Record<string, string>>;
-const INITIAL_ARTICLE_PLAYBACK_RATE_STATE_V3:
+export const INITIAL_ARTICLE_PLAYBACK_RATE_STATE_V3:
   WorkbenchGroupPlaybackRateStateV3 = Object.freeze({
-    playbackRate: 0.5,
+    playbackRate: 1,
     maximumRate: null,
     calibrating: true,
-    userSelected: false,
+    userSelected: true,
     performanceLimited: false,
   });
 

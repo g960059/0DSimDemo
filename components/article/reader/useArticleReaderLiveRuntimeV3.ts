@@ -1,4 +1,10 @@
 import React from "react";
+import type { StudioReaderContinuationV3 } from "@/studio/infrastructure/browser/StudioExperimentSessionHandoffV3";
+
+export type ArticleReaderSessionMemoryV3 = {
+  pending: Promise<StudioReaderContinuationV3 | null> | null;
+  error: Error | null;
+};
 
 import type { ExperimentSnapshotV2 } from
   "@/studio/contracts/v2/content";
@@ -18,7 +24,9 @@ import {
 } from "@/components/workbench/presentation/WorkbenchPresentationSampleStoreV3";
 import {
   ArticleReaderLiveRuntimeV3,
+  INITIAL_ARTICLE_PLAYBACK_RATE_STATE_V3,
   type ArticleReaderLiveRuntimeStateV3,
+  type ArticleReaderPlaybackPreferenceV3,
   type ArticleReaderStructuralAnalysisRequestV3,
   validatedArticleReaderVisibleScenarioIdsV3,
 } from "./ArticleReaderLiveRuntimeV3";
@@ -30,6 +38,7 @@ export type UseArticleReaderLiveRuntimeResultV3 = Readonly<{
   periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
   presentationOutput?: ArticleReaderLiveRuntimeV3["presentationOutput"];
   presentationTrace?: ArticleReaderLiveRuntimeV3["presentationTrace"];
+  captureContinuation(): Promise<StudioReaderContinuationV3>;
   play(): void;
   pause(): Promise<void>;
   setPlaybackRate(rate: number): void;
@@ -65,6 +74,9 @@ export function useArticleReaderLiveRuntimeV3(
   structuralAnalyses: readonly ArticleReaderStructuralAnalysisRequestV3[] = [],
   presentationOutputIds?: ReadonlySet<string>,
   presentationAnalysisIds: readonly string[] = [],
+  presentationVisible = true,
+  playbackPreference?: { current: ArticleReaderPlaybackPreferenceV3 },
+  sessionMemory?: ArticleReaderSessionMemoryV3,
 ): UseArticleReaderLiveRuntimeResultV3 {
   const requestedScopeKey = JSON.stringify(visibleScenarioIds ?? null);
   const validatedVisibleScenarioIds = React.useMemo(
@@ -87,6 +99,8 @@ export function useArticleReaderLiveRuntimeV3(
     [presentationOutputKey, snapshot.snapshotId, visibleScopeKey],
   );
   const controllerRef = React.useRef<ArticleReaderLiveRuntimeV3 | null>(null);
+  const presentationVisibleRef = React.useRef(presentationVisible);
+  presentationVisibleRef.current = presentationVisible;
   const [state, setState] = React.useState<ArticleReaderLiveRuntimeStateV3>(() =>
     initialStateV3(
       snapshot,
@@ -95,50 +109,71 @@ export function useArticleReaderLiveRuntimeV3(
     ));
 
   React.useEffect(() => {
-    const controller = new ArticleReaderLiveRuntimeV3(snapshot, {
-      ...(initialActiveScenarioId === undefined
-        ? {}
-        : { initialActiveScenarioId }),
-      visibleScenarioIds: validatedVisibleScenarioIds,
-      structuralAnalyses,
-      presentationAnalysisIds,
-      ...(presentationOutputIds === undefined
-        ? {}
-        : { presentationOutputIds }),
-      sampleStore,
-      releaseTicket: exactModel.releaseTicket,
-      ...(exactModel?.resolveAnalysisExecutionPlan === undefined
-        ? {}
-        : {
-            resolveAnalysisExecutionPlan:
-              exactModel.resolveAnalysisExecutionPlan,
-          }),
-    });
-    controllerRef.current = controller;
-    setState(controller.getSnapshot());
-    const unsubscribe = controller.subscribe(() => {
-      if (controllerRef.current === controller) {
-        setState(controller.getSnapshot());
-      }
-    });
-    const onVisibilityChange = () => {
-      void controller.setDocumentVisible(!document.hidden);
-    };
-    if (typeof document !== "undefined") {
-      void controller.setDocumentVisible(!document.hidden);
-      document.addEventListener("visibilitychange", onVisibilityChange);
-    }
-    // Restore at the saved boundary; reading a collapsed card must not consume a transient.
-    void controller.pause();
-    void controller.start();
-    return () => {
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
+    const initialize = async () => {
+      const continuation = sessionMemory?.pending ? await sessionMemory.pending : null;
+      if (cancelled) return;
+      if (sessionMemory?.error) throw sessionMemory.error;
+      // Epochs belong to a runtime session. A restored checkpoint starts a new
+      // authority and must not archive the prior session as a changed condition.
+      sampleStore.reset();
+      const controller = new ArticleReaderLiveRuntimeV3(snapshot, {
+        ...(continuation ? { continuation } : {}),
+        initialPlaybackPreference: playbackPreference?.current,
+        ...(initialActiveScenarioId === undefined
+          ? {}
+          : { initialActiveScenarioId }),
+        visibleScenarioIds: validatedVisibleScenarioIds,
+        structuralAnalyses,
+        presentationAnalysisIds,
+        ...(presentationOutputIds === undefined
+          ? {}
+          : { presentationOutputIds }),
+        sampleStore,
+        releaseTicket: exactModel.releaseTicket,
+        ...(exactModel?.resolveAnalysisExecutionPlan === undefined
+          ? {}
+          : {
+              resolveAnalysisExecutionPlan:
+                exactModel.resolveAnalysisExecutionPlan,
+            }),
+      });
+      controllerRef.current = controller;
+      setState(controller.getSnapshot());
+      const unsubscribe = controller.subscribe(() => {
+        if (controllerRef.current === controller) {
+          setState(controller.getSnapshot());
+        }
+      });
+      const onVisibilityChange = () => {
+        void controller.setDocumentVisible(!document.hidden);
+      };
       if (typeof document !== "undefined") {
-        document.removeEventListener("visibilitychange", onVisibilityChange);
+        void controller.setDocumentVisible(!document.hidden);
+        document.addEventListener("visibilitychange", onVisibilityChange);
       }
-      unsubscribe();
-      if (controllerRef.current === controller) controllerRef.current = null;
-      void controller.dispose();
+      // Visibility gates autoplay without overwriting an explicit reader pause.
+      void controller.setPresentationVisible(presentationVisibleRef.current);
+      void controller.start();
+      cleanup = () => {
+        if (typeof document !== "undefined") {
+          document.removeEventListener("visibilitychange", onVisibilityChange);
+        }
+        unsubscribe();
+        if (playbackPreference) playbackPreference.current = controller.playbackPreference();
+        if (controllerRef.current === controller) controllerRef.current = null;
+        if (sessionMemory) {
+          sessionMemory.pending = controller.captureContinuation(false)
+            .catch(error => { sessionMemory.error = error instanceof Error ? error : new Error(String(error)); return null; })
+            .finally(() => controller.dispose());
+        } else void controller.dispose();
+      };
     };
+    void initialize().catch(error => {
+      if (!cancelled) setState(previous => ({ ...previous, status: "failed", error: error instanceof Error ? error : new Error(String(error)) }));
+    });
+    return () => { cancelled = true; cleanup?.(); };
   }, [
     initialActiveScenarioId,
     sampleStore,
@@ -149,8 +184,19 @@ export function useArticleReaderLiveRuntimeV3(
     visibleScopeKey,
     exactModel?.releaseTicket,
     exactModel?.resolveAnalysisExecutionPlan,
+    playbackPreference,
+    sessionMemory,
   ]);
 
+  React.useEffect(() => {
+    void controllerRef.current?.setPresentationVisible(presentationVisible);
+  }, [presentationVisible]);
+
+  const captureContinuation = React.useCallback(async () => {
+    const controller = controllerRef.current;
+    if (!controller) throw new Error("Reader capture is unavailable");
+    return controller.captureContinuation();
+  }, []);
   const play = React.useCallback(() => controllerRef.current?.play(), []);
   const pause = React.useCallback(async () => {
     await controllerRef.current?.pause();
@@ -195,6 +241,7 @@ export function useArticleReaderLiveRuntimeV3(
     presentationOutput,
     presentationTrace,
     applyControl,
+    captureContinuation,
     play,
     pause,
     setPlaybackRate,
@@ -202,6 +249,7 @@ export function useArticleReaderLiveRuntimeV3(
     selectScenario,
   }), [
     applyControl,
+    captureContinuation,
     exactModel.fixtureProjection,
     exactModel.periodicPvaDerivation,
     presentationOutput,
@@ -253,12 +301,6 @@ function initialStateV3(
       Record<string, string>
     >,
     error: null,
-    playbackRate: Object.freeze({
-      playbackRate: 0.5,
-      maximumRate: null,
-      calibrating: true,
-      userSelected: false,
-      performanceLimited: false,
-    }),
+    playbackRate: INITIAL_ARTICLE_PLAYBACK_RATE_STATE_V3,
   });
 }

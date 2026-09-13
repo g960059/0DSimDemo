@@ -28,12 +28,14 @@ import {
   MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID,
   buildMainWirePeriodicPvaMethodV8,
   buildMainWirePeriodicPvaMethodV9,
   buildMainWirePeriodicPvaMethodV10,
   buildMainWirePeriodicPvaMethodV13,
   buildMainWirePeriodicPvaMethodV14,
   buildMainWirePeriodicPvaMethodV15,
+  buildMainWirePeriodicPvaMethodV16,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
@@ -237,6 +239,12 @@ export const MAIN_WIRE_ANALYSIS_METHOD_REGISTRY_V1 =
       MAIN_WIRE_PRESSURE_CROSSING_PV_ANALYSIS_V1_ID,
     ]),
     derivations: Object.freeze([
+      Object.freeze({ ...MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1,
+        derivationId: MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID,
+        requiredAnalysisIds: Object.freeze([MAIN_WIRE_PRESSURE_CROSSING_PV_ANALYSIS_V1_ID]),
+        runtime: Object.freeze({ kind: "periodic-pva" as const,
+          derivation: Object.freeze({ methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID, build: buildMainWirePeriodicPvaMethodV16 }) }),
+      }),
       Object.freeze({ ...MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1,
         derivationId: MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID,
         requiredAnalysisIds: Object.freeze([MAIN_WIRE_PRESSURE_CROSSING_PV_ANALYSIS_V1_ID]),

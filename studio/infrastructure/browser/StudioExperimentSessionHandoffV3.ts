@@ -1,6 +1,17 @@
 import {
   studioCanonicalJsonStringify,
 } from "@/domain/json/CanonicalJson";
+import { validateExperimentContentV2 } from "@/studio/application/authoring/StudioExperimentDataV2";
+import type { ExperimentContentV2 } from "@/studio/contracts/v2/content";
+
+/** Exact captures for a disposable reading session, never an edit to its source Snapshot. */
+export type StudioReaderContinuationV3 = Readonly<{
+  content: ExperimentContentV2;
+  surfaceReleaseId: string;
+  activeScenarioId: string;
+  playing: boolean;
+  playbackRate: number;
+}>;
 
 export const STUDIO_EXPERIMENT_SESSION_HANDOFF_V3_KEY =
   "circleheart.studio.experiment-session-handoff.v1";
@@ -12,6 +23,7 @@ export type StudioExperimentSessionHandoffV3 = Readonly<{
   sessionToken: string;
   snapshotId: string;
   returnHref: string;
+  continuation?: StudioReaderContinuationV3;
 }>;
 
 type SessionStorageV3 = Pick<Storage, "getItem" | "removeItem" | "setItem">;
@@ -67,7 +79,8 @@ export function validateStudioExperimentSessionHandoffV3(
     throw new Error("ExperimentSession handoff must be an object");
   }
   const record = value as Record<string, unknown>;
-  const expected = ["returnHref", "schemaId", "sessionToken", "snapshotId"];
+  const expected = ["returnHref", "schemaId", "sessionToken", "snapshotId",
+    ...(record.continuation === undefined ? [] : ["continuation"])].sort();
   const keys = Object.keys(record).sort();
   if (
     keys.length !== expected.length
@@ -90,7 +103,24 @@ export function validateStudioExperimentSessionHandoffV3(
     sessionToken,
     snapshotId,
     returnHref: record.returnHref,
+    ...(record.continuation === undefined ? {} : {
+      continuation: validateStudioReaderContinuationV3(record.continuation),
+    }),
   });
+}
+
+export function validateStudioReaderContinuationV3(value: unknown): StudioReaderContinuationV3 {
+  if (value === null || typeof value !== "object") throw new Error("Invalid Reader continuation");
+  const item = value as Record<string, unknown>;
+  const content = validateExperimentContentV2(item.content);
+  const activeScenarioId = portableIdV3(item.activeScenarioId, "activeScenarioId");
+  if (!content.scenarios.some(s => s.scenarioId === activeScenarioId)
+    || typeof item.playing !== "boolean" || typeof item.playbackRate !== "number"
+    || !Number.isFinite(item.playbackRate) || item.playbackRate <= 0) {
+    throw new Error("Invalid Reader continuation playback");
+  }
+  return { content, activeScenarioId, playing: item.playing, playbackRate: item.playbackRate,
+    surfaceReleaseId: portableIdV3(item.surfaceReleaseId, "surfaceReleaseId") };
 }
 
 function portableIdV3(value: unknown, field: string): string {

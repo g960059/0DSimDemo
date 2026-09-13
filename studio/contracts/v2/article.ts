@@ -37,6 +37,12 @@ export type StudioArticleImageBlockV2 = Readonly<{
   url: string;
   altText: string;
   caption: string;
+  title?: string;
+  credit?: Readonly<{
+    text: string;
+    licenseLabel: string;
+    licenseHref: string;
+  }>;
 }>;
 
 export type StudioArticleDividerBlockV2 = Readonly<{
@@ -51,6 +57,11 @@ export type StudioArticleLinkBlockV2 = Readonly<{
   href: string;
   label: string;
   description: string;
+  imageUrl?: string;
+  iconUrl?: string;
+  siteName?: string;
+  /** A bibliographic entry collected in the article end matter. */
+  role?: "card" | "reference";
 }>;
 
 export type StudioArticleQuizChoiceV2 = Readonly<{
@@ -86,6 +97,8 @@ export type StudioArticleAccordionBlockV2 = Readonly<{
   blockId: StudioArticleBlockIdV2;
   kind: "accordion";
   title: string;
+  /** An explanatory endnote; its number follows first mention in the text. */
+  role?: "disclosure" | "note";
   blocks: readonly StudioArticleAccordionContentBlockV2[];
 }>;
 

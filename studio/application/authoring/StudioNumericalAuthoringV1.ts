@@ -40,9 +40,7 @@ import type {
 import type {
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
-import {
-  studioCanonicalJsonStringify,
-} from "@/domain/json/CanonicalJson";
+import { sha256StudioCanonicalJsonHex as sha256CanonicalV1 } from "@/domain/json/CanonicalJsonSha256";
 
 export const STUDIO_EXPERIMENT_APPLY_PLAN_V1_SCHEMA_ID =
   "circleheart-studio-experiment-apply-plan-v1" as const;
@@ -904,13 +902,4 @@ function summarizeSnapshotV1(
 
 function sameStringsV1(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
-async function sha256CanonicalV1(value: unknown): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(studioCanonicalJsonStringify(value)),
-  );
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, "0")).join("");
 }

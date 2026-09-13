@@ -11,7 +11,7 @@ import {
   ArticleReaderStructuralReturnGraphV3,
   articleReaderPeriodicPvaEnabledV3,
   resolveArticleReaderStaticGraphSeriesLabelV3,
-  articleReaderPlacementAfterCenterExitV3,
+  articleReaderPlacementAfterViewportExitV3,
   articleReaderBoundedHistoryV3,
   commonGraphUnitV3,
   resolveArticleReaderGraphPresentationV3,
@@ -378,6 +378,7 @@ function readerRuntimeStubV3(
       }),
     }),
     periodicPvaDerivation: null,
+    captureContinuation: async () => ({ content: snapshotV3().content, surfaceReleaseId: snapshotV3().surfaceReleaseId, activeScenarioId: "scenario/baseline", playing: false, playbackRate: 1 }),
     play: NOOP,
     pause: async () => undefined,
     setPlaybackRate: NOOP,
@@ -665,12 +666,12 @@ describe("Article Reader V3 experiment anchor", () => {
 
     expect(splitHtml).toContain('data-peek-maximized="false"');
     expect(splitHtml).toContain('aria-pressed="false"');
-    expect(splitHtml).toContain("シミュレーションを詳しく開く");
-    expect(splitHtml).toContain("シミュレーションを画面いっぱいに表示");
+    expect(splitHtml).toContain("その他の操作");
+    expect(splitHtml).toContain("広く表示");
     expect(maximizedHtml).toContain('data-peek-maximized="true"');
     expect(maximizedHtml).toContain('aria-pressed="true"');
-    expect(maximizedHtml).toContain("記事との分割表示に戻す");
-    expect(maximizedHtml).toContain("ExperimentSessionでBriefingを編集");
+    expect(maximizedHtml).toContain("記事と並べる");
+    expect(maximizedHtml).toContain("その他の操作");
   });
 
   it("keeps Peek resizing bounded while tracking the divider one-to-one", () => {
@@ -707,13 +708,14 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(resolved?.pane.structuralSide).toBe("right");
   });
 
-  it("clears only the Placement that actually left the Reader center band", () => {
+  it("selects a remaining visible Placement when the active one leaves the viewport", () => {
     expect(
-      articleReaderPlacementAfterCenterExitV3("placement/a", "placement/a"),
+      articleReaderPlacementAfterViewportExitV3("placement/a", "placement/a"),
     ).toBeNull();
     expect(
-      articleReaderPlacementAfterCenterExitV3("placement/b", "placement/a"),
+      articleReaderPlacementAfterViewportExitV3("placement/b", "placement/a"),
     ).toBe("placement/b");
+    expect(articleReaderPlacementAfterViewportExitV3("placement/a", "placement/a", ["placement/b", "placement/c"])).toBe("placement/c");
   });
 
   it("treats history depth zero as no previous structural states", () => {
@@ -854,7 +856,8 @@ describe("Article Reader V3 experiment anchor", () => {
     };
     const html = renderExperimentV3({ snapshot, contract, live: true });
 
-    expect(html).toContain("MW 72");
+    expect(html).toContain("シミュレーション情報");
+    expect(html).not.toContain("MW 72");
     expect(html).not.toContain("MW V3");
   });
 
@@ -1233,7 +1236,7 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).toContain('data-testid="workbench-item-description-trigger-v3"');
   });
 
-  it("derives a compact right-peek anchor for two to four selected graphs", () => {
+  it("keeps a primary observation Inflow and offers supporting graphs in Peek", () => {
     const html = renderExperimentV3({
       block: twoGraphBlockV3(),
       snapshot: twoGraphSnapshotV3(),
@@ -1241,17 +1244,11 @@ describe("Article Reader V3 experiment anchor", () => {
       live: true,
     });
 
-    expect(html).toContain('data-reader-presentation="peek"');
-    expect(html).toContain("article-reader-peek-anchor");
-    expect(html).toContain('data-reader-peek-active="false"');
-    expect(html).toContain('aria-expanded="false"');
-    expect(html).toContain(
-      'aria-controls="article-reader-experiment-companion-v3"',
-    );
-    expect(html).toContain("Reader experiment");
-    expect(html).not.toContain("Live experiment");
-    expect(html).not.toContain("MW V3");
-    expect(html).not.toContain("<figure");
+    expect(html).toContain('data-reader-presentation="inflow"');
+    expect(html).toContain("<figure");
+    expect(html).toContain("data-reader-open-details");
+    expect(html).not.toContain("article-reader-peek-anchor");
+
   });
 
   it("renders the dedicated exact-Snapshot view inline instead of running behind an anchor", () => {
@@ -1265,6 +1262,8 @@ describe("Article Reader V3 experiment anchor", () => {
 
     expect(html).toContain("<figure");
     expect(html).not.toContain('data-reader-presentation="peek"');
+    expect(html.match(/data-reader-graph-render-active=/g)).toHaveLength(2);
+    expect(html).not.toContain("data-reader-open-details");
   });
 
   it("renders only the authored Briefing Scenario scope and focuses its initial Scenario", () => {
@@ -1274,8 +1273,8 @@ describe("Article Reader V3 experiment anchor", () => {
       live: true,
     });
 
-    expect(html).toContain(">Comparison</button>");
-    expect(html).toContain('aria-pressed="true"');
+    expect(html).not.toContain(">Comparison</button>");
+    expect(html).toContain('data-reader-structural-scenario-count="1"');
     expect(html).not.toContain(">Baseline</button>");
     expect(html).not.toContain(">Excluded</button>");
   });

@@ -2,8 +2,9 @@
 import { sha256CanonicalJsonHex as hash } from "@/engine/integrity";
 import type { ScenarioCaptureV2 } from "@/studio/contracts/v2/content";
 import type { StudioModelWorkerReleaseTicketV2 } from "@/studio/contracts/v2/release";
-import { readPreparedModelAnalysisV1 } from "../presentation/PreparedModelAnalysisV1";
+import { readPreparedScenarioAnalysisV1 } from "../presentation/PreparedModelAnalysisV1";
 import { resolveRegisteredAnalysisMethodsV1 as methods } from "@/analysis/registry/RegisteredAnalysisMethodsV1";
+import type { StudioJsonObjectV2 } from "@/studio/contracts/v2/json";
 
 // Lazy, content-addressed assets. Neither unrelated presets' sweeps nor their
 // numerical histories enter the initial JS bundle. Missing/incompatible assets
@@ -22,8 +23,29 @@ export async function loadPreparedModelAnalysisV1(ticket: StudioModelWorkerRelea
     if (typeof url !== "string") return null;
     const response = await fetch(url, { signal: AbortSignal.timeout(5_000) });
     if (!response.ok) return null;
-    return await readPreparedModelAnalysisV1(await response.json(), { modelId: ticket.modelId,
+    return await readPreparedScenarioAnalysisV1(await response.json(), { modelId: ticket.modelId,
       artifactRevisionId: ticket.artifactRevisionId, surface: ticket.surfaceRelease, capture });
   }
   catch { return null; }
+}
+
+/** Shared by full Workbench and Article Reader; provenance stays with the
+ * derived result while the lane remaps only its ephemeral Scenario identity. */
+export async function loadPreparedScenarioAnalysisV1(
+  ticket: StudioModelWorkerReleaseTicketV2,
+  capture: ScenarioCaptureV2,
+) {
+  const saved = await loadPreparedModelAnalysisV1(ticket, capture);
+  return saved === null ? null : {
+    ...saved.analysis,
+    payload: {
+      ...saved.analysis.payload as StudioJsonObjectV2,
+      preparedOrigin: {
+        recordSha256: saved.recordSha256,
+        captureSha256: saved.captureSha256,
+        preparationSourceSha256: saved.preparationSourceSha256,
+        use: "registered-initial-state-analysis",
+      },
+    },
+  };
 }

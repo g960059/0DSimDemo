@@ -124,11 +124,18 @@ function assertArticleBlockV2(block: StudioArticleBlockV2, path: string): void {
       "caption",
       "kind",
       "url",
-    ], path);
+    ], path, ["title", "credit"]);
     portableIdV2(block.blockId, `${path}.blockId`);
     articleImageUrlV2(block.url, `${path}.url`);
     authoredStringV2(block.altText, `${path}.altText`, 1_000);
     authoredStringV2(block.caption, `${path}.caption`, 2_000);
+    if (block.title !== undefined) authoredStringV2(block.title, `${path}.title`, 500);
+    if (block.credit !== undefined) {
+      exactKeysV2(block.credit, ["text", "licenseLabel", "licenseHref"], `${path}.credit`);
+      authoredStringV2(block.credit.text, `${path}.credit.text`, 2_000);
+      authoredStringV2(block.credit.licenseLabel, `${path}.credit.licenseLabel`, 240);
+      articleLinkHrefV2(block.credit.licenseHref, `${path}.credit.licenseHref`);
+    }
     return;
   }
   if (block.kind === "divider") {
@@ -137,11 +144,15 @@ function assertArticleBlockV2(block: StudioArticleBlockV2, path: string): void {
     return;
   }
   if (block.kind === "link") {
-    exactKeysV2(block, ["blockId", "description", "href", "kind", "label"], path);
+    exactKeysV2(block, ["blockId", "description", "href", "kind", "label"], path, ["imageUrl", "iconUrl", "siteName", "role"]);
     portableIdV2(block.blockId, `${path}.blockId`);
     articleLinkHrefV2(block.href, `${path}.href`);
     authoredStringV2(block.label, `${path}.label`, 500);
     authoredStringV2(block.description, `${path}.description`, 2_000);
+    if (block.imageUrl !== undefined) articleImageUrlV2(block.imageUrl, `${path}.imageUrl`);
+    if (block.iconUrl !== undefined) articleImageUrlV2(block.iconUrl, `${path}.iconUrl`);
+    if (block.role !== undefined && block.role !== "reference" && block.role !== "card") failV2(`${path}.role`, "must be reference");
+    if (block.siteName !== undefined) authoredStringV2(block.siteName, `${path}.siteName`, 240);
     return;
   }
   if (block.kind === "quiz") {
@@ -177,7 +188,8 @@ function assertArticleBlockV2(block: StudioArticleBlockV2, path: string): void {
     return;
   }
   if (block.kind === "accordion") {
-    exactKeysV2(block, ["blockId", "blocks", "kind", "title"], path);
+    exactKeysV2(block, ["blockId", "blocks", "kind", "title"], path, ["role"]);
+    if (block.role !== undefined && block.role !== "note" && block.role !== "disclosure") failV2(`${path}.role`, "must be note");
     portableIdV2(block.blockId, `${path}.blockId`);
     authoredStringV2(block.title, `${path}.title`, 500);
     if (!Array.isArray(block.blocks)) {
@@ -194,9 +206,9 @@ function assertArticleBlockV2(block: StudioArticleBlockV2, path: string): void {
   failV2(`${path}.kind`, "has an invalid block kind");
 }
 
-function exactKeysV2(value: unknown, expected: readonly string[], path: string): void {
+function exactKeysV2(value: unknown, expected: readonly string[], path: string, optional: readonly string[] = []): void {
   recordV2(value, path);
-  const actual = Object.keys(value).sort();
+  const actual = Object.keys(value).filter((key) => !optional.includes(key)).sort();
   const sorted = [...expected].sort();
   if (actual.length !== sorted.length || actual.some((key, index) => key !== sorted[index])) {
     failV2(path, `keys must be exactly ${sorted.join(", ")}`);

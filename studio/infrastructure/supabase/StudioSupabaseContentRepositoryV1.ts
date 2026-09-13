@@ -1,3 +1,4 @@
+import { assertArticleReadingReadyV1, stripArticleReadingMarkupV1 } from "@/studio/application/article/StudioArticleReadingV1";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
@@ -319,6 +320,10 @@ export class StudioSupabaseContentRepositoryV1 {
     expectedVersion: number;
     publicSlug: string;
   }>): Promise<void> {
+    const draft = await this.readArticle(input.articleId);
+    if (draft === null) throw new Error("Article was not found");
+    if (draft.draftVersion !== input.expectedVersion) throw new Error("Article version changed before publication");
+    assertArticleReadingReadyV1(draft.blocks);
     await this.#mutationRpc("publish_article_v1", {
       p_article_id: input.articleId,
       p_expected_version: input.expectedVersion,
@@ -673,7 +678,7 @@ function validatePublicArticleSummaryV1(
     articleId: requiredStringV1(record.articleId, "articleId"),
     locale: requiredStringV1(record.locale, "locale"),
     title: requiredStringV1(record.title, "title"),
-    excerpt: nullableStringV1(record.excerpt, "excerpt"),
+    excerpt: record.excerpt === null ? null : stripArticleReadingMarkupV1(nullableStringV1(record.excerpt, "excerpt") ?? ""),
     publicSlug: requiredStringV1(record.publicSlug, "publicSlug"),
     publishedAt: isoTimestampV1(record.publishedAt, "publishedAt"),
   });

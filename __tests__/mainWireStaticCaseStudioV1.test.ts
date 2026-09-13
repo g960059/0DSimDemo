@@ -18,6 +18,11 @@ import baselineDoc from "@/studio/presentation/modelDocumentation/packages/stand
 import hfrefDoc from "@/studio/presentation/modelDocumentation/packages/standard73-hfref-document-v1.json";
 import cycleSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 import currentSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
+import boundedSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
+import { assertModelSurfaceCompatibleV1, assertModelSurfaceReleaseLineageV1, derivationCapabilityV1 } from "@/studio/contracts/v2/modelSurface";
+import { MAIN_WIRE_PRESSURE_CROSSING_PV_ANALYSIS_V1_ID as crossingAnalysisId } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
+import { buildMainWirePeriodicPvaMethodV15, buildMainWirePeriodicPvaMethodV16, MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import { MainWireCardiacCycleCollectorV1 } from "@/analysis/methods/mainWire/MainWireCardiacCycleCollectorV1";
 import { buildMainWireCardiacCycleMetricsV1, MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1 as cycleInputs,
   MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1 as cycleOutputs,
@@ -127,6 +132,48 @@ describe("static case exact adapter and inherited Surface", () => {
       expect(doc.scientificRecord.measurements.construction).toEqual(p.capture.checkpoint.payload.construction);
     }
     expect(hfrefDoc.scientificRecord.measurements.historicalEvidence.documentId).toBe("hfref-static-case-document-v4");
+  });
+
+  it("pins the bounded PE-tail method through a new candidate Surface series while the current Surface keeps V15", async () => {
+    const current = methods(currentSurface), candidate = methods(boundedSurface);
+    expect(current.periodicPvaDerivation).toMatchObject({ methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID,
+      build: buildMainWirePeriodicPvaMethodV15, sourceAnalysisId: crossingAnalysisId });
+    expect(candidate.periodicPvaDerivation).toMatchObject({ methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID,
+      build: buildMainWirePeriodicPvaMethodV16, sourceAnalysisId: crossingAnalysisId });
+    expect(candidate.capabilities).toContain(derivationCapabilityV1(MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID));
+    expect(candidate.capabilities).not.toContain(derivationCapabilityV1(MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID));
+    expect(candidate.presentationMethods.map(m => m.methodId)).toEqual(current.presentationMethods.map(m => m.methodId));
+    expect(candidate.resolveExecutionPlan(crossingAnalysisId)).toEqual(current.resolveExecutionPlan(crossingAnalysisId));
+    // A changed PVA pin is a new root series, never an edit of the immutable pressure-crossing-v1 release.
+    expect(boundedSurface.surfaceReleaseId).not.toBe(currentSurface.surfaceReleaseId);
+    expect(boundedSurface.surfaceSeriesId).not.toBe(currentSurface.surfaceSeriesId);
+    expect(boundedSurface.predecessorSurfaceReleaseId).toBeNull();
+    expect(() => assertModelSurfaceReleaseLineageV1(boundedSurface)).not.toThrow();
+    expect(() => assertModelSurfaceReleaseLineageV1(boundedSurface, currentSurface)).toThrow(/root Surface release/);
+    const changed = new Set(["surfaceReleaseId", "surfaceSeriesId", "predecessorSurfaceReleaseId", "derivedOutputCatalog"]);
+    for (const [key, value] of Object.entries(currentSurface)) if (!changed.has(key)) expect(boundedSurface[key as keyof typeof boundedSurface]).toEqual(value);
+    expect(boundedSurface.derivedOutputCatalog.map(o => o.outputId)).toEqual(currentSurface.derivedOutputCatalog.map(o => o.outputId));
+    let repinned = 0;
+    for (const [i, output] of currentSurface.derivedOutputCatalog.entries()) {
+      const next = boundedSurface.derivedOutputCatalog[i]!;
+      if (output.derivationId !== MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID) { expect(next).toEqual(output); continue; }
+      repinned += 1;
+      const { derivationId, requiredCapabilities, ...rest } = output, { derivationId: nextId, requiredCapabilities: nextCaps, ...nextRest } = next;
+      expect(nextRest).toEqual(rest); expect(nextId).toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID);
+      expect(nextCaps).toEqual(requiredCapabilities.map(c => c === derivationCapabilityV1(derivationId) ? derivationCapabilityV1(nextId) : c));
+    }
+    expect(repinned).toBe(4);
+    // The activation-time compatibility proof passes for the candidate against the registered exact kernel.
+    const exact = release();
+    const composed = composeStandardModelContractV1(exact.manifest, boundedSurface, candidate.capabilities);
+    expect(() => assertModelSurfaceCompatibleV1(boundedSurface, composed.exactContract, [...exact.manifest.capabilities, ...candidate.capabilities])).not.toThrow();
+    const production = composeStandardModelContractV1(exact.manifest, currentSurface, current.capabilities);
+    expect(composed.contract.outputCatalog.map(o => o.outputId)).toEqual(production.contract.outputCatalog.map(o => o.outputId));
+    expect(composed.contract.controlCatalog).toEqual(production.contract.controlCatalog);
+    // Nothing is activated: the local composition and its sealed Snapshot pin still launch V15.
+    const composition = await loadStudioLocalCurrentClientCompositionV1();
+    expect(composition.modelSurface.identity.surfaceReleaseId).toBe(currentSurface.surfaceReleaseId);
+    expect(composition.modelSurface.analysis.periodicPvaDerivation?.methodId).toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID);
   });
 
   it("keeps every inherited pane/item/control contract except the explicitly versioned mass-aware derivation", () => {

@@ -454,7 +454,7 @@ export function PressureVolumeLoopCanvasV3(
 ) {
   const { className } = props;
   const { appTheme } = useAppTheme();
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const language = i18n.resolvedLanguage ?? i18n.language;
   const periodicPvaSupported = props.periodicPvaSupported ?? true;
   const showPressureEnvelope =
@@ -602,7 +602,9 @@ export function PressureVolumeLoopCanvasV3(
     height: number,
   ) => {
     const theme = readPvCanvasThemeV3(containerRef.current);
-    const plot = pvPlotRectV3(width, height);
+    context.font = theme.font;
+    const pressureAxisLines = wrapPvAxisTitleV3(context, pressureAxisTitle, Math.max(40, height - 56));
+    const plot = pvPlotRectV3(width, height, pressureAxisLines.length);
     const domainPoints = workbenchPvLoopDomainPointsV3(visibleRenderedTraces);
     volumeDomainStateRef.current = nextZeroBasedPvDomainV3(
       volumeDomainStateRef.current,
@@ -633,8 +635,9 @@ export function PressureVolumeLoopCanvasV3(
       plot,
       volumeDomain,
       pressureDomain,
-      pressureAxisTitle,
+      pressureAxisLines,
       theme,
+      domainPoints.length > 0,
     );
     const x = (value: number) => scaleLinearV3(
       value,
@@ -736,18 +739,20 @@ export function PressureVolumeLoopCanvasV3(
       && periodicPvaDrawing === null && periodicPvaHistoryDrawings.length === 0)) {
       context.save();
       context.fillStyle = theme.text;
-      context.font = "11px ui-monospace, SFMono-Regular, Menlo, monospace";
+      context.font = theme.messageFont;
       context.textAlign = "center";
       context.textBaseline = "middle";
       context.fillText(
-        "Collecting model-emitted cycle data…",
+        t("workbench.waitingForCycle"),
         (plot.left + plot.right) / 2,
         (plot.top + plot.bottom) / 2,
+        Math.max(1, plot.right - plot.left - 12),
       );
       context.restore();
     }
   }, [
     appTheme,
+    t,
     domainCommitKey,
     legendSelection,
     periodicPvaSupported,
@@ -1378,6 +1383,8 @@ type PvCanvasThemeV3 = Readonly<{
   grid: string;
   axis: string;
   text: string;
+  font: string;
+  messageFont: string;
 }>;
 
 function normalizedModelCyclePhaseV3(value: number | null | undefined): number | null {
@@ -1388,15 +1395,27 @@ function normalizedModelCyclePhaseV3(value: number | null | undefined): number |
 function pvPlotRectV3(
   width: number,
   height: number,
+  pressureAxisLineCount: number,
 ): PvPlotRectV3 {
-  const left = Math.min(58, width * 0.24);
+  const left = Math.min(58 + (pressureAxisLineCount - 1) * 14, width * 0.3);
   const top = Math.min(12, height * 0.08);
   return Object.freeze({
     left,
     right: Math.max(left + 1, width - 16),
     top,
-    bottom: Math.max(top + 1, height - 34),
+    bottom: Math.max(top + 1, height - 44),
   });
+}
+
+function wrapPvAxisTitleV3(context: CanvasRenderingContext2D, title: string, available: number): string[] {
+  const lines: string[] = [];
+  for (const word of title.split(" ")) {
+    const last = lines.at(-1);
+    if (last !== undefined && context.measureText(`${last} ${word}`).width <= available) {
+      lines[lines.length - 1] = `${last} ${word}`;
+    } else lines.push(word);
+  }
+  return lines;
 }
 
 function drawPvAxesV3(
@@ -1404,15 +1423,16 @@ function drawPvAxesV3(
   plot: PvPlotRectV3,
   volumeDomain: WorkbenchNumericDomainV3,
   pressureDomain: WorkbenchNumericDomainV3,
-  pressureAxisTitle: string,
+  pressureAxisLines: readonly string[],
   theme: PvCanvasThemeV3,
+  hasData: boolean,
 ): void {
   context.save();
-  context.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  context.font = theme.font;
   context.fillStyle = theme.text;
   context.strokeStyle = theme.grid;
   context.lineWidth = 1;
-  for (const value of numericTicksV3(volumeDomain, 4)) {
+  for (const value of hasData ? numericTicksV3(volumeDomain, 4) : []) {
     const x = scaleLinearV3(
       value,
       volumeDomain[0],
@@ -1432,7 +1452,7 @@ function drawPvAxesV3(
       plot.bottom + 7,
     );
   }
-  for (const value of numericTicksV3(pressureDomain, 4)) {
+  for (const value of hasData ? numericTicksV3(pressureDomain, 4) : []) {
     const y = scaleLinearV3(
       value,
       pressureDomain[0],
@@ -1464,12 +1484,13 @@ function drawPvAxesV3(
   context.fillText(
     "Volume (mL)",
     (plot.left + plot.right) / 2,
-    plot.bottom + 31,
+    plot.bottom + 40,
   );
   context.save();
   context.translate(12, (plot.top + plot.bottom) / 2);
   context.rotate(-Math.PI / 2);
-  context.fillText(pressureAxisTitle, 0, 0);
+  context.textBaseline = "middle";
+  pressureAxisLines.forEach((line, index) => context.fillText(line, 0, index * 14, plot.bottom - plot.top));
   context.restore();
   context.restore();
 }
@@ -1539,22 +1560,27 @@ function drawPvLeadingCapV3(
 }
 
 function readPvCanvasThemeV3(element: HTMLElement | null): PvCanvasThemeV3 {
-  const [canvas, grid, axis, text] =
+  const [canvas, grid, axis, text, font, messageFont] =
     readWorkbenchCanvasThemeVariablesV3(element, [
       ["--wb-canvas-bg", "#0a141d"],
       ["--wb-grid", "rgba(165, 185, 200, 0.10)"],
       ["--wb-axis", "rgba(165, 185, 200, 0.32)"],
       ["--wb-text-muted", "#94a3b8"],
+      ["--wb-chart-font", "10px ui-monospace, SFMono-Regular, Menlo, monospace"],
+      ["--wb-chart-message-font", "12px system-ui, sans-serif"],
     ]);
   return Object.freeze({
     canvas: canvas!,
     grid: grid!,
     axis: axis!,
     text: text!,
+    font: font!,
+    messageFont: messageFont!,
   });
 }
 
 function formatPvAxisNumberV3(value: number): string {
+  if (value === 0) return "0";
   return Math.abs(value) >= 10 ? value.toFixed(0) : value.toFixed(1);
 }
 

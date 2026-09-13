@@ -1,3 +1,4 @@
+import { ArticleReadingProviderV1 } from "@/components/article/ArticleReadingV1";
 import React from "react";
 import { ArrowLeft, BookOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -1228,6 +1229,7 @@ export function ArticleEditorPage() {
         data-route-hydrated={routeHydrated ? "true" : "false"}
         inert={!routeHydrated}
       >
+        <ArticleReadingProviderV1 blocks={draft.blocks}>
         <article className="article-document article-document-shell">
           <textarea
             ref={titleRef}
@@ -1485,6 +1487,7 @@ export function ArticleEditorPage() {
             )}
           </button>
         </article>
+        </ArticleReadingProviderV1>
       </main>
 
       <div

@@ -29,6 +29,7 @@ import {
 import {
   classifyAuthoringErrorV1,
   parseStudioAuthoringContentArgumentsV1,
+  assertPreparedAssetsOutputDirectoryV1,
 } from
   "@/tools/authoring/runStudioAuthoringCommandV1";
 import { startStudioAuthoringLoopbackV1 } from
@@ -63,6 +64,11 @@ const HEADLESS_SESSION_V1: StudioAuthoringAuthSessionV1 = Object.freeze({
 });
 
 describe("Studio authoring and release CLIs", () => {
+  it("rejects self-inventorying preparation output before running numerical work", () => {
+    expect(() => assertPreparedAssetsOutputDirectoryV1("/repo/data/prepared", "/repo")).toThrow(/outside the repository/);
+    expect(() => assertPreparedAssetsOutputDirectoryV1("/repo", "/repo")).toThrow(/outside the repository/);
+    expect(() => assertPreparedAssetsOutputDirectoryV1("/repo-other/prepared", "/repo")).not.toThrow();
+  });
   it("returns actionable recovery for trace input and execution limits", () => {
     for (const message of ["$.command.input trace selection must stay within its sampling budget and contain no duplicates",
       "$.command.input.outputIds must select exact scalar outputs: missing", "Time-only advance must use positive advanceSeconds"]) {
@@ -570,11 +576,16 @@ describe("Studio authoring and release CLIs", () => {
       .toEqual({ mode: "describe", action: "article.save" });
     expect(parseStudioAuthoringContentArgumentsV1(["--describe"]))
       .toEqual({ mode: "describe" });
+    expect(parseStudioAuthoringContentArgumentsV1(["--command", "analysis.json", "--prepare-assets", "prepared"]))
+      .toMatchObject({ mode: "execute", prepareAssetsDirectory: path.resolve("prepared") });
     for (const args of [
       ["--list-actions", "--profile", "official"],
       ["--describe", "article.save", "--command", "a.json"],
       ["--describe", "article.save", "--profile", "official"],
       ["--describe", "article.save", "another-action"],
+      ["--describe", "snapshot.analyze", "--prepare-assets", "prepared"],
+      ["--command", "a.json", "--prepare-assets"],
+      ["--command", "a.json", "--prepare-assets", "a", "--prepare-assets", "b"],
     ]) expect(() => parseStudioAuthoringContentArgumentsV1(args)).toThrow(/Usage/);
     expect(() => parseStudioAuthoringContentArgumentsV1([
       "--command", "a.json", "--command", "b.json",

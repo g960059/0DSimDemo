@@ -731,6 +731,11 @@ export function describeStudioAuthoringProtocolV1(selectedAction?: string): Read
     choiceId: id,
     label: { type: "string", maxLength: 1_000 },
   });
+  const articleOptionalImageUrl = { oneOf: [
+    { const: "" },
+    { type: "string", format: "uri", maxLength: 4_096,
+      pattern: "^(?:https://|http://(?:localhost|127\\.0\\.0\\.1)(?=[:/?#]|$))" },
+  ] };
   const articleLinkBlock = object([
     "blockId", "description", "href", "kind", "label",
   ], {
@@ -752,6 +757,10 @@ export function describeStudioAuthoringProtocolV1(selectedAction?: string): Read
     ] },
     label: { type: "string", maxLength: 500 },
     description: { type: "string", maxLength: 2_000 },
+    role: { enum: ["card", "reference"] },
+    imageUrl: articleOptionalImageUrl,
+    iconUrl: articleOptionalImageUrl,
+    siteName: { type: "string", maxLength: 240 },
   });
   const articleQuizBlock = object([
     "blockId", "choices", "correctChoiceId", "explanation", "kind",
@@ -777,7 +786,7 @@ export function describeStudioAuthoringProtocolV1(selectedAction?: string): Read
     object(["blockId", "kind", "text"], {
       blockId: id,
       kind: { const: "paragraph" },
-      text: { type: "string", maxLength: 20_000 },
+      text: { type: "string", maxLength: 20_000, description: "Inline references use [@linkBlockId] for role=reference, [^accordionBlockId] for role=note, and [fig:imageBlockId]. Drafts may contain unresolved targets; all targets must exist before publication. Prefix a marker with a backslash to display it literally. Numbers follow first mention; image numbers follow document order. Other text is literal, never HTML." },
     }),
     object(["blockId", "expression", "kind"], {
       blockId: id,
@@ -798,6 +807,12 @@ export function describeStudioAuthoringProtocolV1(selectedAction?: string): Read
       ] },
       altText: { type: "string", maxLength: 1_000 },
       caption: { type: "string", maxLength: 2_000 },
+      title: { type: "string", maxLength: 500 },
+      credit: object(["text", "licenseLabel", "licenseHref"], {
+        text: { type: "string", maxLength: 2_000 },
+        licenseLabel: { type: "string", maxLength: 240 },
+        licenseHref: articleLinkBlock.properties.href,
+      }),
     }),
     object(["blockId", "kind"], {
       blockId: id, kind: { const: "divider" },
@@ -810,6 +825,7 @@ export function describeStudioAuthoringProtocolV1(selectedAction?: string): Read
     object(["blockId", "blocks", "kind", "title"], {
       blockId: id,
       kind: { const: "accordion" },
+      role: { enum: ["disclosure", "note"] },
       title: { type: "string", maxLength: 500 },
       blocks: {
         type: "array",

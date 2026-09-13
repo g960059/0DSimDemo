@@ -1,9 +1,8 @@
-import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import { REGISTERED_ANALYSIS_EXECUTOR_V1 } from "@/analysis/runtime/RegisteredAnalysisExecutorV1";
 import { resolveRegisteredAnalysisMethodsV1 } from "@/analysis/registry/RegisteredAnalysisMethodsV1";
-import { inspectModelAnalysisV1 } from "@/components/workbench/presentation/PreparedModelAnalysisV1";
-import { structuralReturnOrientationFromPayloadV3 } from "@/components/workbench/presentation/GuytonStarlingOrientationCanvasV3";
+import { sha256StudioCanonicalJsonHex } from "@/domain/json/CanonicalJsonSha256";
 import type { ExperimentSnapshotV2 } from "@/studio/contracts/v2/content";
+import type { ModelSurfaceReleaseManifestV1 } from "@/studio/contracts/v2/modelSurface";
 import type { StudioModelWorkerReleaseTicketV2 } from "@/studio/contracts/v2/release";
 import { validateStudioSimulationAnalysisV2, type StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 import type { StudioAuthoringExactModelPinV1 } from "./StudioNumericalAuthoringV1";
@@ -14,10 +13,40 @@ export type StudioSnapshotAnalysisInputV1 = Readonly<{
   includeAnalysis: boolean;
 }>;
 
+/** Per-side display-completeness judgment of one measured analysis, as the host's
+ * pinned Surface derivation reports it. `protocolId` is null until the measured
+ * Starling/TBV family is bound; the application never decodes model payloads itself. */
+export type StudioSnapshotAnalysisSideAssessmentV1 = Readonly<{
+  side: "left" | "right";
+  status: "complete" | "incomplete";
+  settledPoints: number;
+  completedPointCount: number;
+  totalPointCount: number;
+  protocolId: string | null;
+  pvaMethodId: string;
+  measurementStatus: "complete" | "incomplete";
+  systolicLoadStatus: "complete" | "progressive" | "unavailable";
+  diastolicLoadStatus: "complete" | "progressive" | "unavailable";
+  pvaStatus: "complete" | "progressive" | "collecting" | "unavailable" | "not-evaluated";
+  reason: string | null;
+}>;
+
+export type StudioSnapshotAnalysisAssessmentV1 = Readonly<{
+  analysisId: string;
+  pvaMethodId: string;
+  sides: readonly StudioSnapshotAnalysisSideAssessmentV1[];
+}>;
+
 export interface StudioSnapshotAnalysisModelPortV1 {
   resolveAnalysisModel(pin: StudioAuthoringExactModelPinV1): Promise<Pick<
     StudioModelWorkerReleaseTicketV2, "modelId" | "artifactRevisionId" | "surfaceRelease"
   >>;
+  /** Judges display completeness with the Surface's pinned derivation and the display's
+   * payload decoder. The host owns both; this port keeps them outside the application. */
+  assessAnalysis(
+    surface: ModelSurfaceReleaseManifestV1,
+    analysis: StudioSimulationAnalysisV2,
+  ): StudioSnapshotAnalysisAssessmentV1;
 }
 
 export type StudioSnapshotAnalysisProgressV1 = Readonly<{
@@ -30,7 +59,7 @@ export type StudioSnapshotAnalysisScenarioResultV1 = Readonly<{
   scenarioId: string;
   source: Readonly<{ captureSha256: string; inputEpoch: 0; acceptedRevision: number; acceptedTimeSec: number }>;
   status: "complete" | "incomplete" | "failed";
-  assessment: ReturnType<typeof inspectModelAnalysisV1> | null;
+  assessment: StudioSnapshotAnalysisAssessmentV1 | null;
   analysis: StudioSimulationAnalysisV2 | null;
   error: Readonly<{ stage: "execution" | "assessment"; message: string }> | null;
 }>;
@@ -70,17 +99,13 @@ export async function analyzeStudioSnapshotV1(
   for (const scenario of scenarios) {
     const checkpoint = scenario.capture.checkpoint!;
     const source = {
-      captureSha256: await sha256CanonicalJsonHex(scenario.capture), inputEpoch: 0 as const,
+      captureSha256: await sha256StudioCanonicalJsonHex(scenario.capture), inputEpoch: 0 as const,
       acceptedRevision: checkpoint.acceptedRevision, acceptedTimeSec: checkpoint.acceptedTimeSec,
     };
     let latest: StudioSimulationAnalysisV2 | null = null;
+    // Progress reuses the host assessment; a failing assessment only silences progress sides.
     const notify = (phase: StudioSnapshotAnalysisProgressV1["phase"]) => onProgress?.({
-      scenarioId: scenario.scenarioId, phase,
-      sides: latest === null ? [] : (["left", "right"] as const).flatMap(side => {
-        const locus = structuralReturnOrientationFromPayloadV3(latest!.payload, side)?.starlingLocus;
-        return locus?.status === "measured-fixed-tbv-protocol"
-          ? [{ side, completedPointCount: locus.completedPointCount, totalPointCount: locus.totalPointCount }] : [];
-      }),
+      scenarioId: scenario.scenarioId, phase, sides: latest === null ? [] : measuredSidesV1(models, surface, latest),
     });
     const accept = (value: StudioSimulationAnalysisV2) => {
       const analysis = validateStudioSimulationAnalysisV2(value);
@@ -112,7 +137,7 @@ export async function analyzeStudioSnapshotV1(
       continue;
     }
     try {
-      const assessment = inspectModelAnalysisV1(surface, latest);
+      const assessment = models.assessAnalysis(surface, latest);
       const incomplete = assessment.sides.find(side => side.status !== "complete");
       results.push({ scenarioId: scenario.scenarioId, source, status: incomplete ? "incomplete" : "complete", assessment,
         analysis: input.includeAnalysis ? latest : null,
@@ -126,4 +151,19 @@ export async function analyzeStudioSnapshotV1(
   }
   return { source: { snapshotId: input.snapshotId, exactModel, artifactRevisionId: release.artifactRevisionId },
     analysisId, allComplete: results.every(result => result.status === "complete"), scenarios: results };
+}
+
+/** Only sides whose measured protocol is bound carry point progress. */
+function measuredSidesV1(
+  models: StudioSnapshotAnalysisModelPortV1,
+  surface: ModelSurfaceReleaseManifestV1,
+  analysis: StudioSimulationAnalysisV2,
+): StudioSnapshotAnalysisProgressV1["sides"] {
+  try {
+    return models.assessAnalysis(surface, analysis).sides.flatMap(side => side.protocolId === null ? [] : [{
+      side: side.side, completedPointCount: side.completedPointCount, totalPointCount: side.totalPointCount,
+    }]);
+  } catch {
+    return [];
+  }
 }

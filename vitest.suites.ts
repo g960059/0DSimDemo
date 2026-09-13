@@ -184,6 +184,7 @@ export const prSmokeTests = [
 ] as const;
 
 export const regressionTests = [
+  "__tests__/mainWireCardiacCycleFigureV1.test.ts",
   "__tests__/fittingRunJournalV1.test.ts",
   "__tests__/mainWireRegistryCasePreparationV1.test.ts",
   "__tests__/mainWireRegistryInitialCandidatesV1.test.ts",

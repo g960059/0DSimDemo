@@ -1,9 +1,13 @@
 import React from "react";
+import { articleBriefingInflowContentV3 } from "@/studio/application/authoring/StudioArticleBriefingPresentationV3";
+import type { ArticleReaderPlaybackPreferenceV3 } from "./ArticleReaderLiveRuntimeV3";
 import { selectPresentationAnalysisIdsV1 } from "@/components/workbench/presentation/WorkbenchPresentationOutputSelectionV3";
 import { CompletedEjectionWaveformV1 } from "@/components/workbench/presentation/CompletedEjectionWaveformV1";
 import { createPortal } from "react-dom";
 import {
-  ChevronRight,
+  PanelRightOpen,
+  MoreHorizontal,
+  LoaderCircle,
   CircleAlert,
   FlaskConical,
   Maximize2,
@@ -12,7 +16,9 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/appTheme";
-import { ModelLimitations } from "@/components/ModelLimitations";
+import { WorkbenchSimulationInfoV3 } from "@/components/workbench/WorkbenchSimulationInfoV3";
+import { SimulationIconButtonV3 } from "@/components/ui/SimulationIconButtonV3";
+import type { StudioReaderContinuationV3 } from "@/studio/infrastructure/browser/StudioExperimentSessionHandoffV3";
 import { modelDocumentationHref } from "@/homeLinks";
 import { isLocale } from "@/localeRouting";
 import { WorkbenchPlaybackControlV3 } from "@/components/workbench/WorkbenchPlaybackControlV3";
@@ -90,7 +96,7 @@ import {
   type ArticleReaderStructuralAnalysisRequestV3,
 } from "./ArticleReaderLiveRuntimeV3";
 import { articleReaderPresentationOutputSelectionV3 } from "./ArticleReaderPresentationOutputSelectionV3";
-import { useArticleReaderLiveRuntimeV3 } from "./useArticleReaderLiveRuntimeV3";
+import { type ArticleReaderSessionMemoryV3, useArticleReaderLiveRuntimeV3 } from "./useArticleReaderLiveRuntimeV3";
 
 export type ArticleReaderExperimentV3Props = Readonly<{
   block: StudioArticleExperimentBlockV2;
@@ -107,7 +113,7 @@ export type ArticleReaderExperimentV3Props = Readonly<{
   onDeactivate(): void;
   onExpand(presentation: ArticleReaderExpandedPresentationV3): void;
   onClose(): void;
-  onOpenExperimentSession?(): void;
+  onOpenExperimentSession?(continuation?: StudioReaderContinuationV3): void;
   onPeekMaximizedChange?(maximized: boolean): void;
   onTitleCommit?(title: string): void;
 }>;
@@ -121,11 +127,12 @@ export type ArticleReaderExpandedPresentationV3 = Exclude<
   "inflow"
 >;
 
-export function articleReaderPlacementAfterCenterExitV3(
+export function articleReaderPlacementAfterViewportExitV3(
   activePlacementId: string | null,
   exitedPlacementId: string,
+  remainingVisiblePlacementIds: readonly string[] = [],
 ): string | null {
-  return activePlacementId === exitedPlacementId ? null : activePlacementId;
+  return activePlacementId === exitedPlacementId ? remainingVisiblePlacementIds.at(-1) ?? null : activePlacementId;
 }
 
 /**
@@ -156,6 +163,33 @@ export function ArticleReaderExperimentV3({
   const rootRef = React.useRef<HTMLElement>(null);
   const onActivateRef = React.useRef(onActivate);
   const onDeactivateRef = React.useRef(onDeactivate);
+  const inlinePresentation = forceInline || articleBriefingPresentationV3(block.placement.briefing) === "inflow";
+  const [restartGeneration, setRestartGeneration] = React.useState(0);
+  const playbackPreference = React.useMemo(() => ({ current: { playing: true, rate: 1 } }), [snapshot?.snapshotId, restartGeneration]);
+  const sessionMemory = React.useMemo<ArticleReaderSessionMemoryV3>(() => ({ pending: null, error: null }), [snapshot?.snapshotId, restartGeneration]);
+  const [inlineHeight, setInlineHeight] = React.useState(0);
+  const previousExpanded = React.useRef(expandedPresentation);
+  React.useEffect(() => {
+    const closed = previousExpanded.current !== null && expandedPresentation === null;
+    previousExpanded.current = expandedPresentation;
+    if (!closed) return;
+    const frame = requestAnimationFrame(() => {
+      const root = rootRef.current;
+      (root?.querySelector<HTMLElement>("[data-reader-return-focus]") ?? root?.querySelector<HTMLElement>("button"))?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [expandedPresentation]);
+
+  React.useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !inlinePresentation || !live || expandedPresentation !== null) return;
+    const measure = () => setInlineHeight(root.getBoundingClientRect().height);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [inlinePresentation, live, expandedPresentation]);
 
   React.useEffect(() => {
     onActivateRef.current = onActivate;
@@ -164,10 +198,10 @@ export function ArticleReaderExperimentV3({
 
   React.useEffect(() => {
     const element = rootRef.current;
-    if (element === null) return undefined;
+    if (element === null || !inlinePresentation) return undefined;
     if (typeof IntersectionObserver === "undefined") {
       onActivateRef.current();
-      return undefined;
+      return () => onDeactivateRef.current();
     }
     const observer = new IntersectionObserver(
       (entries) => {
@@ -178,13 +212,16 @@ export function ArticleReaderExperimentV3({
         }
       },
       {
-        rootMargin: "-32% 0px -42% 0px",
+        rootMargin: "0px",
         threshold: 0,
       },
     );
     observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
+    return () => {
+      observer.disconnect();
+      onDeactivateRef.current();
+    };
+  }, [inlinePresentation]);
 
   if (snapshot === null) {
     return (
@@ -239,12 +276,17 @@ export function ArticleReaderExperimentV3({
       data-reader-placement-id={block.placement.placementId}
       data-reader-placement-live={live}
       data-reader-presentation={forceInline ? undefined : presentation}
+      style={inlinePresentation && !live && inlineHeight > 0 ? { minHeight: inlineHeight } : undefined}
     >
       {live && contract !== null ? (
         <ArticleReaderLiveOwnerV3
+          key={restartGeneration}
+          onRestart={() => setRestartGeneration(value => value + 1)}
           briefing={briefing}
           contract={contract}
           runtimeComposition={runtimeComposition}
+          playbackPreference={playbackPreference}
+          sessionMemory={sessionMemory}
           expandedPresentation={expandedPresentation}
           forceInline={forceInline}
           peekPortalHost={peekPortalHost}
@@ -268,7 +310,6 @@ export function ArticleReaderExperimentV3({
           title={title}
           onActivate={onActivate}
           onOpen={() => {
-            onActivate();
             onExpand(presentation === "fullscreen" ? "fullscreen" : "peek");
           }}
         />
@@ -276,7 +317,7 @@ export function ArticleReaderExperimentV3({
 
       {block.placement.caption !== null &&
         block.placement.caption.trim().length > 0 && (
-          <p className="mt-3 text-xs leading-6 text-wb-muted">
+          <p className="article-experiment-caption">
             {block.placement.caption}
           </p>
         )}
@@ -306,7 +347,8 @@ function ArticleReaderStaticExperimentV3({
   const { i18n, t } = useTranslation();
   const locale = i18n.language.startsWith("ja") ? "ja" : "en";
   const { appTheme } = useAppTheme();
-  const graphs = [...briefing.graphs].sort(compareOrderV3);
+  const readingBriefing = presentation === "inflow" ? articleBriefingInflowContentV3(briefing) : briefing;
+  const graphs = [...readingBriefing.graphs].sort(compareOrderV3);
   if (availability === "loading") {
     return (
       <div className="py-5" data-reader-model-loading="true" aria-live="polite">
@@ -434,9 +476,12 @@ function ArticleReaderStaticExperimentV3({
 }
 
 function ArticleReaderLiveOwnerV3({
+  onRestart,
   briefing,
   contract,
   runtimeComposition,
+  playbackPreference,
+  sessionMemory,
   expandedPresentation,
   forceInline,
   peekPortalHost,
@@ -450,9 +495,12 @@ function ArticleReaderLiveOwnerV3({
   onPeekMaximizedChange,
   onTitleCommit,
 }: Readonly<{
+  onRestart(): void;
   briefing: ExperimentPlacementBriefingV2;
   contract: ModelContractV2;
   runtimeComposition: StudioClientCompositionV2 | null;
+  playbackPreference: { current: ArticleReaderPlaybackPreferenceV3 };
+  sessionMemory: ArticleReaderSessionMemoryV3;
   expandedPresentation: ArticleReaderExpandedPresentationV3 | null;
   forceInline: boolean;
   peekPortalHost: HTMLElement | null;
@@ -462,7 +510,7 @@ function ArticleReaderLiveOwnerV3({
   title: string;
   onExpand(presentation: ArticleReaderExpandedPresentationV3): void;
   onClose(): void;
-  onOpenExperimentSession?(): void;
+  onOpenExperimentSession?(continuation?: StudioReaderContinuationV3): void;
   onPeekMaximizedChange?(maximized: boolean): void;
   onTitleCommit?(title: string): void;
 }>) {
@@ -492,30 +540,37 @@ function ArticleReaderLiveOwnerV3({
     structuralAnalyses,
     presentationOutputIds,
     presentationAnalysisIds,
+    forceInline || presentation === "inflow" || expandedPresentation !== null,
+    playbackPreference,
+    sessionMemory,
   );
+  const inline = (forceInline || presentation === "inflow") && expandedPresentation === null;
+  const readingBriefing = inline && !forceInline ? articleBriefingInflowContentV3(briefing) : briefing;
   const detail = (
     <ArticleReaderLiveDetailV3
-      briefing={briefing}
+      onRestart={onRestart}
+      briefing={readingBriefing}
       contract={contract}
-      inline={presentation === "inflow" && expandedPresentation === null}
+      inline={inline}
       runtime={runtime}
       snapshot={snapshot}
       title={title}
+      onOpenDetails={inline && !forceInline ? () => onExpand("peek") : undefined}
     />
   );
-  const anchorStatus =
-    runtime.state.status === "failed"
-      ? t("articleReader.failed")
-      : runtime.state.status === "playing"
-        ? t("articleReader.live")
-        : runtime.state.status === "paused"
-          ? t("articleReader.paused")
-          : t("articleReader.starting");
-
+  const [handoffPending, setHandoffPending] = React.useState(false);
+  const [handoffError, setHandoffError] = React.useState<string | null>(null);
+  const openWorkbench = onOpenExperimentSession === undefined ? undefined : async () => {
+    setHandoffPending(true); setHandoffError(null);
+    try { onOpenExperimentSession(await runtime.captureContinuation()); }
+    catch { setHandoffError(t("articleReader.handoffFailed")); }
+    finally { setHandoffPending(false); }
+  };
+  const toolbar = <ArticleReaderExperimentToolbarV3 runtime={runtime} contract={contract} snapshot={snapshot} />;
   React.useEffect(() => {
     if (expandedPresentation === null) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || event.defaultPrevented) return;
       if (
         expandedPresentation === "peek" &&
         peekMaximized &&
@@ -536,7 +591,6 @@ function ArticleReaderLiveOwnerV3({
       <ArticleReaderPeekAnchorV3
         presentation={presentation}
         title={title}
-        status={anchorStatus}
         onOpen={() =>
           onExpand(presentation === "fullscreen" ? "fullscreen" : "peek")
         }
@@ -548,19 +602,20 @@ function ArticleReaderLiveOwnerV3({
     if (peekPortalHost === null) return null;
     return (
       <>
-        <ArticleReaderPeekAnchorV3
+        {<ArticleReaderPeekAnchorV3
           active
           presentation={presentation === "fullscreen" ? "fullscreen" : "peek"}
           title={title}
-          status={anchorStatus}
-          onOpen={onClose}
-        />
+            onOpen={onClose}
+        />}
         {createPortal(
           <ArticleReaderExperimentPeekPanelV3
             maximized={peekMaximized}
             title={title}
             onClose={onClose}
-            onOpenExperimentSession={onOpenExperimentSession}
+            onOpenExperimentSession={openWorkbench}
+            toolbar={toolbar}
+            handoffPending={handoffPending}
             onToggleMaximized={
               onPeekMaximizedChange === undefined
                 ? undefined
@@ -568,6 +623,7 @@ function ArticleReaderLiveOwnerV3({
             }
             onTitleCommit={onTitleCommit}
           >
+            {handoffError && <p role="alert" className="px-4 text-sm text-wb-danger">{handoffError}</p>}
             {detail}
           </ArticleReaderExperimentPeekPanelV3>,
           peekPortalHost,
@@ -578,7 +634,7 @@ function ArticleReaderLiveOwnerV3({
   return createPortal(
     <ArticleReaderExperimentDrawerV3
       onClose={onClose}
-      onOpenExperimentSession={onOpenExperimentSession}
+      onOpenExperimentSession={openWorkbench}
     >
       {detail}
     </ArticleReaderExperimentDrawerV3>,
@@ -586,88 +642,45 @@ function ArticleReaderLiveOwnerV3({
   );
 }
 
-function ArticleReaderPeekAnchorV3({
-  active = false,
-  presentation,
-  status,
-  title,
-  onOpen,
-}: Readonly<{
+function useReaderNarrowScreenV3() {
+  const [narrow, setNarrow] = React.useState(false);
+  React.useEffect(() => {
+    const media = window.matchMedia("(max-width: 899px)");
+    const update = () => setNarrow(media.matches);
+    update(); media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  return narrow;
+}
+
+function ArticleReaderPeekAnchorV3({ active = false, title, onOpen }: Readonly<{
   active?: boolean;
-  presentation: Exclude<ArticleReaderPresentationV3, "inflow">;
-  status: string;
+  presentation: ArticleReaderPresentationV3;
   title: string;
+  status?: string;
   onOpen(): void;
 }>) {
   const { t } = useTranslation();
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-label={t(
-        active ? "articleReader.closeDrawer" : "articleReader.openExperiment",
-      )}
-      aria-controls="article-reader-experiment-companion-v3"
-      aria-expanded={active}
-      className="article-reader-peek-anchor article-reader-peek-surface group flex min-h-20 w-full max-w-full items-center gap-3.5 rounded-xl px-4 py-4 text-left outline-none sm:px-5"
-      data-reader-peek-active={active ? "true" : "false"}
-      data-reader-presentation={presentation}
-    >
-      <span className="article-link-card-leading" aria-hidden="true">
-        <FlaskConical className="h-4 w-4" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-semibold leading-6 tracking-[-0.012em] text-wb-text sm:text-base">
-          {title}
-        </span>
-        <span className="mt-0.5 flex items-center gap-1.5 text-xs leading-5 text-wb-subtle">
-          <span
-            className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-              active ? "bg-wb-accent" : "bg-wb-subtle"
-            }`}
-            aria-hidden="true"
-          />
-          <span className="truncate">{status}</span>
-        </span>
-      </span>
-      <span className="article-reader-peek-action hidden min-h-8 items-center gap-1.5 rounded-lg border border-wb-line px-2.5 text-xs font-semibold text-wb-muted sm:inline-flex">
-        {t(
-          active ? "articleReader.closeDrawer" : "articleReader.openExperiment",
-        )}
-        <ChevronRight
-          className="article-reader-peek-anchor-icon h-3.5 w-3.5 shrink-0 text-wb-subtle"
-          aria-hidden="true"
-        />
-      </span>
-      <ChevronRight
-        className="article-reader-peek-anchor-icon h-4 w-4 shrink-0 text-wb-subtle sm:hidden"
-        aria-hidden="true"
-      />
-    </button>
-  );
+  const narrow = useReaderNarrowScreenV3();
+  return <button type="button" onClick={onOpen}
+    className="article-reader-peek-anchor flex w-full items-center gap-3 rounded-xl border border-wb-line px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+    data-reader-peek-active={active} data-reader-return-focus
+    aria-expanded={active} aria-controls={active ? "article-reader-experiment-companion-v3" : undefined}
+    aria-label={t(active ? "articleReader.returnInline" : narrow ? "articleReader.openMobile" : "articleReader.openDetails")}>
+    <span className="reader-experiment-title min-w-0 flex-1">{title}</span>
+    {active && <span className="shrink-0 text-xs text-wb-subtle">{t("articleReader.displayedInPanel")}</span>}
+    {active ? <X className="h-4 w-4 shrink-0" aria-hidden="true" /> : narrow ? <Maximize2 className="h-4 w-4 shrink-0" aria-hidden="true" /> : <PanelRightOpen className="h-4 w-4 shrink-0" aria-hidden="true" />}
+  </button>;
 }
 
 type ArticleReaderRuntimeHookV3 = ReturnType<
   typeof useArticleReaderLiveRuntimeV3
 >;
 
-function ArticleReaderLiveDetailV3({
-  briefing,
-  contract,
-  inline,
-  runtime,
-  snapshot,
-  title,
-}: Readonly<{
-  briefing: ExperimentPlacementBriefingV2;
-  contract: ModelContractV2;
-  inline: boolean;
-  runtime: ArticleReaderRuntimeHookV3;
-  snapshot: ExperimentSnapshotV2;
-  title: string;
+function ArticleReaderExperimentToolbarV3({ runtime, contract, snapshot }: Readonly<{
+  runtime: ArticleReaderRuntimeHookV3; contract: ModelContractV2; snapshot: ExperimentSnapshotV2;
 }>) {
   const { i18n, t } = useTranslation();
-  const [modelDisclosureOpen, setModelDisclosureOpen] = React.useState(false);
   const modelDisclosure = resolveRegisteredModelDisclosureV1(
     contract.modelId,
     snapshot.surfaceReleaseId,
@@ -687,10 +700,45 @@ function ArticleReaderLiveDetailV3({
   const modelLimitations = t(modelDisclosure.limitationsTranslationKey, {
     returnObjects: true,
   }) as string[];
+  const unavailable = ["idle", "starting", "failed", "disposed"].includes(runtime.state.status);
+  const busy = ["idle", "starting", "applying-control", "requesting-analysis"].includes(runtime.state.status);
+  return <div className="flex shrink-0 items-center gap-0.5" data-reader-toolbar>
+    {busy && <span role="status" aria-label={t("articleReader.preparingSimulation")}><LoaderCircle className="h-3.5 w-3.5 animate-spin text-wb-subtle" aria-hidden="true" /></span>}
+    <WorkbenchPlaybackControlV3 disabled={unavailable || busy} playing={runtime.state.status === "playing"}
+      rate={runtime.state.playbackRate} onPlaybackToggle={() => runtime.state.status === "playing" ? void runtime.pause() : runtime.play()}
+      onRateChange={runtime.setPlaybackRate} />
+    <WorkbenchSimulationInfoV3 currentModelId={contract.modelId} initialTab="model" showStatus={false}
+      limitations={modelLimitations} scenarios={[]} models={[{
+        contract, publicName: modelDisclosure.badgeLabel, shortLabel: modelDisclosure.badgeLabel,
+        description: "", documentationHref,
+      }]} />
+  </div>;
+}
+
+function ArticleReaderLiveDetailV3({
+  onRestart,
+  briefing,
+  contract,
+  inline,
+  runtime,
+  snapshot,
+  title,
+  onOpenDetails,
+}: Readonly<{
+  onRestart?(): void;
+  briefing: ExperimentPlacementBriefingV2;
+  contract: ModelContractV2;
+  inline: boolean;
+  runtime: ArticleReaderRuntimeHookV3;
+  snapshot: ExperimentSnapshotV2;
+  title: string;
+  onOpenDetails?(): void;
+}>) {
+  const { t } = useTranslation();
+  const narrow = useReaderNarrowScreenV3();
   const visibleScenarios = snapshot.content.scenarios.filter(({ scenarioId }) =>
     briefing.scenarioScope.visibleScenarioIds.includes(scenarioId),
   );
-  const playing = runtime.state.status === "playing";
   const unavailable =
     runtime.state.status === "idle" || runtime.state.status === "starting";
   const scenarioSelectionDisabled =
@@ -702,91 +750,35 @@ function ArticleReaderLiveDetailV3({
 
   return (
     <div
+      data-reader-runtime-status={runtime.state.status}
+      data-reader-playback-rate={runtime.state.playbackRate.playbackRate}
       className={
         inline
-          ? "article-reader-inflow min-w-0 rounded-2xl border border-wb-line/70 bg-wb-floating/35 p-3 sm:p-4"
-          : "min-w-0 px-4 pb-10 sm:px-6"
+          ? "article-reader-inflow min-w-0"
+          : "article-reader-live min-w-0 px-4 pb-10 sm:px-6"
       }
     >
-      {inline && (
-        <p className="mb-2 truncate text-sm font-semibold tracking-[-0.012em] text-wb-text">
-          {title}
-        </p>
-      )}
-      <div
-        className={`flex flex-wrap items-center gap-2 ${inline ? "mb-3" : "mb-5"}`}
-      >
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-          {visibleScenarios.map((scenario) => (
-            <button
-              key={scenario.scenarioId}
-              type="button"
-              disabled={scenarioSelectionDisabled}
-              onClick={() => runtime.selectScenario(scenario.scenarioId)}
-              aria-pressed={
-                runtime.state.activeScenarioId === scenario.scenarioId
-              }
-              className="workbench-selection-button min-h-8 rounded-lg px-2.5 text-xs font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] disabled:cursor-wait disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-            >
-              {scenario.label}
-            </button>
-          ))}
-        </div>
-        <span className="text-xs text-wb-muted" role="status">
-          {runtime.state.status === "failed"
-            ? t("articleReader.failed")
-            : unavailable
-              ? t("articleReader.starting")
-              : runtime.state.status === "requesting-analysis"
-                ? t("workbench.live.analysisRunning")
-                : playing
-                  ? t("articleReader.live")
-                  : t("articleReader.paused")}
-        </span>
-        <button
-          type="button"
-          onClick={() => setModelDisclosureOpen(true)}
-          className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-          aria-label={t("workbench.editor.validationAndLimitations")}
-          title={t("workbench.editor.validationAndLimitations")}
-        >
-          <FlaskConical className="h-3 w-3 text-wb-accent" aria-hidden="true" />
-          {modelDisclosure.badgeLabel}
-        </button>
-        <ModelLimitations
-          acknowledgementScope={
-            `${contract.modelId}:${snapshot.surfaceReleaseId}:disclosure-v1`
-          }
-          autoOpenUnacknowledged={false}
-          limitations={modelLimitations}
-          documentationHref={documentationHref}
-          documentationLabel={t(
-            "workbench.editor.simulationInfo.modelDocumentation",
-          )}
-          open={modelDisclosureOpen}
-          onOpenChange={setModelDisclosureOpen}
-          showTrigger={false}
-        />
-        <WorkbenchPlaybackControlV3
-          disabled={
-            unavailable ||
-            runtime.state.status === "failed" ||
-            runtime.state.status === "applying-control" ||
-            runtime.state.status === "requesting-analysis"
-          }
-          playing={playing}
-          rate={runtime.state.playbackRate}
-          onPlaybackToggle={() =>
-            playing ? void runtime.pause() : runtime.play()
-          }
-          onRateChange={runtime.setPlaybackRate}
-        />
-      </div>
-
+      {inline && <div className="reader-experiment-header mb-3 flex flex-wrap items-center gap-2">
+        <p className="reader-experiment-title min-w-0 flex-1">{title}</p>
+        <ArticleReaderExperimentToolbarV3 runtime={runtime} contract={contract} snapshot={snapshot} />
+        {onOpenDetails && <SimulationIconButtonV3 label={t(narrow ? "articleReader.openMobile" : "articleReader.openDetails")} onClick={onOpenDetails}
+          data-reader-return-focus data-reader-open-details>
+          {narrow ? <Maximize2 className="h-4 w-4" aria-hidden="true" /> : <PanelRightOpen className="h-4 w-4" aria-hidden="true" />}
+        </SimulationIconButtonV3>}
+      </div>}
+      {visibleScenarios.length > 1 && <div className="mb-4 flex flex-wrap items-center gap-1" role="group" aria-label={t("articleReader.scenario")}>
+        {visibleScenarios.map(scenario => <button key={scenario.scenarioId} type="button"
+          disabled={scenarioSelectionDisabled} onClick={() => runtime.selectScenario(scenario.scenarioId)}
+          aria-pressed={runtime.state.activeScenarioId === scenario.scenarioId}
+          className="workbench-selection-button min-h-9 rounded-lg px-2.5 text-xs font-medium focus-visible:ring-2 focus-visible:ring-wb-accent">
+          {scenario.label}
+        </button>)}
+      </div>}
       {runtime.state.status === "failed" ? (
-        <p className="my-8 text-sm text-wb-danger" role="alert">
-          {runtime.state.error?.message ?? t("articleReader.failed")}
-        </p>
+        <div className="my-8 space-y-3">
+          <p className="text-sm text-wb-danger" role="alert">{runtime.state.error?.message ?? t("articleReader.failed")}</p>
+          {onRestart && <button type="button" onClick={onRestart} className="rounded-lg border border-wb-line px-3 py-2 text-sm hover:bg-wb-hover focus-visible:ring-2 focus-visible:ring-wb-accent">{t("articleReader.restartSavedState")}</button>}
+        </div>
       ) : (
         <>
           {briefing.controls.length > 0 && (
@@ -802,23 +794,19 @@ function ArticleReaderLiveDetailV3({
           <div
             className={`min-w-0 gap-9 ${
               !inline && briefing.graphs.length > 1
-                ? "-mx-4 flex snap-x snap-mandatory overflow-x-auto px-4 pb-3 sm:-mx-6 sm:px-6 xl:mx-0 xl:grid xl:grid-cols-2 xl:overflow-visible xl:px-0"
+                ? "article-reader-live-graphs"
                 : "grid"
             }`}
           >
             {[...briefing.graphs].sort(compareOrderV3).map((graph) => (
               <ArticleReaderLiveGraphViewportV3
                 key={graph.paneId}
-                className={
-                  !inline && briefing.graphs.length > 1
-                    ? "w-[88vw] max-w-[720px] shrink-0 snap-center xl:w-auto xl:max-w-none"
-                    : "min-w-0"
-                }
+                className="min-w-0"
                 activeScenarioId={runtime.state.activeScenarioId}
                 briefing={graph}
                 contract={contract}
                 inline={inline}
-                playbackRunning={playing}
+                playbackRunning={runtime.state.status === "playing"}
                 runtime={runtime}
                 snapshot={snapshot}
                 visibleScenarioIds={briefing.scenarioScope.visibleScenarioIds}
@@ -1690,7 +1678,7 @@ export function ArticleReaderOutputsV3({
   const showScenarioLabels = briefing.scenarioScope.visibleScenarioIds.length > 1;
   return (
     <section
-      className={`${compact ? "mt-5" : "mt-8"} rounded-xl bg-wb-inspector p-3`}
+      className={compact ? "mt-5" : "mt-8"}
       aria-label={t("articleReader.outputs")}
     >
       {scenarioIds.map(scenarioId => (
@@ -1955,12 +1943,16 @@ export function ArticleReaderExperimentPeekPanelV3({
   onOpenExperimentSession,
   onToggleMaximized,
   onTitleCommit,
+  toolbar,
+  handoffPending = false,
 }: Readonly<{
   children: React.ReactNode;
+  toolbar?: React.ReactNode;
+  handoffPending?: boolean;
   maximized: boolean;
   title: string;
   onClose(): void;
-  onOpenExperimentSession?(): void;
+  onOpenExperimentSession?(continuation?: StudioReaderContinuationV3): void;
   onToggleMaximized?(): void;
   onTitleCommit?(title: string): void;
 }>) {
@@ -1968,6 +1960,28 @@ export function ArticleReaderExperimentPeekPanelV3({
   const panelRef = React.useRef<HTMLElement>(null);
   const titleInputRef = React.useRef<HTMLInputElement>(null);
   const [draftTitle, setDraftTitle] = React.useState(title);
+  const [mobile, setMobile] = React.useState(false);
+  React.useEffect(() => {
+    const media = window.matchMedia("(max-width: 899px)");
+    const update = () => setMobile(media.matches);
+    update(); media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  React.useEffect(() => {
+    if (!mobile) return;
+    const article = document.querySelector<HTMLElement>(".article-reader-article-pane");
+    const previous = article?.inert ?? false;
+    if (article) article.inert = true;
+    const trap = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !panelRef.current?.contains(document.activeElement)) return;
+      const elements = [...panelRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select, summary, [tabindex="0"]')].filter(el => el.getClientRects().length > 0);
+      const first = elements[0], last = elements.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener("keydown", trap);
+    return () => { if (article) article.inert = previous; document.removeEventListener("keydown", trap); };
+  }, [mobile]);
   React.useEffect(() => {
     if (document.activeElement !== titleInputRef.current) setDraftTitle(title);
   }, [title]);
@@ -1980,25 +1994,26 @@ export function ArticleReaderExperimentPeekPanelV3({
         : null;
     panel.querySelector<HTMLElement>("[data-reader-peek-close]")?.focus();
     return () => {
-      if (opener?.isConnected) opener.focus();
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
   }, []);
   return (
     <section
       ref={panelRef}
       id="article-reader-experiment-companion-v3"
-      role="region"
+      role={mobile ? "dialog" : "region"}
+      aria-modal={mobile ? true : undefined}
       aria-labelledby="article-reader-peek-title-v3"
-      className="flex h-full min-w-0 flex-col bg-wb-floating text-wb-text"
+      className="article-reader-companion flex h-full min-w-0 flex-col bg-wb-floating text-wb-text"
       data-testid="article-reader-experiment-peek-v3"
       data-reader-presentation="peek"
       data-peek-maximized={maximized ? "true" : "false"}
     >
-      <header className="flex h-12 shrink-0 items-center gap-3 px-4">
+      <header className="reader-experiment-header flex min-h-12 shrink-0 flex-wrap items-center gap-1 px-3 py-1.5">
         {onTitleCommit === undefined ? (
           <h2
             id="article-reader-peek-title-v3"
-            className="min-w-0 flex-1 truncate text-sm font-semibold tracking-[-0.012em]"
+            className="reader-experiment-title min-w-0 flex-1 truncate"
           >
             {title}
           </h2>
@@ -2009,7 +2024,7 @@ export function ArticleReaderExperimentPeekPanelV3({
             value={draftTitle}
             maxLength={240}
             aria-label={t("articleReader.drawerTitle")}
-            className="min-w-0 flex-1 truncate border-0 bg-transparent p-0 text-sm font-semibold tracking-[-0.012em] text-wb-text outline-none ring-0 selection:bg-wb-accent/25 focus:outline-none focus:ring-0"
+            className="reader-experiment-title min-w-0 flex-1 truncate border-0 bg-transparent p-0 outline-none ring-0 selection:bg-wb-accent/25 focus:outline-none focus:ring-0"
             style={{ caretColor: "var(--wb-accent)" }}
             onChange={(event) => setDraftTitle(event.currentTarget.value)}
             onBlur={() => {
@@ -2029,62 +2044,45 @@ export function ArticleReaderExperimentPeekPanelV3({
             }}
           />
         )}
-        {onOpenExperimentSession !== undefined && (
-          <button
-            type="button"
-            onClick={onOpenExperimentSession}
-            aria-label={
-              onTitleCommit === undefined
-                ? t("articleReader.openExperimentSession")
-                : t("articleReader.editBriefing")
-            }
-            title={
-              onTitleCommit === undefined
-                ? t("articleReader.openExperimentSession")
-                : t("articleReader.editBriefing")
-            }
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-          >
-            <FlaskConical className="h-4 w-4" aria-hidden="true" />
-          </button>
-        )}
-        {onToggleMaximized !== undefined && (
-          <button
-            type="button"
-            onClick={onToggleMaximized}
-            aria-pressed={maximized}
-            aria-label={
-              maximized
-                ? t("articleReader.restoreSplitView")
-                : t("articleReader.openFullscreen")
-            }
-            title={
-              maximized
-                ? t("articleReader.restoreSplitView")
-                : t("articleReader.openFullscreen")
-            }
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-          >
-            {maximized ? (
-              <Minimize2 className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <Maximize2 className="h-4 w-4" aria-hidden="true" />
-            )}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onClose}
-          data-reader-peek-close
-          aria-label={t("articleReader.closeDrawer")}
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-        >
+        {toolbar}
+        {onOpenExperimentSession && <ReaderExperimentMenuV3 onOpen={onOpenExperimentSession} pending={handoffPending}
+          label={t(onTitleCommit ? "articleReader.editBriefing" : "articleReader.openExperimentSession")} />}
+        {onToggleMaximized && !mobile && <SimulationIconButtonV3 onClick={onToggleMaximized} aria-pressed={maximized}
+          label={t(maximized ? "articleReader.restoreSplitView" : "articleReader.openFullscreen")}>
+          {maximized ? <Minimize2 className="h-4 w-4" aria-hidden="true" /> : <Maximize2 className="h-4 w-4" aria-hidden="true" />}
+        </SimulationIconButtonV3>}
+        <SimulationIconButtonV3 onClick={onClose} data-reader-peek-close label={t("articleReader.closeDrawer")}>
           <X className="h-4 w-4" aria-hidden="true" />
-        </button>
+        </SimulationIconButtonV3>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto pt-2">{children}</div>
     </section>
   );
+}
+
+function ReaderExperimentMenuV3({ onOpen, pending, label }: Readonly<{
+  onOpen(): void; pending: boolean; label: string;
+}>) {
+  const { t } = useTranslation();
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!open) return;
+    const outside = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const escape = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setOpen(false); ref.current?.querySelector('button')?.focus({ preventScroll: true }); } };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
+  }, [open]);
+  return <div ref={ref} className="relative shrink-0">
+    <SimulationIconButtonV3 label={t("articleReader.moreActions")} aria-expanded={open} disabled={pending} onClick={() => setOpen(!open)}>
+      {pending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
+    </SimulationIconButtonV3>
+    {open && <div className="absolute right-0 top-full z-30 mt-1 w-56 rounded-lg border border-wb-line bg-wb-panel p-1 shadow-xl">
+      <button type="button" className="w-full rounded-md px-3 py-2.5 text-left text-sm hover:bg-wb-hover focus-visible:ring-2 focus-visible:ring-wb-accent"
+        onClick={() => { setOpen(false); onOpen(); }}>{label}</button>
+    </div>}
+  </div>;
 }
 
 function ArticleReaderExperimentDrawerV3({
@@ -2094,7 +2092,7 @@ function ArticleReaderExperimentDrawerV3({
 }: Readonly<{
   children: React.ReactNode;
   onClose(): void;
-  onOpenExperimentSession?(): void;
+  onOpenExperimentSession?(continuation?: StudioReaderContinuationV3): void;
 }>) {
   const { t } = useTranslation();
   const dialogRef = React.useRef<HTMLElement>(null);
@@ -2162,7 +2160,7 @@ function ArticleReaderExperimentDrawerV3({
         aria-modal="true"
         aria-labelledby="article-reader-drawer-title-v3"
         tabIndex={-1}
-        className="article-reader-drawer absolute inset-y-0 right-0 flex w-full flex-col overflow-hidden bg-wb-floating text-wb-text shadow-[-18px_0_55px_rgba(2,12,25,0.24)]"
+        className="article-reader-companion article-reader-drawer absolute inset-y-0 right-0 flex w-full flex-col overflow-hidden bg-wb-floating text-wb-text shadow-[-18px_0_55px_rgba(2,12,25,0.24)]"
         data-reader-presentation="fullscreen"
       >
         <header className="flex h-12 shrink-0 items-center gap-3 px-3 sm:px-5">
@@ -2175,7 +2173,7 @@ function ArticleReaderExperimentDrawerV3({
           {onOpenExperimentSession !== undefined && (
             <button
               type="button"
-              onClick={onOpenExperimentSession}
+              onClick={() => onOpenExperimentSession()}
               aria-label={t("articleReader.openExperimentSession")}
               title={t("articleReader.openExperimentSession")}
               className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"

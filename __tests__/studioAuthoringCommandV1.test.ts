@@ -7,6 +7,7 @@ import publication from "@/data/model-releases/standard73/publication.json";
 import analysisSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 import { resolveRegisteredAnalysisMethodsV1 } from "@/analysis/registry/RegisteredAnalysisMethodsV1";
 import { REGISTERED_ANALYSIS_EXECUTOR_V1 as analysisExecutor } from "@/analysis/runtime/RegisteredAnalysisExecutorV1";
+import { inspectModelAnalysisV1 } from "@/components/workbench/presentation/PreparedModelAnalysisV1";
 import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 vi.mock("@/analysis/runtime/RegisteredAnalysisExecutorV1", () => ({ REGISTERED_ANALYSIS_EXECUTOR_V1: { execute: vi.fn() } }));
 
@@ -82,6 +83,11 @@ describe("Studio authoring command V1", () => {
       surfaceSeriesId: analysisSurface.surfaceSeriesId, surfaceReleaseId: analysisSurface.surfaceReleaseId });
     expect(models.resolveAnalysisModel).toHaveBeenCalledWith(result.source.exactModel);
     expect(models.resolveExactNumericalModel).not.toHaveBeenCalled();
+    // Display completeness is the host's judgment through the port, on the accepted analysis only.
+    expect(vi.mocked(models.assessAnalysis).mock.calls.every(([surface, analysis]) =>
+      surface === analysisSurface && analysis.scenarioId === "baseline"
+      && analysis.runtimeSessionId.startsWith("authoring/snapshot-analysis/"))).toBe(true);
+    expect(result.scenarios[0].assessment).toEqual(vi.mocked(models.assessAnalysis).mock.results.at(-1)!.value);
     expect(result.scenarios[0].source).toEqual({ captureSha256: await hash(snapshot.content.scenarios[0]!.capture),
       inputEpoch: 0, acceptedRevision: payload.sourceAcceptedRevision, acceptedTimeSec: payload.sourceAcceptedTimeSec });
     expect(result.scenarios[0].assessment.sides.map((s: any) => [s.side, s.status])).toEqual([["left", "complete"], ["right", "complete"]]);
@@ -152,6 +158,23 @@ describe("Studio authoring command V1", () => {
       snapshotAnalysisCommandV1(["complete"], false)) as any;
     expect(compact.allComplete).toBe(true);
     expect(compact.scenarios[0].analysis).toBeNull();
+  });
+
+  it("reports a failing host assessment as incomplete and keeps progress silent instead of aborting", async () => {
+    const { repository, models, payload, execute } = await snapshotAnalysisFixtureV1();
+    const progress = vi.fn();
+    vi.mocked(models.assessAnalysis).mockImplementation(() => { throw new Error("host assessment unavailable"); });
+    execute.mockImplementation(async ({ request }) => {
+      const analysis = { ...payload, runtimeSessionId: request.runtimeSessionId, scenarioId: request.scenarioId };
+      request.onProgress!(analysis);
+      return analysis;
+    });
+    const result = await executeStudioAuthoringCommandV1(repository, models,
+      snapshotAnalysisCommandV1(["baseline"], true), undefined, { onSnapshotAnalysisProgress: progress }) as any;
+    expect(result.allComplete).toBe(false);
+    expect(result.scenarios[0]).toMatchObject({ status: "incomplete", assessment: null,
+      analysis: { payload: payload.payload }, error: { stage: "assessment", message: "host assessment unavailable" } });
+    expect(progress.mock.calls.map(c => [c[0].phase, c[0].sides])).toEqual([["started", []], ["progress", []], ["incomplete", []]]);
   });
 
   it("rejects stale or misbound analysis payloads without reporting completion", async () => {
@@ -927,6 +950,7 @@ function modelsV1(
   });
   return {
     resolveAnalysisModel: vi.fn(),
+    assessAnalysis: vi.fn(inspectModelAnalysisV1),
     resolveModel: vi.fn().mockResolvedValue(contract),
     resolveActiveNumericalModel: vi.fn(),
     resolveLatestNumericalModel: vi.fn(),

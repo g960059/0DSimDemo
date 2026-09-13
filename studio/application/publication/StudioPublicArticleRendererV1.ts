@@ -1,4 +1,10 @@
+import {
+  articleReadingAnchorV1, articleReadingFieldV1, articleReadingHrefV1, articleReadingMentionV1,
+  articleReadingTargetV1, buildArticleReadingIndexV1, parseArticleReadingTextV1, stripArticleReadingMarkupV1,
+  type ArticleReadingIndexV1,
+} from "@/studio/application/article/StudioArticleReadingV1";
 import katex from "katex";
+import { articleHeadingPhrasesV1 } from "@/studio/application/article/StudioArticleHeadingPhrasesV1";
 
 import enTranslation from "@/locales/en/translation.json";
 import jaTranslation from "@/locales/ja/translation.json";
@@ -87,23 +93,26 @@ export function publicArticleMetadataV1(
 export function publicArticleDescriptionV1(
   blocks: readonly StudioArticleBlockV2[],
 ): string {
-  const text = firstMeaningfulTextV1(blocks) ?? SITE_NAME_V1;
-  return truncateAtCodePointsV1(collapsedWhitespaceV1(text), 180);
+  const text = firstMeaningfulTextV1(buildArticleReadingIndexV1(blocks).body) ?? SITE_NAME_V1;
+  return truncateAtCodePointsV1(collapsedWhitespaceV1(stripArticleReadingMarkupV1(text)), 180);
 }
 
 export function renderPublicArticleBodyHtmlV1(
   article: StudioPublishedArticleV1,
 ): string {
   const copy = studioPublicArticlePresentationCopyV1(article.locale);
+  const reading = buildArticleReadingIndexV1(article.blocks);
   return [
     `<main class="public-static-shell article-document-shell" data-public-article-content-id="${escapeHtmlAttributeV1(article.articleContentId)}">`,
     `<article class="public-static-article article-document">`,
     `<header class="article-document-header">`,
-    `<h1 class="article-title">${escapeHtmlTextV1(article.title)}</h1>`,
+    `<h1 class="article-title">${renderHeadingTextHtmlV1(article.title, article.locale)}</h1>`,
     `<p class="article-publication-date"><span>${copy.publishedLabel}</span> <time datetime="${escapeHtmlAttributeV1(article.publishedAt)}">${escapeHtmlTextV1(formatStudioPublicArticleDateV1(article.publishedAt, article.locale))}</time></p>`,
     `</header>`,
     `<div class="public-static-content">`,
-    ...article.blocks.map((block) => renderBlockHtmlV1(block, article.locale)),
+    renderReadingTocHtmlV1(article.blocks, article.locale),
+    ...reading.body.map((block) => renderBlockHtmlV1(block, article.locale, reading)),
+    renderReadingEndMatterHtmlV1(reading, article.locale),
     `</div>`,
     `</article>`,
     `</main>`,
@@ -113,6 +122,7 @@ export function renderPublicArticleBodyHtmlV1(
 export function renderPublicArticleMarkdownV1(
   article: StudioPublishedArticleV1,
 ): string {
+  const reading = buildArticleReadingIndexV1(article.blocks);
   const frontmatter = [
     "---",
     `title: ${yamlStringV1(article.title)}`,
@@ -128,8 +138,8 @@ export function renderPublicArticleMarkdownV1(
   ];
   return `${[
     ...frontmatter,
-    ...article.blocks.flatMap((block) =>
-      renderBlockMarkdownV1(block, article.locale)),
+    ...reading.body.flatMap((block) => renderBlockMarkdownV1(block, article.locale, reading)),
+    renderReadingEndMatterMarkdownV1(reading, article.locale),
   ].join("\n").trimEnd()}\n`;
 }
 
@@ -202,18 +212,23 @@ function publicArticleHeadHtmlV1(
   ].join("\n    ");
 }
 
+function renderHeadingTextHtmlV1(text: string, locale: string): string {
+  return `<span class="article-heading-phrases">${articleHeadingPhrasesV1(text, locale).map(escapeHtmlTextV1).join("<wbr>")}</span>`;
+}
+
 function renderBlockHtmlV1(
   block: StudioArticleBlockV2 | StudioArticleAccordionContentBlockV2,
   locale: "ja" | "en",
+  reading: ArticleReadingIndexV1,
 ): string {
   const anchor = `block-${block.blockId}`;
   if (block.kind === "heading") {
     const level = block.level === 2 ? "h2" : "h3";
     const className = block.level === 2 ? "article-heading-2" : "article-heading-3";
-    return `<${level} class="${className}" id="${escapeHtmlAttributeV1(anchor)}">${escapeHtmlTextV1(block.text)}</${level}>`;
+    return `<${level} class="${className}" id="${escapeHtmlAttributeV1(anchor)}">${renderHeadingTextHtmlV1(block.text, locale)}</${level}>`;
   }
   if (block.kind === "paragraph") {
-    return `<p class="article-paragraph" id="${escapeHtmlAttributeV1(anchor)}">${escapeHtmlTextV1(block.text)}</p>`;
+    return `<p class="article-paragraph" id="${escapeHtmlAttributeV1(anchor)}">${renderReadingTextHtmlV1(block.text, articleReadingFieldV1(block.blockId), reading, locale)}</p>`;
   }
   if (block.kind === "equation") {
     const equation = block.expression.length === 0
@@ -225,30 +240,36 @@ function renderBlockHtmlV1(
           throwOnError: false,
           trust: false,
         });
-    return `<figure class="public-static-equation" id="${escapeHtmlAttributeV1(anchor)}"><div>${equation}</div><figcaption class="sr-only">TeX: ${escapeHtmlTextV1(block.expression)}</figcaption></figure>`;
+    return `<figure class="public-static-equation" id="${escapeHtmlAttributeV1(anchor)}"><div>${equation}</div></figure>`;
   }
   if (block.kind === "image") {
     if (block.url.length === 0) return "";
-    const caption = block.caption.length === 0
-      ? ""
-      : `<figcaption>${escapeHtmlTextV1(block.caption)}</figcaption>`;
-    return `<figure class="public-static-image" id="${escapeHtmlAttributeV1(anchor)}"><img src="${escapeHtmlAttributeV1(block.url)}" alt="${escapeHtmlAttributeV1(block.altText)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />${caption}</figure>`;
+    const number = reading.figures.get(block.blockId)?.number;
+    const figureId = articleReadingAnchorV1("figure", block.blockId);
+    const title = [number ? `${locale === "ja" ? "図" : "Figure "}${number}` : "", block.title].filter(Boolean).join("：");
+    const caption = block.caption ? `<p>${renderReadingTextHtmlV1(block.caption, articleReadingFieldV1(block.blockId, "caption"), reading, locale)}</p>` : "";
+    const credit = block.credit ? `<p class="article-figure-credit">${renderReadingTextHtmlV1(block.credit.text, articleReadingFieldV1(block.blockId, "credit"), reading, locale)}${block.credit.licenseLabel ? ` · ${block.credit.licenseHref ? `<a href="${escapeHtmlAttributeV1(block.credit.licenseHref)}" target="_blank" rel="noreferrer">${escapeHtmlTextV1(block.credit.licenseLabel)}</a>` : escapeHtmlTextV1(block.credit.licenseLabel)}` : ""}</p>` : "";
+    return `<figure class="article-figure" id="${escapeHtmlAttributeV1(figureId)}"${title ? ` aria-labelledby="${escapeHtmlAttributeV1(figureId)}-title"` : ""} tabindex="-1">${title ? `<p class="article-figure-title" id="${escapeHtmlAttributeV1(figureId)}-title">${escapeHtmlTextV1(title)}</p>` : ""}<a class="article-figure-open" href="${escapeHtmlAttributeV1(block.url)}" target="_blank" rel="noreferrer"><img src="${escapeHtmlAttributeV1(block.url)}" alt="${escapeHtmlAttributeV1(block.altText)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" /></a>${caption || credit ? `<figcaption class="article-figure-caption">${caption}${credit}</figcaption>` : ""}</figure>`;
   }
+
   if (block.kind === "divider") {
     return `<hr id="${escapeHtmlAttributeV1(anchor)}" />`;
   }
   if (block.kind === "link") {
-    if (block.href.length === 0 || block.label.length === 0) return "";
+    if (block.role === "reference" || block.href.length === 0 || block.label.length === 0) return "";
     const external = !block.href.startsWith("/");
-    const description = block.description.length === 0
-      ? ""
-      : `<span>${escapeHtmlTextV1(block.description)}</span>`;
+    const description = block.description.length === 0 ? ""
+      : `<span class="article-resource-description">${escapeHtmlTextV1(block.description)}</span>`;
     const host = publicArticleLinkHostLabelV1(block.href);
-    return `<a class="article-link-card public-static-link" id="${escapeHtmlAttributeV1(anchor)}" href="${escapeHtmlAttributeV1(block.href)}"${external ? " target=\"_blank\" rel=\"noreferrer\"" : ""}><span class="article-link-card-leading" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2"></path><path d="M15 7h2a5 5 0 1 1 0 10h-2"></path><path d="M8 12h8"></path></svg></span><span class="public-static-link-copy"><strong>${escapeHtmlTextV1(block.label)}</strong>${description}<span class="public-static-link-host">${escapeHtmlTextV1(host)}</span></span></a>`;
+    const icon = block.iconUrl ? `<img src="${escapeHtmlAttributeV1(block.iconUrl)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />` : "";
+    const image = block.imageUrl ? `<span class="article-resource-image"><img src="${escapeHtmlAttributeV1(block.imageUrl)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" /></span>` : "";
+    return `<a class="article-link-card article-resource-card" id="${escapeHtmlAttributeV1(anchor)}" href="${escapeHtmlAttributeV1(block.href)}"${external ? ' target="_blank" rel="noreferrer"' : ""}><span class="article-resource-copy"><span class="article-resource-title">${escapeHtmlTextV1(block.label)}</span>${description}<span class="article-resource-host">${icon}<span>${escapeHtmlTextV1(block.siteName || host)}</span>${block.siteName && block.siteName !== host ? `<span class="article-resource-domain">${escapeHtmlTextV1(host)}</span>` : ""}</span></span>${image}</a>`;
   }
+
   if (block.kind === "quiz") return renderQuizHtmlV1(block, anchor, locale);
   if (block.kind === "accordion") {
-    return `<details class="article-accordion public-static-accordion" id="${escapeHtmlAttributeV1(anchor)}"><summary class="article-accordion-summary"><span class="article-accordion-toggle" aria-hidden="true">›</span>${escapeHtmlTextV1(block.title)}</summary><div>${block.blocks.map((nested) => renderBlockHtmlV1(nested, locale)).join("\n")}</div></details>`;
+    if (block.role === "note") return "";
+    return `<details class="article-accordion public-static-accordion" id="${escapeHtmlAttributeV1(anchor)}"><summary class="article-accordion-summary"><span class="article-accordion-toggle" aria-hidden="true">›</span>${escapeHtmlTextV1(block.title)}</summary><div>${block.blocks.map((nested) => renderBlockHtmlV1(nested, locale, reading)).join("\n")}</div></details>`;
   }
   return renderExperimentHtmlV1(block, anchor, locale);
 }
@@ -326,23 +347,29 @@ function renderExperimentHtmlV1(
 function renderBlockMarkdownV1(
   block: StudioArticleBlockV2 | StudioArticleAccordionContentBlockV2,
   locale: "ja" | "en",
+  reading: ArticleReadingIndexV1,
 ): readonly string[] {
   if (block.kind === "heading") {
     return [`${block.level === 2 ? "##" : "###"} ${block.text}`, ""];
   }
-  if (block.kind === "paragraph") return [block.text, ""];
+  if (block.kind === "paragraph") return [renderReadingTextMarkdownV1(block.text, reading, locale), ""];
   if (block.kind === "equation") return ["$$", block.expression, "$$", ""];
   if (block.kind === "image") {
-    if (block.url.length === 0) return [];
+    if (!block.url) return [];
+    const number = reading.figures.get(block.blockId)?.number;
+    const title = [number ? `${locale === "ja" ? "図" : "Figure "}${number}` : "", block.title].filter(Boolean).join("：");
     return [
-      `![${block.altText}](${block.url})`,
-      ...(block.caption.length > 0 ? [block.caption] : []),
-      "",
+      `<a id="${escapeHtmlAttributeV1(articleReadingAnchorV1("figure", block.blockId))}"></a>`,
+      ...(title ? [`**${escapeMarkdownTextV1(title)}**`, ""] : []),
+      `![${escapeMarkdownTextV1(block.altText)}](<${block.url}>)`, "",
+      renderReadingTextMarkdownV1(block.caption, reading, locale), "",
+      ...(block.credit ? [renderReadingTextMarkdownV1(block.credit.text, reading, locale)
+        + (block.credit.licenseLabel ? ` · ${block.credit.licenseHref ? `[${escapeMarkdownTextV1(block.credit.licenseLabel)}](<${block.credit.licenseHref}>)` : escapeMarkdownTextV1(block.credit.licenseLabel)}` : ""), ""] : []),
     ];
   }
   if (block.kind === "divider") return ["---", ""];
   if (block.kind === "link") {
-    if (block.href.length === 0 || block.label.length === 0) return [];
+    if (block.role === "reference" || block.href.length === 0 || block.label.length === 0) return [];
     return [
       `[${block.label}](${block.href})`,
       ...(block.description.length > 0 ? [block.description] : []),
@@ -373,11 +400,12 @@ function renderBlockMarkdownV1(
     ];
   }
   if (block.kind === "accordion") {
+    if (block.role === "note") return [];
     return [
       "<details>",
       `<summary>${block.title}</summary>`,
       "",
-      ...block.blocks.flatMap((nested) => renderBlockMarkdownV1(nested, locale)),
+      ...block.blocks.flatMap((nested) => renderBlockMarkdownV1(nested, locale, reading)),
       "</details>",
       "",
     ];
@@ -510,4 +538,62 @@ function flaskIconHtmlV1(): string {
 
 function loginIconHtmlV1(): string {
   return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path></svg>`;
+}
+
+function renderReadingTextHtmlV1(text: string, fieldId: string, reading: ArticleReadingIndexV1, locale: "ja" | "en"): string {
+  return parseArticleReadingTextV1(text).map((token, i, tokens) => {
+    if (token.kind === "text") return escapeHtmlTextV1(token.text);
+    const target = articleReadingTargetV1(reading, token);
+    if (!target) return escapeHtmlTextV1(token.raw);
+    const next = tokens[i + 1];
+    const continues = next?.kind === "reference" && articleReadingTargetV1(reading, next);
+    const label = token.kind === "reference" ? `${target.number}${continues ? "," : ")"}` : token.kind === "note" ? `${locale === "ja" ? "注" : "Note "}${target.number}` : `${locale === "ja" ? "図" : "Figure "}${target.number}`;
+    const role = token.kind === "note" ? ' role="doc-noteref"' : token.kind === "reference" ? ' role="doc-biblioref"' : "";
+    const ariaLabel = token.kind === "reference" ? `${locale === "ja" ? "文献" : "Reference "}${target.number}` : label;
+    const link = `<a class="article-reading-anchor"${role} aria-label="${escapeHtmlAttributeV1(ariaLabel)}" id="${escapeHtmlAttributeV1(articleReadingMentionV1(fieldId, token.offset))}" href="${escapeHtmlAttributeV1(articleReadingHrefV1(articleReadingAnchorV1(token.kind, token.targetId)))}">${escapeHtmlTextV1(label)}</a>`;
+    return token.kind === "figure" ? link : `<sup class="article-reading-marker">${link}</sup>`;
+  }).join("");
+}
+function renderReadingTocHtmlV1(blocks: readonly StudioArticleBlockV2[], locale: "ja" | "en"): string {
+  const headings = blocks.filter(b => b.kind === "heading" && b.level === 2);
+  if (headings.length < 3) return "";
+  return `<details class="article-toc"><summary>${locale === "ja" ? "目次" : "Contents"}</summary><nav aria-label="${locale === "ja" ? "記事の目次" : "Article contents"}"><ol>${headings.map(b => b.kind === "heading" ? `<li><a href="${escapeHtmlAttributeV1(articleReadingHrefV1(`block-${b.blockId}`))}">${escapeHtmlTextV1(b.text)}</a></li>` : "").join("")}</ol></nav></details>`;
+}
+function renderReadingEndMatterHtmlV1(reading: ArticleReadingIndexV1, locale: "ja" | "en"): string {
+  const ja = locale === "ja";
+  const backs = (ids: readonly string[]) => `<span class="article-reading-backlinks">${ids.map((id, i) => `<a href="${escapeHtmlAttributeV1(articleReadingHrefV1(id))}" role="doc-backlink" aria-label="${ja ? `引用箇所${i + 1}に戻る` : `Return to mention ${i + 1}`}">↩${ids.length > 1 ? i + 1 : ""}</a>`).join("")}</span>`;
+  const notes = reading.notes.length ? `<section class="article-endnotes" role="doc-endnotes" aria-labelledby="article-notes-heading"><h2 id="article-notes-heading" class="article-heading-2">${ja ? "注釈" : "Notes"}</h2><ol>${reading.notes.map(e => `<li id="${escapeHtmlAttributeV1(articleReadingAnchorV1("note", e.block.blockId))}" tabindex="-1" role="doc-endnote"><div class="article-endnote-title"><span>${ja ? "注" : "Note "}${e.number}</span><strong>${escapeHtmlTextV1(e.block.title)}</strong>${backs(e.backlinks)}</div>${e.block.blocks.map(b => renderBlockHtmlV1(b, locale, reading)).join("\n")}</li>`).join("\n")}</ol></section>` : "";
+  const refs = reading.references.length ? `<section class="article-references" role="doc-bibliography" aria-labelledby="article-references-heading"><h2 id="article-references-heading" class="article-heading-2">${ja ? "文献" : "References"}</h2><ol>${reading.references.map(e => `<li id="${escapeHtmlAttributeV1(articleReadingAnchorV1("reference", e.block.blockId))}" tabindex="-1" value="${e.number}">${e.block.href ? `<a href="${escapeHtmlAttributeV1(e.block.href)}" target="_blank" rel="noreferrer">${escapeHtmlTextV1(e.block.label)}</a>` : escapeHtmlTextV1(e.block.label)} <span>${escapeHtmlTextV1(e.block.description)}</span>${backs(e.backlinks)}</li>`).join("\n")}</ol></section>` : "";
+  return notes + refs;
+}
+
+function escapeMarkdownTextV1(text: string): string {
+  return escapeHtmlTextV1(text).replace(/[\\`*_[\]]/g, "\\$&");
+}
+function renderReadingTextMarkdownV1(text: string, reading: ArticleReadingIndexV1, locale: "ja" | "en"): string {
+  return parseArticleReadingTextV1(text).map(token => {
+    if (token.kind === "text") return escapeMarkdownTextV1(token.text);
+    const target = articleReadingTargetV1(reading, token);
+    if (!target) return escapeMarkdownTextV1(token.raw);
+    if (token.kind === "note") return `[^note-${target.number}]`;
+    const label = token.kind === "reference" ? `${target.number})` : `${locale === "ja" ? "図" : "Figure "}${target.number}`;
+    return `[${label}](${articleReadingHrefV1(articleReadingAnchorV1(token.kind, token.targetId))})`;
+  }).join("");
+}
+function renderReadingEndMatterMarkdownV1(reading: ArticleReadingIndexV1, locale: "ja" | "en"): string {
+  const lines: string[] = [];
+  if (reading.notes.length) lines.push(`## ${locale === "ja" ? "注釈" : "Notes"}`, "");
+  for (const entry of reading.notes) {
+    lines.push(`[^note-${entry.number}]: **${escapeMarkdownTextV1(entry.block.title)}**`);
+    const content = entry.block.blocks.flatMap(b => renderBlockMarkdownV1(b, locale, reading));
+    lines.push(...content.map(line => `    ${line}`), "");
+  }
+  if (reading.references.length) lines.push(`## ${locale === "ja" ? "文献" : "References"}`, "");
+  for (const entry of reading.references) {
+    const block = entry.block;
+    const title = escapeMarkdownTextV1(block.label);
+    lines.push(`<a id="${escapeHtmlAttributeV1(articleReadingAnchorV1("reference", block.blockId))}"></a>`,
+      `${entry.number}. ${block.href ? `[${title}](<${block.href}>)` : title} ${escapeMarkdownTextV1(block.description)}`, "");
+  }
+  return lines.join("\n");
 }

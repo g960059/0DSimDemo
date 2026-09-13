@@ -1,12 +1,18 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdtemp, rm, readdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { exportPreparedSnapshotAnalysesV1 } from "@/tools/authoring/PrepareSnapshotAnalysisAssetsV1";
+import type { ExperimentSnapshotV2 } from "@/studio/contracts/v2/content";
 import { sha256CanonicalJsonHex as hash } from "@/engine/integrity";
 import * as integrity from "@/engine/integrity";
 import { loadPreparedModelAnalysisV1 as load } from "@/components/workbench/runtime/PreparedModelAnalysisRegistryV1";
 import type { StudioModelWorkerReleaseTicketV2 } from "@/studio/contracts/v2/release";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 import oldSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
+import boundedSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
 import { buildPreparedModelAnalysisV1 as build, readPreparedModelAnalysisV1 as read,
+  buildPreparedScenarioAnalysisV1 as buildScenario, readPreparedScenarioAnalysisV1 as readScenario,
   assessPreparedModelAnalysisV1 as assess, inspectModelAnalysisV1 as inspect } from "@/components/workbench/presentation/PreparedModelAnalysisV1";
 import * as decoder from "@/components/workbench/presentation/GuytonStarlingOrientationCanvasV3";
 import * as registry from "@/analysis/registry/RegisteredAnalysisMethodsV1";
@@ -26,6 +32,80 @@ const analysis: StudioSimulationAnalysisV2 = { modelId: high.modelId, runtimeSes
   analysisId: registry.resolveRegisteredAnalysisMethodsV1(surface).periodicPvaDerivation!.sourceAnalysisId!, payload: { status: "available" } };
 const expected = { modelId: high.modelId, artifactRevisionId: "a".repeat(64), capture, surface };
 afterEach(() => vi.restoreAllMocks());
+
+it("exports a saved Scenario's actual Guyton/PV family and rejects a different Snapshot or artifact", async () => {
+  const preset = CURRENT_MODEL_PRESETS_V1[0]!;
+  const pin = registry.resolveRegisteredAnalysisMethodsV1(surface).periodicPvaDerivation!;
+  const record = JSON.parse(await readFile(`data/model-analysis/prepared/${pin.sourceAnalysisId}/${pin.methodId}/${await hash(preset.capture)}.json`, "utf8"));
+  const snapshot: ExperimentSnapshotV2 = { schemaId: "circleheart-studio-experiment-snapshot-v2", createdAt: "2026-09-12T00:00:00Z",
+    snapshotId: "snapshot/article", surfaceReleaseId: surface.surfaceReleaseId,
+    content: { modelId: preset.modelId, surfaceSeriesId: surface.surfaceSeriesId,
+      scenarios: [{ scenarioId: "renamed", label: "Reader scenario", capture: preset.capture }],
+      surface: { graphPanes: [], outputPanes: [], controlPanes: [], note: { text: "" } } } };
+  const result = { source: { snapshotId: snapshot.snapshotId, artifactRevisionId: record.artifactRevisionId,
+    exactModel: { modelId: preset.modelId, surfaceSeriesId: surface.surfaceSeriesId, surfaceReleaseId: surface.surfaceReleaseId } },
+    analysisId: record.analysis.analysisId, allComplete: true, scenarios: [{ scenarioId: "renamed", status: "complete" as const,
+      source: { captureSha256: record.captureSha256, inputEpoch: 0 as const,
+        acceptedRevision: preset.capture.checkpoint.acceptedRevision, acceptedTimeSec: preset.capture.checkpoint.acceptedTimeSec },
+      assessment: inspect(surface, record.analysis), analysis: record.analysis, error: null }] };
+  const output = await mkdtemp(join(tmpdir(), "snapshot-analysis-"));
+  const input = { snapshot, result, output, preparationSourceSha256: "b".repeat(64),
+    release: { modelId: preset.modelId, artifactRevisionId: record.artifactRevisionId, surfaceRelease: surface } };
+  try {
+    const exported = await exportPreparedSnapshotAnalysesV1(input);
+    expect(exported.allPrepared).toBe(true);
+    const saved = await readScenario(JSON.parse(await readFile(exported.rows[0]!.file!, "utf8")), {
+      modelId: preset.modelId, artifactRevisionId: record.artifactRevisionId, capture: preset.capture, surface });
+    for (const side of ["left", "right"] as const) {
+      const orientation = decoder.structuralReturnOrientationFromPayloadV3(saved.analysis.payload, side)!;
+      expect(orientation.curve.length).toBeGreaterThan(20);
+      expect(orientation.starlingLocus.status).toBe("measured-fixed-tbv-protocol");
+    }
+    expect(saved.analysis.payload).toEqual(record.analysis.payload);
+    await expect(exportPreparedSnapshotAnalysesV1({ ...input, snapshot: { ...snapshot, snapshotId: "other" } })).rejects.toThrow(/binding differs/);
+    await expect(exportPreparedSnapshotAnalysesV1({ ...input, release: { ...input.release, artifactRevisionId: "other" } })).rejects.toThrow(/binding differs/);
+    const held = await exportPreparedSnapshotAnalysesV1({ ...input, result: { ...result, scenarios: [{ ...result.scenarios[0]!, status: "incomplete", analysis: null }] } });
+    expect(held).toMatchObject({ allPrepared: false, rows: [{ status: "held", file: null }] });
+  } finally { await rm(output, { recursive: true, force: true }); }
+});
+
+it("retains complete Scenario curves with unavailable PVA, without changing registry admission or the method result", async () => {
+  const derive = complete().mockReturnValue({ status: "unavailable", reason: "unresolved PE tail",
+    loadRelations: { systolic: { completionStatus: "complete" }, diastolic: { completionStatus: "complete" } } } as never);
+  expect(() => assess(surface, analysis)).toThrow("unresolved PE tail");
+  const saved = await buildScenario({ ...expected, analysis, preparationSourceSha256: "b".repeat(64) });
+  expect(saved.assessment.sides.every(s => s.measurementStatus === "complete" && s.pvaStatus === "unavailable")).toBe(true);
+  expect(saved.analysis).toEqual(analysis);
+  expect(await readScenario(saved, expected)).toEqual(saved);
+  await expect(readScenario(saved, { ...expected, capture: { ...capture, fixture: {} } })).rejects.toThrow(/binding differs/);
+  await expect(readScenario(saved, { ...expected, surface: boundedSurface })).rejects.toThrow(/method pins differ/);
+  await expect(readScenario({ ...saved, recordSha256: "altered" }, expected)).rejects.toThrow(/binding differs/);
+  derive.mockReturnValue({ status: "available", completionStatus: "progressive",
+    loadRelations: { systolic: { completionStatus: "progressive" }, diastolic: { completionStatus: "complete" } } } as never);
+  await expect(buildScenario({ ...expected, analysis, preparationSourceSha256: "b".repeat(64) })).rejects.toThrow(/incomplete/);
+});
+
+it("keeps every shipped prepared asset bound to the current artifact and method, including article-only Scenarios", async () => {
+  const root = "data/model-analysis/prepared";
+  const pin = registry.resolveRegisteredAnalysisMethodsV1(surface).periodicPvaDerivation!;
+  let checked = 0;
+  for (const analysisId of await readdir(root)) for (const methodId of await readdir(join(root, analysisId))) {
+    expect([analysisId, methodId]).toEqual([pin.sourceAnalysisId, pin.methodId]);
+    for (const name of await readdir(join(root, analysisId, methodId))) {
+      const record = JSON.parse(await readFile(join(root, analysisId, methodId, name), "utf8"));
+      const { recordSha256, ...body } = record;
+      expect(await hash(body)).toBe(recordSha256);
+      expect(name).toBe(`${record.captureSha256}.json`);
+      expect(record.modelId).toBe(lock.modelId);
+      expect(record.artifactRevisionId).toBe(lock.artifactRevisionId);
+      expect(record.analysis.analysisId).toBe(analysisId);
+      expect(record.assessment).toEqual(record.schemaId === "prepared-scenario-analysis-v1"
+        ? inspect(surface, record.analysis) : assess(surface, record.analysis));
+      checked++;
+    }
+  }
+  expect(checked).toBeGreaterThan(CURRENT_MODEL_PRESETS_V1.length);
+});
 function complete() {
   const locus = { status: "measured-fixed-tbv-protocol", completedPointCount: 3, totalPointCount: 3, protocolId: "protocol",
     points: Array.from({ length: 3 }, () => ({ settled: true, curveEligible: true })) };
@@ -44,6 +124,37 @@ it("does not hash a large capture when the pinned method has no launch assets", 
   expect(await load({ surfaceRelease: oldSurface } as StudioModelWorkerReleaseTicketV2, capture)).toBeNull();
   expect(digest).not.toHaveBeenCalled();
 });
+
+it.each(CURRENT_MODEL_PRESETS_V1.map(preset => [preset.title, preset] as const))(
+  "admits the prepared launch family %s under the bounded V16 pin with V15-identical energy, never reusing the V15 record", async (_title, preset) => {
+    const pinned = registry.resolveRegisteredAnalysisMethodsV1(surface).periodicPvaDerivation!;
+    const candidate = registry.resolveRegisteredAnalysisMethodsV1(boundedSurface).periodicPvaDerivation!;
+    expect(candidate).toMatchObject({ methodId: pva.MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID, sourceAnalysisId: pinned.sourceAnalysisId });
+    const record = JSON.parse(await readFile(
+      `data/model-analysis/prepared/${pinned.sourceAnalysisId}/${pinned.methodId}/${await hash(preset.capture)}.json`, "utf8"));
+    expect(record.assessment.pvaMethodId).toBe(pva.MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID);
+    const assessment = inspect(boundedSurface, record.analysis);
+    expect(assessment.pvaMethodId).toBe(pva.MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID);
+    expect(assessment.sides.map(s => [s.side, s.status, s.pvaStatus])).toEqual([["left", "complete", "complete"], ["right", "complete", "complete"]]);
+    for (const side of ["left", "right"] as const) {
+      const locus = decoder.structuralReturnOrientationFromPayloadV3(record.analysis.payload, side)!.starlingLocus;
+      const ventricle = side === "left" ? "LV" as const : "RV" as const;
+      const previous = pva.buildMainWirePeriodicPvaMethodV15(locus, ventricle), bounded = pva.buildMainWirePeriodicPvaMethodV16(locus, ventricle);
+      if (previous.status !== "available" || bounded.status !== "available") throw new Error("Expected both PVA generations");
+      expect(bounded.methodId).toBe(pva.MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID);
+      // Registered launch families already sit above the EDPVR at V_min: the tangent is still consumed and nothing moves.
+      expect(bounded.potentialEnergy).toMatchObject({ lowVolumeTailAdmission: "endpoint-tangent-extension", lowVolumeTangentExtensionUsed: true });
+      expect(bounded.potentialEnergy.measuredStartPressureGapMmHg).toBeGreaterThan(0);
+      for (const key of ["pva", "espvr", "edpvr", "strokeWork", "anchor", "areaDisplay"] as const) expect(bounded[key]).toEqual(previous[key]);
+      expect(bounded.potentialEnergy.leftIntersectionVolumeMl).toBe(previous.potentialEnergy.leftIntersectionVolumeMl);
+      expect(bounded.potentialEnergy.mmHgMl).toBe(previous.potentialEnergy.mmHgMl);
+      if (ventricle === "LV") expect(bounded.estimatedMvo2).toMatchObject({ status: "available", pvaSource: { methodId: pva.MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID } });
+    }
+    const expectedUnderCandidate = { modelId: preset.modelId, artifactRevisionId: record.artifactRevisionId, capture: preset.capture, surface: boundedSurface };
+    await expect(read(record, expectedUnderCandidate)).rejects.toThrow(/method pins differ/);
+    // No V16 launch assets exist until the parent re-prepares; the registry never serves V15 data to a V16 pin.
+    expect(await load({ surfaceRelease: boundedSurface, modelId: preset.modelId, artifactRevisionId: record.artifactRevisionId } as StudioModelWorkerReleaseTicketV2, preset.capture)).toBeNull();
+  }, 30_000);
 
 it("accepts identical captures and method pins across presentation-only Surface changes", async () => {
   complete();

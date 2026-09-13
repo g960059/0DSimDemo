@@ -1,4 +1,6 @@
 import React from "react";
+import { ArticleReadingTextV1, useArticleReadingIndexV1 } from "@/components/article/ArticleReadingV1";
+import { articleReadingAnchorV1, articleReadingFieldV1, stripArticleReadingMarkupV1 } from "@/studio/application/article/StudioArticleReadingV1";
 import katex from "katex";
 import {
   Check,
@@ -44,7 +46,7 @@ export function ArticleEquationPresentationV3({
   if (html.length === 0) return null;
   return (
     <div
-      className={`article-equation-v3 overflow-x-auto py-3 text-center text-wb-text ${className}`}
+      className={`article-equation-v3 overflow-x-auto text-center text-wb-text ${className}`}
       data-testid="article-equation-v3"
       dangerouslySetInnerHTML={{ __html: html }}
     />
@@ -58,22 +60,41 @@ export function ArticleImagePresentationV3({
   block: StudioArticleImageBlockV2;
   className?: string;
 }>) {
+  const index = useArticleReadingIndexV1();
+  const { i18n } = useTranslation();
+  const ja = i18n.language.startsWith("ja");
+  const number = index?.figures.get(block.blockId)?.number;
+  const label = number ? `${ja ? "図" : "Figure "}${number}` : (ja ? "図" : "Figure");
+  const dialogRef = React.useRef<HTMLDialogElement>(null);
+  const openButtonRef = React.useRef<HTMLButtonElement>(null);
+  const title = [number ? label : "", block.title].filter(Boolean).join("：");
   if (block.url.length === 0) return null;
   return (
-    <figure className={`my-8 ${className}`} data-testid="article-image-v3">
-      <img
-        src={block.url}
-        alt={block.altText}
-        loading="lazy"
-        decoding="async"
-        referrerPolicy="no-referrer"
-        className="mx-auto max-h-[72vh] w-auto max-w-full rounded-xl object-contain"
-      />
-      {block.caption.length > 0 && (
-        <figcaption className="mx-auto mt-3 max-w-2xl text-center text-sm leading-6 text-wb-muted">
-          {block.caption}
-        </figcaption>
-      )}
+    <figure className={`article-figure ${className}`} id={articleReadingAnchorV1("figure", block.blockId)} aria-labelledby={title ? `${articleReadingAnchorV1("figure", block.blockId)}-title` : undefined} tabIndex={-1} data-testid="article-image-v3">
+      {title && <p className="article-figure-title" id={`${articleReadingAnchorV1("figure", block.blockId)}-title`}>{title}</p>}
+      <button ref={openButtonRef} type="button" className="article-figure-open" onClick={() => dialogRef.current?.showModal()}
+        aria-label={ja ? `${label}を拡大` : `Enlarge ${label}`}>
+        <img src={block.url} alt={block.altText} loading="lazy" decoding="async" referrerPolicy="no-referrer" />
+        <span className="article-figure-enlarge">{ja ? "拡大" : "Enlarge"}</span>
+      </button>
+      {(block.caption || block.credit) && <figcaption className="article-figure-caption">
+        {block.caption && <p><ArticleReadingTextV1 text={block.caption} fieldId={articleReadingFieldV1(block.blockId, "caption")} /></p>}
+        {block.credit && <p className="article-figure-credit">
+          <ArticleReadingTextV1 text={block.credit.text} fieldId={articleReadingFieldV1(block.blockId, "credit")} />
+          {block.credit.licenseLabel && <> · {block.credit.licenseHref
+            ? <a href={block.credit.licenseHref} target="_blank" rel="noreferrer">{block.credit.licenseLabel}</a>
+            : block.credit.licenseLabel}</>}
+        </p>}
+      </figcaption>}
+      <dialog ref={dialogRef} className="article-figure-dialog" aria-label={title || block.altText}
+        onClose={() => openButtonRef.current?.focus({ preventScroll: true })}
+        onClick={(event) => { if (event.target === event.currentTarget) dialogRef.current?.close(); }}>
+        <div className="article-figure-dialog-toolbar"><strong>{title || label}</strong>
+          <button type="button" onClick={() => dialogRef.current?.close()}>{ja ? "閉じる" : "Close"}</button>
+        </div>
+        <img src={block.url} alt={block.altText} decoding="async" referrerPolicy="no-referrer" />
+        {block.caption && <p>{stripArticleReadingMarkupV1(block.caption)}</p>}
+      </dialog>
     </figure>
   );
 }
@@ -100,43 +121,44 @@ export function ArticleLinkPresentationV3({
   block: StudioArticleLinkBlockV2;
   className?: string;
 }>) {
+  const [failedImage, setFailedImage] = React.useState<string | null>(null);
+  const [failedIcon, setFailedIcon] = React.useState<string | null>(null);
   if (block.href.length === 0 || block.label.length === 0) return null;
+  if (block.role === "reference") return <p className="my-3 text-sm leading-6 text-wb-muted">
+    <a href={block.href} target="_blank" rel="noreferrer" className="text-wb-accent">{block.label}</a>{" "}{block.description}
+  </p>;
   const external = !block.href.startsWith("/");
   const host = articleLinkHostLabelV3(block.href);
+  const imageUrl = block.imageUrl && failedImage !== block.imageUrl ? block.imageUrl : null;
+  const iconUrl = block.iconUrl && failedIcon !== block.iconUrl ? block.iconUrl : null;
   return (
     <a
       href={block.href}
       target={external ? "_blank" : undefined}
       rel={external ? "noreferrer" : undefined}
-      className={`article-link-card group/link my-8 flex items-center gap-3.5 px-4 py-3.5 text-left transition-[border-color,background-color,box-shadow,transform] duration-150 active:scale-[0.995] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${className}`}
+      className={`article-link-card article-resource-card ${className}`}
       data-testid="article-link-v3"
     >
-      <span className="article-link-card-leading" aria-hidden="true">
-        <Link2 className="h-4 w-4" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-semibold leading-6 text-wb-text">
-          {block.label}
-        </span>
+      <span className="article-resource-copy">
+        <span className="article-resource-title">{block.label}</span>
         {block.description.length > 0 && (
-          <span className="mt-1 block text-[13px] leading-5 text-wb-muted">
-            {block.description}
-          </span>
+          <span className="article-resource-description">{block.description}</span>
         )}
-        <span className="mt-1.5 block truncate text-xs leading-5 text-wb-subtle">
-          {host}
+        <span className="article-resource-host">
+          {iconUrl ? (
+            <img src={iconUrl} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer"
+              onError={() => setFailedIcon(iconUrl)} />
+          ) : <Link2 aria-hidden="true" />}
+          <span>{block.siteName || host}</span>
+          {block.siteName && block.siteName !== host && <span className="article-resource-domain">{host}</span>}
+          {external && <ExternalLink aria-hidden="true" />}
         </span>
       </span>
-      {external ? (
-        <ExternalLink
-          className="h-4 w-4 shrink-0 text-wb-subtle transition-transform duration-150 group-hover/link:translate-x-0.5"
-          aria-hidden="true"
-        />
-      ) : (
-        <ChevronRight
-          className="h-4 w-4 shrink-0 text-wb-subtle transition-transform duration-150 group-hover/link:translate-x-0.5"
-          aria-hidden="true"
-        />
+      {imageUrl && (
+        <span className="article-resource-image">
+          <img src={imageUrl} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer"
+            onError={() => setFailedImage(imageUrl)} />
+        </span>
       )}
     </a>
   );
@@ -280,7 +302,7 @@ function articleLinkHostLabelV3(href: string): string {
   }
 }
 
-function ArticleAccordionContentPresentationV3({
+export function ArticleAccordionContentPresentationV3({
   block,
 }: Readonly<{ block: StudioArticleAccordionContentBlockV2 }>) {
   if (block.kind === "heading") {
@@ -294,7 +316,7 @@ function ArticleAccordionContentPresentationV3({
   if (block.kind === "paragraph") {
     return (
       <p className="my-4 whitespace-pre-wrap text-[15px] leading-7 text-wb-text sm:text-base sm:leading-8">
-        {block.text}
+        <ArticleReadingTextV1 text={block.text} fieldId={articleReadingFieldV1(block.blockId)} />
       </p>
     );
   }
@@ -305,6 +327,6 @@ function ArticleAccordionContentPresentationV3({
   if (block.kind === "divider") {
     return <ArticleDividerPresentationV3 block={block} className="my-6" />;
   }
-  if (block.kind === "link") return <ArticleLinkPresentationV3 block={block} />;
+  if (block.kind === "link") return block.role === "reference" ? null : <ArticleLinkPresentationV3 block={block} />;
   return <ArticleQuizPresentationV3 block={block} className="my-6" />;
 }
