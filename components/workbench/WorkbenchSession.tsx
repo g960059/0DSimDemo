@@ -1,3 +1,4 @@
+import { ResourceAuthorV1 } from "@/components/site/PublicAuthorV1";
 import React from "react";
 import { loadPreparedScenarioAnalysisV1 } from "./runtime/PreparedModelAnalysisRegistryV1";
 import type { StudioJsonObjectV2 } from "@/studio/contracts/v2/json";
@@ -3129,6 +3130,7 @@ export const WorkbenchSession = ({
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             )}
           </Link>
+          <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
           <input
             type="text"
             value={experimentTitle}
@@ -3164,6 +3166,8 @@ export const WorkbenchSession = ({
               }
             }}
           />
+            {sourceSnapshotId && <span className="[&_.public-author]:text-[10px] [&_.public-author-badge]:text-[9px]"><ResourceAuthorV1 kind="snapshot" resourceId={sourceSnapshotId} locale={resolvedLocale} /></span>}
+          </div>
         </div>
         <RuntimeStatusV3 status={status} />
         <div className="flex shrink-0 items-center gap-0.5">

@@ -1,3 +1,5 @@
+import { useSiteAccountSessionV3 } from "@/components/site/SiteAccountSessionV3";
+import { rememberCourseReadingEntryV1 } from "@/studio/application/course/StudioCourseReadingPositionV1";
 import { readCourseBootstrapV1 } from "@/studio/application/course/StudioCourseBootstrapV1";
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
@@ -20,6 +22,7 @@ export function ArticleCourseNavigationV1({
   bottom?: boolean;
 }) {
   const { search } = useLocation();
+  const { account, loading } = useSiteAccountSessionV3();
   const requested = new URLSearchParams(search).get("course");
   const ja = locale === "ja";
   const repository = React.useMemo(createStudioSupabaseContentRepositoryV1, []);
@@ -60,6 +63,11 @@ export function ArticleCourseNavigationV1({
       current = false;
     };
   }, [repository, requested, articleId, locale, bootstrap, identity]);
+  React.useEffect(() => {
+    const selected = courses.find((c) => c.courseId === requested);
+    if (!loading && !bottom && selected)
+      rememberCourseReadingEntryV1(selected, articleId, account?.accountId);
+  }, [courses, requested, articleId, bottom, account?.accountId, loading]);
   if (!courses.length) return null;
   const selected = requested
     ? courses.find((c) => c.courseId === requested)
@@ -97,12 +105,19 @@ export function ArticleCourseNavigationV1({
     >
       {!bottom && (
         <>
-          <Link
-            className="font-semibold text-wb-accent"
-            to={courseHrefV1(selected.courseId, locale)}
-          >
-            {selected.title}
-          </Link>
+          <div className="flex items-start justify-between gap-3">
+            <Link
+              className="font-semibold text-wb-accent"
+              to={courseHrefV1(selected.courseId, locale)}
+            >
+              {selected.title}
+            </Link>
+            <span className="shrink-0 text-xs text-wb-muted">
+              {selected.entries.findIndex((e) => e.articleId === articleId) + 1}{" "}
+              / {selected.entries.length}
+              {ja ? "章" : " chapters"}
+            </span>
+          </div>
           <details className="mt-3">
             <summary className="cursor-pointer text-wb-muted">
               {ja ? "コースの目次" : "Course contents"}
@@ -132,37 +147,39 @@ export function ArticleCourseNavigationV1({
           </details>
         </>
       )}
-      <div className={`grid grid-cols-2 gap-4 ${bottom ? "" : "mt-4"}`}>
-        <div>
-          {neighbors.previous && (
-            <Link
-              rel="prev"
-              className="block text-wb-accent"
-              to={courseArticleHrefV1(selected, neighbors.previous)}
-            >
-              ← {neighbors.previous.title}
-            </Link>
-          )}
+      {bottom && (
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            {neighbors.previous && (
+              <Link
+                rel="prev"
+                className="block text-wb-accent"
+                to={courseArticleHrefV1(selected, neighbors.previous)}
+              >
+                ← {neighbors.previous.title}
+              </Link>
+            )}
+          </div>
+          <div className="text-right">
+            {neighbors.next ? (
+              <Link
+                rel="next"
+                className="block text-wb-accent"
+                to={courseArticleHrefV1(selected, neighbors.next)}
+              >
+                {neighbors.next.title} →
+              </Link>
+            ) : (
+              <Link
+                className="text-wb-accent"
+                to={courseHrefV1(selected.courseId, locale)}
+              >
+                {ja ? "コースの目次へ" : "Back to contents"} →
+              </Link>
+            )}
+          </div>
         </div>
-        <div className="text-right">
-          {neighbors.next ? (
-            <Link
-              rel="next"
-              className="block text-wb-accent"
-              to={courseArticleHrefV1(selected, neighbors.next)}
-            >
-              {neighbors.next.title} →
-            </Link>
-          ) : (
-            <Link
-              className="text-wb-accent"
-              to={courseHrefV1(selected.courseId, locale)}
-            >
-              {ja ? "コースの目次へ" : "Back to contents"} →
-            </Link>
-          )}
-        </div>
-      </div>
+      )}
     </nav>
   );
 }

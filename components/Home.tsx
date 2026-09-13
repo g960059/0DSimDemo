@@ -1,3 +1,5 @@
+import { PublicAuthorV1 } from "@/components/site/PublicAuthorV1";
+import { PublicSectionHeadingV1 as HomeSectionHeadingV4, PUBLIC_CARD_CLASS_V1 as HOME_CARD_CLASS_V4 } from "@/components/site/PublicDiscoveryV1";
 import { FeaturedCoursesV1 } from "@/components/course/CoursePagesV1";
 import React from "react";
 import {
@@ -118,13 +120,16 @@ export const Home = () => {
             <p className="mt-4 max-w-xl text-pretty text-sm leading-7 text-wb-muted sm:mt-5 sm:text-[15px] sm:leading-8">
               {t("home.lead")}
             </p>
-            <div className="mt-6 flex sm:mt-7">
+            <div className="mt-6 flex flex-wrap gap-3 sm:mt-7">
               <Link
-                to={newExperimentHref(locale)}
+                to={`/${locale}/courses`}
                 className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-wb-primary px-7 text-sm font-bold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.98] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:w-auto"
               >
-                <FlaskConical className="h-4 w-4" aria-hidden="true" />
-                {t("home.startExperiment")}
+                <BookOpenText className="h-4 w-4" aria-hidden="true" />
+                {locale === "ja" ? "コースから学ぶ" : "Start a course"}
+              </Link>
+              <Link to={experimentsHref(locale)} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-wb-line bg-wb-panel px-6 text-sm font-semibold hover:bg-wb-hover focus-visible:ring-2 focus-visible:ring-wb-accent sm:w-auto">
+                <FlaskConical className="h-4 w-4" aria-hidden="true" />{locale === "ja" ? "シミュレーションを試す" : "Explore simulations"}
               </Link>
             </div>
           </div>
@@ -137,9 +142,7 @@ export const Home = () => {
             headingId="home-articles-heading"
             icon={<BookOpenText className="h-5 w-5" aria-hidden="true" />}
             title={t("home.sectionArticles")}
-            viewAllHref={localizedArticles.length > HOME_SECTION_LIMIT_V4
-              ? articlesHref(locale)
-              : null}
+            viewAllHref={articlesHref(locale)}
             viewAllLabel={t("home.viewAll")}
           />
           {catalog === null ? (
@@ -162,14 +165,12 @@ export const Home = () => {
           )}
         </section>
 
-        <section className="pb-16 sm:pb-24" aria-labelledby="home-simulations-heading">
+        <section className="pb-14 sm:pb-20" aria-labelledby="home-simulations-heading">
           <HomeSectionHeadingV4
             headingId="home-simulations-heading"
             icon={<FlaskConical className="h-5 w-5" aria-hidden="true" />}
             title={t("home.sectionSimulations")}
-            viewAllHref={catalog !== null && catalog.experiments.length > HOME_SECTION_LIMIT_V4
-              ? experimentsHref(locale)
-              : null}
+            viewAllHref={experimentsHref(locale)}
             viewAllLabel={t("home.viewAll")}
           />
           {catalog === null ? (
@@ -238,44 +239,6 @@ export const Home = () => {
   );
 };
 
-function HomeSectionHeadingV4({
-  headingId,
-  icon,
-  title,
-  viewAllHref,
-  viewAllLabel,
-}: Readonly<{
-  headingId: string;
-  icon: React.ReactNode;
-  title: string;
-  viewAllHref: string | null;
-  viewAllLabel: string;
-}>) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <h2
-        id={headingId}
-        className="flex min-w-0 items-center gap-2.5 text-xl font-bold tracking-[-0.02em] text-wb-text sm:text-[1.35rem]"
-      >
-        <span className="text-wb-accent">{icon}</span>
-        <span className="truncate">{title}</span>
-      </h2>
-      {viewAllHref !== null && (
-        <Link
-          to={viewAllHref}
-          className="inline-flex shrink-0 items-center gap-1 rounded-sm text-[13px] font-semibold text-wb-muted transition-colors hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-        >
-          {viewAllLabel}
-          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </Link>
-      )}
-    </div>
-  );
-}
-
-const HOME_CARD_CLASS_V4 =
-  "group flex h-full min-w-0 flex-col rounded-2xl border border-wb-line bg-wb-panel p-5 transition-[background-color,border-color,box-shadow] duration-150 hover:border-wb-line-strong hover:bg-wb-hover/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent";
-
 function HomeArticleCardV4({
   article,
   locale,
@@ -296,14 +259,17 @@ function HomeArticleCardV4({
       <span className="mt-2 line-clamp-2 break-words text-[13px] leading-5 text-wb-muted">
         {article.excerpt ?? t("home.articleFallback")}
       </span>
+      <span className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
+      <PublicAuthorV1 author={article.author} locale={locale} />
       {publishedDate !== null && (
         <time
-          className="mt-auto block pt-4 text-xs text-wb-subtle"
+          className="text-xs text-wb-subtle"
           dateTime={article.publishedAt}
         >
           {publishedDate}
         </time>
       )}
+      </span>
     </Link>
   );
 }
@@ -328,11 +294,13 @@ function HomeSimulationCardV4({
       <span className="line-clamp-3 break-words text-[15px] font-bold leading-6 tracking-[-0.015em] text-wb-text sm:text-base">
         {experiment.record.title}
       </span>
-      <span className="mt-auto block pt-4 text-xs leading-5 text-wb-subtle">
+      <span className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4 text-xs leading-5 text-wb-subtle">
+        <PublicAuthorV1 author={experiment.author} locale={locale} />
+        <span>
         {t("home.simulationMeta", {
           count: experiment.scenarioCount,
           date: updatedDate ?? "",
-        })}
+        })}</span>
       </span>
     </Link>
   );

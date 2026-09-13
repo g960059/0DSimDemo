@@ -1,7 +1,21 @@
+import { PublicAuthorV1 } from "@/components/site/PublicAuthorV1";
+import {
+  PublicSectionHeadingV1,
+  PUBLIC_CARD_CLASS_V1,
+} from "@/components/site/PublicDiscoveryV1";
+import { courseReadingEntryV1 } from "@/studio/application/course/StudioCourseReadingPositionV1";
 import React from "react";
 import { readStudioPublicHomeBootstrapV1 } from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Plus,
+  Trash2,
+  LibraryBig,
+  ArrowRight,
+  BookOpenText,
+} from "lucide-react";
 import { createStudioSupabaseContentRepositoryV1 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import {
   courseArticleHrefV1,
@@ -26,20 +40,51 @@ function useCourseEnvironment() {
   const repository = React.useMemo(createStudioSupabaseContentRepositoryV1, []);
   return { locale, ja: locale === "ja", repository };
 }
+export function CourseCoverV1({ course }: { course: PublicCourseV1 }) {
+  return (
+    <span className="course-cover" aria-hidden="true">
+      <BookOpenText strokeWidth={1.2} />
+      {course.coverUrl && (
+        <img
+          src={course.coverUrl}
+          alt=""
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={(e) => {
+            e.currentTarget.hidden = true;
+          }}
+        />
+      )}
+    </span>
+  );
+}
 export function CourseCardV1({ course }: { course: PublicCourseV1 }) {
   return (
     <Link
       to={courseHrefV1(course.courseId, course.locale)}
-      className="block min-w-0 rounded-xl border border-wb-line bg-wb-panel p-5 hover:bg-wb-hover"
+      className={`${PUBLIC_CARD_CLASS_V1} course-discovery-card`}
     >
-      <h3 className="text-lg font-semibold leading-relaxed">{course.title}</h3>
-      <p className="mt-2 text-sm leading-7 text-wb-muted">
-        {course.description}
-      </p>
-      <p className="mt-3 text-xs text-wb-muted">
-        {course.authorName} · {course.entries.length}
-        {course.locale === "ja" ? "章" : " chapters"}
-      </p>
+      <CourseCoverV1 course={course} />
+      <span className="min-w-0 flex-1">
+        <span className="text-xs text-wb-muted">
+          {course.entries.length}
+          {course.locale === "ja" ? "章のコース" : " chapters"}
+        </span>
+        <h3 className="mt-1 line-clamp-3 text-base font-bold leading-7 sm:text-lg">
+          {course.title}
+        </h3>
+        <p className="mt-2 line-clamp-2 text-[13px] leading-6 text-wb-muted">
+          {course.description}
+        </p>
+        <span className="mt-4 flex flex-wrap items-center justify-between gap-2">
+          {course.author ? (
+            <PublicAuthorV1 author={course.author} locale={course.locale} />
+          ) : (
+            <span className="text-xs text-wb-muted">{course.authorName}</span>
+          )}
+          <ArrowRight className="h-4 w-4 text-wb-muted" aria-hidden="true" />
+        </span>
+      </span>
     </Link>
   );
 }
@@ -65,17 +110,18 @@ export function FeaturedCoursesV1() {
     };
   }, [repository, locale, bootstrap]);
   return (
-    <section className="pb-12" aria-label={ja ? "コース" : "Courses"}>
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold">
-          {ja ? "コースで学ぶ" : "Learn with courses"}
-        </h2>
-        <Link className="text-sm text-wb-accent" to={`/${locale}/courses`}>
-          {ja ? "コースを見る" : "Explore courses"} →
-        </Link>
-      </div>
+    <section className="pb-14 sm:pb-20" aria-labelledby="home-courses-heading">
+      <PublicSectionHeadingV1
+        headingId="home-courses-heading"
+        icon={<LibraryBig className="h-5 w-5" aria-hidden="true" />}
+        title={ja ? "コースで学ぶ" : "Learn with courses"}
+        viewAllHref={`/${locale}/courses`}
+        viewAllLabel={ja ? "すべて見る" : "View all"}
+      />
       {courses.length > 0 && (
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <div
+          className={`mt-5 grid gap-4 ${courses.length > 1 ? "lg:grid-cols-2" : ""}`}
+        >
           {courses.map((c) => (
             <CourseCardV1 key={c.courseId} course={c} />
           ))}
@@ -273,13 +319,26 @@ export function CourseReaderPageV1() {
           </h1>
         ) : (
           <>
-            <h1 className="mt-6 text-3xl font-bold leading-snug">
-              {course.title}
-            </h1>
-            <p className="mt-3 text-sm text-wb-muted">
-              {ja ? "編集：" : "Edited by "}
-              {course.authorName}
-            </p>
+            <div className="mt-8 flex flex-col gap-5 sm:flex-row sm:items-center">
+              <CourseCoverV1 course={course} />
+              <div className="min-w-0">
+                <h1 className="text-3xl font-bold leading-snug">
+                  {course.title}
+                </h1>
+                <p className="mt-3 text-sm text-wb-muted">
+                  {ja ? "編集：" : "Edited by "}
+                  {course.author ? (
+                    <PublicAuthorV1 author={course.author} locale={locale} />
+                  ) : (
+                    course.authorName
+                  )}
+                  <span className="ml-3">
+                    {course.entries.length}
+                    {ja ? "章" : " chapters"}
+                  </span>
+                </p>
+              </div>
+            </div>
             <p className="mt-6 whitespace-pre-line leading-8">
               {course.description}
             </p>
@@ -289,6 +348,7 @@ export function CourseReaderPageV1() {
                 {course.audience}
               </p>
             )}
+            <CourseStartV1 course={course} accountId={account?.accountId} />
             {account?.accountId === course.ownerId && (
               <Link
                 className={`${control} mt-5 inline-flex`}
@@ -315,9 +375,20 @@ export function CourseReaderPageV1() {
                         >
                           {entry.title}
                         </Link>
-                        <p className="mt-1 text-xs text-wb-muted">
-                          {entry.authorName}
-                        </p>
+                        {(entry.author
+                          ? entry.author.userId !== course.ownerId
+                          : entry.authorName !== course.authorName) && (
+                          <p className="mt-1 text-xs text-wb-muted">
+                            {entry.author ? (
+                              <PublicAuthorV1
+                                author={entry.author}
+                                locale={locale}
+                              />
+                            ) : (
+                              entry.authorName
+                            )}
+                          </p>
+                        )}
                       </>
                     ) : (
                       <span className="text-wb-muted">
@@ -334,6 +405,33 @@ export function CourseReaderPageV1() {
         )}
       </main>
     </div>
+  );
+}
+function CourseStartV1({
+  course,
+  accountId,
+}: {
+  course: PublicCourseV1;
+  accountId?: string;
+}) {
+  const { loading } = useSiteAccountSessionV3();
+  if (loading) return null;
+  const { entry, resume } = courseReadingEntryV1(course, accountId);
+  if (!entry) return null;
+  return (
+    <Link
+      className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-wb-primary px-6 text-sm font-semibold text-white hover:bg-wb-primary-hover focus-visible:ring-2 focus-visible:ring-wb-accent"
+      to={courseArticleHrefV1(course, entry)}
+    >
+      {course.locale === "ja"
+        ? resume
+          ? "続きから読む"
+          : "読み始める"
+        : resume
+          ? "Continue reading"
+          : "Start reading"}
+      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+    </Link>
   );
 }
 export function CourseEditorPageV1() {
@@ -563,6 +661,26 @@ function CourseEditorResourceV1() {
                 maxLength={4000}
                 onChange={(e) => change({ description: e.target.value })}
               />
+            </label>
+            <label className="block space-y-2 text-sm">
+              <span>
+                {ja ? "表紙画像のURL（任意）" : "Cover image URL (optional)"}
+              </span>
+              <input
+                className={field}
+                type="url"
+                placeholder="https://…"
+                value={content.coverUrl ?? ""}
+                disabled={busy}
+                onChange={(e) =>
+                  change({ coverUrl: e.target.value.trim() || null })
+                }
+              />
+              <span className="block text-xs text-wb-muted">
+                {ja
+                  ? "画像なしでも、標準の表紙で表示されます。"
+                  : "A simple cover is provided when no image is set."}
+              </span>
             </label>
             <label className="block space-y-2">
               <span>

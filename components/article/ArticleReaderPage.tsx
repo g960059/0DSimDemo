@@ -1,3 +1,4 @@
+import { ResourceAuthorV1 } from "@/components/site/PublicAuthorV1";
 import { ArticleCourseNavigationV1 } from "@/components/course/ArticleCourseNavigationV1";
 import { courseUuidV1 } from "@/studio/application/course/StudioCourseV1";
 import React from "react";
@@ -516,6 +517,7 @@ function ArticleReaderV3Resource({
             <h1 className="article-title">
               <ArticleHeadingTextV1 text={content.article.title || t("articleReader.untitled")} />
             </h1>
+            {!authoredPreview && <ResourceAuthorV1 kind="article" resourceId={content.article.articleId} locale={locale} />}
             {content.publishedAt !== null && (
               <p className="article-publication-date">
                 <span>{publicationCopy.publishedLabel}</span>{" "}

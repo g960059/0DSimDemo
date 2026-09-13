@@ -1,3 +1,4 @@
+import { publicAuthorHtmlV1 } from "@/studio/application/profile/StudioPublicProfileV1";
 import { renderCourseBootstrapV1 } from "@/studio/application/course/StudioCourseBootstrapV1";
 import {
   courseUuidV1,
@@ -338,8 +339,10 @@ async function publishedArticleResponseV1(
     );
   }
 
+  const author = input.format === "html" ? await input.dependencies.dataSource.readPublicResourceAuthor?.("article", article.articleId) : null;
   const rendered = renderStudioPublishedArticleV1({
     article,
+    ...(author ? { author } : {}),
     canonicalOrigin: input.dependencies.canonicalOrigin,
     clientTemplate: input.dependencies.clientTemplate,
   });
@@ -354,6 +357,7 @@ async function publishedArticleResponseV1(
   const formatBody =
     input.format === "html"
       ? rendered.documentHtml
+          .replace("</article>", `${courseNav && course ? courseNavigationHtmlV1(course, article.articleId, true) : ""}</article>`)
           .replace(
             '<header class="article-document-header">',
             `${courseNav}<header class="article-document-header">`,
@@ -373,7 +377,7 @@ async function publishedArticleResponseV1(
     return new Response(null, {
       status: 304,
       headers: secureHeadersV1({
-        "Cache-Control": courseId ? "no-store" : PUBLIC_CACHE_V1,
+        "Cache-Control": courseId ? "no-store" : input.format === "html" ? "public, max-age=0, s-maxage=300, must-revalidate" : PUBLIC_CACHE_V1,
         ETag: etag,
       }),
     });
@@ -404,7 +408,7 @@ async function publishedArticleResponseV1(
       ...(input.format === "html" ? {} : { "X-Robots-Tag": "noindex" }),
       ETag: etag,
       "Content-Location": contentLocation,
-      ...(courseId ? { "Cache-Control": "no-store" } : {}),
+      ...(courseId ? { "Cache-Control": "no-store" } : input.format === "html" ? { "Cache-Control": "public, max-age=0, s-maxage=300, must-revalidate" } : {}),
       Link: [
         `<${rendered.metadata.canonicalUrl}>; rel="canonical"`,
         `<${markdownUrl}>; rel="alternate"; type="text/markdown"`,
@@ -480,7 +484,7 @@ function articleDirectoryBodyV1(
               article.excerpt === null
                 ? ""
                 : `<p>${escapeHtmlTextV1(article.excerpt)}</p>`;
-            return `<li><a href="${href}"><h2>${escapeHtmlTextV1(article.title)}</h2>${excerpt}<time datetime="${escapeHtmlAttributeV1(article.publishedAt)}">${escapeHtmlTextV1(article.publishedAt.slice(0, 10))}</time></a></li>`;
+            return `<li><a href="${href}"><h2>${escapeHtmlTextV1(article.title)}</h2>${excerpt}${publicAuthorHtmlV1(article.author,locale)}<time datetime="${escapeHtmlAttributeV1(article.publishedAt)}">${escapeHtmlTextV1(article.publishedAt.slice(0, 10))}</time></a></li>`;
           })
           .join("\n");
   return `<main class="public-static-shell"><section class="public-static-directory"><header><p class="public-static-kicker">CircleHeart</p><h1>${heading}</h1></header>${articles.length === 0 ? cards : `<ul>${cards}</ul>`}</section></main>`;

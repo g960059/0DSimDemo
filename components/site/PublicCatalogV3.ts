@@ -1,3 +1,4 @@
+import type { PublicAuthorV1 } from "@/studio/application/profile/StudioPublicProfileV1";
 import type { StudioArticleDraftV2 } from "@/studio/contracts/v2/article";
 import {
   publicArticleExcerptV3,
@@ -21,6 +22,7 @@ import {
 } from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
 
 export type PublicExperimentCatalogItemV3 = Readonly<{
+  author?: PublicAuthorV1;
   record: BrowserExperimentRecord;
   snapshotId: string;
   modelId: string;
@@ -28,6 +30,7 @@ export type PublicExperimentCatalogItemV3 = Readonly<{
 }>;
 
 export type PublicArticleCatalogItemV3 = Readonly<{
+  author?: PublicAuthorV1;
   articleId: string;
   publicSlug: string;
   locale: string;
@@ -190,6 +193,7 @@ function publicCatalogFromPublicSummariesV3(input: Pick<
         updatedAt: resource.publishedAt,
         publishedSnapshotId: resource.snapshotId,
       }),
+      ...(resource.author ? { author: resource.author } : {}),
       snapshotId: resource.snapshotId,
       modelId: resource.modelId,
       scenarioCount: resource.scenarioCount,

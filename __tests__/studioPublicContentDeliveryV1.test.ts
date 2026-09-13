@@ -450,7 +450,7 @@ describe("Studio public content delivery V1", () => {
     expect(html.headers.get("etag")).toMatch(
       /^"article-22222222-2222-4222-8222-222222222222-html-v1-[0-9a-f]{64}"$/,
     );
-    expect(html.headers.get("cache-control")).toContain("stale-while-revalidate");
+    expect(html.headers.get("cache-control")).toBe("public, max-age=0, s-maxage=300, must-revalidate");
     expect(await html.text()).toContain("血圧は何で決まるでしょうか");
 
     const markdown = await handleStudioPublicContentRequestV1(
@@ -1023,4 +1023,44 @@ describe("Courses", () => {
   });
 });
 
+});
+
+import { courseReadingEntryV1, rememberCourseReadingEntryV1 } from "@/studio/application/course/StudioCourseReadingPositionV1";
+import { validateDisplayNameV1, publicAuthorHtmlV1 } from "@/studio/application/profile/StudioPublicProfileV1";
+describe("Public profile and reading position boundaries", () => {
+  it("keeps the last available chapter separate for each reader and tolerates denied storage", () => {
+    const values = new Map<string,string>();
+    const storage = {getItem:(k:string)=>values.get(k) ?? null,setItem:(k:string,v:string)=>{values.set(k,v);}};
+    rememberCourseReadingEntryV1(course,course.entries[2].articleId,"one",storage);
+    expect(courseReadingEntryV1(course,"one",storage)).toEqual({entry:course.entries[2],resume:true});
+    expect(courseReadingEntryV1(course,"two",storage)).toEqual({entry:course.entries[0],resume:false});
+    expect(courseReadingEntryV1({...course,entries:course.entries.slice(0,2)},"one",storage)).toEqual({entry:course.entries[0],resume:false});
+    expect(courseReadingEntryV1(course,undefined,{getItem:()=>{throw Error("denied");}}).entry).toEqual(course.entries[0]);
+    expect(() => rememberCourseReadingEntryV1(course,course.entries[0].articleId,undefined,{setItem:()=>{throw Error("denied");}})).not.toThrow();
+  });
+  it("requires short explicit names, escapes authored text and never derives official authority from a name", () => {
+    expect(validateDisplayNameV1("😀".repeat(40))).toHaveLength(80);
+    for (const name of ["", "😀".repeat(41)," Name", "Name\u3000","Name\nOther","Name\u202e"]) expect(() => validateDisplayNameV1(name)).toThrow();
+    expect(publicAuthorHtmlV1({userId:course.ownerId,displayName:"CircleHeart",official:false})).not.toContain("公式");
+    expect(publicAuthorHtmlV1({userId:course.ownerId,displayName:'<img src=x>',official:true})).toContain('&lt;img src=x&gt;');
+  });
+  it("accepts an optional HTTPS cover while rejecting active URLs and unpublished author metadata", () => {
+    const content = {title:"A",description:"",audience:"",locale:"ja",articleIds:[]};
+    expect(validateCourseContentV1({...content,coverUrl:"https://example.test/book.png"}).coverUrl).toContain("https://");
+    expect(() => validateCourseContentV1({...content,coverUrl:"javascript:alert(1)"})).toThrow();
+    expect(() => validatePublicCourseV1({...course,entries:course.entries.map((e,i)=>i===1?{...e,author:{userId:course.ownerId,displayName:"Secret",official:false}}:e)})).toThrow();
+  });
+  it("refreshes author attribution and HTML ETag without changing immutable article representations", async () => {
+    const article = courseArticleFixtureV1();
+    let displayName = "Before";
+    const dependencies = {canonicalOrigin:"https://www.circleheart.dev",clientTemplate:'<html><head></head><body><div id="root"></div></body></html>',dataSource:{readPublishedArticle:async()=>article,readPublicCourse:async()=>null,listPublicCourses:async()=>[],listPublicArticles:async()=>({items:[],nextCursor:null}),listPublicExperiments:async()=>({items:[],nextCursor:null}),readPublicResourceAuthor:async()=>({userId:course.ownerId,displayName,official:true})}};
+    const before = await handleStudioPublicContentRequestV1(new Request(`https://www.circleheart.dev/ja/articles/${article.publicSlug}`),dependencies);
+    expect(await before.text()).toContain('Before');
+    displayName = "After";
+    const after = await handleStudioPublicContentRequestV1(new Request(`https://www.circleheart.dev/ja/articles/${article.publicSlug}`,{headers:{"If-None-Match":before.headers.get("etag")!}}),dependencies);
+    expect(after.status).toBe(200);
+    expect(await after.text()).toContain('After');
+    const json = await handleStudioPublicContentRequestV1(new Request(`https://www.circleheart.dev/api/v1/public/articles/${article.publicSlug}`),dependencies);
+    expect(await json.json()).toEqual(article);
+  });
 });
