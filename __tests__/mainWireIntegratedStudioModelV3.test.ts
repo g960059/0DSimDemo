@@ -14,7 +14,7 @@ import mainWireIntegratedStudioStandardClientV1 from "@/data/model-releases/Curr
 
 import { MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1, MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1, MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1, MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1, MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 } from "@/domain/model/MainWireStandardIdentityV1";
 
-import { MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
+import { MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import { MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1, resolveMainWireAnalysisMethodsForSurfaceV1 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 
@@ -62,7 +62,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         await import("@/studio/composition/StudioDefaultCompositionV2");
       const current = (await import("@/data/model-releases/CurrentModelReleaseV1")).default;
       const currentLock = (await import("@/data/model-releases/standard73/publication.json")).default;
-      const surface = (await import("@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4")).default;
+      const surface = (await import("@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5")).default;
       const revisioned = composition.localCurrentArtifactRevisionUrlV1(
         new URL("http://127.0.0.1:4176/standard72.artifact.mjs?keep=1"),
       );
@@ -112,7 +112,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       expect(local.modelSurface.contract.outputCatalog.map(({ outputId }) => outputId))
         .toEqual(expect.arrayContaining(surface.derivedOutputCatalog.map(({ outputId }) => outputId)));
       expect(local.modelSurface.analysis.periodicPvaDerivation?.methodId)
-        .toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID);
+        .toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID);
 
       for (const modelId of [
         MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,

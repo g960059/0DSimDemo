@@ -8,7 +8,8 @@ function documentationReferenceSurfaceV1(modelId: string | undefined, surfaceRel
   return modelId === qualified.identity.modelId
     && ["circleheart.main-wire.surface.static-anatomy.standard-73.workbench-v2",
       "circleheart.main-wire.surface.static-anatomy.standard-73.workbench-v3",
-      "circleheart.main-wire.surface.static-anatomy.standard-73.pressure-crossing-v1"].includes(surfaceReleaseId ?? "")
+      "circleheart.main-wire.surface.static-anatomy.standard-73.pressure-crossing-v1",
+      "circleheart.main-wire.surface.static-anatomy.standard-73.bounded-pva-v1"].includes(surfaceReleaseId ?? "")
     ? qualified.identity.surfaceReleaseId : surfaceReleaseId;
 }
 

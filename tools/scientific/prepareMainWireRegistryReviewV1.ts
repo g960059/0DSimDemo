@@ -16,7 +16,7 @@ import { compareMainWireCaseEvidenceV1 as compare } from "@/analysis/methods/mai
 import { assessMainWireCaseInitializationAgreementV1 as initializationAgreement,
   withMainWireInitializationAssessmentV1 as withInitialization } from "@/analysis/methods/mainWire/MainWireCaseInitializationAgreementV1";
 import fittingSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
-import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
+import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
 import { prepareMainWireSurfaceAnalysisV1 as prepareAnalysis, PreparedSurfaceAnalysisErrorV1 } from "../registry/PrepareMainWireSurfaceAnalysisV1";
 import { readPreparedModelAnalysisV1, type PreparedModelAnalysisV1 } from "@/components/workbench/presentation/PreparedModelAnalysisV1";
 import { resolveMainWireRegistryCaseProtocolV1 as protocol, prepareRegistryCaseAssessmentV1 as assess } from "./MainWireRegistryCaseProtocolsV1";

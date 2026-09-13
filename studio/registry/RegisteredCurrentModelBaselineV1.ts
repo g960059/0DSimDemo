@@ -10,6 +10,8 @@ import beatSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireInte
 import jetSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV3";
 import crossingSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 
+import boundedSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
+
 const equal = (a: unknown, b: unknown) => studioCanonicalJsonStringify(a) === studioCanonicalJsonStringify(b);
 
 // Publication verifies hashes and restores this own-model checkpoint. The
@@ -47,8 +49,8 @@ export function resolveRegisteredCurrentModelLaunchV1(input: Readonly<{
 }>) {
   return isRegisteredCurrentBaselineFixtureV1(input.ticket.modelId, input.defaultFixture)
     && equal(input.ticket.manifest, descriptor.manifest)
-    // V2 adds observers only; neither the exact capture nor its qualification changes.
-    && [surface, beatSurface, jetSurface, crossingSurface].some(known => equal(input.ticket.surfaceRelease, known))
+    // These Surfaces change observers/derived analysis only; the exact launch capture stays qualified.
+    && [surface, beatSurface, jetSurface, crossingSurface, boundedSurface].some(known => equal(input.ticket.surfaceRelease, known))
     ? Object.freeze({ defaultFixture: REGISTERED_CURRENT_MODEL_BASELINE_V1.fixture,
       defaultCheckpoint: REGISTERED_CURRENT_MODEL_BASELINE_V1.checkpoint }) : undefined;
 }

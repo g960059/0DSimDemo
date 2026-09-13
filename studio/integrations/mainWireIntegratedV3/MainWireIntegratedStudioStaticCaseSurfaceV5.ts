@@ -2,7 +2,7 @@ import previous from "./MainWireIntegratedStudioStaticCaseSurfaceV4";
 import { MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID as oldPva, MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID as pva } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import { derivationCapabilityV1, type ModelSurfaceReleaseManifestV1 } from "@/studio/contracts/v2/modelSurface";
 
-/** Local candidate, not published or activated. Bounded PE-tail admission
+/** Production bounded PE-tail admission
  * changes which families yield PVA, so the PVA pin moves to V16 in a new
  * Surface series; controls, graphs, outputs and the measured source analysis
  * are inherited unchanged. Snapshots sealed under pressure-crossing-v1 keep
