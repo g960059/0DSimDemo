@@ -57,6 +57,9 @@ const ArticleReaderPage = React.lazy(
     default: module.ArticleReaderPage,
   })),
 );
+const CourseDirectoryPageV1 = React.lazy(() => import('./components/course/CoursePagesV1').then(m=>({default:m.CourseDirectoryPageV1})));
+const CourseReaderPageV1 = React.lazy(() => import('./components/course/CoursePagesV1').then(m=>({default:m.CourseReaderPageV1})));
+const CourseEditorPageV1 = React.lazy(() => import('./components/course/CoursePagesV1').then(m=>({default:m.CourseEditorPageV1})));
 const ExperimentSnapshotPage = React.lazy(
   () => import('./components/experiment/ExperimentSnapshotPage').then((module) => ({
     default: module.ExperimentSnapshotPage,
@@ -147,6 +150,11 @@ const appRoutes = () => (
         </React.Suspense>
       )}
     />
+    <Route path="courses" element={<React.Suspense fallback={<ProductPageLoading label="Loading courses…" />}><CourseDirectoryPageV1 /></React.Suspense>} />
+    <Route path="me/courses" element={<React.Suspense fallback={<ProductPageLoading label="Loading courses…" />}><CourseDirectoryPageV1 /></React.Suspense>} />
+    <Route path="courses/new" element={<React.Suspense fallback={<ProductPageLoading label="Loading editor…" />}><CourseEditorPageV1 /></React.Suspense>} />
+    <Route path="courses/:courseId/edit" element={<React.Suspense fallback={<ProductPageLoading label="Loading editor…" />}><CourseEditorPageV1 /></React.Suspense>} />
+    <Route path="courses/:courseId" element={<React.Suspense fallback={<ProductPageLoading label="Loading course…" />}><CourseReaderPageV1 /></React.Suspense>} />
     <Route
       path="articles"
       element={(

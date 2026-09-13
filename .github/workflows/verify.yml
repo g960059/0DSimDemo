@@ -148,6 +148,29 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  public-content-browser:
+    name: Public content browser smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      # Courses exercise configured Supabase contracts; registry and content are
+      # intercepted locally while the Worker executes this commit's artifact.
+      - run: npm run test:browser:public
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-content-playwright-report
+          path: playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+
   supabase:
     name: Supabase schema and policy tests
     runs-on: ubuntu-latest

@@ -1,3 +1,4 @@
+import { validateCourseContentV1, type CourseContentV1, type CourseDraftV1 } from "@/studio/application/course/StudioCourseV1";
 import {
   STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2, STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2,
   STUDIO_SWEEP_WINDOW_MAX_SEC_V2, STUDIO_SWEEP_WINDOW_MIN_SEC_V2, STUDIO_SWEEP_WINDOW_STEP_SEC_V2,
@@ -86,6 +87,11 @@ export type StudioAuthoringArticleBlockOperationV1 =
     }>;
 
 export type StudioAuthoringCommandV1 =
+  | Readonly<{schemaId:typeof STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID;commandId:string;action:"course.delete";input:{courseId:string;expectedVersion:number}}>
+  | Readonly<{ schemaId: typeof STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID; commandId:string; action:"course.save"; input:{courseId:string|null;expectedVersion:number|null;content:CourseContentV1} }>
+  | Readonly<{ schemaId: typeof STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID; commandId:string; action:"course.publish"; input:{courseId:string;expectedVersion:number;publish:boolean} }>
+  | Readonly<{ schemaId: typeof STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID; commandId:string; action:"course.read"; input:{courseId:string;scope:"mine"|"public"} }>
+  | Readonly<{ schemaId: typeof STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID; commandId:string; action:"course.list"; input:{locale:"ja"|"en";scope:"mine"|"public"|"featured";offset:number} }>
   | Readonly<{
       schemaId: typeof STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID;
       commandId: string;
@@ -243,6 +249,13 @@ export type StudioAuthoringOperationReceiptV1 = Readonly<{
 }>;
 
 export interface StudioAuthoringRepositoryPortV1 {
+  deleteCourse(input:{courseId:string;expectedVersion:number}):Promise<void>;
+  saveCourse(input:{courseId:string|null;expectedVersion:number|null;content:CourseContentV1}):Promise<CourseDraftV1>;
+  publishCourse(input:{courseId:string;expectedVersion:number;publish:boolean}):Promise<CourseDraftV1>;
+  readMyCourse(id:string):Promise<CourseDraftV1|null>;
+  readPublicCourse(id:string):Promise<unknown>;
+  listMyCourses(input:{locale?:string;offset?:number}):Promise<unknown>;
+  listPublicCourses(input:{locale?:string;featured?:boolean;offset?:number}):Promise<unknown>;
   listMyExperiments(request: StudioAuthoringListRequestV1): Promise<unknown>;
   listMySnapshots(request: StudioAuthoringListRequestV1): Promise<unknown>;
   listMyArticles(request: StudioAuthoringListRequestV1): Promise<unknown>;
@@ -1039,7 +1052,17 @@ export function describeStudioAuthoringProtocolV1(selectedAction?: string): Read
       article: articleDraft,
     }),
   ] });
+  const courseContent=object(["title","description","audience","locale","articleIds"],{
+    title:{type:"string",minLength:1,maxLength:240},description:{type:"string",maxLength:4000},audience:{type:"string",maxLength:1000},
+    locale:{enum:["ja","en"]},articleIds:{type:"array",items:uuid,maxItems:64,uniqueItems:true},
+  });
+  const courseDraft=object(["courseId","version","content","published","updatedAt"],{courseId:uuid,version,content:courseContent,published:bool,updatedAt:{type:"string",format:"date-time"}});
   const allActions: ReturnType<typeof describeStudioAuthoringProtocolV1>["actions"] = [
+    {action:"course.delete",mutation:true,inputSchema:object(["courseId","expectedVersion"],{courseId:uuid,expectedVersion:version}),resultSchema:{type:"null"}},
+    {action:"course.save",mutation:true,inputSchema:object(["courseId","expectedVersion","content"],{courseId:nullableUuid,expectedVersion:nullableVersion,content:courseContent}),resultSchema:courseDraft},
+    {action:"course.publish",mutation:true,inputSchema:object(["courseId","expectedVersion","publish"],{courseId:uuid,expectedVersion:version,publish:bool}),resultSchema:courseDraft},
+    {action:"course.read",mutation:false,inputSchema:object(["courseId","scope"],{courseId:uuid,scope:{enum:["mine","public"]}}),resultSchema:{type:["object","null"]}},
+    {action:"course.list",mutation:false,inputSchema:object(["locale","scope","offset"],{locale:{enum:["ja","en"]},scope:{enum:["mine","public","featured"]},offset:{type:"integer",minimum:0}}),resultSchema:{type:"array",items:{type:"object"}}},
     ...(["experiment.list", "snapshot.list", "article.list"] as const).map((action) =>
       Object.freeze({ action, mutation: false, inputSchema: object(["cursor", "limit"], {
         cursor: nullableCursor,
@@ -1298,6 +1321,24 @@ export function validateStudioAuthoringCommandV1(
   const input = recordV1(command.input, "$.command.input");
   const base = { schemaId: STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID, commandId };
   switch (command.action) {
+    case "course.delete":
+      exactKeysV1(input,["courseId","expectedVersion"],"$.command.input");
+      return {...base,action:"course.delete",input:{courseId:uuidV1(input.courseId,"courseId"),expectedVersion:versionV1(input.expectedVersion,"expectedVersion")}};
+    case "course.save":
+      exactKeysV1(input,["courseId","expectedVersion","content"],"$.command.input");
+      return {...base,action:"course.save",input:{courseId:input.courseId===null?null:uuidV1(input.courseId,"courseId"),expectedVersion:nullableVersionV1(input.expectedVersion,"expectedVersion"),content:validateCourseContentV1(input.content)}};
+    case "course.publish":
+      exactKeysV1(input,["courseId","expectedVersion","publish"],"$.command.input");
+      if(typeof input.publish!=="boolean")throw new Error("publish must be boolean");
+      return {...base,action:"course.publish",input:{courseId:uuidV1(input.courseId,"courseId"),expectedVersion:versionV1(input.expectedVersion,"expectedVersion"),publish:input.publish}};
+    case "course.read":
+      exactKeysV1(input,["courseId","scope"],"$.command.input");
+      if(input.scope!=="mine"&&input.scope!=="public")throw new Error("Invalid Course scope");
+      return {...base,action:"course.read",input:{courseId:uuidV1(input.courseId,"courseId"),scope:input.scope}};
+    case "course.list":
+      exactKeysV1(input,["locale","scope","offset"],"$.command.input");
+      if((input.locale!=="ja"&&input.locale!=="en")||(input.scope!=="mine"&&input.scope!=="public"&&input.scope!=="featured"))throw new Error("Invalid Course list");
+      return {...base,action:"course.list",input:{locale:input.locale,scope:input.scope,offset:boundedIntegerV1(input.offset,"offset",0,1000000)}};
     case "experiment.list":
     case "snapshot.list":
     case "article.list":
@@ -1491,6 +1532,11 @@ export async function executeStudioAuthoringCommandV1(
   const command = validateStudioAuthoringCommandV1(commandValue);
   await policy.authorize(command);
   switch (command.action) {
+    case "course.delete": await repository.deleteCourse(command.input); return null;
+    case "course.save": return repository.saveCourse(command.input);
+    case "course.publish": return repository.publishCourse(command.input);
+    case "course.read": return command.input.scope==="mine"?repository.readMyCourse(command.input.courseId):repository.readPublicCourse(command.input.courseId);
+    case "course.list": return command.input.scope==="mine"?repository.listMyCourses(command.input):repository.listPublicCourses({...command.input,featured:command.input.scope==="featured"});
     case "experiment.list": return repository.listMyExperiments(command.input);
     case "snapshot.list": return repository.listMySnapshots(command.input);
     case "article.list": return repository.listMyArticles(command.input);

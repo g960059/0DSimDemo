@@ -879,6 +879,8 @@ function repositoryV1(): StudioAuthoringRepositoryPortV1 {
   return {
     listMyExperiments: vi.fn().mockResolvedValue({ items: [], nextCursor: null }),
     listMySnapshots: vi.fn().mockResolvedValue({ items: [], nextCursor: null }),
+    deleteCourse: vi.fn(), saveCourse: vi.fn(), publishCourse: vi.fn(), readMyCourse: vi.fn().mockResolvedValue(null),
+    readPublicCourse: vi.fn().mockResolvedValue(null),listMyCourses:vi.fn().mockResolvedValue([]),listPublicCourses:vi.fn().mockResolvedValue([]),
     listMyArticles: vi.fn().mockResolvedValue({ items: [], nextCursor: null }),
     readMyExperiment: vi.fn().mockResolvedValue(null),
     readSnapshot: vi.fn().mockResolvedValue(null),

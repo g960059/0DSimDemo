@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(25);
+select plan(28);
 
 insert into auth.users (
   id,
@@ -318,6 +318,8 @@ select ok(
   'New unreferenced Snapshot has a 24-hour handoff grace'
 );
 
+select is(public.read_public_snapshot_title_v1(((select value->>'snapshotId' from rpc_state where key='snapshot'))::uuid),null::text,'Private Snapshot source title is not exposed');
+
 select public.publish_experiment_v1(
   '20000000-0000-0000-0000-000000000004',
   ((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid,
@@ -325,6 +327,8 @@ select public.publish_experiment_v1(
   ((select value ->> 'snapshotId' from rpc_state where key = 'snapshot'))::uuid,
   'integration-public-experiment'
 );
+
+select is(public.read_public_snapshot_title_v1(((select value->>'snapshotId' from rpc_state where key='snapshot'))::uuid),'Integration baseline'::text,'Public Snapshot resolves its Experiment title');
 
 select is(
   public.read_public_experiment_v1('integration-public-experiment')
@@ -475,6 +479,7 @@ select is(
   null::jsonb,
   'Unpublished Experiment is no longer publicly readable'
 );
+select is(public.read_public_snapshot_title_v1(((select value->>'snapshotId' from rpc_state where key='snapshot'))::uuid),null::text,'Unpublishing hides the source title even during Snapshot retention');
 
 select ok(
   (

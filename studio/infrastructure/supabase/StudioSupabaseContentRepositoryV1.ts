@@ -1,3 +1,4 @@
+import { validateCourseContentV1, validateCourseDraftV1, validatePublicCourseV1, type CourseContentV1, type CourseDraftV1, type PublicCourseV1 } from "@/studio/application/course/StudioCourseV1";
 import { assertArticleReadingReadyV1, stripArticleReadingMarkupV1 } from "@/studio/application/article/StudioArticleReadingV1";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -410,6 +411,48 @@ export class StudioSupabaseContentRepositoryV1 {
       p_snapshot_id: snapshotId,
     });
     return data === null ? null : validateExperimentSnapshotV2(data);
+  }
+
+  async saveCourse(input: {courseId: string | null; expectedVersion: number | null; content: CourseContentV1}): Promise<CourseDraftV1> {
+    await ensureStudioAuthenticatedForSaveV1(this.#client);
+    const data=await this.#mutationRpc("save_course_v1", {p_course_id:input.courseId,p_expected_version:input.expectedVersion,p_content:validateCourseContentV1(input.content)});
+    return parseAcknowledgedMutationResultV1("Saved Course response invalid",()=>validateCourseDraftV1(data));
+  }
+
+  async publishCourse(input: {courseId: string; expectedVersion: number; publish: boolean}): Promise<CourseDraftV1> {
+    const data=await this.#mutationRpc("publish_course_v1",{p_course_id:input.courseId,p_expected_version:input.expectedVersion,p_publish:input.publish});
+    return parseAcknowledgedMutationResultV1("Published Course response invalid",()=>validateCourseDraftV1(data));
+  }
+
+  async deleteCourse(input:{courseId:string;expectedVersion:number}):Promise<void> {
+    await this.#mutationRpc("delete_course_v1",{p_course_id:input.courseId,p_expected_version:input.expectedVersion});
+  }
+
+  async readMyCourse(courseId: string): Promise<CourseDraftV1 | null> {
+    const data=await this.#rpc("read_my_course_v1",{p_course_id:courseId});
+    return data===null?null:validateCourseDraftV1(data);
+  }
+
+  async readPublicCourse(courseId: string): Promise<PublicCourseV1 | null> {
+    const data=await this.#rpc("read_public_course_v1",{p_course_id:courseId});
+    return data===null?null:validatePublicCourseV1(data);
+  }
+
+  async listPublicCourses(input: {locale?: string; featured?: boolean; articleId?: string; offset?: number}={}): Promise<readonly PublicCourseV1[]> {
+    const data=await this.#rpc("list_courses_v1",{p_scope:input.featured?"featured":"public",p_locale:input.locale??"ja",p_article_id:input.articleId??null,p_offset:input.offset??0});
+    if(!Array.isArray(data)) throw new Error("Invalid Course list");
+    return data.map(validatePublicCourseV1);
+  }
+
+  async listMyCourses(input: {locale?: string; offset?: number}={}): Promise<readonly CourseDraftV1[]> {
+    const data=await this.#rpc("list_courses_v1",{p_scope:"mine",p_locale:input.locale??"ja",p_offset:input.offset??0});
+    if(!Array.isArray(data)) throw new Error("Invalid Course list");
+    return data.map(validateCourseDraftV1);
+  }
+
+  async readPublicSnapshotTitle(snapshotId: string): Promise<string | null> {
+    const data = await this.#rpc("read_public_snapshot_title_v1", { p_snapshot_id: snapshotId });
+    return data === null ? null : requiredStringV1(data, "Snapshot title");
   }
 
   async listMyArticles(

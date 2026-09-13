@@ -277,9 +277,11 @@ function WorkbenchPerformanceProfilerV3({
 }
 export const WorkbenchSession = ({
   initialExperimentId,
+  sourceSnapshotId,
   modelLab = false,
 }: Readonly<{
   initialExperimentId: string | null;
+  sourceSnapshotId?: string;
   modelLab?: boolean;
 }>) => {
   const { t } = useTranslation();
@@ -709,7 +711,7 @@ export const WorkbenchSession = ({
         navigate(myExperimentsHref(resolvedLocale), { replace: true });
         return;
       }
-      const requestedSnapshotId = new URLSearchParams(location.search).get(
+      const requestedSnapshotId = sourceSnapshotId ?? new URLSearchParams(location.search).get(
         "snapshotId",
       );
       const sourceSnapshot =
@@ -718,6 +720,13 @@ export const WorkbenchSession = ({
             ? contentStore!.readSnapshot(requestedSnapshotId)
             : await remoteContentRepository.readSnapshot(requestedSnapshotId)
           : null;
+      if (requestedSnapshotId !== null && storedExperiment === null && sourceSnapshot === null) {
+        throw new Error(translationRef.current("snapshotReader.missingTitle"));
+      }
+      const snapshotTitle = sourceSnapshot === null ? null
+        : remoteContentRepository === null
+          ? experimentIndex.list().find(record => record.publishedSnapshotId === sourceSnapshot.snapshotId)?.title ?? null
+          : await remoteContentRepository.readPublicSnapshotTitle(sourceSnapshot.snapshotId);
       const sourceBriefing =
         sourceSnapshot === null ||
         articleAuthoringContext?.briefing === null ||
@@ -791,6 +800,7 @@ export const WorkbenchSession = ({
       setExperimentRecord(record);
       const initialTitle =
         record?.title ??
+        snapshotTitle ??
         sourceBriefing?.defaultTitle ??
         sourceSnapshot?.content.scenarios[0]?.label ??
         translationRef.current("workbench.selector.untitled");
@@ -1073,6 +1083,8 @@ export const WorkbenchSession = ({
       if (initializeReaderPlayback) {
         setPlaybackRate(runtime.setPlaybackRate(continuation.playbackRate));
         appliedReaderPlaybackTokenRef.current = experimentSessionContext!.sessionToken;
+      } else if (sourceSnapshot !== null) {
+        setPlaybackRate(runtime.setPlaybackRate(1));
       }
       const playbackIntent = playingIntentRef.current;
       setIsPlaying(playbackIntent);

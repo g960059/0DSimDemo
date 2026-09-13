@@ -1,3 +1,7 @@
+import {
+  validatePublicCourseV1,
+  type PublicCourseV1,
+} from "@/studio/application/course/StudioCourseV1";
 export const STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_SCHEMA_ID =
   "circleheart-public-home-bootstrap-v1";
 export const STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_ELEMENT_ID =
@@ -28,13 +32,24 @@ export type StudioPublicHomeBootstrapV1 = Readonly<{
   locale: "ja" | "en";
   articles: readonly StudioPublicArticleSummaryV1[];
   experiments: readonly StudioPublicExperimentSummaryV1[];
+  courses?: readonly PublicCourseV1[];
 }>;
 
 export function validateStudioPublicHomeBootstrapV1(
   value: unknown,
 ): StudioPublicHomeBootstrapV1 {
   const root = recordV1(value, "$home");
-  exactKeysV1(root, ["schemaId", "locale", "articles", "experiments"], "$home");
+  exactKeysV1(
+    root,
+    [
+      "schemaId",
+      "locale",
+      "articles",
+      "experiments",
+      ...("courses" in root ? ["courses"] : []),
+    ],
+    "$home",
+  );
   if (root.schemaId !== STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_SCHEMA_ID) {
     failV1("$home.schemaId", "is unsupported");
   }
@@ -42,18 +57,34 @@ export function validateStudioPublicHomeBootstrapV1(
   const articles = arrayV1(root.articles, "$home.articles");
   const experiments = arrayV1(root.experiments, "$home.experiments");
   if (
-    articles.length > STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1
-    || experiments.length > STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1
+    articles.length > STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1 ||
+    experiments.length > STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1
   ) {
     failV1("$home", "contains too many discovery items");
   }
+  const courses =
+    root.courses === undefined
+      ? undefined
+      : arrayV1(root.courses, "$home.courses").map(validatePublicCourseV1);
+  if (
+    courses &&
+    (courses.length > 50 || courses.some((c) => c.locale !== locale))
+  )
+    failV1("$home.courses", "must fit the localized discovery list");
   return Object.freeze({
+    ...(courses === undefined ? {} : { courses: Object.freeze(courses) }),
     schemaId: STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_SCHEMA_ID,
     locale,
-    articles: Object.freeze(articles.map((entry, index) =>
-      articleSummaryV1(entry, locale, `$home.articles[${index}]`))),
-    experiments: Object.freeze(experiments.map((entry, index) =>
-      experimentSummaryV1(entry, `$home.experiments[${index}]`))),
+    articles: Object.freeze(
+      articles.map((entry, index) =>
+        articleSummaryV1(entry, locale, `$home.articles[${index}]`),
+      ),
+    ),
+    experiments: Object.freeze(
+      experiments.map((entry, index) =>
+        experimentSummaryV1(entry, `$home.experiments[${index}]`),
+      ),
+    ),
   });
 }
 
@@ -72,8 +103,9 @@ export function renderStudioPublicHomeBootstrapV1(
 
 export function readStudioPublicHomeBootstrapV1(
   locale: "ja" | "en",
-  documentLike: Pick<Document, "getElementById"> | undefined =
-    typeof document === "undefined" ? undefined : document,
+  documentLike:
+    | Pick<Document, "getElementById">
+    | undefined = typeof document === "undefined" ? undefined : document,
 ): StudioPublicHomeBootstrapV1 | null {
   if (documentLike === undefined) return null;
   const element = documentLike.getElementById(
@@ -96,14 +128,11 @@ function articleSummaryV1(
   path: string,
 ): StudioPublicArticleSummaryV1 {
   const entry = recordV1(value, path);
-  exactKeysV1(entry, [
-    "articleId",
-    "locale",
-    "title",
-    "excerpt",
-    "publicSlug",
-    "publishedAt",
-  ], path);
+  exactKeysV1(
+    entry,
+    ["articleId", "locale", "title", "excerpt", "publicSlug", "publishedAt"],
+    path,
+  );
   if (entry.locale !== locale) {
     failV1(`${path}.locale`, "must match the Home locale");
   }
@@ -122,15 +151,19 @@ function experimentSummaryV1(
   path: string,
 ): StudioPublicExperimentSummaryV1 {
   const entry = recordV1(value, path);
-  exactKeysV1(entry, [
-    "experimentId",
-    "title",
-    "publicSlug",
-    "publishedAt",
-    "snapshotId",
-    "modelId",
-    "scenarioCount",
-  ], path);
+  exactKeysV1(
+    entry,
+    [
+      "experimentId",
+      "title",
+      "publicSlug",
+      "publishedAt",
+      "snapshotId",
+      "modelId",
+      "scenarioCount",
+    ],
+    path,
+  );
   const scenarioCount = entry.scenarioCount;
   if (!Number.isInteger(scenarioCount) || (scenarioCount as number) < 0) {
     failV1(`${path}.scenarioCount`, "must be a nonnegative integer");
@@ -148,10 +181,10 @@ function experimentSummaryV1(
 
 function recordV1(value: unknown, path: string): Record<string, unknown> {
   if (
-    value === null
-    || typeof value !== "object"
-    || Array.isArray(value)
-    || Object.getPrototypeOf(value) !== Object.prototype
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    Object.getPrototypeOf(value) !== Object.prototype
   ) {
     failV1(path, "must be a plain object");
   }
@@ -159,7 +192,10 @@ function recordV1(value: unknown, path: string): Record<string, unknown> {
 }
 
 function arrayV1(value: unknown, path: string): readonly unknown[] {
-  if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) {
+  if (
+    !Array.isArray(value) ||
+    Object.getPrototypeOf(value) !== Array.prototype
+  ) {
     failV1(path, "must be an array");
   }
   return value;
@@ -173,8 +209,8 @@ function exactKeysV1(
   const actual = Object.keys(value).sort();
   const wanted = [...expected].sort();
   if (
-    actual.length !== wanted.length
-    || actual.some((key, index) => key !== wanted[index])
+    actual.length !== wanted.length ||
+    actual.some((key, index) => key !== wanted[index])
   ) {
     failV1(path, `keys must be exactly ${wanted.join(", ")}`);
   }
