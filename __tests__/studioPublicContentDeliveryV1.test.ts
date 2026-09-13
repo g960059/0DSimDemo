@@ -1,3 +1,4 @@
+import { readCourseBootstrapV1, renderCourseBootstrapV1 } from "@/studio/application/course/StudioCourseBootstrapV1";
 import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
@@ -110,6 +111,8 @@ describe("Studio public content delivery V1", () => {
     const rootDependencies = Object.freeze({
       ...dependencies,
       dataSource: Object.freeze({
+        readPublicCourse: async () => null,
+        listPublicCourses: async () => [],
         readPublishedArticle: async () => {
           dataSourceCalls += 1;
           return null;
@@ -480,6 +483,8 @@ describe("Studio public content delivery V1", () => {
     const dependencies = {
       ...dependenciesV1(),
       dataSource: Object.freeze({
+        readPublicCourse: async () => null,
+        listPublicCourses: async () => [],
         readPublishedArticle: async () => currentArticle,
         listPublicArticles: async () => Object.freeze({
           items: Object.freeze([]),
@@ -707,6 +712,8 @@ function publishedArticleV1(): StudioPublishedArticleV1 {
 function dependenciesV1() {
   const article = publishedArticleV1();
   const source: StudioPublicContentDataSourceV1 = Object.freeze({
+    readPublicCourse: async () => null,
+    listPublicCourses: async () => [],
     readPublishedArticle: async (routeKey: string) =>
       routeKey === article.publicSlug || routeKey === article.articleId
         ? article
@@ -824,4 +831,196 @@ describe("Article reading references across delivery surfaces", () => {
     expect(() => validateStudioArticleDraftV2({ ...draft, blocks: [{ ...image, credit: { text: "Credit", licenseLabel: "License", licenseHref: "javascript:alert(1)" } }] })).toThrow();
     expect(() => validateStudioArticleDraftV2({ ...draft, blocks: [{ blockId: "bad", kind: "link", label: "bad", href: "https://example.test", description: "", imageUrl: "javascript:alert(1)" }] })).toThrow();
   });
+});
+
+import {
+  courseNeighborsV1,
+  validatePublicCourseV1,
+  validateCourseContentV1,
+} from "@/studio/application/course/StudioCourseV1";
+import { courseBodyHtmlV1 } from "@/studio/application/course/StudioCourseHtmlV1";
+import {
+  validateStudioAuthoringCommandV1,
+  describeStudioAuthoringProtocolV1,
+} from "@/studio/application/authoring/StudioAuthoringCommandV1";
+import {
+  courseFixtureV1 as course,
+  courseArticleFixtureV1,
+} from "./fixtures/courseFixtureV1";
+describe("Course publication and authoring", () => {
+const article = courseArticleFixtureV1();
+const dependencies = {
+  canonicalOrigin: "https://www.circleheart.dev",
+  clientTemplate:
+    '<html><head><title>CircleHeart</title></head><body><div id="root"></div></body></html>',
+  dataSource: {
+    readPublicCourse: async (id: string) =>
+      id === course.courseId ? course : null,
+    listPublicCourses: async () => [course],
+    readPublishedArticle: async () => article,
+    listPublicArticles: async () => ({ items: [], nextCursor: null }),
+    listPublicExperiments: async () => ({ items: [], nextCursor: null }),
+  },
+};
+describe("Courses", () => {
+  it("carries validated course context and ignores unrelated or corrupt bootstrap", () => {
+    const documentLike = {getElementById: () => ({textContent: JSON.stringify(course)}) as HTMLElement};
+    expect(readCourseBootstrapV1(course.courseId, documentLike)).toEqual(course);
+    expect(readCourseBootstrapV1("other-course", documentLike)).toBeNull();
+    expect(readCourseBootstrapV1(course.courseId, {getElementById: () => ({textContent: "{}"}) as HTMLElement})).toBeNull();
+    expect(renderCourseBootstrapV1({...course, title: "</script>"})).not.toContain("</script></script>");
+  });
+  it("includes featured courses in the Home handoff and published sitemap", async () => {
+    const home = await handleStudioPublicContentRequestV1(new Request("https://www.circleheart.dev/ja"), dependencies);
+    expect(home.headers.get("cache-control")).toBe("no-store");
+    const html = await home.text();
+    expect(html).toContain(`"courses":[`);
+    const sitemap = await handleStudioPublicContentRequestV1(new Request("https://www.circleheart.dev/sitemap.xml"), dependencies);
+    expect(await sitemap.text()).toContain(`/ja/courses/${course.courseId}`);
+  });
+
+  it("navigates available chapters only, within the selected course", () => {
+    expect(courseNeighborsV1(course, article.articleId)?.next?.articleId).toBe(
+      course.entries[2].articleId,
+    );
+    expect(
+      courseNeighborsV1(
+        { ...course, entries: [course.entries[2], course.entries[0]] },
+        article.articleId,
+      )?.next,
+    ).toBeNull();
+    expect(courseNeighborsV1(course, course.entries[1].articleId)).toBeNull();
+  });
+  it("rejects duplicate references and unpublished metadata", () => {
+    expect(() =>
+      validateCourseContentV1({
+        title: "Course",
+        description: "",
+        audience: "",
+        locale: "ja",
+        articleIds: [article.articleId, article.articleId],
+      }),
+    ).toThrow();
+    expect(() =>
+      validatePublicCourseV1({
+        ...course,
+        entries: [{ ...course.entries[1], title: "private title" }],
+      }),
+    ).toThrow();
+    expect(validatePublicCourseV1(course)).toEqual(course);
+  });
+  it("escapes authored fields and preserves unavailable slots", () => {
+    const html = courseBodyHtmlV1({
+      ...course,
+      title: "<script>alert(1)</script>",
+    });
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;");
+    expect(html).toContain("現在公開されていません");
+    expect(html).not.toContain("/articles/null");
+  });
+  it("renders direct course HTML on anonymous authority, with no stale cache", async () => {
+    const response = await handleStudioPublicContentRequestV1(
+      new Request(`https://www.circleheart.dev/ja/courses/${course.courseId}`),
+      dependencies,
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const html = await response.text();
+    expect(html).toContain(course.title);
+    expect(html).toContain(`?course=${course.courseId}`);
+  });
+  it("preserves course context through article UUID and locale redirects", async () => {
+    const response = await handleStudioPublicContentRequestV1(
+      new Request(
+        `https://www.circleheart.dev/en/articles/${article.articleId}?course=${course.courseId}`,
+      ),
+      dependencies,
+    );
+    expect(response.status).toBe(308);
+    expect(response.headers.get("location")).toBe(
+      `https://www.circleheart.dev/ja/articles/${article.publicSlug}?course=${course.courseId}`,
+    );
+  });
+  it("includes course order in representation identity", async () => {
+    const url = `https://www.circleheart.dev/ja/articles/${article.publicSlug}?course=${course.courseId}`;
+    const first = await handleStudioPublicContentRequestV1(
+      new Request(url),
+      dependencies,
+    );
+    const second = await handleStudioPublicContentRequestV1(new Request(url), {
+      ...dependencies,
+      dataSource: {
+        ...dependencies.dataSource,
+        readPublicCourse: async () => ({
+          ...course,
+          entries: [course.entries[2], course.entries[0]],
+        }),
+      },
+    });
+    expect(first.headers.get("etag")).not.toBe(second.headers.get("etag"));
+    expect(first.headers.get("cache-control")).toBe("no-store");
+    expect(await first.text()).toContain('rel="next"');
+    expect(await second.text()).toContain('rel="prev"');
+  });
+  it("does not reuse an article ETag after the selected course is unpublished", async () => {
+    const url = `https://www.circleheart.dev/ja/articles/${article.publicSlug}?course=${course.courseId}`;
+    const first = await handleStudioPublicContentRequestV1(
+      new Request(url),
+      dependencies,
+    );
+    const response = await handleStudioPublicContentRequestV1(
+      new Request(url, {
+        headers: { "If-None-Match": first.headers.get("etag")! },
+      }),
+      {
+        ...dependencies,
+        dataSource: {
+          ...dependencies.dataSource,
+          readPublicCourse: async () => null,
+        },
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(await response.text()).not.toContain('rel="next"');
+  });
+  it("discovers and validates the same authoring operations used by the editor", () => {
+    const actions = describeStudioAuthoringProtocolV1().actions.map(
+      (a) => a.action,
+    );
+    expect(actions).toEqual(
+      expect.arrayContaining([
+        "course.save",
+        "course.read",
+        "course.list",
+        "course.publish",
+        "course.delete",
+      ]),
+    );
+    const command = {
+      schemaId: "circleheart-studio-authoring-command-v1",
+      commandId: "a0000000-0000-4000-8000-000000000020",
+      action: "course.save",
+      input: {
+        courseId: null,
+        expectedVersion: null,
+        content: {
+          title: "Test",
+          description: "",
+          audience: "",
+          locale: "ja",
+          articleIds: [article.articleId],
+        },
+      },
+    };
+    expect(validateStudioAuthoringCommandV1(command)).toEqual(command);
+    expect(() =>
+      validateStudioAuthoringCommandV1({
+        ...command,
+        input: { ...command.input, featured: true },
+      }),
+    ).toThrow();
+  });
+});
+
 });

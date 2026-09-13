@@ -1,3 +1,5 @@
+import { courseCardsHtmlV1 } from "@/studio/application/course/StudioCourseHtmlV1";
+import type { PublicCourseV1 } from "@/studio/application/course/StudioCourseV1";
 import enTranslation from "@/locales/en/translation.json";
 import jaTranslation from "@/locales/ja/translation.json";
 import { modelLibraryHref } from "@/homeLinks";
@@ -33,7 +35,7 @@ export function renderStudioPublicHomeV1(input: Readonly<{
   const canonicalUrl = canonicalHomeUrlV1(input.canonicalOrigin, bootstrap.locale);
   const copy = homeCopyV1(bootstrap.locale);
   const title = `${SITE_NAME_V1} | ${copy.headline}`;
-  const bodyHtml = publicHomeBodyHtmlV1(bootstrap);
+  const bodyHtml = publicHomeBodyHtmlV1(bootstrap, bootstrap.courses ?? []);
   return Object.freeze({
     bodyHtml,
     canonicalUrl,
@@ -59,6 +61,7 @@ export function renderStudioPublicHomeV1(input: Readonly<{
 
 function publicHomeBodyHtmlV1(
   bootstrap: StudioPublicHomeBootstrapV1,
+  courses: readonly PublicCourseV1[],
 ): string {
   const { locale } = bootstrap;
   const copy = homeCopyV1(locale);
@@ -73,6 +76,7 @@ function publicHomeBodyHtmlV1(
     `<p>${escapeHtmlTextV1(copy.lead)}</p>`,
     `<a class="public-static-home-primary" href="/${locale}/experiments/new">${flaskIconHtmlV1()}<span>${escapeHtmlTextV1(copy.startExperiment)}</span></a>`,
     `</section>`,
+    courseCardsHtmlV1(courses, locale),
     publicHomeSectionHtmlV1({
       cards: articles.length === 0
         ? publicHomeEmptyHtmlV1({

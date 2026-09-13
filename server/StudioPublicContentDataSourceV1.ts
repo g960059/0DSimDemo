@@ -1,3 +1,4 @@
+import type { PublicCourseV1 } from "@/studio/application/course/StudioCourseV1";
 import { createClient } from "@supabase/supabase-js";
 
 import type {
@@ -14,6 +15,8 @@ import {
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 
 export type StudioPublicContentDataSourceV1 = Readonly<{
+  readPublicCourse: (courseId: string) => Promise<PublicCourseV1 | null>;
+  listPublicCourses: (input?: {locale?:string;featured?:boolean;articleId?:string;offset?:number}) => Promise<readonly PublicCourseV1[]>;
   readPublishedArticle: (
     routeKey: string,
   ) => Promise<StudioPublishedArticleV1 | null>;
@@ -104,6 +107,8 @@ export function createStudioPublicContentDataSourceV1(
   );
   const repository = new StudioSupabaseContentRepositoryV1(client);
   return Object.freeze({
+    readPublicCourse: (id:string)=>repository.readPublicCourse(id),
+    listPublicCourses: (input={})=>repository.listPublicCourses(input),
     readPublishedArticle: (routeKey: string) =>
       repository.readPublishedArticle(routeKey),
     listPublicArticles: (request: StudioSummaryPageRequestV1 = {}) =>

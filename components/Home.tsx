@@ -1,3 +1,4 @@
+import { FeaturedCoursesV1 } from "@/components/course/CoursePagesV1";
 import React from "react";
 import {
   ArrowRight,
@@ -128,6 +129,8 @@ export const Home = () => {
             </div>
           </div>
         </section>
+
+        <FeaturedCoursesV1 />
 
         <section className="pb-14 sm:pb-20" aria-labelledby="home-articles-heading">
           <HomeSectionHeadingV4

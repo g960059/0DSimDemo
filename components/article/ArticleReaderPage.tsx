@@ -1,3 +1,5 @@
+import { ArticleCourseNavigationV1 } from "@/components/course/ArticleCourseNavigationV1";
+import { courseUuidV1 } from "@/studio/application/course/StudioCourseV1";
 import React from "react";
 import { ArticleReadingProviderV1, ArticleReadingTextV1, ArticleEndMatterV1, ArticleTableOfContentsV1, ArticleHeadingTextV1 } from "@/components/article/ArticleReadingV1";
 import { articleReadingFieldV1 } from "@/studio/application/article/StudioArticleReadingV1";
@@ -257,13 +259,14 @@ function ArticleReaderV3Resource({
     if (
       content.kind !== "ready"
       || content.canonicalPublicSlug === null
-      || articleId === content.canonicalPublicSlug
+      || (articleId === content.canonicalPublicSlug && content.article.locale === locale)
     ) return;
+    const course=new URLSearchParams(search).get("course");
     navigate(articleReaderHref({
       articleId: content.canonicalPublicSlug,
       locale: isLocale(content.article.locale) ? content.article.locale : locale,
-    }), { replace: true });
-  }, [articleId, content, locale, navigate]);
+    }) + (course && courseUuidV1.test(course) ? `?course=${course}` : "") + hash, { replace: true });
+  }, [articleId, content, locale, navigate, search, hash]);
   const openExperimentSessionV3 = React.useCallback((snapshotId: string, placementId: string, continuation?: StudioReaderContinuationV3) => {
     const sessionToken = createExperimentSessionTokenV3();
     experimentSessionHandoff.begin({
@@ -523,6 +526,7 @@ function ArticleReaderV3Resource({
             )}
           </header>
 
+          {!authoredPreview && <ArticleCourseNavigationV1 articleId={content.article.articleId} locale={locale} />}
           <ArticleTableOfContentsV1 blocks={content.article.blocks} />
 
           {content.article.blocks.length === 0 && (
@@ -642,6 +646,7 @@ function ArticleReaderV3Resource({
             );
           })}
 
+          {!authoredPreview && <ArticleCourseNavigationV1 articleId={content.article.articleId} locale={locale} bottom />}
           <ArticleEndMatterV1 renderNoteBlock={(block) => <ArticleAccordionContentPresentationV3 block={block} />} />
 
           {contractState.kind === "ready" && contractState.errors.length > 0 && (

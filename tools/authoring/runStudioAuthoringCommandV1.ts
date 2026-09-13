@@ -77,6 +77,7 @@ type StudioAuthoringCliPhaseV1 =
   | "output";
 
 const AUTHORING_MUTATION_ACTIONS_V1 = new Set([
+  "course.save", "course.publish", "course.delete",
   "experiment.apply",
   "experiment.presentation.save",
   "snapshot.seal",

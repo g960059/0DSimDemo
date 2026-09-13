@@ -205,6 +205,11 @@ function SiteCreateMenuV3({ locale }: Readonly<{ locale: Locale }>) {
             description={t("siteHeader.newSimulationDescription")}
             onSelect={() => setOpen(false)}
           />
+          <SiteCreateMenuLinkV3 to={`/${locale}/courses/new`}
+            icon={<BookOpenText className="h-4 w-4" aria-hidden="true" />}
+            title={locale==='ja'?'新しいコース':'New course'}
+            description={locale==='ja'?'記事を束ねて、読む順序を作る':'Arrange articles into a reading path'}
+            onSelect={()=>setOpen(false)} />
           <SiteCreateMenuLinkV3
             to={newArticleEditorHref(locale)}
             icon={<BookOpenText className="h-4 w-4" aria-hidden="true" />}
@@ -319,6 +324,10 @@ function SiteProfileMenuV3({ locale }: Readonly<{ locale: Locale }>) {
             onSelect={() => setOpen(false)}
           >
             {t("siteHeader.manageExperiments")}
+          </ProfileMenuLinkV3>
+          <ProfileMenuLinkV3 to={`/${locale}/me/courses`}
+            icon={<BookOpenText className="h-4 w-4" aria-hidden="true" />} onSelect={()=>setOpen(false)}>
+            {locale==='ja'?'自分のコース':'My courses'}
           </ProfileMenuLinkV3>
           <ProfileMenuLinkV3
             to={myArticlesHref(locale)}
