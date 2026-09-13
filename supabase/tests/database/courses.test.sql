@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(38);
 insert into auth.users(id,raw_app_meta_data,raw_user_meta_data,is_anonymous) values
  ('c1000000-0000-0000-0000-000000000001','{}','{}',false),
  ('c1000000-0000-0000-0000-000000000002','{}','{}',false);
@@ -11,6 +11,16 @@ insert into course_test values('a',public.save_article_v1(gen_random_uuid(),null
 insert into course_test values('b',public.save_article_v1(gen_random_uuid(),null,null,'ja','Public B','[{"kind":"paragraph","blockId":"p","text":"Beta"}]'));
 insert into course_test values('body',jsonb_build_object('title','Course one','description','Mechanisms','audience','Clinicians','locale','ja','articleIds',jsonb_build_array((select value->>'articleId' from course_test where key='a'),(select value->>'articleId' from course_test where key='b'))));
 insert into course_test values('course',public.save_course_v1('c2000000-0000-0000-0000-000000000001',null,null,(select value from course_test where key='body')));
+set local role authenticated;
+select throws_ok($$select public.save_course_v1(gen_random_uuid(),null,null,jsonb_set((select value from course_test where key='body'),'{title}',to_jsonb(repeat('😀',121))))$$,'22023','Invalid Course fields or duplicate chapters','RPC rejects titles over 240 UTF-16 units');
+select throws_ok($$select public.save_course_v1(gen_random_uuid(),null,null,jsonb_set((select value from course_test where key='body'),'{description}',to_jsonb(repeat('😀',2001))))$$,'22023','Invalid Course fields or duplicate chapters','RPC rejects descriptions over 4000 UTF-16 units');
+select throws_ok($$select public.save_course_v1(gen_random_uuid(),null,null,jsonb_set((select value from course_test where key='body'),'{audience}',to_jsonb(repeat('😀',501))))$$,'22023','Invalid Course fields or duplicate chapters','RPC rejects audience over 1000 UTF-16 units');
+select throws_ok($$select public.save_course_v1(gen_random_uuid(),null,null,jsonb_set((select value from course_test where key='body'),'{title}',to_jsonb(U&'\FEFFTitle'::text)))$$,'22023','Invalid Course fields or duplicate chapters','RPC rejects leading ECMAScript BOM whitespace');
+select throws_ok($$select public.save_course_v1(gen_random_uuid(),null,null,jsonb_set((select value from course_test where key='body'),'{description}',to_jsonb(U&'Description\3000'::text)))$$,'22023','Invalid Course fields or duplicate chapters','RPC rejects trailing ideographic whitespace');
+select throws_ok($$select public.save_course_v1(gen_random_uuid(),null,null,jsonb_set((select value from course_test where key='body'),'{audience}',to_jsonb(E'\nAudience'::text)))$$,'22023','Invalid Course fields or duplicate chapters','RPC rejects leading line breaks');
+select lives_ok($$select public.save_course_v1(gen_random_uuid(),null,null,(select value from course_test where key='body')||jsonb_build_object('title',repeat('😀',120),'description',repeat('😀',2000),'audience',repeat('😀',500)))$$,'RPC accepts astral characters at each UTF-16 boundary');
+select lives_ok($$select public.save_course_v1(gen_random_uuid(),null,null,(select value from course_test where key='body')||jsonb_build_object('title','圧・容積の関係','description',E'First line\nSecond line','audience','医学生・医療者'))$$,'RPC retains Japanese text and internal line breaks');
+reset role;
 select is(public.save_course_v1('c2000000-0000-0000-0000-000000000001',null,null,(select value from course_test where key='body')),(select value from course_test where key='course'),'Retry returns the original course');
 select is(public.read_public_course_v1(((select value->>'courseId' from course_test where key='course'))::uuid),null::jsonb,'Draft has no public projection');
 select throws_ok($$select public.publish_course_v1(gen_random_uuid(),((select value->>'courseId' from course_test where key='course'))::uuid,0,true)$$,'22023','Publish at least one available Article in the Course language','Cannot publish private chapters');
