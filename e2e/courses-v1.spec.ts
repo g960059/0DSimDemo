@@ -229,6 +229,87 @@ test("@desktop @mobile Course editor saves and publishes separately; New never o
   expect(saves[1].p_expected_version).toBeNull();
 });
 
+for (const operation of ["save", "delete"] as const)
+  test(`@desktop @mobile @webkit Completed ${operation} from a retired Course editor preserves the new editor`, async ({
+    page,
+  }) => {
+    await signInFixture(page);
+    await publicFixtures(page);
+    const first: CourseDraftV1 = {
+      courseId: course.courseId,
+      version: 0,
+      published: false,
+      updatedAt: course.updatedAt,
+      content: {
+        title: "最初のコース",
+        description: "",
+        audience: "",
+        locale: "ja",
+        articleIds: [],
+      },
+    };
+    await page.route("**/rest/v1/rpc/read_my_course_v1", (r) =>
+      r.fulfill({ json: first }),
+    );
+    await page.route("**/rest/v1/rpc/list_courses_v1", (r) =>
+      r.fulfill({ json: [] }),
+    );
+    let release!: () => void;
+    const delayed = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const endpoint = `**/rest/v1/rpc/${operation}_course_v1`;
+    await page.route(endpoint, async (r) => {
+      await delayed;
+      await r.fulfill({
+        json:
+          operation === "save"
+            ? first
+            : { courseId: first.courseId, deleted: true },
+      });
+    });
+    await page.goto(
+      operation === "save"
+        ? "/ja/courses/new"
+        : `/ja/courses/${first.courseId}/edit`,
+    );
+    await expect(page.getByLabel("タイトル", { exact: true })).toBeVisible();
+    if (operation === "save")
+      await page
+        .getByLabel("タイトル", { exact: true })
+        .fill(first.content.title);
+    else page.once("dialog", (dialog) => dialog.accept());
+    const requested = page.waitForRequest(endpoint);
+    await page
+      .getByRole("button", {
+        name: operation === "save" ? "下書きを保存" : "コースを削除",
+        exact: true,
+      })
+      .click();
+    await requested;
+    await page
+      .getByRole("link", { name: "← 自分のコース", exact: true })
+      .click();
+    await page.getByRole("link", { name: "コースを作成", exact: true }).click();
+    await page
+      .getByLabel("タイトル", { exact: true })
+      .fill("入力を続けている新しいコース");
+    const response = page.waitForResponse(endpoint);
+    release();
+    await (await response).finished();
+    // Let fetch completion and React navigation commit before checking the new editor.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    await expect(page).toHaveURL(/\/ja\/courses\/new$/);
+    await expect(page.getByLabel("タイトル", { exact: true })).toHaveValue(
+      "入力を続けている新しいコース",
+    );
+  });
+
 for (const signedIn of [false, true])
   test(`@desktop ${signedIn ? "owner" : "guest"} public Snapshot opens detached Workbench at1x with its public title`, async ({
     page,

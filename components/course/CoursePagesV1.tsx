@@ -365,6 +365,13 @@ function CourseEditorResourceV1() {
   const [error, setError] = React.useState("");
   const [message, setMessage] = React.useState("");
   const [loaded, setLoaded] = React.useState(!courseId);
+  const active = React.useRef(false);
+  React.useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
   React.useEffect(() => {
     let current = true;
     if (!account || !repository) return;
@@ -415,20 +422,20 @@ function CourseEditorResourceV1() {
     setContent((c) => ({ ...c, ...value }));
     setMessage("");
   };
-  const act = async (fn: () => Promise<void>) => {
+  const act = async (fn: (isCurrent: () => boolean) => Promise<void>) => {
     setBusy(true);
     setError("");
     setMessage("");
     try {
-      await fn();
+      await fn(() => active.current);
     } catch (e) {
-      setError(String(e));
+      if (active.current) setError(String(e));
     } finally {
-      setBusy(false);
+      if (active.current) setBusy(false);
     }
   };
   const add = () =>
-    act(async () => {
+    act(async (isCurrent) => {
       if (!repository) throw new Error("Repository unavailable");
       const trimmed = input.trim();
       let key = trimmed;
@@ -444,6 +451,7 @@ function CourseEditorResourceV1() {
         key = decodeURIComponent(match[2]);
       }
       const article = await repository.readPublishedArticle(key);
+      if (!isCurrent()) return;
       if (!article)
         throw new Error(
           ja ? "公開記事が見つかりません" : "Published article not found",
@@ -462,7 +470,7 @@ function CourseEditorResourceV1() {
       setInput("");
     });
   const save = () =>
-    act(async () => {
+    act(async (isCurrent) => {
       if (!repository) return;
       const saved = await repository.saveCourse({
         courseId: draft?.courseId ?? null,
@@ -474,6 +482,8 @@ function CourseEditorResourceV1() {
           audience: content.audience.trim(),
         },
       });
+      // The save may finish after another editor has replaced this resource.
+      if (!isCurrent()) return;
       setDraft(saved);
       setContent(saved.content);
       setMessage(ja ? "下書きを保存しました" : "Draft saved");
@@ -483,13 +493,14 @@ function CourseEditorResourceV1() {
         });
     });
   const publish = (value: boolean) =>
-    act(async () => {
+    act(async (isCurrent) => {
       if (!repository || !draft) return;
       const saved = await repository.publishCourse({
         courseId: draft.courseId,
         expectedVersion: draft.version,
         publish: value,
       });
+      if (!isCurrent()) return;
       setDraft(saved);
       setMessage(
         value
@@ -695,12 +706,13 @@ function CourseEditorResourceV1() {
                         : "Delete this course? Articles will remain available.",
                     )
                   )
-                    void act(async () => {
+                    void act(async (isCurrent) => {
                       if (!repository) return;
                       await repository.deleteCourse({
                         courseId: draft.courseId,
                         expectedVersion: draft.version,
                       });
+                      if (!isCurrent()) return;
                       navigate(`/${locale}/me/courses`);
                     });
                 }}
