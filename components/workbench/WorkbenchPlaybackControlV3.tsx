@@ -30,6 +30,11 @@ export function WorkbenchPlaybackControlV3({
   const popoverRef = React.useRef<HTMLDivElement | null>(null);
   const rateTriggerRef = React.useRef<HTMLButtonElement | null>(null);
   const [mobilePopover, setMobilePopover] = React.useState(false);
+  const [mobilePortalHost, setMobilePortalHost] = React.useState<HTMLElement | null>(null);
+  const closePopover = React.useCallback(() => {
+    setOpen(false);
+    rateTriggerRef.current?.focus({ preventScroll: true });
+  }, []);
   React.useEffect(() => {
     const media = window.matchMedia("(max-width: 639px)");
     const update = () => setMobilePopover(media.matches);
@@ -37,6 +42,13 @@ export function WorkbenchPlaybackControlV3({
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, []);
+  React.useLayoutEffect(() => {
+    // Keep the mobile sheet inside an enclosing modal's accessibility/focus
+    // boundary, while escaping the toolbar's clipping and positioning.
+    setMobilePortalHost(mobilePopover
+      ? rootRef.current?.closest<HTMLElement>('[role="dialog"]') ?? document.body
+      : null);
+  }, [mobilePopover, open]);
   const calibratedMaximum = rate.maximumRate
     ?? WORKBENCH_MAXIMUM_PLAYBACK_RATE_V3;
   // An explicit selection is retained across a Scenario-topology
@@ -57,23 +69,37 @@ export function WorkbenchPlaybackControlV3({
   );
 
   React.useEffect(() => {
-    if (!open) return;
+    if (!open || !popoverRef.current) return;
+    popoverRef.current.querySelector<HTMLInputElement>('input[type="range"]')?.focus({ preventScroll: true });
     const handlePointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node) && !popoverRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!rootRef.current?.contains(event.target as Node) && !popoverRef.current?.contains(event.target as Node)) closePopover();
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.stopPropagation();
-      setOpen(false);
-      rateTriggerRef.current?.focus({ preventScroll: true });
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        closePopover();
+      } else if (event.key === "Tab" && popoverRef.current?.contains(document.activeElement)) {
+        const controls = [...popoverRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)')];
+        const first = controls[0], last = controls.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+        // The enclosing modal must not apply a second Tab wrap.
+        event.stopPropagation();
+      }
     };
     document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown, true);
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [open]);
+  }, [open, mobilePortalHost, closePopover]);
 
   React.useEffect(() => {
     if (disabled) setOpen(false);
@@ -85,7 +111,10 @@ export function WorkbenchPlaybackControlV3({
         className="fixed inset-0 z-[89] bg-black/20 sm:hidden"
         aria-hidden="true"
         data-testid="v3-playback-rate-backdrop"
-        onPointerDown={() => setOpen(false)}
+        onPointerDown={(event) => {
+          event.preventDefault();
+          closePopover();
+        }}
       />
       <div
         ref={popoverRef}
@@ -212,15 +241,15 @@ export function WorkbenchPlaybackControlV3({
         label={t("workbench.live.playbackRate", {
           rate: formatWorkbenchPlaybackRateV3(rate.playbackRate),
         })}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => open ? closePopover() : setOpen(true)}
         buttonRef={rateTriggerRef}
         data-testid="v3-playback-rate-trigger"
       >
         <span>{formatWorkbenchPlaybackRateV3(rate.playbackRate)}</span>
       </SimulationIconButtonV3>
 
-      {mobilePopover && typeof document !== "undefined"
-        ? createPortal(popover, document.body)
+      {mobilePopover
+        ? mobilePortalHost && createPortal(popover, mobilePortalHost)
         : popover}
     </div>
   );
