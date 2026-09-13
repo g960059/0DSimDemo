@@ -9,7 +9,7 @@ import { loadStudioLocalCurrentClientCompositionV1 as localComposition,
 import * as releaseResolvers from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import oldSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
-import currentSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
+import currentSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
 import descriptor from "@/data/model-releases/CurrentModelReleaseV1";
 import lock from "@/data/model-releases/standard73/publication.json";
 import savedCurrentDocument from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.json";

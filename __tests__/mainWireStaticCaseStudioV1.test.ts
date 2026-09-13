@@ -45,9 +45,9 @@ const fixture = (dilated: boolean) => ({ ...template, schemaId, anatomyId: dilat
 describe("static case exact adapter and inherited Surface", () => {
   it("launches the new analysis Surface from the same exact baseline capture", async () => {
     const composition = await loadStudioLocalCurrentClientCompositionV1();
-    expect(composition.modelSurface.identity.surfaceReleaseId).toBe(currentSurface.surfaceReleaseId);
+    expect(composition.modelSurface.identity.surfaceReleaseId).toBe(boundedSurface.surfaceReleaseId);
     expect(composition.modelSurface.analysis.presentationMethods).toHaveLength(3);
-    expect(composition.modelSurface.analysis.periodicPvaDerivation).toBe(methods(currentSurface).periodicPvaDerivation);
+    expect(composition.modelSurface.analysis.periodicPvaDerivation).toBe(methods(boundedSurface).periodicPvaDerivation);
     expect(composition.modelSurface.analysis.periodicPvaDerivation?.methodId).not.toBe(methods(cycleSurface).periodicPvaDerivation?.methodId);
     expect(composition.exactModel.modelId).toBe(localBundle.manifest.modelId);
     expect(composition.exactModel.defaultCheckpoint).toEqual(CURRENT_BASELINE_V1.capture.checkpoint);
@@ -134,7 +134,7 @@ describe("static case exact adapter and inherited Surface", () => {
     expect(hfrefDoc.scientificRecord.measurements.historicalEvidence.documentId).toBe("hfref-static-case-document-v4");
   });
 
-  it("pins the bounded PE-tail method through a new candidate Surface series while the current Surface keeps V15", async () => {
+  it("pins bounded PE-tail V16 through a new Surface series while historical pressure-crossing snapshots keep V15", async () => {
     const current = methods(currentSurface), candidate = methods(boundedSurface);
     expect(current.periodicPvaDerivation).toMatchObject({ methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID,
       build: buildMainWirePeriodicPvaMethodV15, sourceAnalysisId: crossingAnalysisId });
@@ -170,10 +170,10 @@ describe("static case exact adapter and inherited Surface", () => {
     const production = composeStandardModelContractV1(exact.manifest, currentSurface, current.capabilities);
     expect(composed.contract.outputCatalog.map(o => o.outputId)).toEqual(production.contract.outputCatalog.map(o => o.outputId));
     expect(composed.contract.controlCatalog).toEqual(production.contract.controlCatalog);
-    // Nothing is activated: the local composition and its sealed Snapshot pin still launch V15.
+    // New local sessions adopt V16; existing content still resolves its explicit historical pin.
     const composition = await loadStudioLocalCurrentClientCompositionV1();
-    expect(composition.modelSurface.identity.surfaceReleaseId).toBe(currentSurface.surfaceReleaseId);
-    expect(composition.modelSurface.analysis.periodicPvaDerivation?.methodId).toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID);
+    expect(composition.modelSurface.identity.surfaceReleaseId).toBe(boundedSurface.surfaceReleaseId);
+    expect(composition.modelSurface.analysis.periodicPvaDerivation?.methodId).toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID);
   });
 
   it("keeps every inherited pane/item/control contract except the explicitly versioned mass-aware derivation", () => {

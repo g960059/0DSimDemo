@@ -7,7 +7,7 @@ import type { MainWireStaticCaseFittingResultV1 as Result } from "@/analysis/met
 import { createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as factory,
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1 as template } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
 import { MAIN_WIRE_STATIC_CASE_FIXTURE_SCHEMA_ID_V1 as fixtureSchema } from "@/domain/model/MainWireStaticCaseIdentityV1";
-import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
+import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
 import { resolveMainWireAnalysisMethodsForSurfaceV1 as methods } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import { importExactExecutableArtifactModuleV2 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
 import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurface";

@@ -42,7 +42,8 @@ import {
 import currentClientDescriptorV1, { CURRENT_MODEL_PRESETS_V1 } from
   "@/data/model-releases/CurrentModelReleaseV1";
 import currentSurfaceReleaseV1 from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
+import crossingSurfaceReleaseV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 import previousSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 import originalSurfaceReleaseV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
@@ -110,7 +111,7 @@ async function createRegistryClientCompositionV2(
       return loadStudioLocalCurrentClientCompositionV1();
     }
     const localSurface = surfacePin === undefined ? undefined
-      : [currentSurfaceReleaseV1, previousSurfaceReleaseV1, originalSurfaceReleaseV1]
+      : [currentSurfaceReleaseV1, crossingSurfaceReleaseV1, previousSurfaceReleaseV1, originalSurfaceReleaseV1]
         .find(surface => localSurfacePinMatchesV1(surface, surfacePin));
     if (
       modelId === currentClientDescriptorV1.manifest.modelId

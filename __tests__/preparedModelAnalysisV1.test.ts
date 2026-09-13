@@ -90,7 +90,9 @@ it("keeps every shipped prepared asset bound to the current artifact and method,
   const pin = registry.resolveRegisteredAnalysisMethodsV1(surface).periodicPvaDerivation!;
   let checked = 0;
   for (const analysisId of await readdir(root)) for (const methodId of await readdir(join(root, analysisId))) {
-    expect([analysisId, methodId]).toEqual([pin.sourceAnalysisId, pin.methodId]);
+    expect(analysisId).toBe(pin.sourceAnalysisId);
+    const assetSurface = methodId === pin.methodId ? surface : boundedSurface;
+    expect(methodId).toBe(registry.resolveRegisteredAnalysisMethodsV1(assetSurface).periodicPvaDerivation!.methodId);
     for (const name of await readdir(join(root, analysisId, methodId))) {
       const record = JSON.parse(await readFile(join(root, analysisId, methodId, name), "utf8"));
       const { recordSha256, ...body } = record;
@@ -100,7 +102,7 @@ it("keeps every shipped prepared asset bound to the current artifact and method,
       expect(record.artifactRevisionId).toBe(lock.artifactRevisionId);
       expect(record.analysis.analysisId).toBe(analysisId);
       expect(record.assessment).toEqual(record.schemaId === "prepared-scenario-analysis-v1"
-        ? inspect(surface, record.analysis) : assess(surface, record.analysis));
+        ? inspect(assetSurface, record.analysis) : assess(assetSurface, record.analysis));
       checked++;
     }
   }
@@ -152,8 +154,14 @@ it.each(CURRENT_MODEL_PRESETS_V1.map(preset => [preset.title, preset] as const))
     }
     const expectedUnderCandidate = { modelId: preset.modelId, artifactRevisionId: record.artifactRevisionId, capture: preset.capture, surface: boundedSurface };
     await expect(read(record, expectedUnderCandidate)).rejects.toThrow(/method pins differ/);
-    // No V16 launch assets exist until the parent re-prepares; the registry never serves V15 data to a V16 pin.
-    expect(await load({ surfaceRelease: boundedSurface, modelId: preset.modelId, artifactRevisionId: record.artifactRevisionId } as StudioModelWorkerReleaseTicketV2, preset.capture)).toBeNull();
+    // V16 is re-assessed from the same measured source, with its own method binding and digest.
+    const boundedRecord = JSON.parse(await readFile(`data/model-analysis/prepared/${candidate.sourceAnalysisId}/${candidate.methodId}/${await hash(preset.capture)}.json`, "utf8"));
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(boundedRecord)));
+    const adopted = await load({ surfaceRelease: boundedSurface, modelId: preset.modelId, artifactRevisionId: record.artifactRevisionId } as StudioModelWorkerReleaseTicketV2, preset.capture);
+    expect(adopted).not.toBeNull();
+    expect(adopted!.analysis.payload).toEqual(record.analysis.payload);
+    expect(boundedRecord.recordSha256).not.toBe(record.recordSha256);
+    expect((await read(boundedRecord, expectedUnderCandidate)).assessment.pvaMethodId).toBe(pva.MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID);
   }, 30_000);
 
 it("accepts identical captures and method pins across presentation-only Surface changes", async () => {

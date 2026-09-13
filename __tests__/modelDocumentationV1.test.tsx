@@ -21,6 +21,7 @@ import { MAIN_WIRE_MODEL_MODULES_V1, MAIN_WIRE_REFERENCE_CONSTRUCTION_MODULE_IDS
 import { resolveRegisteredModelDisclosureV1, resolveRegisteredModelDocumentationV1, resolveRegisteredPresetDocumentationV1, REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import beatSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
+import boundedSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
 import pressureSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 import asHigh from "@/studio/presentation/modelDocumentation/packages/standard73-as-high-gradient-document-v1.json";
 import asLow from "@/studio/presentation/modelDocumentation/packages/standard73-as-low-flow-document-v1.json";
@@ -74,6 +75,12 @@ describe("current and historical model documentation", () => {
     }
     expect(resolveRegisteredPresetDocumentationV1(client.manifest.modelId, beatSurface.surfaceReleaseId, "unknown")).toBeNull();
     expect(resolveRegisteredModelDocumentationV1("model/unknown", beatSurface.surfaceReleaseId)).toBeNull();
+  });
+  it("reuses the qualified exact-model document under V16 without relabelling its historical assessment", () => {
+    const old = resolveRegisteredModelDocumentationV1(client.manifest.modelId, pressureSurface.surfaceReleaseId);
+    expect(resolveRegisteredModelDocumentationV1(client.manifest.modelId, boundedSurface.surfaceReleaseId)).toEqual(old);
+    expect(old?.surfaceReleaseId).toBe(surface.surfaceReleaseId);
+    expect(resolveRegisteredModelDisclosureV1(client.manifest.modelId, boundedSurface.surfaceReleaseId).badgeLabel).toBe("MW 73");
   });
   it("requires explicit case selection instead of substituting HFrEF for the static model baseline", () => {
     const { modelId, surfaceReleaseId } = hfref.identity;
