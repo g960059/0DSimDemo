@@ -7,13 +7,63 @@ import {
 } from "../__tests__/fixtures/courseFixtureV1";
 import type { CourseDraftV1 } from "../studio/application/course/StudioCourseV1";
 
-const config = readFileSync(
-  new URL("../.env.production", import.meta.url),
+const supabaseUrl = "https://public-content.test";
+const bundle = JSON.parse(
+  readFileSync(
+    new URL("../data/model-releases/standard73/bundle.json", import.meta.url),
+    "utf8",
+  ),
+);
+const artifact = readFileSync(
+  new URL(
+    "../data/model-releases/standard73/artifact.mjs.txt",
+    import.meta.url,
+  ),
   "utf8",
 );
-const supabaseUrl =
-  process.env.VITE_SUPABASE_URL ??
-  config.match(/^VITE_SUPABASE_URL=(.+)$/m)![1].trim();
+
+test.beforeEach(async ({ context }) => {
+  // Only registry metadata is mocked: the Worker executes the committed artifact.
+  // No request from this suite may fall through to a production content service.
+  await context.route(`${supabaseUrl}/**`, async (route) => {
+    const url = new URL(route.request().url());
+    const headers = {
+      "access-control-allow-origin": "*",
+      "access-control-allow-headers": "*",
+      "access-control-allow-methods": "*",
+    };
+    if (route.request().method() === "OPTIONS")
+      return route.fulfill({ status: 204, headers });
+    if (url.pathname === "/rest/v1/rpc/get_model_release_v2")
+      return route.fulfill({
+        headers,
+        json: [
+          {
+            model_id: bundle.manifest.modelId,
+            artifact_revision_id: bundle.artifactRevisionId,
+            artifact_path: "test-artifacts/current.mjs",
+            module_abi: "circleheart-exact-model-esm-v1",
+            manifest: bundle.manifest,
+            default_fixture: bundle.baseline.capture.fixture,
+            stage: "stable",
+          },
+        ],
+      });
+    if (url.pathname === "/rest/v1/rpc/get_model_surface_release_v1")
+      return route.fulfill({
+        headers,
+        json: [{ manifest: bundle.surface, stage: "stable" }],
+      });
+    if (url.pathname === "/storage/v1/object/public/test-artifacts/current.mjs")
+      return route.fulfill({
+        headers,
+        contentType: "text/javascript",
+        body: artifact,
+      });
+    return route.abort();
+  });
+});
+
 async function signInFixture(page: Page) {
   const user = {
     id: course.ownerId,
@@ -183,17 +233,7 @@ for (const signedIn of [false, true])
   test(`@desktop ${signedIn ? "owner" : "guest"} public Snapshot opens detached Workbench at1x with its public title`, async ({
     page,
   }) => {
-    if (signedIn) {
-      await signInFixture(page);
-      // The fixture session is local; public registry reads use the anonymous key.
-      await page.route("**/rest/v1/rpc/**", async (route) => {
-        const headers = route.request().headers();
-        const response = await route.fetch({
-          headers: { ...headers, authorization: `Bearer ${headers.apikey}` },
-        });
-        await route.fulfill({ response });
-      });
-    }
+    if (signedIn) await signInFixture(page);
     const baseline = JSON.parse(
       readFileSync(
         new URL(
@@ -271,16 +311,29 @@ for (const signedIn of [false, true])
     expect(saves).toBe(0);
   });
 
-
-test("@desktop server Course navigation survives a failed client refresh", async ({page}) => {
+test("@desktop server Course navigation survives a failed client refresh", async ({
+  page,
+}) => {
   await publicFixtures(page);
-  await page.route("**/rest/v1/rpc/read_public_course_v1", route => route.abort());
-  await page.route("**/ja/articles/read-a-beat?course=*", async route => {
+  await page.route("**/rest/v1/rpc/read_public_course_v1", (route) =>
+    route.abort(),
+  );
+  await page.route("**/ja/articles/read-a-beat?course=*", async (route) => {
     const response = await route.fetch();
-    const html = (await response.text()).replace("</body>", `${renderCourseBootstrapV1(course)}</body>`);
-    await route.fulfill({response, body: html});
+    const html = (await response.text()).replace(
+      "</body>",
+      `${renderCourseBootstrapV1(course)}</body>`,
+    );
+    await route.fulfill({ response, body: html });
   });
   await page.goto(`/ja/articles/read-a-beat?course=${course.courseId}`);
-  await expect(page.getByRole("heading", {name: "一拍を読む", exact: true})).toBeVisible();
-  await expect(page.getByRole("navigation", {name: "コースのナビゲーション"}).first().getByRole("link", {name: "循環をつなぐ →"})).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "一拍を読む", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("navigation", { name: "コースのナビゲーション" })
+      .first()
+      .getByRole("link", { name: "循環をつなぐ →" }),
+  ).toBeVisible();
 });
