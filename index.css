@@ -1409,7 +1409,8 @@ body[data-app-theme="light"] .article-reader-companion {
   font-size: var(--article-body-size);
   letter-spacing: 0.004em;
   line-height: 1.9;
-  text-wrap: pretty;
+  /* Fill the reading column; WebKit's pretty wrap leaves varying paragraph gutters. */
+  text-wrap: wrap;
 }
 
 .article-equation-v3,
