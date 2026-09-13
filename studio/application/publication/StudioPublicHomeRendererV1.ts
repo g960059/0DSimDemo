@@ -1,3 +1,4 @@
+import { publicAuthorHtmlV1 } from "@/studio/application/profile/StudioPublicProfileV1";
 import { courseCardsHtmlV1 } from "@/studio/application/course/StudioCourseHtmlV1";
 import type { PublicCourseV1 } from "@/studio/application/course/StudioCourseV1";
 import enTranslation from "@/locales/en/translation.json";
@@ -74,7 +75,7 @@ function publicHomeBodyHtmlV1(
     `<section class="public-static-home-hero">`,
     `<h1>${escapeHtmlTextV1(copy.headline)}</h1>`,
     `<p>${escapeHtmlTextV1(copy.lead)}</p>`,
-    `<a class="public-static-home-primary" href="/${locale}/experiments/new">${flaskIconHtmlV1()}<span>${escapeHtmlTextV1(copy.startExperiment)}</span></a>`,
+    `<div class="public-home-actions"><a class="public-static-home-primary" href="/${locale}/courses">${bookIconHtmlV1()}<span>${locale === "ja" ? "コースから学ぶ" : "Start a course"}</span></a><a class="public-static-home-secondary" href="/${locale}/experiments">${flaskIconHtmlV1()}<span>${locale === "ja" ? "シミュレーションを試す" : "Explore simulations"}</span></a></div>`,
     `</section>`,
     courseCardsHtmlV1(courses, locale),
     publicHomeSectionHtmlV1({
@@ -91,11 +92,9 @@ function publicHomeBodyHtmlV1(
             const excerpt = article.excerpt === null
               ? copy.articleFallback
               : article.excerpt;
-            return `<li><a class="public-static-home-card" href="/${locale}/articles/${encodeURIComponent(article.publicSlug)}"><strong>${escapeHtmlTextV1(article.title)}</strong><span>${escapeHtmlTextV1(excerpt)}</span><time datetime="${escapeHtmlAttributeV1(article.publishedAt)}">${escapeHtmlTextV1(date)}</time></a></li>`;
+            return `<li><a class="public-static-home-card" href="/${locale}/articles/${encodeURIComponent(article.publicSlug)}"><strong>${escapeHtmlTextV1(article.title)}</strong><span>${escapeHtmlTextV1(excerpt)}</span><div class="public-card-byline">${publicAuthorHtmlV1(article.author,locale)}<time datetime="${escapeHtmlAttributeV1(article.publishedAt)}">${escapeHtmlTextV1(date)}</time></div></a></li>`;
           }).join("")}</ul>`,
-      href: bootstrap.articles.length > HOME_VISIBLE_ITEM_LIMIT_V1
-        ? `/${locale}/articles`
-        : null,
+      href: `/${locale}/articles`,
       icon: bookIconHtmlV1(),
       title: copy.sectionArticles,
       viewAll: copy.viewAll,
@@ -114,11 +113,9 @@ function publicHomeBodyHtmlV1(
               locale,
             );
             const meta = simulationMetaV1(locale, experiment.scenarioCount, date);
-            return `<li><a class="public-static-home-card public-static-home-card-compact" href="/${locale}/snapshots/${encodeURIComponent(experiment.snapshotId)}"><strong>${escapeHtmlTextV1(experiment.title)}</strong><span>${escapeHtmlTextV1(meta)}</span></a></li>`;
+            return `<li><a class="public-static-home-card public-static-home-card-compact" href="/${locale}/snapshots/${encodeURIComponent(experiment.snapshotId)}"><strong>${escapeHtmlTextV1(experiment.title)}</strong><div class="public-card-byline">${publicAuthorHtmlV1(experiment.author,locale)}<small>${escapeHtmlTextV1(meta)}</small></div></a></li>`;
           }).join("")}</ul>`,
-      href: bootstrap.experiments.length > HOME_VISIBLE_ITEM_LIMIT_V1
-        ? `/${locale}/experiments`
-        : null,
+      href: `/${locale}/experiments`,
       icon: flaskIconHtmlV1(),
       title: copy.sectionSimulations,
       viewAll: copy.viewAll,

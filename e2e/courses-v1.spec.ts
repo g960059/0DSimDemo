@@ -1,3 +1,4 @@
+import { renderStudioPublicArticleBootstrapV1 } from "../studio/application/publication/StudioPublicArticleBootstrapV1";
 import { renderCourseBootstrapV1 } from "../studio/application/course/StudioCourseBootstrapV1";
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
@@ -64,7 +65,7 @@ test.beforeEach(async ({ context }) => {
   });
 });
 
-async function signInFixture(page: Page) {
+async function signInFixture(page: Page, expiresInSeconds = 3600) {
   const user = {
     id: course.ownerId,
     aud: "authenticated",
@@ -77,8 +78,8 @@ async function signInFixture(page: Page) {
   };
   await page.route("**/auth/v1/user", (r) => r.fulfill({ json: user }));
   await page.addInitScript(
-    ({ user, url }) => {
-      const exp = Math.floor(Date.now() / 1000) + 3600;
+    ({ user, url, expiresInSeconds }) => {
+      const exp = Math.floor(Date.now() / 1000) + expiresInSeconds;
       const jwt = `${btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }))}.${btoa(JSON.stringify({ sub: user.id, exp, aud: "authenticated", role: "authenticated" }))}.fixture`;
       localStorage.setItem(
         `sb-${new URL(url).hostname.split(".")[0]}-auth-token`,
@@ -92,8 +93,9 @@ async function signInFixture(page: Page) {
         }),
       );
     },
-    { user, url: supabaseUrl },
+    { user, url: supabaseUrl, expiresInSeconds },
   );
+  return user;
 }
 async function publicFixtures(page: Page) {
   await page.route("**/rest/v1/rpc/list_courses_v1", (r) =>
@@ -135,7 +137,12 @@ test("@desktop @mobile @webkit public course navigation, direct reload and unava
     .getByRole("navigation", { name: "コースのナビゲーション" })
     .first();
   await expect(navigation).toBeVisible();
-  await navigation.getByRole("link", { name: "循環をつなぐ →" }).click();
+  await expect(navigation).toContainText("1 / 3章");
+  await page
+    .getByRole("navigation", { name: "コースのナビゲーション" })
+    .last()
+    .getByRole("link", { name: "循環をつなぐ →" })
+    .click();
   await expect(
     page.getByRole("heading", { name: "循環をつなぐ", exact: true }),
   ).toBeVisible();
@@ -143,7 +150,7 @@ test("@desktop @mobile @webkit public course navigation, direct reload and unava
   await expect(
     page
       .getByRole("navigation", { name: "コースのナビゲーション" })
-      .first()
+      .last()
       .getByRole("link", { name: "← 一拍を読む" }),
   ).toBeVisible();
   await expect(page.locator(".article-document")).not.toContainText("null");
@@ -311,10 +318,19 @@ for (const operation of ["save", "delete"] as const)
   });
 
 for (const signedIn of [false, true])
-  test(`@desktop ${signedIn ? "owner" : "guest"} public Snapshot opens detached Workbench at1x with its public title`, async ({
+  test(`@desktop @mobile ${signedIn ? "owner" : "guest"} public Snapshot opens detached Workbench at1x with its public title`, async ({
     page,
   }) => {
     if (signedIn) await signInFixture(page);
+    await page.route("**/rest/v1/rpc/read_public_resource_author_v1", (r) =>
+      r.fulfill({
+        json: {
+          userId: course.ownerId,
+          displayName: "CircleHeart",
+          official: true,
+        },
+      }),
+    );
     const baseline = JSON.parse(
       readFileSync(
         new URL(
@@ -376,6 +392,8 @@ for (const signedIn of [false, true])
     await expect(page.getByTestId("v3-dockview-workbench")).toBeVisible();
     const title = page.getByTestId("workbench-experiment-title-v3");
     await expect(title).toHaveValue("一拍を読む：PV・圧・流量の対応");
+    await expect(page.locator(".public-author")).toContainText("CircleHeart");
+    await expect(page.locator(".public-author-badge")).toBeVisible();
     await expect(page.getByTestId("v3-playback-rate-trigger")).toHaveText("1×");
     const canvas = page.locator("canvas").first();
     const initial = await canvas.evaluate((e: HTMLCanvasElement) =>
@@ -414,7 +432,266 @@ test("@desktop server Course navigation survives a failed client refresh", async
   await expect(
     page
       .getByRole("navigation", { name: "コースのナビゲーション" })
-      .first()
+      .last()
       .getByRole("link", { name: "循環をつなぐ →" }),
   ).toBeVisible();
+});
+
+test("@desktop @mobile @webkit public discovery stays consistent across themes and resumes a valid chapter", async ({
+  page,
+}, testInfo) => {
+  await publicFixtures(page);
+  const author = {
+    userId: course.ownerId,
+    displayName: "CircleHeart",
+    official: true,
+  };
+  const displayedCourse = {
+    ...course,
+    author,
+    authorName: "CircleHeart",
+    entries: course.entries.map((e, i) =>
+      i === 0 ? { ...e, authorName: "CircleHeart", author } : e,
+    ),
+  };
+  await page.route("**/rest/v1/rpc/read_public_course_v1", (r) =>
+    r.fulfill({ json: displayedCourse }),
+  );
+  await page.route("**/rest/v1/rpc/list_courses_v1", (r) =>
+    r.fulfill({ json: [displayedCourse] }),
+  );
+  await page.route("**/rest/v1/rpc/read_public_resource_author_v1", (r) =>
+    r.fulfill({ json: author }),
+  );
+  await page.route("**/rest/v1/rpc/list_public_article_summaries_v1", (r) =>
+    r.fulfill({
+      json: {
+        items: course.entries
+          .filter((e) => e.available)
+          .map((e) => ({
+            articleId: e.articleId,
+            publicSlug: e.publicSlug,
+            title: e.title,
+            locale: "ja",
+            excerpt: "圧・容積・流量を対応させ、同じ一拍から循環を読み解く。",
+            publishedAt: course.updatedAt,
+            author,
+          })),
+        nextCursor: null,
+      },
+    }),
+  );
+  await page.route("**/rest/v1/rpc/list_public_experiment_summaries_v1", (r) =>
+    r.fulfill({
+      json: {
+        items: [
+          {
+            experimentId: course.courseId,
+            title: "一拍を読む：PV・圧・流量の対応",
+            publicSlug: "pv-flow",
+            publishedAt: course.updatedAt,
+            snapshotId: course.courseId,
+            modelId: bundle.manifest.modelId,
+            scenarioCount: 3,
+            author,
+          },
+        ],
+        nextCursor: null,
+      },
+    }),
+  );
+  await page.goto("/ja");
+  for (const theme of ["dark", "light"]) {
+    await expect(page.locator("body")).toHaveAttribute("data-app-theme", theme);
+    if (theme === "light")
+      await expect(page.locator(".course-discovery-card")).toHaveCSS(
+        "background-color",
+        "rgb(255, 255, 255)",
+      );
+    const headings = page.locator("main h2");
+    await expect(headings).toHaveText([
+      "コースで学ぶ",
+      "記事を読む",
+      "シミュレーションで試す",
+    ]);
+    const sizes = await headings.evaluateAll((es) =>
+      es.map((e) => getComputedStyle(e).fontSize),
+    );
+    expect(new Set(sizes).size).toBe(1);
+    await expect(page.locator("main .public-author-badge")).toHaveCount(4);
+    expect(
+      await page
+        .locator("main")
+        .evaluate((e) => e.scrollWidth <= e.clientWidth),
+    ).toBe(true);
+    const courseBox = await page
+      .locator(".course-discovery-card")
+      .boundingBox();
+    const headingBox = await page
+      .locator("#home-courses-heading")
+      .evaluate((e) => e.parentElement!.getBoundingClientRect().width);
+    expect(Math.abs(courseBox!.width - headingBox)).toBeLessThan(2);
+    await page.screenshot({ path: testInfo.outputPath(`home-${theme}.png`) });
+    if (theme === "dark")
+      await page.getByRole("button", { name: "テーマを切り替え" }).click();
+  }
+  await expect(
+    page.getByRole("link", { name: "シミュレーションを試す", exact: true }),
+  ).toHaveAttribute("href", "/ja/experiments");
+  await page.locator(".course-discovery-card").click();
+  await expect(
+    page.getByRole("link", { name: "読み始める", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator("main ol")).toContainText("Author B");
+  await expect(page.locator("main ol")).not.toContainText("CircleHeart");
+  await page.getByRole("link", { name: "読み始める", exact: true }).click();
+  await expect(
+    page.getByRole("navigation", { name: "コースのナビゲーション" }).first(),
+  ).toContainText("1 / 3章");
+  await page
+    .getByRole("navigation", { name: "コースのナビゲーション" })
+    .last()
+    .getByRole("link", { name: "循環をつなぐ →" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "循環をつなぐ", exact: true }),
+  ).toBeVisible();
+  await page.goto(`/ja/courses/${course.courseId}`);
+  await expect(
+    page.getByRole("link", { name: "続きから読む", exact: true }),
+  ).toHaveAttribute("href", new RegExp(course.entries[2].publicSlug!));
+  await page.route("**/rest/v1/rpc/read_public_course_v1", (r) =>
+    r.fulfill({
+      json: {
+        ...displayedCourse,
+        entries: displayedCourse.entries.map((e, i) =>
+          i === 2
+            ? {
+                ...e,
+                available: false,
+                title: null,
+                publicSlug: null,
+                authorName: null,
+                author: null,
+              }
+            : e,
+        ),
+      },
+    }),
+  );
+  await page.reload();
+  await expect(
+    page.getByRole("link", { name: "読み始める", exact: true }),
+  ).toHaveAttribute("href", new RegExp(course.entries[0].publicSlug!));
+});
+
+test("@desktop @mobile public display name saves through the owner RPC and survives reload", async ({
+  page,
+}) => {
+  await signInFixture(page);
+  let profile = {
+    userId: course.ownerId,
+    displayName: "元の名前",
+    official: false,
+    version: 0,
+  };
+  await page.route("**/rest/v1/rpc/read_my_profile_v1", (r) =>
+    r.fulfill({ json: profile }),
+  );
+  const writes: Record<string, unknown>[] = [];
+  await page.route("**/rest/v1/rpc/save_my_profile_v1", (r) => {
+    const body = r.request().postDataJSON();
+    writes.push(body);
+    profile = { ...profile, displayName: body.p_display_name, version: 1 };
+    return r.fulfill({ json: profile });
+  });
+  await page.goto("/ja/me/settings");
+  const name = page.getByLabel("表示名", { exact: true });
+  await expect(name).toHaveValue("元の名前");
+  await name.fill("テスト著者");
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("公開名を保存しました。");
+  expect(writes).toHaveLength(1);
+  expect(writes[0]).toMatchObject({
+    p_expected_user_id: course.ownerId,
+    p_expected_version: 0,
+    p_display_name: "テスト著者",
+  });
+  expect(Object.keys(writes[0]).sort()).toEqual([
+    "p_display_name",
+    "p_expected_user_id",
+    "p_expected_version",
+    "p_operation_id",
+  ]);
+  await page.getByRole("button", { name: "プロフィールメニュー" }).click();
+  await expect(page.getByRole("menu")).toContainText("テスト著者");
+  await page.reload();
+  await expect(name).toHaveValue("テスト著者");
+});
+
+test("@desktop pending account initialization preserves guest reading position", async ({
+  page,
+}) => {
+  const user = await signInFixture(page, -60);
+  await publicFixtures(page);
+  let release!: () => void;
+  let refreshing = false;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/auth/v1/token?*", async (route) => {
+    refreshing = true;
+    await pending;
+    const exp = Math.floor(Date.now() / 1000) + 3600;
+    const jwt = `${Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url")}.${Buffer.from(JSON.stringify({ sub: user.id, exp, aud: "authenticated", role: "authenticated" })).toString("base64url")}.fixture`;
+    await route.fulfill({
+      json: {
+        access_token: jwt,
+        refresh_token: "fixture-refresh",
+        token_type: "bearer",
+        expires_at: exp,
+        expires_in: 3600,
+        user,
+      },
+    });
+  });
+  await page.addInitScript(
+    ({ courseId, first }) =>
+      localStorage.setItem(
+        `circleheart.course-position.v1:guest:${courseId}`,
+        first,
+      ),
+    { courseId: course.courseId, first: course.entries[0].articleId },
+  );
+  await page.route(
+    `**/ja/articles/${course.entries[2].publicSlug}?course=*`,
+    async (route) => {
+      const response = await route.fetch();
+      const html = (await response.text()).replace(
+        "</body>",
+        `${renderStudioPublicArticleBootstrapV1(courseArticleFixtureV1(2))}${renderCourseBootstrapV1(course)}</body>`,
+      );
+      await route.fulfill({ response, body: html });
+    },
+  );
+  await page.goto(
+    `/ja/articles/${course.entries[2].publicSlug}?course=${course.courseId}`,
+  );
+  await expect.poll(() => refreshing).toBe(true);
+  await expect(
+    page.getByRole("navigation", { name: "コースのナビゲーション" }).first(),
+  ).toBeVisible();
+  const read = (account: string) =>
+    page.evaluate(
+      ({ account, id }) =>
+        localStorage.getItem(`circleheart.course-position.v1:${account}:${id}`),
+      { account, id: course.courseId },
+    );
+  expect(await read(course.ownerId)).toBeNull();
+  expect(await read("guest")).toBe(course.entries[0].articleId);
+  release();
+  await expect
+    .poll(() => read(course.ownerId))
+    .toBe(course.entries[2].articleId);
+  expect(await read("guest")).toBe(course.entries[0].articleId);
 });

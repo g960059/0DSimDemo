@@ -1,3 +1,4 @@
+import { validateDisplayNameV1, validatePublicAuthorV1, validateMyProfileV1, type PublicAuthorV1, type MyProfileV1 } from "@/studio/application/profile/StudioPublicProfileV1";
 import { validateCourseContentV1, validateCourseDraftV1, validatePublicCourseV1, type CourseContentV1, type CourseDraftV1, type PublicCourseV1 } from "@/studio/application/course/StudioCourseV1";
 import { assertArticleReadingReadyV1, stripArticleReadingMarkupV1 } from "@/studio/application/article/StudioArticleReadingV1";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -153,6 +154,24 @@ export class StudioSupabaseContentRepositoryV1 {
       throw new Error("Fixed mutation operation ID must be a UUID");
     }
     this.#fixedMutationOperationId = options.fixedMutationOperationId;
+  }
+
+  async readMyProfile(): Promise<MyProfileV1 | null> {
+    const data = await this.#rpc("read_my_profile_v1", {});
+    return data === null ? null : validateMyProfileV1(data);
+  }
+  async saveMyProfile(input: { userId: string; expectedVersion: number; displayName: string }): Promise<MyProfileV1> {
+    await ensureStudioAuthenticatedForSaveV1(this.#client);
+    const data = await this.#mutationRpc("save_my_profile_v1", {
+      p_expected_user_id: input.userId,
+      p_expected_version: input.expectedVersion,
+      p_display_name: validateDisplayNameV1(input.displayName),
+    });
+    return parseAcknowledgedMutationResultV1("Saved profile response failed validation", () => validateMyProfileV1(data));
+  }
+  async readPublicResourceAuthor(kind: "article" | "snapshot", resourceId: string): Promise<PublicAuthorV1 | null> {
+    const data = await this.#rpc("read_public_resource_author_v1", { p_kind: kind, p_resource_id: resourceId });
+    return data === null ? null : validatePublicAuthorV1(data);
   }
 
   async saveExperiment(input: Readonly<{
@@ -703,6 +722,7 @@ function validatePublicExperimentSummaryV1(
 ): StudioPublicExperimentSummaryV1 {
   const record = recordV1(value, "Public Experiment summary");
   return Object.freeze({
+    ...(record.author === undefined ? {} : { author: validatePublicAuthorV1(record.author) }),
     experimentId: requiredStringV1(record.experimentId, "experimentId"),
     title: requiredStringV1(record.title, "title"),
     publicSlug: requiredStringV1(record.publicSlug, "publicSlug"),
@@ -718,6 +738,7 @@ function validatePublicArticleSummaryV1(
 ): StudioPublicArticleSummaryV1 {
   const record = recordV1(value, "Public Article summary");
   return Object.freeze({
+    ...(record.author === undefined ? {} : { author: validatePublicAuthorV1(record.author) }),
     articleId: requiredStringV1(record.articleId, "articleId"),
     locale: requiredStringV1(record.locale, "locale"),
     title: requiredStringV1(record.title, "title"),

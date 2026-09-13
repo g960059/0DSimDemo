@@ -53,7 +53,7 @@ select lives_ok($$select public.save_course_v1(gen_random_uuid(),((select value-
 select lives_ok($$select public.publish_course_v1(gen_random_uuid(),((select value->>'courseId' from course_test where key='foreign-course'))::uuid,2,true)$$,'Republish keeps previously included unavailable chapters');
 select set_config('request.jwt.claims','{}',true);
 set local role anon;
-select is(public.read_public_course_v1(((select value->>'courseId' from course_test where key='course'))::uuid)->'entries'->0,jsonb_build_object('articleId',(select value->>'articleId' from course_test where key='b'),'available',false,'title',null,'publicSlug',null,'authorName',null),'Unpublished chapter preserves only neutral slot');
+select is(public.read_public_course_v1(((select value->>'courseId' from course_test where key='course'))::uuid)->'entries'->0,jsonb_build_object('articleId',(select value->>'articleId' from course_test where key='b'),'available',false,'title',null,'publicSlug',null,'authorName',null,'author',null),'Unpublished chapter preserves only neutral slot');
 select is(jsonb_array_length(public.list_courses_v1('featured','ja',null,0)),1,'Anonymous reader sees curated course');
 select is(public.list_courses_v1('mine','ja',null,0),'[]'::jsonb,'Guest has no owner library');
 select throws_ok($$select title from studio.courses$$,'42501',null,'Direct table access denied');

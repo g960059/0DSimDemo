@@ -1,3 +1,4 @@
+import { publicAuthorHtmlV1, type PublicAuthorV1 } from "@/studio/application/profile/StudioPublicProfileV1";
 import {
   articleReadingAnchorV1, articleReadingFieldV1, articleReadingHrefV1, articleReadingMentionV1,
   articleReadingTargetV1, buildArticleReadingIndexV1, parseArticleReadingTextV1, stripArticleReadingMarkupV1,
@@ -47,11 +48,12 @@ const SITE_NAME_V1 = "CircleHeart";
 
 export function renderStudioPublishedArticleV1(input: Readonly<{
   article: StudioPublishedArticleV1;
+  author?: PublicAuthorV1;
   clientTemplate: string;
   canonicalOrigin: string;
 }>): StudioRenderedPublicArticleV1 {
   const metadata = publicArticleMetadataV1(input.article, input.canonicalOrigin);
-  const bodyHtml = renderPublicArticleBodyHtmlV1(input.article);
+  const bodyHtml = renderPublicArticleBodyHtmlV1(input.article, input.author);
   return Object.freeze({
     articleContentId: input.article.articleContentId,
     bodyHtml,
@@ -99,6 +101,7 @@ export function publicArticleDescriptionV1(
 
 export function renderPublicArticleBodyHtmlV1(
   article: StudioPublishedArticleV1,
+  author?: PublicAuthorV1,
 ): string {
   const copy = studioPublicArticlePresentationCopyV1(article.locale);
   const reading = buildArticleReadingIndexV1(article.blocks);
@@ -107,6 +110,7 @@ export function renderPublicArticleBodyHtmlV1(
     `<article class="public-static-article article-document">`,
     `<header class="article-document-header">`,
     `<h1 class="article-title">${renderHeadingTextHtmlV1(article.title, article.locale)}</h1>`,
+    publicAuthorHtmlV1(author, article.locale),
     `<p class="article-publication-date"><span>${copy.publishedLabel}</span> <time datetime="${escapeHtmlAttributeV1(article.publishedAt)}">${escapeHtmlTextV1(formatStudioPublicArticleDateV1(article.publishedAt, article.locale))}</time></p>`,
     `</header>`,
     `<div class="public-static-content">`,

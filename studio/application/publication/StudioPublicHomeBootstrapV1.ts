@@ -1,3 +1,4 @@
+import { validatePublicAuthorV1, type PublicAuthorV1 } from "@/studio/application/profile/StudioPublicProfileV1";
 import {
   validatePublicCourseV1,
   type PublicCourseV1,
@@ -9,6 +10,7 @@ export const STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_ELEMENT_ID =
 export const STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1 = 7;
 
 export type StudioPublicExperimentSummaryV1 = Readonly<{
+  author?: PublicAuthorV1;
   experimentId: string;
   title: string;
   publicSlug: string;
@@ -19,6 +21,7 @@ export type StudioPublicExperimentSummaryV1 = Readonly<{
 }>;
 
 export type StudioPublicArticleSummaryV1 = Readonly<{
+  author?: PublicAuthorV1;
   articleId: string;
   locale: string;
   title: string;
@@ -130,13 +133,14 @@ function articleSummaryV1(
   const entry = recordV1(value, path);
   exactKeysV1(
     entry,
-    ["articleId", "locale", "title", "excerpt", "publicSlug", "publishedAt"],
+    ["articleId", "locale", "title", "excerpt", "publicSlug", "publishedAt", ...(entry.author === undefined ? [] : ["author"])],
     path,
   );
   if (entry.locale !== locale) {
     failV1(`${path}.locale`, "must match the Home locale");
   }
   return Object.freeze({
+    ...(entry.author === undefined ? {} : { author: validatePublicAuthorV1(entry.author) }),
     articleId: stringV1(entry.articleId, `${path}.articleId`),
     locale,
     title: stringV1(entry.title, `${path}.title`),
@@ -161,6 +165,7 @@ function experimentSummaryV1(
       "snapshotId",
       "modelId",
       "scenarioCount",
+      ...(entry.author === undefined ? [] : ["author"]),
     ],
     path,
   );
@@ -169,6 +174,7 @@ function experimentSummaryV1(
     failV1(`${path}.scenarioCount`, "must be a nonnegative integer");
   }
   return Object.freeze({
+    ...(entry.author === undefined ? {} : { author: validatePublicAuthorV1(entry.author) }),
     experimentId: stringV1(entry.experimentId, `${path}.experimentId`),
     title: stringV1(entry.title, `${path}.title`),
     publicSlug: stringV1(entry.publicSlug, `${path}.publicSlug`),

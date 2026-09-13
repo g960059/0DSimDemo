@@ -1,4 +1,9 @@
+import {
+  validatePublicAuthorV1,
+  type PublicAuthorV1,
+} from "@/studio/application/profile/StudioPublicProfileV1";
 export type CourseContentV1 = Readonly<{
+  coverUrl?: string | null;
   title: string;
   description: string;
   audience: string;
@@ -13,6 +18,7 @@ export type CourseDraftV1 = Readonly<{
   updatedAt: string;
 }>;
 export type CourseEntryV1 = Readonly<{
+  author?: PublicAuthorV1 | null;
   articleId: string;
   available: boolean;
   title: string | null;
@@ -20,6 +26,8 @@ export type CourseEntryV1 = Readonly<{
   authorName: string | null;
 }>;
 export type PublicCourseV1 = Readonly<{
+  coverUrl?: string | null;
+  author?: PublicAuthorV1;
   courseId: string;
   title: string;
   description: string;
@@ -37,8 +45,10 @@ export function validateCourseContentV1(value: unknown): CourseContentV1 {
   if (
     !c ||
     typeof c !== "object" ||
-    Object.keys(c).sort().join(",") !==
-      "articleIds,audience,description,locale,title" ||
+    Object.keys(c)
+      .filter((k) => k !== "coverUrl")
+      .sort()
+      .join(",") !== "articleIds,audience,description,locale,title" ||
     !["ja", "en"].includes(c.locale) ||
     ![c.title, c.description, c.audience].every(
       (v) => typeof v === "string" && v === v.trim(),
@@ -56,6 +66,17 @@ export function validateCourseContentV1(value: unknown): CourseContentV1 {
   ) {
     throw new Error("Invalid Course content");
   }
+  if (
+    c.coverUrl !== undefined &&
+    c.coverUrl !== null &&
+    (typeof c.coverUrl !== "string" ||
+      c.coverUrl.length > 2048 ||
+      c.coverUrl !== c.coverUrl.trim() ||
+      !/^https:\/\/[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:[/?#][^\s]*)?$/.test(
+        c.coverUrl,
+      ))
+  )
+    throw new Error("Cover must be an HTTPS image URL");
   return c;
 }
 export function validateCourseDraftV1(value: unknown): CourseDraftV1 {
@@ -83,7 +104,13 @@ export function validatePublicCourseV1(value: unknown): PublicCourseV1 {
     !Array.isArray(c.entries)
   )
     throw new Error("Invalid public Course");
+  if (
+    c.author !== undefined &&
+    validatePublicAuthorV1(c.author).userId !== c.ownerId
+  )
+    throw new Error("Course author mismatch");
   validateCourseContentV1({
+    ...(c.coverUrl === undefined ? {} : { coverUrl: c.coverUrl }),
     title: c.title,
     description: c.description,
     audience: c.audience,
@@ -91,6 +118,10 @@ export function validatePublicCourseV1(value: unknown): PublicCourseV1 {
     articleIds: c.entries.map((e) => e.articleId),
   });
   for (const e of c.entries) {
+    if (e.author != null) {
+      validatePublicAuthorV1(e.author);
+      if (!e.available) throw new Error("Unavailable author must be hidden");
+    }
     if (
       typeof e.available !== "boolean" ||
       (e.available

@@ -1,3 +1,4 @@
+import { PublicAuthorV1 } from "./PublicAuthorV1";
 import React from "react";
 import { BookOpenText } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -82,7 +83,7 @@ export function PublicArticleDirectoryPage() {
               <li key={article.articleId}>
                 <Link
                   to={articleReaderHref({ articleId: article.publicSlug, locale })}
-                  className="group flex h-full min-w-0 flex-col rounded-2xl border border-wb-line bg-wb-panel p-5 transition-[background-color,border-color,box-shadow] duration-150 hover:border-wb-line-strong hover:bg-wb-hover/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                  className="group flex h-full min-w-0 flex-col rounded-2xl border border-wb-line bg-wb-panel p-5 transition-[border-color,box-shadow] duration-150 hover:border-wb-line-strong hover:bg-wb-hover/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                 >
                   <span className="line-clamp-3 break-words text-base font-bold leading-6 tracking-[-0.015em] text-wb-text">
                     {article.title}
@@ -90,6 +91,7 @@ export function PublicArticleDirectoryPage() {
                   <span className="mt-2 line-clamp-3 break-words text-[13px] leading-5 text-wb-muted">
                     {article.excerpt ?? t("publicArticles.articleFallback")}
                   </span>
+                  <span className="mt-3"><PublicAuthorV1 author={article.author} locale={locale} /></span>
                 </Link>
               </li>
             ))}
