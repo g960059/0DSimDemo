@@ -1,4 +1,6 @@
 import React from "react";
+import { SimulationIconButtonV3 } from "@/components/ui/SimulationIconButtonV3";
+import { createPortal } from "react-dom";
 import { Minus, Pause, Play, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -25,6 +27,28 @@ export function WorkbenchPlaybackControlV3({
   const { t } = useTranslation();
   const [open, setOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const popoverRef = React.useRef<HTMLDivElement | null>(null);
+  const rateTriggerRef = React.useRef<HTMLButtonElement | null>(null);
+  const [mobilePopover, setMobilePopover] = React.useState(false);
+  const [mobilePortalHost, setMobilePortalHost] = React.useState<HTMLElement | null>(null);
+  const closePopover = React.useCallback(() => {
+    setOpen(false);
+    rateTriggerRef.current?.focus({ preventScroll: true });
+  }, []);
+  React.useEffect(() => {
+    const media = window.matchMedia("(max-width: 639px)");
+    const update = () => setMobilePopover(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+  React.useLayoutEffect(() => {
+    // Keep the mobile sheet inside an enclosing modal's accessibility/focus
+    // boundary, while escaping the toolbar's clipping and positioning.
+    setMobilePortalHost(mobilePopover
+      ? rootRef.current?.closest<HTMLElement>('[role="dialog"]') ?? document.body
+      : null);
+  }, [mobilePopover, open]);
   const calibratedMaximum = rate.maximumRate
     ?? WORKBENCH_MAXIMUM_PLAYBACK_RATE_V3;
   // An explicit selection is retained across a Scenario-topology
@@ -36,31 +60,150 @@ export function WorkbenchPlaybackControlV3({
     : (Math.min(rate.playbackRate, sliderMaximum)
       - WORKBENCH_MINIMUM_PLAYBACK_RATE_V3)
       / (sliderMaximum - WORKBENCH_MINIMUM_PLAYBACK_RATE_V3) * 100;
-  const rateChangeDisabled = disabled || rate.calibrating;
+  // Capacity measurement needs playback; pausing during calibration must not
+  // prevent an explicit pace selection. The conductor retains that selection.
+  const rateChangeDisabled = disabled;
   const presetRates = workbenchPlaybackPresetRatesV3();
   const selectRate = (nextRate: number) => onRateChange(
     snapWorkbenchPlaybackRateV3(nextRate, calibratedMaximum),
   );
 
   React.useEffect(() => {
-    if (!open) return;
+    if (!open || !popoverRef.current) return;
+    popoverRef.current.querySelector<HTMLInputElement>('input[type="range"]')?.focus({ preventScroll: true });
     const handlePointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!rootRef.current?.contains(event.target as Node) && !popoverRef.current?.contains(event.target as Node)) closePopover();
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        closePopover();
+      } else if (event.key === "Tab" && popoverRef.current?.contains(document.activeElement)) {
+        const controls = [...popoverRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)')];
+        const first = controls[0], last = controls.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+        // The enclosing modal must not apply a second Tab wrap.
+        event.stopPropagation();
+      }
     };
     document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown, true);
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [open]);
+  }, [open, mobilePortalHost, closePopover]);
 
   React.useEffect(() => {
     if (disabled) setOpen(false);
   }, [disabled]);
+
+  const popover = open ? (
+    <>
+      <div
+        className="fixed inset-0 z-[89] bg-black/20 sm:hidden"
+        aria-hidden="true"
+        data-testid="v3-playback-rate-backdrop"
+        onPointerDown={(event) => {
+          event.preventDefault();
+          closePopover();
+        }}
+      />
+      <div
+        ref={popoverRef}
+        role="dialog"
+        aria-label={t("workbench.live.playbackRateSettings")}
+        className="workbench-playback-rate-popover fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[90] origin-bottom rounded-xl bg-wb-panel p-3 text-xs text-wb-text shadow-2xl ring-1 ring-wb-line sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-[calc(100%+0.45rem)] sm:w-[18rem] sm:origin-top-right"
+        data-testid="v3-playback-rate-popover"
+      >
+        <div
+          className="text-center font-mono text-sm font-semibold tabular-nums text-wb-text"
+          aria-live="polite"
+        >
+          {formatWorkbenchPlaybackRateV3(rate.playbackRate)}
+        </div>
+
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            className="inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+            disabled={rateChangeDisabled || rate.playbackRate <= WORKBENCH_MINIMUM_PLAYBACK_RATE_V3}
+            aria-label={t("workbench.live.decreasePlaybackRate")}
+            onClick={() => selectRate(
+              rate.playbackRate - WORKBENCH_PLAYBACK_RATE_STEP_V3,
+            )}
+          >
+            <Minus className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+          <input
+            type="range"
+            min={WORKBENCH_MINIMUM_PLAYBACK_RATE_V3}
+            max={sliderMaximum}
+            step={WORKBENCH_PLAYBACK_RATE_STEP_V3}
+            value={Math.min(rate.playbackRate, sliderMaximum)}
+            disabled={rateChangeDisabled}
+            onChange={(event) => selectRate(
+              Number(event.currentTarget.value),
+            )}
+            aria-label={t("workbench.live.playbackRateSlider")}
+            aria-valuetext={formatWorkbenchPlaybackRateV3(
+              rate.playbackRate,
+            )}
+            style={{
+              "--workbench-playback-rate-progress": `${sliderProgress}%`,
+            } as React.CSSProperties}
+            className="workbench-playback-rate-slider block min-w-0 flex-1 accent-wb-accent"
+            data-testid="v3-playback-rate-slider"
+          />
+          <button
+            type="button"
+            className="inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+            disabled={rateChangeDisabled || rate.playbackRate >= calibratedMaximum}
+            aria-label={t("workbench.live.increasePlaybackRate")}
+            onClick={() => selectRate(
+              rate.playbackRate + WORKBENCH_PLAYBACK_RATE_STEP_V3,
+            )}
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="mt-2 grid grid-cols-5 gap-1">
+          {presetRates.map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              disabled={rateChangeDisabled || preset > calibratedMaximum + 1e-9}
+              aria-pressed={Math.abs(rate.playbackRate - preset) < 1e-9}
+              className="workbench-selection-button min-h-9 rounded-lg px-1 font-mono text-xs font-medium tabular-nums transition-[color,background-color,transform] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+              onClick={() => selectRate(preset)}
+            >
+              {formatWorkbenchPlaybackRateV3(preset)}
+            </button>
+          ))}
+        </div>
+
+        {(rate.calibrating || rate.performanceLimited || calibratedMaximum < WORKBENCH_MAXIMUM_PLAYBACK_RATE_V3) && (
+          <p className="mt-2 text-center text-[0.68rem] leading-4 text-wb-subtle">
+            {rate.calibrating
+              ? t("workbench.live.measuringPlaybackCapacity")
+              : rate.performanceLimited
+                ? t("workbench.live.playbackPerformanceLimited")
+                : t("workbench.live.devicePlaybackLimit", {
+                    rate: formatWorkbenchPlaybackRateV3(calibratedMaximum),
+                  })}
+          </p>
+        )}
+      </div>
+    </>
+  ) : null;
 
   return (
     <div
@@ -69,11 +212,11 @@ export function WorkbenchPlaybackControlV3({
       data-open={open ? "true" : "false"}
       data-testid="v3-playback-control"
     >
-      <button
+      <SimulationIconButtonV3
         type="button"
         className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:text-wb-text active:scale-[0.96] active:bg-wb-hover disabled:cursor-wait disabled:opacity-45 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
         disabled={disabled}
-        aria-label={
+        label={
           playing ? t("workbench.live.pause") : t("workbench.live.play")
         }
         aria-pressed={playing}
@@ -85,9 +228,9 @@ export function WorkbenchPlaybackControlV3({
         ) : (
           <Play className="h-4 w-4" aria-hidden="true" />
         )}
-      </button>
+      </SimulationIconButtonV3>
 
-      <button
+      <SimulationIconButtonV3
         type="button"
         className={`inline-flex h-9 min-w-[3rem] items-center justify-center rounded-lg px-1.5 font-mono text-[0.76rem] font-medium tabular-nums text-wb-muted transition-[color,background-color,transform] duration-150 hover:text-wb-text active:scale-[0.97] active:bg-wb-hover disabled:cursor-not-allowed disabled:opacity-45 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:min-w-[3.25rem] ${
           open ? "bg-wb-hover text-wb-text" : ""
@@ -95,113 +238,19 @@ export function WorkbenchPlaybackControlV3({
         disabled={disabled}
         aria-expanded={open}
         aria-haspopup="dialog"
-        aria-label={t("workbench.live.playbackRate", {
+        label={t("workbench.live.playbackRate", {
           rate: formatWorkbenchPlaybackRateV3(rate.playbackRate),
         })}
-        title={t("workbench.live.playbackRate", {
-          rate: formatWorkbenchPlaybackRateV3(rate.playbackRate),
-        })}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => open ? closePopover() : setOpen(true)}
+        buttonRef={rateTriggerRef}
         data-testid="v3-playback-rate-trigger"
       >
         <span>{formatWorkbenchPlaybackRateV3(rate.playbackRate)}</span>
-      </button>
+      </SimulationIconButtonV3>
 
-      {open && (
-        <>
-          <div
-            className="fixed inset-0 z-[89] bg-black/20 sm:hidden"
-            aria-hidden="true"
-            data-testid="v3-playback-rate-backdrop"
-            onPointerDown={() => setOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-label={t("workbench.live.playbackRateSettings")}
-            className="workbench-playback-rate-popover fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[90] origin-bottom rounded-xl bg-wb-panel p-3 text-xs text-wb-text shadow-2xl ring-1 ring-wb-line sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-[calc(100%+0.45rem)] sm:w-[18rem] sm:origin-top-right"
-            data-testid="v3-playback-rate-popover"
-          >
-            <div
-              className="text-center font-mono text-sm font-semibold tabular-nums text-wb-text"
-              aria-live="polite"
-            >
-              {formatWorkbenchPlaybackRateV3(rate.playbackRate)}
-            </div>
-
-            <div className="mt-2 flex items-center gap-2">
-              <button
-                type="button"
-                className="inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-                disabled={rateChangeDisabled || rate.playbackRate <= WORKBENCH_MINIMUM_PLAYBACK_RATE_V3}
-                aria-label={t("workbench.live.decreasePlaybackRate")}
-                onClick={() => selectRate(
-                  rate.playbackRate - WORKBENCH_PLAYBACK_RATE_STEP_V3,
-                )}
-              >
-                <Minus className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-              <input
-                type="range"
-                min={WORKBENCH_MINIMUM_PLAYBACK_RATE_V3}
-                max={sliderMaximum}
-                step={WORKBENCH_PLAYBACK_RATE_STEP_V3}
-                value={Math.min(rate.playbackRate, sliderMaximum)}
-                disabled={rateChangeDisabled}
-                onChange={(event) => selectRate(
-                  Number(event.currentTarget.value),
-                )}
-                aria-label={t("workbench.live.playbackRateSlider")}
-                aria-valuetext={formatWorkbenchPlaybackRateV3(
-                  rate.playbackRate,
-                )}
-                style={{
-                  "--workbench-playback-rate-progress": `${sliderProgress}%`,
-                } as React.CSSProperties}
-                className="workbench-playback-rate-slider block min-w-0 flex-1 accent-wb-accent"
-                data-testid="v3-playback-rate-slider"
-              />
-              <button
-                type="button"
-                className="inline-flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-                disabled={rateChangeDisabled || rate.playbackRate >= calibratedMaximum}
-                aria-label={t("workbench.live.increasePlaybackRate")}
-                onClick={() => selectRate(
-                  rate.playbackRate + WORKBENCH_PLAYBACK_RATE_STEP_V3,
-                )}
-              >
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-            </div>
-
-            <div className="mt-2 grid grid-cols-5 gap-1">
-              {presetRates.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  disabled={rateChangeDisabled || preset > calibratedMaximum + 1e-9}
-                  aria-pressed={Math.abs(rate.playbackRate - preset) < 1e-9}
-                  className="workbench-selection-button min-h-9 rounded-lg px-1 font-mono text-xs font-medium tabular-nums transition-[color,background-color,transform] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-                  onClick={() => selectRate(preset)}
-                >
-                  {formatWorkbenchPlaybackRateV3(preset)}
-                </button>
-              ))}
-            </div>
-
-            {(rate.calibrating || rate.performanceLimited || calibratedMaximum < WORKBENCH_MAXIMUM_PLAYBACK_RATE_V3) && (
-              <p className="mt-2 text-center text-[0.68rem] leading-4 text-wb-subtle">
-                {rate.calibrating
-                  ? t("workbench.live.measuringPlaybackCapacity")
-                  : rate.performanceLimited
-                    ? t("workbench.live.playbackPerformanceLimited")
-                    : t("workbench.live.devicePlaybackLimit", {
-                        rate: formatWorkbenchPlaybackRateV3(calibratedMaximum),
-                      })}
-              </p>
-            )}
-          </div>
-        </>
-      )}
+      {mobilePopover
+        ? mobilePortalHost && createPortal(popover, mobilePortalHost)
+        : popover}
     </div>
   );
 }

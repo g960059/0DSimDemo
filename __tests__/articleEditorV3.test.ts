@@ -1,4 +1,5 @@
 import React from "react";
+import { articleBriefingInflowContentV3 } from "@/studio/application/authoring/StudioArticleBriefingPresentationV3";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -321,6 +322,26 @@ describe("Article Editor V3 briefing", () => {
     expect(articleBriefingPresentationV3({
       graphs: [{}, {}, {}, {}, {}] as never,
     })).toBe("peek");
+  });
+
+  it("projects one primary observation without changing the full authored Briefing", () => {
+    const base = focusedBriefingV3();
+    const briefing: ExperimentPlacementBriefingV2 = {
+      ...base,
+      controls: [],
+      graphs: [...base.graphs, { paneId: "pane/flow", order: 1, emphasis: "supporting" }],
+      outputs: Array.from({ length: 6 }, (_, i) => ({ ...base.outputs[0]!, outputId: `output/${i}`, order: 5 - i })),
+    };
+    expect(articleBriefingPresentationV3(briefing)).toBe("inflow");
+    const reading = articleBriefingInflowContentV3(briefing);
+    expect(reading.graphs).toEqual(base.graphs);
+    expect(reading.outputs.map(output => output.outputId)).toEqual(["output/5", "output/4", "output/3", "output/2"]);
+    expect(briefing.graphs).toHaveLength(2);
+    expect(briefing.outputs).toHaveLength(6);
+    expect(articleBriefingPresentationV3({ ...briefing, controls: base.controls })).toBe("peek");
+    expect(articleBriefingPresentationV3({ ...briefing, scenarioScope: {
+      initialFocusScenarioId: "scenario/a", visibleScenarioIds: ["scenario/a", "scenario/b", "scenario/c"],
+    } })).toBe("peek");
   });
 
   it("renders a two-graph Editor placement as the same compact Peek anchor", () => {

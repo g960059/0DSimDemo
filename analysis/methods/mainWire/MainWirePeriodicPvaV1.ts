@@ -25,6 +25,11 @@ export const MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID =
   "suga-pva-measured-load-display-exact-anatomy-mvo2-v14" as const;
 export const MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID =
   "suga-pva-measured-load-signed-semilunar-pressure-family-v15" as const;
+/** V15 energy/display equations; the PE tail is admitted from the measured
+ * domain first and the endpoint tangent is required only when the left
+ * crossing lies below measured systolic support. */
+export const MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID =
+  "suga-pva-measured-domain-bounded-pe-tail-signed-semilunar-pressure-family-v16" as const;
 
 export type MainWirePeriodicPvaMethodIdV1 =
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID
@@ -32,7 +37,8 @@ export type MainWirePeriodicPvaMethodIdV1 =
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID
-  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID;
+  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID
+  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID;
 
 type Mvo2Estimate = MainWireIntegratedModelLvMvo2EstimateV1 | MainWireLvMvo2EstimateV2;
 
@@ -151,7 +157,24 @@ type PeriodicPvaPotentialEnergyV1 = Readonly<{
   lowVolumeTangentExtensionSpanMl: number;
   mmHgMl: number;
   joule: number;
+  /** V16 only. "measured-domain-intersection": P_es(V_min) <= P_ed(V_min), so the
+   * left crossing is resolved inside measured support and nothing is extrapolated.
+   * "endpoint-tangent-extension": the crossing lies below measured support. */
+  lowVolumeTailAdmission?: "measured-domain-intersection" | "endpoint-tangent-extension";
+  measuredStartPressureGapMmHg?: number;
 }>;
+
+type PeriodicPvaLimitationV1 =
+  | "settled-preload-reduction-family-not-transient-venous-occlusion"
+  | "maximum-volume-used-as-end-diastolic-proxy"
+  | "common-isochrone-is-a-protocol-clock-not-a-common-land-state"
+  | "common-isochrone-phase-selected-over-anchor-local-volume-neighborhood"
+  | "pressure-envelope-retained-as-single-phase-approximation-diagnostic"
+  | "measured-systolic-locus-is-not-extrapolated-for-display"
+  | "low-volume-pva-tail-uses-endpoint-local-tangent-extension"
+  | "low-volume-pva-tail-bounded-by-measured-domain-intersection"
+  | "coronary-tone-held-at-source-during-preload-reduction"
+  | "not-clinical-validation";
 
 type PeriodicPvaAreaV1 = Readonly<{
   definition: "PVA = SW + PE";
@@ -263,17 +286,9 @@ export type MainWirePeriodicPvaV1 = (
       potentialEnergy: PeriodicPvaPotentialEnergyV1;
       pva: PeriodicPvaAreaV1;
       estimatedMvo2: Mvo2Estimate | null;
-      limitations: readonly [
-        "settled-preload-reduction-family-not-transient-venous-occlusion",
-        "maximum-volume-used-as-end-diastolic-proxy",
-        "common-isochrone-is-a-protocol-clock-not-a-common-land-state",
-        "common-isochrone-phase-selected-over-anchor-local-volume-neighborhood",
-        "pressure-envelope-retained-as-single-phase-approximation-diagnostic",
-        "measured-systolic-locus-is-not-extrapolated-for-display",
-        "low-volume-pva-tail-uses-endpoint-local-tangent-extension",
-        "coronary-tone-held-at-source-during-preload-reduction",
-        "not-clinical-validation",
-      ];
+      /** V8–V15 always list the tangent limitation; V16 lists it only when the
+       * tangent was actually consumed, otherwise the measured-domain variant. */
+      limitations: readonly PeriodicPvaLimitationV1[];
     }>
 ) & Readonly<{
   /** V13 measured display is independent of the numerical energy boundary. */
@@ -377,27 +392,53 @@ export function buildMainWirePeriodicPvaMethodV14(
 }
 
 /** Same energy/display equations, separately pinned to the new measured family.
- * Delegation preserves the V14 exact-anatomy MVO2 convention. */
+ * Delegation preserves the V14 exact-anatomy MVO2 convention. Sealed Snapshots
+ * still pin this method: its output, including the V14 nested MVO2 provenance,
+ * is retained verbatim. */
 export function buildMainWirePeriodicPvaMethodV15(
   locus: MainWireIntegratedModelStarlingLocusV3,
   ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
 ): MainWirePeriodicPvaV1 {
+  assertPressureCrossingFamilyV1(locus);
+  return Object.freeze({ ...buildMeasuredLoadPva(locus, ventricleId, MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID,
+    { exactIntersectionEndpoint: true }), methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID });
+}
+
+/** V15 with bounded PE-tail admission. When the measured ESPVR already sits at
+ * or below the EDPVR at its lowest measured volume, the left intersection is
+ * searched inside measured support and no tangent is required or evaluated.
+ * Whenever V15 admits with a positive measured-start gap, V16 is numerically
+ * identical. The method ID, exact-anatomy MVO2 owner and nested MVO2
+ * provenance are all pinned to V16 directly. */
+export function buildMainWirePeriodicPvaMethodV16(
+  locus: MainWireIntegratedModelStarlingLocusV3,
+  ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
+): MainWirePeriodicPvaV1 {
+  assertPressureCrossingFamilyV1(locus);
+  return buildMeasuredLoadPva(locus, ventricleId, MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID,
+    { exactIntersectionEndpoint: true, lowVolumeTailPolicy: "measured-domain-first" });
+}
+
+function assertPressureCrossingFamilyV1(locus: MainWireIntegratedModelStarlingLocusV3): void {
   if (locus.status !== "measured-fixed-tbv-protocol" || locus.protocolId !== MAIN_WIRE_PRESSURE_CROSSING_PV_PROTOCOL_V1_ID)
     throw new Error("Pressure-crossing PVA requires its pinned measured protocol, not a legacy family");
-  return Object.freeze({ ...buildMeasuredLoadPva(locus, ventricleId, MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID, true), methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID });
 }
 
 function buildMeasuredLoadPva(locus: MainWireIntegratedModelStarlingLocusV3,
   ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
-  methodId: typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID,
-  exactIntersectionEndpoint = false,
+  methodId: typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID
+    | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID,
+  options: Readonly<{ exactIntersectionEndpoint?: boolean; lowVolumeTailPolicy?: "measured-domain-first" }> = {},
 ): MainWirePeriodicPvaV1 {
   const pva = buildMainWirePeriodicPvaByPolicyV1(locus, ventricleId, {
     methodId,
     systolicLoadDomain: "preload-reduction-through-anchor",
     showMeasuredHighLoadIsochrone: true,
     includeAreaDisplay: true,
-    exactIntersectionEndpoint,
+    exactIntersectionEndpoint: options.exactIntersectionEndpoint ?? false,
+    // V13 keeps the normal-adult literature mass; V14/V15/V16 use exact anatomy.
+    exactAnatomyMvo2: methodId !== MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID,
+    ...(options.lowVolumeTailPolicy === undefined ? {} : { lowVolumeTailPolicy: options.lowVolumeTailPolicy }),
   });
   return Object.freeze({ ...pva, loadRelations: Object.freeze({
     systolic: buildMainWireSystolicPressureEnvelopeV1(locus),
@@ -635,6 +676,9 @@ function buildMainWirePeriodicPvaByPolicyV1(
     showMeasuredHighLoadIsochrone?: boolean;
     includeAreaDisplay?: boolean;
     exactIntersectionEndpoint?: boolean;
+    exactAnatomyMvo2?: boolean;
+    /** Default: the endpoint tangent is required unconditionally (V8–V15). */
+    lowVolumeTailPolicy?: "measured-domain-first";
   }>,
 ): MainWirePeriodicPvaV1 {
   const familyProgress: PeriodicPvaProgressV1 = Object.freeze({
@@ -901,8 +945,21 @@ function buildMainWirePeriodicPvaByPolicyV1(
       relationsPreview,
     );
   }
-  const lowVolumeExtension = lowVolumeTangentExtensionV1(systolicLaw);
-  if (lowVolumeExtension === null) {
+  // Bounded tail (V16): when the measured ESPVR is already at or below the
+  // EDPVR at its lowest measured volume, the left crossing lies inside measured
+  // support. Search from V_min and never evaluate an extrapolation. Otherwise,
+  // and always for V8–V15, the endpoint tangent must exist before PE is admitted.
+  const measuredStartPressureGapMmHg =
+    systolicPressureV1(systolicLaw, systolicRange[0]) -
+    nonnegativeExponentialPressureV1(edpvr, systolicRange[0]);
+  const measuredDomainIntersection =
+    method.lowVolumeTailPolicy === "measured-domain-first" &&
+    Number.isFinite(measuredStartPressureGapMmHg) &&
+    measuredStartPressureGapMmHg <= 0;
+  const lowVolumeExtension = measuredDomainIntersection
+    ? null
+    : lowVolumeTangentExtensionV1(systolicLaw);
+  if (!measuredDomainIntersection && lowVolumeExtension === null) {
     return incomplete(
       locus.completedPointCount === locus.totalPointCount
         ? "unavailable"
@@ -912,11 +969,15 @@ function buildMainWirePeriodicPvaByPolicyV1(
     );
   }
   const systolicBoundaryPressureMmHg = (volumeMl: number) =>
-    nonlinearPvaBoundaryPressureV1(systolicLaw, lowVolumeExtension, volumeMl);
+    lowVolumeExtension === null
+      ? systolicPressureV1(systolicLaw, volumeMl)
+      : nonlinearPvaBoundaryPressureV1(systolicLaw, lowVolumeExtension, volumeMl);
   const peLeftIntersectionVolumeMl = pressureRelationsLeftIntersectionV1(
     systolicBoundaryPressureMmHg,
     edpvr,
-    Math.max(0, lowVolumeExtension.zeroPressureVolumeMl),
+    lowVolumeExtension === null
+      ? systolicRange[0]
+      : Math.max(0, lowVolumeExtension.zeroPressureVolumeMl),
     anchorEndSystolic.volumeMl,
     method.exactIntersectionEndpoint,
   );
@@ -962,7 +1023,7 @@ function buildMainWirePeriodicPvaByPolicyV1(
     pvaEstimateJ: pvaJ, heartRateBpm: 60 / acceptedBeatDurationSec };
   const estimatedMvo2 =
     ventricleId === "LV"
-      ? method.methodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID
+      ? method.exactAnatomyMvo2
         ? evaluateMainWireLvMvo2EstimateV2(mvo2Input, locus.exactAnatomy)
         : evaluateMainWireIntegratedModelLvMvo2EstimateV1(mvo2Input)
       : null;
@@ -979,7 +1040,16 @@ function buildMainWirePeriodicPvaByPolicyV1(
     ),
     mmHgMl: potentialEnergyMmHgMl,
     joule: potentialEnergyMmHgMl * MMHG_ML_TO_JOULE_V1,
+    ...(method.lowVolumeTailPolicy === "measured-domain-first" ? {
+      lowVolumeTailAdmission: measuredDomainIntersection
+        ? "measured-domain-intersection" as const
+        : "endpoint-tangent-extension" as const,
+      measuredStartPressureGapMmHg,
+    } : {}),
   });
+  const lowVolumeTailLimitation: PeriodicPvaLimitationV1 = measuredDomainIntersection
+    ? "low-volume-pva-tail-bounded-by-measured-domain-intersection"
+    : "low-volume-pva-tail-uses-endpoint-local-tangent-extension";
   const pva: PeriodicPvaAreaV1 = Object.freeze({
     definition: "PVA = SW + PE" as const,
     mmHgMl: pvaMmHgMl,
@@ -1032,7 +1102,7 @@ function buildMainWirePeriodicPvaByPolicyV1(
       "common-isochrone-phase-selected-over-anchor-local-volume-neighborhood",
       "pressure-envelope-retained-as-single-phase-approximation-diagnostic",
       "measured-systolic-locus-is-not-extrapolated-for-display",
-      "low-volume-pva-tail-uses-endpoint-local-tangent-extension",
+      lowVolumeTailLimitation,
       "coronary-tone-held-at-source-during-preload-reduction",
       "not-clinical-validation",
     ] as const),

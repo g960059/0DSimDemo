@@ -40,12 +40,21 @@ import type {
 import type {
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
-import {
-  studioCanonicalJsonStringify,
-} from "@/domain/json/CanonicalJson";
+import { sha256StudioCanonicalJsonHex as sha256CanonicalV1 } from "@/domain/json/CanonicalJsonSha256";
 
 export const STUDIO_EXPERIMENT_APPLY_PLAN_V1_SCHEMA_ID =
   "circleheart-studio-experiment-apply-plan-v1" as const;
+
+export const STUDIO_AUTHORING_MAX_PRESENTATION_STEPS_V1 = 60_000;
+
+export function assertStudioAuthoringTimeAdvanceV1(
+  operations: readonly StudioAuthoringScenarioOperationV1[],
+  budget: StudioAuthoringExecutionBudgetV1,
+): void {
+  if (operations.some(operation => operation.operation === "advance") && budget.advanceSeconds <= 0) {
+    throw new Error("Time-only advance must use positive advanceSeconds");
+  }
+}
 
 export type StudioAuthoringControlAssignmentV1 = Readonly<{
   controlId: string;
@@ -67,6 +76,10 @@ export type StudioAuthoringScenarioOperationV1 =
       /** Null preserves the current label. */
       label: string | null;
       controls: readonly StudioAuthoringControlAssignmentV1[];
+    }>
+  | Readonly<{
+      operation: "advance";
+      scenarioId: string;
     }>
   | Readonly<{
       operation: "remove";
@@ -230,6 +243,7 @@ export async function previewStudioExperimentPlanV1(
   diff: StudioAuthoringScenarioDiffV1;
   observations: readonly StudioAuthoringObservationV1[];
 }>> {
+  assertStudioAuthoringTimeAdvanceV1(input.scenarioOperations, input.executionBudget);
   const currentResource = await readAndAssertExperimentBaseV1(repository, input);
   const resolved = currentResource === null
     ? await models.resolveActiveNumericalModel()
@@ -284,6 +298,7 @@ export async function applyStudioExperimentPlanV1(
   observations: readonly StudioAuthoringObservationV1[];
 }>> {
   await assertStudioExperimentPlanDigestV1(plan);
+  assertStudioAuthoringTimeAdvanceV1(plan.scenarioOperations, plan.executionBudget);
   const currentResource = await readAndAssertExperimentBaseV1(repository, plan);
   const current = currentResource?.experiment ?? null;
   const currentScenarioIds = current?.content.scenarios.map(({ scenarioId }) => scenarioId) ?? [];
@@ -527,7 +542,7 @@ async function prepareExperimentCaptureV1(
     }
     const scenarioIds = scenarios.map(({ scenarioId }) => scenarioId);
     const advanceScenarioIds = plan.scenarioOperations.flatMap((operation) =>
-      operation.operation === "add"
+      operation.operation === "add" || operation.operation === "advance"
         || (operation.operation === "update" && operation.controls.length > 0)
         ? [operation.scenarioId]
         : []);
@@ -653,6 +668,7 @@ function applyScenarioOperationsV1(
     [scenario.scenarioId, scenario] as const));
   const touched = new Set<string>();
   const removed = new Set<string>();
+  const advanced = new Set<string>();
   const updated = new Map<string, Extract<StudioAuthoringScenarioOperationV1, {
     operation: "update";
   }>>();
@@ -682,6 +698,7 @@ function applyScenarioOperationsV1(
         throw new Error(`Scenario ${operation.scenarioId} is unavailable`);
       }
       if (operation.operation === "remove") removed.add(operation.scenarioId);
+      else if (operation.operation === "advance") advanced.add(operation.scenarioId);
       else updated.set(operation.scenarioId, operation);
     }
   }
@@ -720,6 +737,7 @@ function applyScenarioOperationsV1(
       removedScenarioIds: Object.freeze([...removed]),
       advancedScenarioIds: Object.freeze([
         ...added.map(({ scenarioId }) => scenarioId),
+        ...advanced,
         ...[...updated.values()]
           .filter(({ controls }) => controls.length > 0)
           .map(({ scenarioId }) => scenarioId),
@@ -785,7 +803,7 @@ async function advanceAuthoringScenariosV1(
   return frames;
 }
 
-function bindAuthoringExecutionPlansV1(
+export function bindAuthoringExecutionPlansV1(
   runtime: ResolvedExactModelRuntimeV2,
   scenarioIds: readonly string[],
 ): ReadonlyMap<string, BoundExecutionPlanV1> {
@@ -884,13 +902,4 @@ function summarizeSnapshotV1(
 
 function sameStringsV1(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
-async function sha256CanonicalV1(value: unknown): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(studioCanonicalJsonStringify(value)),
-  );
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, "0")).join("");
 }

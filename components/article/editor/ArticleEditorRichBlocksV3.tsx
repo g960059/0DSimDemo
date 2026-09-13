@@ -200,6 +200,8 @@ export function ArticleImageBlockEditorV3({
         {error !== null && (
           <p className="mt-2 text-xs text-wb-danger" role="alert">{error}</p>
         )}
+        <ArticleMetadataTextFieldV3 label={t("articleEditor.image.title")} value={block.title ?? ""}
+          onChange={(title) => onChange({ ...block, title })} />
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <label className="text-[11px] font-medium text-wb-muted">
             {t("articleEditor.image.altText")}
@@ -228,6 +230,16 @@ export function ArticleImageBlockEditorV3({
             />
           </label>
         </div>
+        <details className="mt-3 text-xs text-wb-muted">
+          <summary className="cursor-pointer">{t("articleEditor.image.credit")}</summary>
+          {(["text", "licenseLabel", "licenseHref"] as const).map((field) => (
+            <ArticleMetadataTextFieldV3 key={field} label={t(`articleEditor.image.creditFields.${field}`)}
+              value={block.credit?.[field] ?? ""} url={field === "licenseHref"}
+              onChange={(value) => onChange({ ...block, credit: {
+                text: "", licenseLabel: "", licenseHref: "", ...block.credit, [field]: value,
+              } })} />
+          ))}
+        </details>
       </div>
     </div>
   );
@@ -274,6 +286,17 @@ export function ArticleLinkBlockEditorV3({
           <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
           {t("articleEditor.link.label")}
         </div>
+        <label className="mt-3 block text-xs text-wb-muted">{t("articleEditor.link.role")}
+          <select value={block.role ?? "card"} onChange={(e) => onChange({ ...block, role: e.currentTarget.value as "card" | "reference" })}
+            className="ml-2 rounded bg-wb-panel px-2 py-1 text-wb-text">
+            <option value="card">{t("articleEditor.link.card")}</option>
+            <option value="reference">{t("articleEditor.link.reference")}</option>
+          </select>
+        </label>
+        {block.role === "reference" && <label className="mt-2 block text-xs text-wb-muted">{t("articleEditor.readingMarker")}
+          <input readOnly value={`[@${block.blockId}]`} onFocus={(e) => e.currentTarget.select()}
+            className="mt-1 block w-full rounded bg-wb-panel px-2 py-1 font-mono text-xs text-wb-text" />
+        </label>}
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <label className="text-[11px] font-medium text-wb-muted">
             {t("articleEditor.link.text")}
@@ -328,6 +351,14 @@ export function ArticleLinkBlockEditorV3({
             className="mt-1 block min-h-9 w-full rounded-lg bg-wb-panel px-3 text-xs text-wb-text outline-none ring-1 ring-wb-line/70 placeholder:text-wb-subtle focus:ring-2 focus:ring-wb-accent"
           />
         </label>
+        <details className="mt-3 text-xs text-wb-muted">
+          <summary className="cursor-pointer">{t("articleEditor.link.preview")}</summary>
+          {(["imageUrl", "iconUrl", "siteName"] as const).map((field) => (
+            <ArticleMetadataTextFieldV3 key={field} label={t(`articleEditor.link.${field}`)}
+              value={block[field] ?? ""} url={field !== "siteName"}
+              onChange={(value) => onChange({ ...block, [field]: value })} />
+          ))}
+        </details>
       </div>
     </div>
   );
@@ -460,4 +491,29 @@ export function ArticleQuizBlockEditorV3({
       </label>
     </div>
   );
+}
+
+function ArticleMetadataTextFieldV3({ label, value, onChange, url = false }: Readonly<{
+  label: string; value: string; onChange: (value: string) => void; url?: boolean;
+}>) {
+  const { t } = useTranslation();
+  const [draft, setDraft] = React.useState(value);
+  const [invalid, setInvalid] = React.useState(false);
+  React.useEffect(() => setDraft(value), [value]);
+  const commit = () => {
+    if (url && !articleImageEditorUrlAllowedV3(draft.trim())) { setInvalid(true); return; }
+    setInvalid(false);
+    onChange(url ? draft.trim() : draft);
+  };
+  return <label className="mt-2 block text-[11px] font-medium text-wb-muted">
+    {label}
+    <input type="text" value={draft} onChange={(e) => {
+      setDraft(e.currentTarget.value); setInvalid(false);
+      if (!url) onChange(e.currentTarget.value);
+    }} onBlur={commit} onKeyDown={(e) => {
+      if (e.key === "Enter" && !articleEditorInputIsComposingV3(e.nativeEvent)) { e.preventDefault(); commit(); }
+    }} aria-invalid={invalid}
+      className="mt-1 block min-h-9 w-full rounded-lg bg-wb-panel px-3 text-xs text-wb-text outline-none ring-1 ring-wb-line/70 focus:ring-2 focus:ring-wb-accent" />
+    {invalid && <span role="alert" className="text-wb-danger">{t("articleEditor.image.invalidUrl")}</span>}
+  </label>;
 }

@@ -125,6 +125,7 @@
     "languageDescription": "ログイン後の表示言語として保存されます。URLと現在のページ内容も同じ言語へ切り替わります。"
   },
   "workbench": {
+    "waitingForCycle": "一拍分の波形を取得しています…",
     "selector": {
       "title": "シミュレーション",
       "eyebrow": "MY SIMULATIONS",
@@ -572,12 +573,22 @@
       "altText": "代替テキスト",
       "altPlaceholder": "画像の内容を簡潔に説明",
       "caption": "キャプション",
-      "captionPlaceholder": "補足説明（任意）"
+      "captionPlaceholder": "補足説明（任意）",
+      "title": "図のタイトル",
+      "credit": "出典・利用条件",
+      "creditFields": {
+        "text": "出典・クレジット",
+        "licenseLabel": "ライセンス名",
+        "licenseHref": "ライセンスURL"
+      }
     },
     "accordion": {
       "title": "折りたたみのタイトル",
       "titlePlaceholder": "さらに詳しく",
-      "addContent": "折りたたみ内に追加"
+      "addContent": "折りたたみ内に追加",
+      "role": "補足の用途",
+      "disclosure": "本文中の折りたたみ",
+      "note": "末尾の注釈"
     },
     "quiz": {
       "label": "理解度チェック",
@@ -598,7 +609,14 @@
       "urlPlaceholder": "/ja/articles/... または https://...",
       "invalidUrl": "記事内パス、またはHTTPSのURLを入力してください",
       "description": "説明",
-      "descriptionPlaceholder": "リンク先で学べる内容（任意）"
+      "descriptionPlaceholder": "リンク先で学べる内容（任意）",
+      "preview": "カードの画像とサイト情報",
+      "imageUrl": "ページ画像URL",
+      "iconUrl": "サイトアイコンURL",
+      "siteName": "サイト名",
+      "role": "リンクの用途",
+      "card": "関連ページのカード",
+      "reference": "末尾の文献"
     },
     "insertMenu": {
       "searchPlaceholder": "ブロックを検索…",
@@ -623,7 +641,8 @@
       "publishedDescription": "この記事は公開されています。変更は自動保存され、公開ページに反映されます。",
       "view": "公開ページを表示",
       "unpublish": "公開を解除"
-    }
+    },
+    "readingMarker": "本文に貼る参照表記"
   },
   "articleLibrary": {
     "title": "記事",
@@ -659,11 +678,11 @@
     "modelMainWireV3": "MW V3",
     "modelExact": "数理モデル",
     "drawerTitle": "シミュレーション",
-    "openFullscreen": "シミュレーションを画面いっぱいに表示",
-    "restoreSplitView": "記事との分割表示に戻す",
-    "openExperimentSession": "シミュレーションを詳しく開く",
+    "openFullscreen": "広く表示",
+    "restoreSplitView": "記事と並べる",
+    "openExperimentSession": "Workbenchで編集",
     "editBriefing": "ExperimentSessionでBriefingを編集",
-    "closeDrawer": "シミュレーションを閉じる",
+    "closeDrawer": "実験パネルを閉じる",
     "resizeExperiment": "記事とシミュレーションの表示幅を変更",
     "experimentWidth": "シミュレーションの幅 {{percent}}%",
     "play": "再生",
@@ -674,11 +693,11 @@
     "live": "Live",
     "paused": "一時停止",
     "static": "プレビュー",
-    "scenario": "Scenario",
+    "scenario": "条件",
     "outputs": "Outputs",
     "controls": "Controls",
     "noGraphs": "この配置ではgraphが選択されていません。",
-    "noLiveData": "開くとlive simulationが始まります。",
+    "noLiveData": "開くと、保存した状態から等速で再生します。",
     "unavailableSnapshot": "固定されたシミュレーションを読み込めません。",
     "invalidBriefing": "この配置のBriefingを安全に読み込めません。",
     "unavailableModel": "このSnapshotのexact model releaseは、このclientでは利用できません。",
@@ -690,7 +709,14 @@
       "correct": "正解です",
       "incorrect": "もう一度考えてみましょう",
       "retry": "もう一度回答する"
-    }
+    },
+    "openDetails": "横に並べて見る",
+    "moreActions": "その他の操作",
+    "handoffFailed": "現在の状態を引き継げませんでした。もう一度お試しください。",
+    "displayedInPanel": "パネルに表示中",
+    "returnInline": "本文内に戻す",
+    "openMobile": "実験を広げる",
+    "restartSavedState": "保存された条件からやり直す"
   },
   "snapshotReader": {
     "loading": "シミュレーションを読み込んでいます…",

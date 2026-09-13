@@ -23,6 +23,10 @@
       // The stored theme is applied before first paint. Waiting for React
       // would show a dark body to someone who chose light, on every load.
       (function () {
+        var routeLanguage = location.pathname.split('/')[1];
+        if (routeLanguage === 'ja' || routeLanguage === 'en') {
+          document.documentElement.lang = routeLanguage;
+        }
         try {
           var stored = localStorage.getItem('circleheart.app.theme');
           document.body.dataset.appTheme = stored === 'light' ? 'light' : 'dark';

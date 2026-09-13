@@ -125,6 +125,7 @@
     "languageDescription": "This becomes the signed-in display language. The URL and current page switch to the same language."
   },
   "workbench": {
+    "waitingForCycle": "Waiting for a complete beat…",
     "selector": {
       "title": "Simulations",
       "eyebrow": "MY SIMULATIONS",
@@ -572,12 +573,22 @@
       "altText": "Alt text",
       "altPlaceholder": "Briefly describe the image",
       "caption": "Caption",
-      "captionPlaceholder": "Optional context"
+      "captionPlaceholder": "Optional context",
+      "title": "Figure title",
+      "credit": "Source and license",
+      "creditFields": {
+        "text": "Source credit",
+        "licenseLabel": "License name",
+        "licenseHref": "License URL"
+      }
     },
     "accordion": {
       "title": "Accordion title",
       "titlePlaceholder": "Go deeper",
-      "addContent": "Add inside accordion"
+      "addContent": "Add inside accordion",
+      "role": "Supplement type",
+      "disclosure": "In-text disclosure",
+      "note": "Endnote"
     },
     "quiz": {
       "label": "Knowledge check",
@@ -598,7 +609,14 @@
       "urlPlaceholder": "/en/articles/... or https://...",
       "invalidUrl": "Enter an in-app path or an HTTPS URL",
       "description": "Description",
-      "descriptionPlaceholder": "What the linked page covers (optional)"
+      "descriptionPlaceholder": "What the linked page covers (optional)",
+      "preview": "Card image and site details",
+      "imageUrl": "Page image URL",
+      "iconUrl": "Site icon URL",
+      "siteName": "Site name",
+      "role": "Link purpose",
+      "card": "Related page card",
+      "reference": "Bibliographic reference"
     },
     "insertMenu": {
       "searchPlaceholder": "Search blocks…",
@@ -623,7 +641,8 @@
       "publishedDescription": "This article is public. Changes are saved automatically and appear on the public page.",
       "view": "View public page",
       "unpublish": "Unpublish"
-    }
+    },
+    "readingMarker": "Reference marker for body text"
   },
   "articleLibrary": {
     "title": "Articles",
@@ -659,11 +678,11 @@
     "modelMainWireV3": "MW V3",
     "modelExact": "Exact model",
     "drawerTitle": "Simulation",
-    "openFullscreen": "Fill the screen with the simulation",
-    "restoreSplitView": "Return to the article split view",
-    "openExperimentSession": "Open the detailed simulation",
+    "openFullscreen": "Expand view",
+    "restoreSplitView": "View alongside article",
+    "openExperimentSession": "Edit in Workbench",
     "editBriefing": "Edit the Briefing in Experiment Session",
-    "closeDrawer": "Close simulation",
+    "closeDrawer": "Close experiment panel",
     "resizeExperiment": "Resize article and simulation",
     "experimentWidth": "Simulation width {{percent}}%",
     "play": "Play",
@@ -674,11 +693,11 @@
     "live": "Live",
     "paused": "Paused",
     "static": "Preview",
-    "scenario": "Scenario",
+    "scenario": "Conditions",
     "outputs": "Outputs",
     "controls": "Controls",
     "noGraphs": "No graph was selected for this placement.",
-    "noLiveData": "Open this item to start its live simulation.",
+    "noLiveData": "Opens at the saved state and plays at 1× speed.",
     "unavailableSnapshot": "The pinned simulation is unavailable.",
     "invalidBriefing": "This placement Briefing cannot be loaded safely.",
     "unavailableModel": "This snapshot's exact model release is not available in this client.",
@@ -690,7 +709,14 @@
       "correct": "Correct",
       "incorrect": "Not quite—try once more",
       "retry": "Answer again"
-    }
+    },
+    "openDetails": "View side by side",
+    "moreActions": "More actions",
+    "handoffFailed": "Could not transfer the current state. Please try again.",
+    "displayedInPanel": "Shown in panel",
+    "returnInline": "Return to article",
+    "openMobile": "Expand experiment",
+    "restartSavedState": "Restart from saved conditions"
   },
   "snapshotReader": {
     "loading": "Loading simulation…",

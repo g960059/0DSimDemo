@@ -1,13 +1,16 @@
 import React from "react";
+import { ArticleReadingProviderV1, ArticleReadingTextV1, ArticleEndMatterV1, ArticleTableOfContentsV1, ArticleHeadingTextV1 } from "@/components/article/ArticleReadingV1";
+import { articleReadingFieldV1 } from "@/studio/application/article/StudioArticleReadingV1";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArticleReaderExperimentV3,
-  articleReaderPlacementAfterCenterExitV3,
+  articleReaderPlacementAfterViewportExitV3,
   type ArticleReaderExpandedPresentationV3,
 } from "@/components/article/reader/ArticleReaderExperimentV3";
 import {
   ArticleAccordionPresentationV3,
+  ArticleAccordionContentPresentationV3,
   ArticleDividerPresentationV3,
   ArticleEquationPresentationV3,
   ArticleImagePresentationV3,
@@ -49,6 +52,7 @@ import {
   createStudioSupabaseContentRepositoryV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import {
+  type StudioReaderContinuationV3,
   createExperimentSessionTokenV3,
   StudioExperimentSessionHandoffStoreV3,
 } from "@/studio/infrastructure/browser/StudioExperimentSessionHandoffV3";
@@ -173,6 +177,7 @@ function ArticleReaderV3Resource({
   const [activePlacementId, setActivePlacementId] = React.useState<string | null>(
     null,
   );
+  const visibleInlinePlacementsRef = React.useRef(new Set<string>());
   const [expandedPlacement, setExpandedPlacement] =
     React.useState<ArticleReaderExpandedPlacementV3 | null>(null);
   const [peekOpen, setPeekOpen] = React.useState(false);
@@ -259,16 +264,44 @@ function ArticleReaderV3Resource({
       locale: isLocale(content.article.locale) ? content.article.locale : locale,
     }), { replace: true });
   }, [articleId, content, locale, navigate]);
-  const openExperimentSessionV3 = React.useCallback((snapshotId: string) => {
+  const openExperimentSessionV3 = React.useCallback((snapshotId: string, placementId: string, continuation?: StudioReaderContinuationV3) => {
     const sessionToken = createExperimentSessionTokenV3();
     experimentSessionHandoff.begin({
       sessionToken,
       snapshotId,
-      returnHref: `${pathname}${search}${hash}`,
+      returnHref: `${pathname}${search}#${encodeURIComponent(`placement-${placementId}`)}`,
+      ...(continuation ? { continuation } : {}),
     });
     const query = new URLSearchParams({ sessionToken, snapshotId });
     navigate(`${newExperimentHref(locale)}?${query.toString()}`);
   }, [experimentSessionHandoff, hash, locale, navigate, pathname, search]);
+
+  const scrollAnchorRef = React.useRef<{ element: Element; top: number; host: HTMLElement } | null>(null);
+  const rememberReadingPosition = React.useCallback(() => {
+    const host = document.querySelector<HTMLElement>(".article-reader-article-pane");
+    if (!host) return;
+    const top = host.getBoundingClientRect().top;
+    const element = [...host.querySelectorAll(".article-document > *")].find(el => el.getBoundingClientRect().bottom > top + 8);
+    if (element) scrollAnchorRef.current = { element, top: element.getBoundingClientRect().top, host };
+  }, []);
+  React.useLayoutEffect(() => {
+    const anchor = scrollAnchorRef.current;
+    if (!anchor) return;
+    let frame = 0;
+    const end = performance.now() + 320;
+    const cancel = () => { cancelAnimationFrame(frame); scrollAnchorRef.current = null; };
+    const follow = () => {
+      if (scrollAnchorRef.current !== anchor || !anchor.element.isConnected) return;
+      anchor.host.scrollTop += anchor.element.getBoundingClientRect().top - anchor.top;
+      if (performance.now() < end) frame = requestAnimationFrame(follow);
+    };
+    follow();
+    document.addEventListener("pointerdown", cancel, { passive: true });
+    document.addEventListener("keydown", cancel);
+    anchor.host.addEventListener("wheel", cancel, { passive: true });
+    anchor.host.addEventListener("touchstart", cancel, { passive: true });
+    return () => { cancelAnimationFrame(frame); document.removeEventListener("pointerdown", cancel); document.removeEventListener("keydown", cancel); anchor.host.removeEventListener("wheel", cancel); anchor.host.removeEventListener("touchstart", cancel); };
+  }, [expandedPlacement, peekOpen, peekMaximized]);
 
   const cancelPeekCloseTimer = React.useCallback(() => {
     if (peekCloseTimerRef.current === null) return;
@@ -291,6 +324,7 @@ function ArticleReaderV3Resource({
     placementId: string,
     presentation: ArticleReaderExpandedPresentationV3,
   ) => {
+    rememberReadingPosition();
     cancelPeekCloseTimer();
     setPeekMaximized(false);
     setExpandedPlacement(Object.freeze({ placementId, presentation }));
@@ -305,6 +339,7 @@ function ArticleReaderV3Resource({
   }, [cancelPeekCloseTimer, peekOpen]);
 
   const closeExpandedPlacement = React.useCallback(() => {
+    rememberReadingPosition();
     setPeekMaximized(false);
     if (expandedPlacement?.presentation !== "peek") {
       setExpandedPlacement(null);
@@ -387,18 +422,29 @@ function ArticleReaderV3Resource({
   }, [content]);
 
   React.useEffect(() => {
-    if (content.kind !== "ready" || !hash.startsWith("#placement-")) return;
+    if (content.kind !== "ready" || !hash) return;
     let fragment: string;
     try {
       fragment = decodeURIComponent(hash.slice(1));
     } catch {
       return;
     }
+    if (!fragment.startsWith("placement-")) {
+      const frame = window.requestAnimationFrame(() => {
+        const target = document.getElementById(fragment);
+        if (!target || !target.closest(".article-document")) return;
+        for (let parent = target.parentElement; parent; parent = parent.parentElement) {
+          if (parent instanceof HTMLDetailsElement) parent.open = true;
+        }
+        target.scrollIntoView({ behavior: "instant", block: target.tagName === "A" ? "center" : "start" });
+        target.focus({ preventScroll: true });
+      });
+      return () => window.cancelAnimationFrame(frame);
+    }
     const placementId = fragment.slice("placement-".length);
     if (!content.article.blocks.some((block) =>
       block.kind === "experiment"
       && block.placement.placementId === placementId)) return;
-    setActivePlacementId(placementId);
     const frame = window.requestAnimationFrame(() => {
       document.getElementById(fragment)?.scrollIntoView({
         behavior: "smooth",
@@ -457,10 +503,15 @@ function ArticleReaderV3Resource({
           data-testid="article-reader-article-pane-v3"
         >
           <main className="article-document-shell">
+            <ArticleReadingProviderV1 blocks={content.article.blocks} onNavigate={(targetHash, sourceHash) => {
+              const base = `${pathname}${search}`;
+              if (sourceHash) navigate(`${base}${sourceHash}`, { replace: true });
+              navigate(`${base}${targetHash}`);
+            }}>
             <article className="article-document">
           <header className="article-document-header">
             <h1 className="article-title">
-              {content.article.title || t("articleReader.untitled")}
+              <ArticleHeadingTextV1 text={content.article.title || t("articleReader.untitled")} />
             </h1>
             {content.publishedAt !== null && (
               <p className="article-publication-date">
@@ -472,21 +523,25 @@ function ArticleReaderV3Resource({
             )}
           </header>
 
+          <ArticleTableOfContentsV1 blocks={content.article.blocks} />
+
           {content.article.blocks.length === 0 && (
             <p className="py-16 text-sm text-wb-muted">{t("articleReader.empty")}</p>
           )}
 
           {content.article.blocks.map((block) => {
+            if ((block.kind === "link" && block.role === "reference") || (block.kind === "accordion" && block.role === "note")) return null;
             if (block.kind === "heading") {
               const Heading = block.level === 2 ? "h2" : "h3";
               return (
                 <Heading
                   key={block.blockId}
+                  id={`block-${block.blockId}`} tabIndex={-1}
                   className={block.level === 2
                     ? "article-heading-2"
                     : "article-heading-3"}
                 >
-                  {block.text}
+                  <ArticleHeadingTextV1 text={block.text} />
                 </Heading>
               );
             }
@@ -494,9 +549,10 @@ function ArticleReaderV3Resource({
               return (
                 <p
                   key={block.blockId}
+                  id={`block-${block.blockId}`}
                   className="article-paragraph whitespace-pre-wrap"
                 >
-                  {block.text}
+                  <ArticleReadingTextV1 text={block.text} fieldId={articleReadingFieldV1(block.blockId)} />
                 </p>
               );
             }
@@ -562,26 +618,31 @@ function ArticleReaderV3Resource({
                 expandedPresentation={expandedPresentation}
                 peekPortalHost={peekPortalHost}
                 peekMaximized={peekMaximized}
-                onActivate={() => setActivePlacementId(block.placement.placementId)}
-                onDeactivate={() => setActivePlacementId((current) =>
-                  articleReaderPlacementAfterCenterExitV3(
-                    current,
-                    block.placement.placementId,
-                  ))}
-                onExpand={(presentation) => {
+                onActivate={() => {
+                  visibleInlinePlacementsRef.current.add(block.placement.placementId);
                   setActivePlacementId(block.placement.placementId);
+                }}
+                onDeactivate={() => {
+                  visibleInlinePlacementsRef.current.delete(block.placement.placementId);
+                  setActivePlacementId((current) => articleReaderPlacementAfterViewportExitV3(
+                    current, block.placement.placementId, [...visibleInlinePlacementsRef.current],
+                  ));
+                }}
+                onExpand={(presentation) => {
                   openExpandedPlacement(
                     block.placement.placementId,
                     presentation,
                   );
                 }}
                 onClose={closeExpandedPlacement}
-                onOpenExperimentSession={() =>
-                  openExperimentSessionV3(block.placement.snapshotId)}
-                onPeekMaximizedChange={setPeekMaximized}
+                onOpenExperimentSession={(continuation) =>
+                  openExperimentSessionV3(block.placement.snapshotId, block.placement.placementId, continuation)}
+                onPeekMaximizedChange={value => { rememberReadingPosition(); setPeekMaximized(value); }}
               />
             );
           })}
+
+          <ArticleEndMatterV1 renderNoteBlock={(block) => <ArticleAccordionContentPresentationV3 block={block} />} />
 
           {contractState.kind === "ready" && contractState.errors.length > 0 && (
             <p className="mt-10 text-xs text-wb-danger" role="alert">
@@ -589,6 +650,7 @@ function ArticleReaderV3Resource({
             </p>
           )}
             </article>
+            </ArticleReadingProviderV1>
           </main>
         </div>
 
@@ -669,11 +731,11 @@ function ArticleReaderV3Resource({
         </div>
 
         <aside
-          aria-hidden={!peekOpen}
+          aria-hidden={expandedPlacement?.presentation !== "peek"}
           aria-label={t("articleReader.drawerTitle")}
           className="article-reader-peek-column min-w-0 shrink-0 overflow-hidden"
           data-testid="article-reader-peek-column-v3"
-          inert={!peekOpen}
+          inert={expandedPlacement?.presentation !== "peek"}
           onTransitionEnd={(event) => {
             if (
               event.currentTarget !== event.target

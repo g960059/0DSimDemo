@@ -1,4 +1,13 @@
 import {
+  STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2, STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2,
+  STUDIO_SWEEP_WINDOW_MAX_SEC_V2, STUDIO_SWEEP_WINDOW_MIN_SEC_V2, STUDIO_SWEEP_WINDOW_STEP_SEC_V2,
+} from "@/studio/contracts/v2/content";
+import { assertStudioAuthoringTraceSamplingV1, traceStudioExperimentV1, type StudioAuthoringTraceInputV1 } from "./StudioAuthoringTraceV1";
+import {
+  analyzeStudioSnapshotV1, type StudioSnapshotAnalysisInputV1,
+  type StudioSnapshotAnalysisModelPortV1, type StudioSnapshotAnalysisProgressV1,
+} from "./StudioSnapshotAnalysisV1";
+import {
   validateStudioArticleDraftV2,
 } from "@/studio/application/authoring/StudioArticleDataV2";
 import {
@@ -10,6 +19,8 @@ import {
 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import {
   applyStudioExperimentPlanV1,
+  assertStudioAuthoringTimeAdvanceV1,
+  STUDIO_AUTHORING_MAX_PRESENTATION_STEPS_V1,
   assertStudioAuthoringResolvedNumericalModelMatchesPinV1,
   previewStudioExperimentPlanV1,
   sealStudioExperimentSnapshotV1,
@@ -75,6 +86,18 @@ export type StudioAuthoringArticleBlockOperationV1 =
     }>;
 
 export type StudioAuthoringCommandV1 =
+  | Readonly<{
+      schemaId: typeof STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID;
+      commandId: string;
+      action: "snapshot.analyze";
+      input: StudioSnapshotAnalysisInputV1;
+    }>
+  | Readonly<{
+      schemaId: typeof STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID;
+      commandId: string;
+      action: "experiment.trace";
+      input: StudioAuthoringTraceInputV1;
+    }>
   | Readonly<{
       schemaId: typeof STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID;
       commandId: string;
@@ -263,7 +286,7 @@ export interface StudioAuthoringRepositoryPortV1 {
 }
 
 export interface StudioAuthoringModelPortV1
-  extends StudioAuthoringNumericalModelPortV1 {
+  extends StudioAuthoringNumericalModelPortV1, StudioSnapshotAnalysisModelPortV1 {
   resolveModel(input: StudioAuthoringExactModelPinV1): Promise<ModelContractV2>;
 }
 
@@ -275,7 +298,7 @@ export const ALLOW_STUDIO_AUTHORING_POLICY_V1: StudioAuthoringPolicyPortV1 =
   Object.freeze({ authorize: () => undefined });
 
 /** Machine discovery document. `inputSchema` is JSON Schema, never prose. */
-export function describeStudioAuthoringProtocolV1(): Readonly<{
+export function describeStudioAuthoringProtocolV1(selectedAction?: string): Readonly<{
   schemaId: typeof STUDIO_AUTHORING_PROTOCOL_DESCRIPTION_V1_SCHEMA_ID;
   jsonSchemaDialect: "https://json-schema.org/draft/2020-12/schema";
   commandSchemaId: typeof STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID;
@@ -343,6 +366,9 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
     object(["operation", "scenarioId"], {
       operation: { const: "remove" }, scenarioId: id,
     }),
+    object(["operation", "scenarioId"], {
+      operation: { const: "advance" }, scenarioId: id,
+    }),
   ] });
   const scenarioOperations = Object.freeze({
     type: "array", minItems: 1, items: scenarioOperation,
@@ -355,7 +381,7 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
     ["advanceSeconds", "maxPresentationSteps", "wallClockTimeoutMs"],
     {
       advanceSeconds: { type: "number", minimum: 0, maximum: 120 },
-      maxPresentationSteps: { type: "integer", minimum: 1, maximum: 20_000 },
+      maxPresentationSteps: { type: "integer", minimum: 1, maximum: STUDIO_AUTHORING_MAX_PRESENTATION_STEPS_V1 },
       wallClockTimeoutMs: { type: "integer", minimum: 1_000, maximum: 600_000 },
     },
   );
@@ -451,6 +477,10 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
       mode: { const: "fixed" }, scenarioIds: stringArray,
     }),
   ] });
+  const sweepWindow = { type: "number", minimum: STUDIO_SWEEP_WINDOW_MIN_SEC_V2,
+    maximum: STUDIO_SWEEP_WINDOW_MAX_SEC_V2, multipleOf: STUDIO_SWEEP_WINDOW_STEP_SEC_V2 };
+  const historyDepth = { type: "integer", minimum: STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2,
+    maximum: STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2 };
   const graphPane = object([
     "excludedTraces", "graphId", "label", "order", "paneId", "priority",
     "role", "scenarioScope", "series",
@@ -465,8 +495,8 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
     excludedTraces: { type: "array", items: object(["scenarioId", "seriesId"], {
       scenarioId: id, seriesId: nullableId,
     }) },
-    windowSec: finiteNumber,
-    historyDepth: version,
+    windowSec: sweepWindow,
+    historyDepth,
     pressureVolumeAnalysisMode: {
       enum: ["raw-exact-orbit", "responsive-preview", "formal-periodic"],
     },
@@ -601,8 +631,8 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
         seriesId: nullableId,
         colorHex: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
       }) },
-      windowSec: finiteNumber,
-      historyDepth: version,
+      windowSec: sweepWindow,
+      historyDepth,
     }),
   });
   const briefingOutput = object([
@@ -681,7 +711,7 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
   ] });
   const briefingSelection = object([
     "controlIds", "graphPaneIds", "initialFocusScenarioId", "outputIds",
-    "title", "visibleScenarioIds",
+    "title", "visibleScenarioIds", "outputScenarioMode", "controlBindingMode",
   ], {
     title: id,
     visibleScenarioIds: nullableStringArray,
@@ -689,6 +719,8 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
     graphPaneIds: nullableStringArray,
     outputIds: nullableStringArray,
     controlIds: nullableStringArray,
+    outputScenarioMode: { enum: ["source-fixed", "each-visible"] },
+    controlBindingMode: { enum: ["source-fixed", "reader-focus"] },
   });
   const briefingTarget = Object.freeze({ oneOf: [
     object(["mode"], { mode: { const: "append" } }),
@@ -699,6 +731,11 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
     choiceId: id,
     label: { type: "string", maxLength: 1_000 },
   });
+  const articleOptionalImageUrl = { oneOf: [
+    { const: "" },
+    { type: "string", format: "uri", maxLength: 4_096,
+      pattern: "^(?:https://|http://(?:localhost|127\\.0\\.0\\.1)(?=[:/?#]|$))" },
+  ] };
   const articleLinkBlock = object([
     "blockId", "description", "href", "kind", "label",
   ], {
@@ -720,6 +757,10 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
     ] },
     label: { type: "string", maxLength: 500 },
     description: { type: "string", maxLength: 2_000 },
+    role: { enum: ["card", "reference"] },
+    imageUrl: articleOptionalImageUrl,
+    iconUrl: articleOptionalImageUrl,
+    siteName: { type: "string", maxLength: 240 },
   });
   const articleQuizBlock = object([
     "blockId", "choices", "correctChoiceId", "explanation", "kind",
@@ -745,7 +786,7 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
     object(["blockId", "kind", "text"], {
       blockId: id,
       kind: { const: "paragraph" },
-      text: { type: "string", maxLength: 20_000 },
+      text: { type: "string", maxLength: 20_000, description: "Inline references use [@linkBlockId] for role=reference, [^accordionBlockId] for role=note, and [fig:imageBlockId]. Drafts may contain unresolved targets; all targets must exist before publication. Prefix a marker with a backslash to display it literally. Numbers follow first mention; image numbers follow document order. Other text is literal, never HTML." },
     }),
     object(["blockId", "expression", "kind"], {
       blockId: id,
@@ -766,6 +807,12 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
       ] },
       altText: { type: "string", maxLength: 1_000 },
       caption: { type: "string", maxLength: 2_000 },
+      title: { type: "string", maxLength: 500 },
+      credit: object(["text", "licenseLabel", "licenseHref"], {
+        text: { type: "string", maxLength: 2_000 },
+        licenseLabel: { type: "string", maxLength: 240 },
+        licenseHref: articleLinkBlock.properties.href,
+      }),
     }),
     object(["blockId", "kind"], {
       blockId: id, kind: { const: "divider" },
@@ -778,6 +825,7 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
     object(["blockId", "blocks", "kind", "title"], {
       blockId: id,
       kind: { const: "accordion" },
+      role: { enum: ["disclosure", "note"] },
       title: { type: "string", maxLength: 500 },
       blocks: {
         type: "array",
@@ -991,7 +1039,7 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
       article: articleDraft,
     }),
   ] });
-  const actions: ReturnType<typeof describeStudioAuthoringProtocolV1>["actions"] = [
+  const allActions: ReturnType<typeof describeStudioAuthoringProtocolV1>["actions"] = [
     ...(["experiment.list", "snapshot.list", "article.list"] as const).map((action) =>
       Object.freeze({ action, mutation: false, inputSchema: object(["cursor", "limit"], {
         cursor: nullableCursor,
@@ -1003,6 +1051,42 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
     Object.freeze({ action: "snapshot.read", mutation: false,
       inputSchema: object(["snapshotId"], { snapshotId: id }),
       resultSchema: nullable(snapshot) }),
+    Object.freeze({ action: "snapshot.analyze", mutation: false,
+      inputSchema: object(["snapshotId", "scenarioIds", "includeAnalysis"], {
+        snapshotId: id,
+        scenarioIds: { type: "array", minItems: 1, maxItems: 4, uniqueItems: true, items: id },
+        includeAnalysis: { type: "boolean", description: "Include the portable measured analysis payload (including partial progress on failure). False returns only source bindings and completeness assessments. Always ephemeral; never writes the Snapshot." },
+      }),
+      resultSchema: object(["source", "analysisId", "allComplete", "scenarios"], {
+        source: object(["snapshotId", "exactModel", "artifactRevisionId"], { snapshotId: id, exactModel, artifactRevisionId: id }),
+        analysisId: id,
+        allComplete: { type: "boolean", description: "True only when every requested scenario passes both sides of the pinned PV/Starling/PVA display assessment. Command ok does not imply allComplete." },
+        scenarios: { type: "array", items: object(["scenarioId", "source", "status", "assessment", "analysis", "error"], {
+          scenarioId: id,
+          source: object(["captureSha256", "inputEpoch", "acceptedRevision", "acceptedTimeSec"], {
+            captureSha256: { type: "string", pattern: "^[0-9a-f]{64}$" }, inputEpoch: { const: 0 },
+            acceptedRevision: version, acceptedTimeSec: finiteNumber,
+          }),
+          status: { enum: ["complete", "incomplete", "failed"] },
+          assessment: nullable(object(["analysisId", "pvaMethodId", "sides"], {
+            analysisId: id, pvaMethodId: id,
+            sides: { type: "array", items: object(["side", "settledPoints", "completedPointCount", "totalPointCount", "protocolId", "pvaMethodId", "status", "measurementStatus", "systolicLoadStatus", "diastolicLoadStatus", "pvaStatus", "reason"], {
+              side: { enum: ["left", "right"] }, settledPoints: version, completedPointCount: version, totalPointCount: version,
+              protocolId: nullableId, pvaMethodId: id, status: { enum: ["complete", "incomplete"] },
+              measurementStatus: { enum: ["complete", "incomplete"] },
+              systolicLoadStatus: { enum: ["complete", "progressive", "unavailable"] },
+              diastolicLoadStatus: { enum: ["complete", "progressive", "unavailable"] },
+              pvaStatus: { enum: ["complete", "progressive", "collecting", "unavailable", "not-evaluated"] }, reason: nullableId,
+            }) },
+          })),
+          analysis: nullable(object(["modelId", "runtimeSessionId", "scenarioId", "inputEpoch", "sourceAcceptedRevision", "sourceAcceptedTimeSec", "analysisId", "payload"], {
+            modelId: id, runtimeSessionId: id, scenarioId: id, inputEpoch: { const: 0 },
+            sourceAcceptedRevision: version, sourceAcceptedTimeSec: finiteNumber, analysisId: id,
+            payload: { type: "object", description: "Portable JSON owned by the pinned analysis method." },
+          })),
+          error: nullable(object(["stage", "message"], { stage: { enum: ["execution", "assessment"] }, message: id })),
+        }) },
+      }) }),
     Object.freeze({ action: "article.read", mutation: false,
       inputSchema: object(["articleId"], { articleId: id }),
       resultSchema: nullable(articleDraft) }),
@@ -1012,6 +1096,28 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
     Object.freeze({ action: "model.describe", mutation: false,
       inputSchema: object(["experimentId"], { experimentId: nullableId }),
       resultSchema: object(["exactModel", "model"], { exactModel, model: modelContract }) }),
+    Object.freeze({ action: "experiment.trace", mutation: false,
+      inputSchema: object(["experimentId", "expectedVersion", "exactModel", "scenarioIds", "outputIds", "stepCount", "sampleStride", "wallClockTimeoutMs"], {
+        experimentId: id, expectedVersion: version, exactModel,
+        scenarioIds: { type: "array", minItems: 1, maxItems: 4, uniqueItems: true, items: id },
+        outputIds: { type: "array", minItems: 1, maxItems: 32, uniqueItems: true, items: id },
+        stepCount: { type: "integer", minimum: 1, maximum: 20_000 },
+        sampleStride: { type: "integer", minimum: 1, maximum: 1_000 },
+        wallClockTimeoutMs: { type: "integer", minimum: 1_000, maximum: 600_000 },
+      }),
+      resultSchema: object(["source", "stepCount", "sampleStride", "outputIds", "traces"], {
+        source: object(["experimentId", "version", "exactModel"], { experimentId: id, version, exactModel }),
+        stepCount: version, sampleStride: version, outputIds: stringArray,
+        traces: { type: "array", items: object(["scenarioId", "inputEpoch", "startAcceptedTimeSec", "startAcceptedRevision", "samples"], {
+          scenarioId: id, inputEpoch: version, startAcceptedTimeSec: finiteNumber, startAcceptedRevision: version,
+          samples: { type: "array", items: object(["acceptedTimeSec", "acceptedRevision", "values", "states"], {
+            acceptedTimeSec: finiteNumber, acceptedRevision: version,
+            values: { type: "array", items: { type: ["number", "null"] } },
+            states: { type: "array", items: { type: "integer", minimum: 0, maximum: 5 },
+              description: "Packed exact ABI: availability offset 0=available, 3=not-evaluated; quality offset 0=authoritative-state, 1=accepted-derived, 2=not-assessed. Values are null for unavailable states." },
+          }) },
+        }) },
+      }) }),
     Object.freeze({ action: "experiment.preview", mutation: false,
       inputSchema: previewInputSchema,
       resultSchema: object(["diff", "observations", "plan"], {
@@ -1091,6 +1197,12 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
         articleId: id, expectedVersion: version, publicSlug,
       }), resultSchema: published }),
   ];
+  const actions = selectedAction === undefined
+    ? allActions
+    : allActions.filter(({ action }) => action === selectedAction);
+  if (actions.length === 0) {
+    throw new Error(`Unknown authoring action: ${selectedAction}; use --list-actions`);
+  }
   const commandEnvelope = Object.freeze({
     oneOf: actions.map(({ action, inputSchema }) => object(
       ["action", "commandId", "input", "schemaId"],
@@ -1204,6 +1316,17 @@ export function validateStudioAuthoringCommandV1(
       return deepFreezeV1({ ...base, action: command.action, input: {
         snapshotId: trimmedV1(input.snapshotId, "$.command.input.snapshotId"),
       } });
+    case "snapshot.analyze": {
+      exactKeysV1(input, ["snapshotId", "scenarioIds", "includeAnalysis"], "$.command.input");
+      const scenarioIds = stringArrayV1(input.scenarioIds, "$.command.input.scenarioIds");
+      if (scenarioIds.length < 1 || scenarioIds.length > 4)
+        throw new Error("$.command.input.scenarioIds must select 1–4 distinct scenarios");
+      if (typeof input.includeAnalysis !== "boolean")
+        throw new Error("$.command.input.includeAnalysis must be a boolean");
+      return deepFreezeV1({ ...base, action: command.action, input: {
+        snapshotId: trimmedV1(input.snapshotId, "$.command.input.snapshotId"), scenarioIds, includeAnalysis: input.includeAnalysis,
+      } });
+    }
     case "article.read":
       exactKeysV1(input, ["articleId"], "$.command.input");
       return deepFreezeV1({ ...base, action: command.action, input: {
@@ -1219,6 +1342,21 @@ export function validateStudioAuthoringCommandV1(
       return deepFreezeV1({ ...base, action: command.action, input: {
         experimentId: nullableTrimmedV1(input.experimentId, "$.command.input.experimentId"),
       } });
+    case "experiment.trace": {
+      exactKeysV1(input, ["experimentId", "expectedVersion", "exactModel", "scenarioIds", "outputIds", "stepCount", "sampleStride", "wallClockTimeoutMs"], "$.command.input");
+      const traceInput: StudioAuthoringTraceInputV1 = {
+        experimentId: trimmedV1(input.experimentId, "$.command.input.experimentId"),
+        expectedVersion: boundedIntegerV1(input.expectedVersion, "$.command.input.expectedVersion", 0, Number.MAX_SAFE_INTEGER),
+        exactModel: exactModelPinV1(input.exactModel, "$.command.input.exactModel"),
+        scenarioIds: stringArrayV1(input.scenarioIds, "$.command.input.scenarioIds"),
+        outputIds: stringArrayV1(input.outputIds, "$.command.input.outputIds"),
+        stepCount: boundedIntegerV1(input.stepCount, "$.command.input.stepCount", 1, 20_000),
+        sampleStride: boundedIntegerV1(input.sampleStride, "$.command.input.sampleStride", 1, 1_000),
+        wallClockTimeoutMs: boundedIntegerV1(input.wallClockTimeoutMs, "$.command.input.wallClockTimeoutMs", 1_000, 600_000),
+      };
+      assertStudioAuthoringTraceSamplingV1(traceInput);
+      return deepFreezeV1({ ...base, action: command.action, input: traceInput });
+    }
     case "experiment.preview": {
       exactKeysV1(input, [
         "executionBudget", "expectedVersion", "experimentId", "observeOutputIds",
@@ -1233,13 +1371,16 @@ export function validateStudioAuthoringCommandV1(
         "$.command.input.expectedVersion",
       );
       assertMatchingNullableIdentityV1(experimentId, expectedVersion, "Experiment preview");
+      const scenarioOperations = scenarioOperationsV1(input.scenarioOperations);
+      const executionBudget = executionBudgetV1(input.executionBudget);
+      assertStudioAuthoringTimeAdvanceV1(scenarioOperations, executionBudget);
       return deepFreezeV1({ ...base, action: command.action, input: {
         experimentId,
         expectedVersion,
         title: trimmedV1(input.title, "$.command.input.title"),
-        scenarioOperations: scenarioOperationsV1(input.scenarioOperations),
+        scenarioOperations,
         presentation: presentationSpecV1(input.presentation),
-        executionBudget: executionBudgetV1(input.executionBudget),
+        executionBudget,
         observeOutputIds: nullableStringArrayV1(
           input.observeOutputIds,
           "$.command.input.observeOutputIds",
@@ -1345,6 +1486,7 @@ export async function executeStudioAuthoringCommandV1(
   models: StudioAuthoringModelPortV1,
   commandValue: StudioAuthoringCommandV1 | unknown,
   policy: StudioAuthoringPolicyPortV1 = ALLOW_STUDIO_AUTHORING_POLICY_V1,
+  observer: Readonly<{ onSnapshotAnalysisProgress?: (progress: StudioSnapshotAnalysisProgressV1) => void }> = {},
 ): Promise<unknown> {
   const command = validateStudioAuthoringCommandV1(commandValue);
   await policy.authorize(command);
@@ -1354,11 +1496,15 @@ export async function executeStudioAuthoringCommandV1(
     case "article.list": return repository.listMyArticles(command.input);
     case "experiment.read": return repository.readMyExperiment(command.input.experimentId);
     case "snapshot.read": return repository.readSnapshot(command.input.snapshotId);
+    case "snapshot.analyze":
+      return analyzeStudioSnapshotV1(repository, models, command.input, observer.onSnapshotAnalysisProgress);
     case "article.read": return repository.readArticle(command.input.articleId);
     case "operation.read":
       return repository.readMyAuthoringOperationReceipt(command.input.operationId);
     case "model.describe":
       return describeModelForAuthoringV1(repository, models, command.input.experimentId);
+    case "experiment.trace":
+      return traceStudioExperimentV1(repository, models, command.input);
     case "experiment.preview":
       return previewStudioExperimentPlanV1(repository, models, command.input);
     case "experiment.apply":
@@ -1582,6 +1728,10 @@ function scenarioOperationsV1(value: unknown): readonly StudioAuthoringScenarioO
       exactKeysV1(operation, ["operation", "scenarioId"], path);
       return Object.freeze({ operation: "remove" as const, scenarioId });
     }
+    if (operation.operation === "advance") {
+      exactKeysV1(operation, ["operation", "scenarioId"], path);
+      return Object.freeze({ operation: "advance" as const, scenarioId });
+    }
     if (operation.operation === "update") {
       exactKeysV1(operation, ["controls", "label", "operation", "scenarioId"], path);
       return Object.freeze({
@@ -1653,6 +1803,9 @@ function experimentApplyPlanV1(value: unknown): StudioExperimentApplyPlanV1 {
   if (!/^[0-9a-f]{64}$/.test(planDigest)) {
     throw new Error(`${path}.planDigest must be lowercase SHA-256`);
   }
+  const scenarioOperations = scenarioOperationsAtPathV1(plan.scenarioOperations, `${path}.scenarioOperations`);
+  const executionBudget = executionBudgetAtPathV1(plan.executionBudget, `${path}.executionBudget`);
+  assertStudioAuthoringTimeAdvanceV1(scenarioOperations, executionBudget);
   return Object.freeze({
     schemaId: STUDIO_EXPERIMENT_APPLY_PLAN_V1_SCHEMA_ID,
     planDigest,
@@ -1661,12 +1814,9 @@ function experimentApplyPlanV1(value: unknown): StudioExperimentApplyPlanV1 {
     exactModel: exactModelPinV1(plan.exactModel, `${path}.exactModel`),
     baseScenarioIds: stringArrayV1(plan.baseScenarioIds, `${path}.baseScenarioIds`),
     title: trimmedV1(plan.title, `${path}.title`),
-    scenarioOperations: scenarioOperationsAtPathV1(
-      plan.scenarioOperations,
-      `${path}.scenarioOperations`,
-    ),
+    scenarioOperations,
     presentation: presentationSpecAtPathV1(plan.presentation, `${path}.presentation`),
-    executionBudget: executionBudgetAtPathV1(plan.executionBudget, `${path}.executionBudget`),
+    executionBudget,
     observeOutputIds: nullableStringArrayV1(
       plan.observeOutputIds,
       `${path}.observeOutputIds`,
@@ -1704,7 +1854,7 @@ function executionBudgetAtPathV1(
       record.maxPresentationSteps,
       `${path}.maxPresentationSteps`,
       1,
-      20_000,
+      STUDIO_AUTHORING_MAX_PRESENTATION_STEPS_V1,
     ),
     wallClockTimeoutMs: boundedIntegerV1(
       record.wallClockTimeoutMs,
@@ -1779,8 +1929,14 @@ function briefingSelectionV1(value: unknown): StudioArticleBriefingSelectionV1 {
   const record = recordV1(value, path);
   exactKeysV1(record, [
     "controlIds", "graphPaneIds", "initialFocusScenarioId", "outputIds",
-    "title", "visibleScenarioIds",
+    "title", "visibleScenarioIds", "outputScenarioMode", "controlBindingMode",
   ], path);
+  if (record.outputScenarioMode !== "source-fixed" && record.outputScenarioMode !== "each-visible") {
+    throw new Error(`${path}.outputScenarioMode must be source-fixed or each-visible`);
+  }
+  if (record.controlBindingMode !== "source-fixed" && record.controlBindingMode !== "reader-focus") {
+    throw new Error(`${path}.controlBindingMode must be source-fixed or reader-focus`);
+  }
   return Object.freeze({
     title: trimmedV1(record.title, `${path}.title`),
     visibleScenarioIds: nullableStringArrayV1(record.visibleScenarioIds, `${path}.visibleScenarioIds`),
@@ -1788,6 +1944,8 @@ function briefingSelectionV1(value: unknown): StudioArticleBriefingSelectionV1 {
     graphPaneIds: nullableStringArrayV1(record.graphPaneIds, `${path}.graphPaneIds`),
     outputIds: nullableStringArrayV1(record.outputIds, `${path}.outputIds`),
     controlIds: nullableStringArrayV1(record.controlIds, `${path}.controlIds`),
+    outputScenarioMode: record.outputScenarioMode,
+    controlBindingMode: record.controlBindingMode,
   });
 }
 

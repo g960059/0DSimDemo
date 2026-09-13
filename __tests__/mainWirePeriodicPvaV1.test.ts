@@ -13,6 +13,8 @@ import {
   buildMainWirePeriodicPvaMethodV10,
   buildMainWirePeriodicPvaMethodV13,
   buildMainWirePeriodicPvaMethodV14,
+  buildMainWirePeriodicPvaMethodV15,
+  buildMainWirePeriodicPvaMethodV16,
   buildMainWireSystolicPressureEnvelopeV1,
   buildMainWireDiastolicLoadRelationV1,
   mainWirePvaLowVolumeTangentPressureV1,
@@ -21,7 +23,11 @@ import {
   MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
+import { MAIN_WIRE_PRESSURE_CROSSING_PV_PROTOCOL_V1_ID as crossingProtocolId } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import { evaluateMainWireIntegratedModelLvMvo2EstimateV1 } from "@/analysis/methods/mainWire/MainWireMvo2ReferenceV1";
 import { evaluateMainWireLvMvo2EstimateV2 } from "@/analysis/methods/mainWire/MainWireMvo2ReferenceV2";
 import { resolveMainWireStaticCaseAnatomyV1 as anatomy } from "@/engine/myocardium/mechanics/MainWireStaticCaseAnatomyV1";
@@ -1585,4 +1591,180 @@ function syntheticLoopV1(
       });
     }),
   );
+}
+
+describe("bounded PE-tail admission V16", () => {
+  const passive = (edpvr: Readonly<{ scaleMmHg: number; exponentPerMl: number; zeroPressureVolumeMl: number }>, volumeMl: number) =>
+    volumeMl <= edpvr.zeroPressureVolumeMl ? 0 : edpvr.scaleMmHg * Math.expm1(edpvr.exponentPerMl * (volumeMl - edpvr.zeroPressureVolumeMl));
+  const available = (result: ReturnType<typeof buildMainWirePeriodicPvaMethodV16>) => {
+    if (result.status !== "available") throw new Error(result.reason);
+    return result;
+  };
+  const stripSample = (strip: NonNullable<ReturnType<typeof buildMainWirePeriodicPvaMethodV16>["areaDisplay"]>["potentialEnergyStrip"]) => {
+    let area = 0;
+    for (let i = 1; i < strip.length; i += 1) {
+      const a = strip[i - 1]!, b = strip[i]!;
+      area += 0.5 * ((a.upperPressureMmHg - a.lowerPressureMmHg) + (b.upperPressureMmHg - b.lowerPressureMmHg)) * (b.volumeMl - a.volumeMl);
+    }
+    return area;
+  };
+
+  it("requires the pinned pressure-crossing family and pins its own identity plus nested MVO2 provenance", () => {
+    expect(() => buildMainWirePeriodicPvaMethodV16(formalLocusV1(settledPointsV1()), "LV")).toThrow(/pinned measured protocol/);
+    expect(MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID).not.toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID);
+    const bounded = available(buildMainWirePeriodicPvaMethodV16(crossingLocusV1(settledPointsV1(), true), "LV"));
+    const previous = available(buildMainWirePeriodicPvaMethodV15(crossingLocusV1(settledPointsV1(), true), "LV"));
+    expect(bounded.methodId).toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID);
+    expect(previous.methodId).toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID);
+    if (bounded.estimatedMvo2?.status !== "available" || previous.estimatedMvo2?.status !== "available") throw new Error("Expected exact-anatomy MVO2");
+    expect(bounded.estimatedMvo2.methodId).toBe("suga-1986-pva-mvo2-linear-exact-anatomy-mass-v2");
+    expect(bounded.estimatedMvo2.pvaSource).toMatchObject({ outputId: bounded.outputId, methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID });
+    // Retained V15 behaviour: the delegated V14 build leaves V14 inside the nested estimate.
+    expect(previous.estimatedMvo2.pvaSource.methodId).toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID);
+    expect(bounded.estimatedMvo2.oxygenDemand).toEqual(previous.estimatedMvo2.oxygenDemand);
+    expect(bounded.estimatedMvo2.massReference).toEqual(previous.estimatedMvo2.massReference);
+    expect(available(buildMainWirePeriodicPvaMethodV16(crossingLocusV1(settledPointsV1(), false), "LV")).estimatedMvo2?.status).toBe("unavailable");
+    expect(available(buildMainWirePeriodicPvaMethodV16(crossingLocusV1(settledPointsV1(), true), "RV")).estimatedMvo2).toBeNull();
+  });
+
+  it.each([
+    { label: "standard family", points: settledPointsV1() },
+    { label: "deep preload-reduction chain", points: boundedTailFamilyV1([]) },
+  ])("is numerically identical to V15 when the measured-start gap is positive ($label)", ({ points }) => {
+    const previous = available(buildMainWirePeriodicPvaMethodV15(crossingLocusV1(points, true), "LV"));
+    const bounded = available(buildMainWirePeriodicPvaMethodV16(crossingLocusV1(points, true), "LV"));
+    for (const key of ["pva", "espvr", "edpvr", "strokeWork", "anchor", "source", "loadRelations", "areaDisplay", "progress", "completionStatus"] as const)
+      expect(bounded[key]).toEqual(previous[key]);
+    const { lowVolumeTailAdmission, measuredStartPressureGapMmHg, ...energy } = bounded.potentialEnergy;
+    expect(energy).toEqual(previous.potentialEnergy);
+    expect(previous.potentialEnergy).not.toHaveProperty("lowVolumeTailAdmission");
+    expect(lowVolumeTailAdmission).toBe("endpoint-tangent-extension");
+    expect(measuredStartPressureGapMmHg).toBeGreaterThan(0);
+    expect(bounded.potentialEnergy.lowVolumeTangentExtensionUsed).toBe(true);
+    expect(bounded.potentialEnergy.lowVolumeTangentExtensionSpanMl).toBeGreaterThan(0);
+    expect(bounded.limitations).toEqual(previous.limitations);
+    expect(bounded.limitations).toContain("low-volume-pva-tail-uses-endpoint-local-tangent-extension");
+  });
+
+  it.each([
+    { label: "negative", lowestPressureMmHg: -0.15 },
+    { label: "zero", lowestPressureMmHg: 0 },
+    { label: "positive below the EDPVR", lowestPressureMmHg: 0.1 },
+  ])("admits PE from the measured domain when the $label lowest isochrone pressure sits under the EDPVR", ({ lowestPressureMmHg }) => {
+    const points = boundedTailFamilyV1([lowestPressureMmHg]);
+    const bounded = available(buildMainWirePeriodicPvaMethodV16(crossingLocusV1(points, true), "LV"));
+    const start = bounded.espvr.fitPoints[0]!, next = bounded.espvr.fitPoints[1]!;
+    expect(start.volumeMl).toBe(bounded.espvr.measuredVolumeRangeMl[0]);
+    expect(start.pressureMmHg).toBeCloseTo(lowestPressureMmHg, 6);
+    const gap = start.pressureMmHg - passive(bounded.edpvr, start.volumeMl);
+    expect(gap).toBeLessThanOrEqual(0);
+    expect(bounded.potentialEnergy).toMatchObject({
+      lowVolumeTailAdmission: "measured-domain-intersection", lowVolumeTangentExtensionUsed: false,
+      lowVolumeTangentExtensionSpanMl: 0, measuredEspvrStartVolumeMl: start.volumeMl,
+    });
+    expect(bounded.potentialEnergy.measuredStartPressureGapMmHg).toBeCloseTo(gap, 12);
+    const crossing = bounded.potentialEnergy.leftIntersectionVolumeMl;
+    expect(crossing).toBeGreaterThanOrEqual(start.volumeMl);
+    expect(crossing).toBeLessThan(next.volumeMl);
+    expect(crossing).toBeLessThan(bounded.anchor.endSystolicVolumeMl);
+    expect(bounded.limitations).toContain("low-volume-pva-tail-bounded-by-measured-domain-intersection");
+    expect(bounded.limitations).not.toContain("low-volume-pva-tail-uses-endpoint-local-tangent-extension");
+    expect(bounded.limitations).toHaveLength(9);
+    // Nothing below measured support is ever drawn or integrated.
+    const strip = bounded.areaDisplay!.potentialEnergyStrip;
+    expect(strip[0]!.volumeMl).toBe(crossing);
+    expect(strip.at(-1)!.volumeMl).toBe(bounded.anchor.endSystolicVolumeMl);
+    for (const node of strip) {
+      expect(node.volumeMl).toBeGreaterThanOrEqual(start.volumeMl);
+      expect(Number.isFinite(node.upperPressureMmHg)).toBe(true);
+      expect(node.upperPressureMmHg - node.lowerPressureMmHg).toBeGreaterThanOrEqual(-1e-9);
+    }
+    expect(strip[0]!.upperPressureMmHg - strip[0]!.lowerPressureMmHg).toBeCloseTo(0, 6);
+    expect(bounded.potentialEnergy.mmHgMl).toBeCloseTo(stripSample(strip), 9);
+    expect(bounded.potentialEnergy.mmHgMl).toBeGreaterThan(0);
+    expect(bounded.pva.mmHgMl).toBeCloseTo(bounded.strokeWork.mmHgMl + bounded.potentialEnergy.mmHgMl, 9);
+    expect(bounded.estimatedMvo2?.status).toBe("available");
+    const previous = buildMainWirePeriodicPvaMethodV15(crossingLocusV1(points, true), "LV");
+    if (lowestPressureMmHg > 0) {
+      // V15 admits through a tangent it never consumes; the shared measured-domain root is the same.
+      const retained = available(previous);
+      expect(retained.potentialEnergy.lowVolumeTangentExtensionUsed).toBe(false);
+      expect(retained.potentialEnergy.leftIntersectionVolumeMl).toBeCloseTo(crossing, 9);
+      expect(retained.potentialEnergy.mmHgMl).toBeCloseTo(bounded.potentialEnergy.mmHgMl, 9);
+    } else {
+      expect(previous).toMatchObject({ status: "unavailable", methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V15_ID,
+        reason: expect.stringContaining("positive finite low-volume tangent") });
+      if (previous.status === "available") throw new Error("Expected V15 rejection");
+      expect(previous.preview?.stage).toBe("relations");
+      expect(previous.loadRelations?.systolic?.completionStatus).toBe("complete");
+    }
+  });
+
+  it("still requires the endpoint tangent when the crossing lies below measured support, and rejects a flat low end", () => {
+    // Positive measured-start gap with a Fritsch–Carlson endpoint tangent clamped to zero.
+    const flat = crossingLocusV1(boundedTailFamilyV1([1, 1.02]), true);
+    for (const build of [buildMainWirePeriodicPvaMethodV15, buildMainWirePeriodicPvaMethodV16]) {
+      const result = build(flat, "LV");
+      expect(result).toMatchObject({ status: "unavailable", reason: expect.stringContaining("positive finite low-volume tangent") });
+      if (result.status === "available" || result.preview?.espvr === null || result.preview === null) throw new Error("Expected relations preview");
+      const start = result.preview.espvr.fitPoints[0]!;
+      expect(start.pressureMmHg - passive(result.preview.edpvr!, start.volumeMl)).toBeGreaterThan(0);
+    }
+  });
+
+  it("rejects a measured-domain crossing that re-crosses the EDPVR before the anchor", () => {
+    const points = boundedTailFamilyV1([-0.15, 0.45, 0.46, 1.5]);
+    const result = buildMainWirePeriodicPvaMethodV16(crossingLocusV1(points, true), "LV");
+    expect(result).toMatchObject({ status: "unavailable", methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V16_ID,
+      reason: expect.stringContaining("one left ESPVR–EDPVR intersection followed by P_es > P_ed") });
+    if (result.status === "available" || !result.preview?.espvr || !result.preview.edpvr) throw new Error("Expected relations preview");
+    const [start, second, third] = result.preview.espvr.fitPoints;
+    expect(start!.pressureMmHg - passive(result.preview.edpvr, start!.volumeMl)).toBeLessThan(0);
+    expect(second!.pressureMmHg - passive(result.preview.edpvr, second!.volumeMl)).toBeGreaterThan(0);
+    expect(third!.pressureMmHg - passive(result.preview.edpvr, third!.volumeMl)).toBeLessThan(0);
+    expect(buildMainWirePeriodicPvaMethodV15(crossingLocusV1(points, true), "LV").status).toBe("unavailable");
+  });
+
+  it("searches the measured domain from V_min without evaluating any extrapolation", () => {
+    const edpvr = { scale: 0.5, exponent: 0.05, volumeOffset: 10, rSquared: 1, parameterBoundaryHit: false };
+    const law = (v: number) => v < 18 ? Number.NaN : 1.3 * (v - 18.3);
+    const crossing = pressureRelationsLeftIntersectionV1(law, edpvr, 18, 60, true)!;
+    expect(crossing).toBeGreaterThan(18.3);
+    expect(1.3 * (crossing - 18.3)).toBeCloseTo(0.5 * Math.expm1(0.05 * (crossing - 10)), 10);
+    // Missing intersection: the gap never turns positive through the anchor volume.
+    expect(pressureRelationsLeftIntersectionV1(v => v < 18 ? Number.NaN : -0.1, edpvr, 18, 60, true)).toBeNull();
+    // Re-cross after a measured-domain crossing.
+    expect(pressureRelationsLeftIntersectionV1(v => v > 40 && v < 45 ? -1 : law(v), edpvr, 18, 60, true)).toBeNull();
+    // A positive gap at V_min is not a crossing; the caller must extend instead.
+    expect(pressureRelationsLeftIntersectionV1(v => law(v) + 5, edpvr, 18, 60, true)).toBeNull();
+  });
+});
+
+/** Pinned pressure-crossing identity for V15/V16 builders; optional exact anatomy for the MVO2 owner. */
+function crossingLocusV1(points: readonly MainWireIntegratedModelStarlingPointV3[], withAnatomy: boolean): MainWireIntegratedModelStarlingLocusV3 {
+  return Object.freeze({ ...formalLocusV1(points), protocolId: crossingProtocolId,
+    ...(withAnatomy ? { exactAnatomy: anatomy("baseline-v1") } : {}) });
+}
+
+/** Deep preload-reduction chain whose lowest common-isochrone pressures are set directly.
+ * `lowEnd[i]` is the pressure the selected isochrone (t = 0.4375 s, loop sample 35/64)
+ * must report at the i-th lowest measured volume; that point's whole loop is shifted so
+ * the systolic law stays shape-preserving. A lower EDPVR intercept keeps P_ed(V_min) > 0
+ * as in the measured families. */
+function boundedTailFamilyV1(lowEnd: readonly number[]): readonly MainWireIntegratedModelStarlingPointV3[] {
+  const ratios = [1.16, 1.08, 1, 0.92, 0.84, 0.76, 0.68, 0.6, 0.5, 0.4, 0.3, 0.2, 0.12];
+  const points = settledPointsV1(ratios).map((point) => {
+    const landmarks = point.ventricularPressureVolumeLandmarks;
+    const pressureMmHg = 1.2 * Math.expm1(0.03 * (landmarks.endDiastolic.volumeMl - 15));
+    return Object.freeze({ ...point, ventricularPressureVolumeLandmarks: Object.freeze({ ...landmarks,
+      endDiastolic: Object.freeze({ ...landmarks.endDiastolic, pressureMmHg }) }) });
+  });
+  return Object.freeze(points.map((point, index) => {
+    const lowOrdinal = points.length - 1 - index;
+    if (lowOrdinal >= lowEnd.length) return point;
+    const sample = point.ventricularPressureVolumeLoop.find(({ phase01 }) => phase01 === 35 / 64)!;
+    const shift = lowEnd[lowOrdinal]! - sample.pressureMmHg;
+    return Object.freeze({ ...point, ventricularPressureVolumeLoop: Object.freeze(point.ventricularPressureVolumeLoop.map((loopPoint) =>
+      Object.freeze({ ...loopPoint, pressureMmHg: loopPoint.pressureMmHg + shift }))) });
+  }));
 }

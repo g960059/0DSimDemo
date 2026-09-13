@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { traceStudioExperimentV1 } from "@/studio/application/authoring/StudioAuthoringTraceV1";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   applyStudioExperimentPlanV1,
@@ -33,6 +34,78 @@ import {
 } from "@/components/workbench/WorkbenchSurfaceV3";
 
 describe("Studio numerical authoring V1", () => {
+  it("traces the same saved capture reproducibly, retains terminal samples and never persists transient state", async () => {
+    const repository = memoryRepositoryV1();
+    const models = numericalModelsV1();
+    const preview = await previewStudioExperimentPlanV1(repository, models, {
+      experimentId: null, expectedVersion: null, title: "Trace",
+      scenarioOperations: [{ operation: "add", scenarioId: "baseline", label: "Baseline", sourceScenarioId: null, controls: [] }],
+      presentation: { mode: "default", note: "" }, executionBudget: executionBudgetV1(), observeOutputIds: [],
+    });
+    const applied = await applyStudioExperimentPlanV1(repository, models, preview.plan);
+    const before = structuredClone(repository.experiment());
+    const input = { experimentId: applied.savedExperiment.experimentId, expectedVersion: 0,
+      exactModel: preview.plan.exactModel, scenarioIds: ["baseline"],
+      outputIds: ["hemodynamics.volume.LV", "hemodynamics.pressure.absolute.LV"],
+      stepCount: 131, sampleStride: 1, wallClockTimeoutMs: 10_000 };
+    const unavailable = await traceStudioExperimentV1(repository, models, { ...input,
+      outputIds: ["hemodynamics.stroke-volume.LV-event-defined"], stepCount: 1 });
+    expect(unavailable.traces[0]!.samples[0]!.states[0]).toBeGreaterThanOrEqual(3);
+    expect(unavailable.traces[0]!.samples[0]!.values).toEqual([null]);
+    const full = await traceStudioExperimentV1(repository, models, input);
+    const sampled = await traceStudioExperimentV1(repository, models, { ...input, sampleStride: 10 });
+    expect(sampled.traces[0]!.samples).toEqual(full.traces[0]!.samples.filter((_, i) => (i + 1) % 10 === 0 || i === 130));
+    expect(full.traces[0]!.startAcceptedTimeSec).toBe(before!.content.scenarios[0]!.capture.checkpoint.acceptedTimeSec);
+    expect(full.traces[0]!.samples.at(-1)!.acceptedRevision).toBeGreaterThan(full.traces[0]!.startAcceptedRevision);
+    expect(full.traces[0]!.samples.every(s => s.values.every(Number.isFinite))).toBe(true);
+    expect(repository.experiment()).toEqual(before);
+    await expect(traceStudioExperimentV1(repository, models, { ...input, expectedVersion: 1 })).rejects.toThrow(/version conflict/);
+    await expect(traceStudioExperimentV1(repository, models, { ...input, scenarioIds: ["absent"] })).rejects.toThrow(/unavailable Scenario/);
+    await expect(traceStudioExperimentV1(repository, models, { ...input, outputIds: ["analysis/non-exact"] })).rejects.toThrow(/exact scalar/);
+    await expect(traceStudioExperimentV1(repository, models, { ...input, outputIds: ["hemodynamics.volume.LV", "hemodynamics.volume.LV"] })).rejects.toThrow(/duplicates/);
+    const resolved = await models.resolveExactNumericalModel(input.exactModel);
+    const dispose = vi.fn((sessionId: string) => resolved.runtime.simulationAdapter.disposeSession(sessionId));
+    const failingModels = { ...models, resolveExactNumericalModel: async () => ({ ...resolved,
+      runtime: { ...resolved.runtime, simulationAdapter: { ...resolved.runtime.simulationAdapter,
+        disposeSession: dispose, advancePresentationBatch: async () => { throw new Error("numerical failure"); },
+      } },
+    }) };
+    await expect(traceStudioExperimentV1(repository, failingModels, input)).rejects.toThrow("numerical failure");
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(repository.experiment()).toEqual(before);
+    vi.restoreAllMocks();
+  });
+  it("advances only the selected saved Scenario without changing inputs, epochs or labels", async () => {
+    const repository = memoryRepositoryV1();
+    const models = numericalModelsV1();
+    const initial = await previewStudioExperimentPlanV1(repository, models, {
+      experimentId: null, expectedVersion: null, title: "Observe recovery",
+      scenarioOperations: ["reference", "response"].map(scenarioId => ({
+        operation: "add" as const, scenarioId, label: scenarioId,
+        sourceScenarioId: null, controls: [],
+      })), presentation: { mode: "default", note: "" },
+      executionBudget: executionBudgetV1(), observeOutputIds: [],
+    });
+    const applied = await applyStudioExperimentPlanV1(repository, models, initial.plan);
+    const before = repository.experiment()!;
+    const preview = await previewStudioExperimentPlanV1(repository, models, {
+      experimentId: applied.savedExperiment.experimentId, expectedVersion: 0,
+      title: "Observe recovery", scenarioOperations: [{ operation: "advance", scenarioId: "response" }],
+      presentation: { mode: "preserve", note: "" }, executionBudget: executionBudgetV1(), observeOutputIds: [],
+    });
+    expect(preview.diff).toMatchObject({ updatedScenarioIds: [], advancedScenarioIds: ["response"] });
+    expect(repository.experiment()).toEqual(before);
+    const result = await applyStudioExperimentPlanV1(repository, models, preview.plan);
+    const after = repository.experiment()!;
+    expect(after.content.scenarios[0]).toEqual(before.content.scenarios[0]);
+    expect(after.content.scenarios[1]!.capture.fixture).toEqual(before.content.scenarios[1]!.capture.fixture);
+    expect(after.content.scenarios[1]!.label).toBe(before.content.scenarios[1]!.label);
+    expect(after.content.scenarios[1]!.capture.checkpoint.acceptedTimeSec)
+      .toBeGreaterThan(before.content.scenarios[1]!.capture.checkpoint.acceptedTimeSec);
+    expect(result.observations.map(o => o.inputEpoch)).toEqual(initial.observations.map(o => o.inputEpoch));
+    await expect(applyStudioExperimentPlanV1(repository, models, preview.plan)).rejects.toThrow(/version conflict/);
+    expect(repository.experiment()).toEqual(after);
+  });
   it("previews explicit Scenario operations, preserves omissions, and seals the saved head", async () => {
     const repository = memoryRepositoryV1();
     const models = numericalModelsV1();

@@ -38,7 +38,7 @@ const copy = {
       "初回だけSupabaseのproject URLとpublishable keyを環境変数で渡し、Googleログインを行います。refresh tokenはmacOS Keychainへ保存され、access tokenやsecretはstdoutへ出ません。profile名は任意です。",
     discoveryTitle: "2. AIは最初に契約を発見する",
     discoveryBody:
-      "コマンド例をコピーし続けるのではなく、毎回--describeが返すJSON Schemaをauthorityとして使います。actionごとの入力・成功結果・構造化エラー・recoveryが含まれます。",
+      "コマンド例をコピーし続けるのではなく、--list-actionsで操作を選び、--describe <action>が返すJSON Schemaをauthorityとして使います。actionごとの入力・成功結果・構造化エラー・recoveryが含まれます。",
     workflowTitle: "3. 数値authoringの標準フロー",
     workflow: [
       ["Read", "model.describe / article.read / experiment.readで現在のauthority stateを読む。"],
@@ -80,7 +80,7 @@ const copy = {
       "For the first login, provide the Supabase project URL and publishable key, then complete Google sign-in. The refresh token is kept in macOS Keychain; access tokens and secrets are never written to stdout. Profile names are arbitrary.",
     discoveryTitle: "2. Let the assistant discover the contract",
     discoveryBody:
-      "Do not keep copying old examples. Treat the JSON Schema returned by --describe as authority. It includes each action input, success result, structured error, and recovery instruction.",
+      "Select an action with --list-actions, then treat the JSON Schema returned by --describe <action> as authority. It includes each action input, success result, structured error, and recovery instruction.",
     workflowTitle: "3. Standard numerical-authoring flow",
     workflow: [
       ["Read", "Read current authority state with model.describe, article.read, and experiment.read."],
@@ -110,7 +110,7 @@ export CIRCLEHEART_SUPABASE_PUBLISHABLE_KEY="sb_publishable_..."
 npm run author:login -- --profile my-author`;
 
 const discoverCommand =
-  "npm --silent run author:content -- --describe";
+  "npm --silent run author:content -- --list-actions\nnpm --silent run author:content -- --describe experiment.preview";
 
 const executeCommand =
   "npm --silent run author:content -- --profile my-author --command command.json";
@@ -214,8 +214,8 @@ export function AuthoringCliDocsPage() {
             label={text.readLabel}
             actions={[
               "experiment.list", "experiment.read", "snapshot.list",
-              "snapshot.read", "article.list", "article.read",
-              "operation.read", "model.describe", "experiment.preview",
+              "snapshot.read", "snapshot.analyze", "article.list", "article.read",
+              "operation.read", "model.describe", "experiment.trace", "experiment.preview",
             ]}
           />
           <ActionGroup

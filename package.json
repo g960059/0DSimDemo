@@ -73,6 +73,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.1",
+    "budoux": "^0.9.1",
     "dockview": "^6.6.1",
     "i18next": "^26.3.1",
     "katex": "^0.18.3",

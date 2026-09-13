@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { WorkbenchLastMeasuredOutputsV1 } from "@/components/workbench/presentation/WorkbenchLastMeasuredOutputsV1";
 import { ExperimentOutputGridV3, type ExperimentOutputPresentationItemV3 as Item } from "@/components/workbench/ExperimentPanePresentationV3";
 
-const current: Item = { itemId: "co", label: "CO", unit: "L/min", value: 5,
+const current: Item = { itemId: "co", outputId: "co", label: "CO", unit: "L/min", value: 5,
   availability: "available", quality: "accepted-derived" };
 const missing: Item = { ...current, value: null, availability: "unavailable", quality: "not-assessed" };
 

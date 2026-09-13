@@ -1,4 +1,5 @@
 import React from "react";
+import { SimulationIconButtonV3 } from "@/components/ui/SimulationIconButtonV3";
 import { ModelReferenceLinksV1 } from "@/components/model/ModelReferenceLinksV1";
 import { createPortal } from "react-dom";
 import {
@@ -63,6 +64,7 @@ type WorkbenchSimulationInfoNoteV3 = Readonly<{
 
 type WorkbenchSimulationInfoPanelPropsV3 = Readonly<{
   activeTab: WorkbenchSimulationInfoTabV3;
+  showStatus?: boolean;
   currentModelId: string;
   limitations: readonly string[];
   models: readonly WorkbenchSimulationInfoModelV3[];
@@ -89,7 +91,11 @@ export function WorkbenchSimulationInfoV3({
   note,
   onSelectModel,
   scenarios,
+  initialTab = "status",
+  showStatus = true,
 }: Readonly<{
+  initialTab?: WorkbenchSimulationInfoTabV3;
+  showStatus?: boolean;
   currentModelId: string;
   limitations: readonly string[];
   models: readonly WorkbenchSimulationInfoModelV3[];
@@ -100,7 +106,7 @@ export function WorkbenchSimulationInfoV3({
   const { t } = useTranslation();
   const [open, setOpen] = React.useState(false);
   const [activeTab, setActiveTab] =
-    React.useState<WorkbenchSimulationInfoTabV3>("status");
+    React.useState<WorkbenchSimulationInfoTabV3>(initialTab);
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
   const dialogRef = React.useRef<HTMLElement | null>(null);
   const requiresAttention = scenarios.some(
@@ -177,6 +183,7 @@ export function WorkbenchSimulationInfoV3({
         >
           <WorkbenchSimulationInfoPanelV3
             activeTab={activeTab}
+            showStatus={showStatus}
             currentModelId={currentModelId}
             limitations={limitations}
             models={models}
@@ -199,19 +206,19 @@ export function WorkbenchSimulationInfoV3({
 
   return (
     <>
-      <button
-        ref={triggerRef}
+      <SimulationIconButtonV3
+        buttonRef={triggerRef}
+        label={t("workbench.editor.simulationInfo.title")}
         type="button"
         className={`workbench-header-action relative inline-flex h-9 w-9 shrink-0 items-center justify-center ${
           requiresAttention ? "text-wb-warning" : ""
         }`}
         aria-label={t("workbench.editor.simulationInfo.title")}
-        title={t("workbench.editor.simulationInfo.title")}
         aria-haspopup="dialog"
         aria-expanded={open}
         data-testid="workbench-simulation-info-trigger-v3"
         onClick={() => {
-          setActiveTab("status");
+          setActiveTab(initialTab);
           setOpen(true);
         }}
       >
@@ -226,7 +233,7 @@ export function WorkbenchSimulationInfoV3({
             aria-hidden="true"
           />
         )}
-      </button>
+      </SimulationIconButtonV3>
       {dialog}
     </>
   );
@@ -234,6 +241,7 @@ export function WorkbenchSimulationInfoV3({
 
 export function WorkbenchSimulationInfoPanelV3({
   activeTab,
+  showStatus = true,
   currentModelId,
   limitations,
   models,
@@ -260,8 +268,8 @@ export function WorkbenchSimulationInfoPanelV3({
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
     const tabs: WorkbenchSimulationInfoTabV3[] = note === undefined
-      ? ["status", "model"]
-      : ["status", "model", "note"];
+      ? (showStatus ? ["status", "model"] : ["model"])
+      : (showStatus ? ["status", "model", "note"] : ["model", "note"]);
     const direction = event.key === "ArrowRight" ? 1 : -1;
     const currentIndex = tabs.indexOf(activeTab);
     const next = tabs[(currentIndex + direction + tabs.length) % tabs.length]!;
@@ -295,11 +303,12 @@ export function WorkbenchSimulationInfoPanelV3({
       </header>
 
       <div
-        className="flex shrink-0 gap-5 border-b border-wb-line px-5"
+        hidden={!showStatus && note === undefined}
+        className={`${!showStatus && note === undefined ? "hidden" : "flex"} shrink-0 gap-5 border-b border-wb-line px-5`}
         role="tablist"
         aria-label={t("workbench.editor.simulationInfo.title")}
       >
-        <SimulationInfoTabV3
+        {showStatus && <SimulationInfoTabV3
           active={activeTab === "status"}
           controls={statusPanelId}
           id={statusTabId}
@@ -307,7 +316,7 @@ export function WorkbenchSimulationInfoPanelV3({
           onClick={() => onTabChange("status")}
           onKeyDown={selectAdjacentTab}
           tab="status"
-        />
+        />}
         <SimulationInfoTabV3
           active={activeTab === "model"}
           controls={modelPanelId}

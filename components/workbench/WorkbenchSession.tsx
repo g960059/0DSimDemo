@@ -1,5 +1,5 @@
 import React from "react";
-import { loadPreparedModelAnalysisV1 } from "./runtime/PreparedModelAnalysisRegistryV1";
+import { loadPreparedScenarioAnalysisV1 } from "./runtime/PreparedModelAnalysisRegistryV1";
 import type { StudioJsonObjectV2 } from "@/studio/contracts/v2/json";
 import { workbenchPresentationAnalysisSelectionV1 } from "./presentation/WorkbenchPresentationOutputSelectionV3";
 import { WorkbenchLastMeasuredOutputsV1 } from "./presentation/WorkbenchLastMeasuredOutputsV1";
@@ -466,6 +466,7 @@ export const WorkbenchSession = ({
     Record<string, ExactModelControlValuesV1>
   >({});
   const playingIntentRef = React.useRef(true);
+  const appliedReaderPlaybackTokenRef = React.useRef<string | null>(null);
   const exclusiveOperationRef = React.useRef<
     "control" | "analysis" | "scenario" | "save" | "snapshot" | null
   >(null);
@@ -726,8 +727,16 @@ export const WorkbenchSession = ({
               articleAuthoringContext.briefing,
               sourceSnapshot.content,
             );
-      const initialContent =
-        storedExperiment?.content ?? sourceSnapshot?.content;
+      const continuation = sourceSnapshot ? experimentSessionContext?.continuation : undefined;
+      if (continuation && (continuation.content.modelId !== sourceSnapshot!.content.modelId
+        || continuation.content.surfaceSeriesId !== sourceSnapshot!.content.surfaceSeriesId
+        || continuation.surfaceReleaseId !== sourceSnapshot!.surfaceReleaseId)) {
+        throw new Error("Reader continuation does not match the saved model and Surface");
+      }
+      const initialContent = storedExperiment?.content ?? continuation?.content ?? sourceSnapshot?.content;
+      const initializeReaderPlayback = continuation !== undefined
+        && experimentSessionContext?.sessionToken !== appliedReaderPlaybackTokenRef.current;
+      if (initializeReaderPlayback) playingIntentRef.current = continuation.playing;
       let composition: StudioClientCompositionV2;
       try {
         composition =
@@ -788,9 +797,9 @@ export const WorkbenchSession = ({
       setExperimentTitle(initialTitle);
       experimentTitleRef.current = initialTitle;
       setArticleLinked(articleAuthoringContext !== null);
-      const preferredScenarioId = activeScenarioIdRef.current;
+      const preferredScenarioId = activeScenarioIdRef.current ?? continuation?.activeScenarioId;
       const initialScenarioId =
-        preferredScenarioId !== null &&
+        preferredScenarioId != null &&
         initialContent?.scenarios.some(
           ({ scenarioId }) => scenarioId === preferredScenarioId,
         )
@@ -941,11 +950,8 @@ export const WorkbenchSession = ({
         resolveAnalysisExecutionPlan: composition.modelSurface.analysis.resolveExecutionPlan,
         loadPreparedAnalysis: async seed => {
           if (!seed.checkpoint) return null;
-          const saved = await loadPreparedModelAnalysisV1(composition.exactModel.workerReleaseTicket,
+          return loadPreparedScenarioAnalysisV1(composition.exactModel.workerReleaseTicket,
             { fixture: seed.fixture, checkpoint: seed.checkpoint });
-          return saved === null ? null : { ...saved.analysis, payload: { ...saved.analysis.payload as StudioJsonObjectV2,
-            preparedOrigin: { recordSha256: saved.recordSha256, captureSha256: saved.captureSha256,
-              preparationSourceSha256: saved.preparationSourceSha256, use: "registered-initial-state-analysis" } } };
         },
         presentationAnalysisIds: () => surfaceRef.current === null ? []
           : workbenchPresentationAnalysisSelectionV1(surfaceRef.current, composition.modelSurface.catalog,
@@ -1064,6 +1070,10 @@ export const WorkbenchSession = ({
         contract: composition.modelSurface.contract,
         frame: initial,
       });
+      if (initializeReaderPlayback) {
+        setPlaybackRate(runtime.setPlaybackRate(continuation.playbackRate));
+        appliedReaderPlaybackTokenRef.current = experimentSessionContext!.sessionToken;
+      }
       const playbackIntent = playingIntentRef.current;
       setIsPlaying(playbackIntent);
       if (playbackIntent && !document.hidden) {

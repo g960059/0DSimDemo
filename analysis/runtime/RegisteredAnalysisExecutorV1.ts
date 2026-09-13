@@ -4,7 +4,8 @@ import { MAIN_WIRE_PRESSURE_CROSSING_PV_ANALYSIS_V1_ID } from "@/analysis/method
 import { resolveRegisteredAnalysisMethodsV1 } from "@/analysis/registry/RegisteredAnalysisMethodsV1";
 import { analysisCapabilityV1 } from "@/studio/contracts/v2/modelSurface";
 
-/** Numerical imports are lazy and only enter a dedicated analysis Worker. */
+/** Numerical imports are lazy. Browser callers use dedicated analysis Workers;
+ * local CLI callers execute sequentially in their numerical process. */
 export const REGISTERED_ANALYSIS_EXECUTOR_V1: AnalysisExecutorV1 = Object.freeze({
   async execute(input) {
     if (input.request.analysisId !== MAIN_WIRE_PRESSURE_CROSSING_PV_ANALYSIS_V1_ID)

@@ -178,9 +178,9 @@ describe("Studio public content delivery V1", () => {
       clientTemplate: TEMPLATE_V1,
     });
 
-    expect(rendered.documentHtml).toContain(
-      '<h1 class="article-title">血圧を考える</h1>',
-    );
+    const titleHtml = rendered.documentHtml.match(/<h1 class="article-title">(.*?)<\/h1>/)?.[1];
+    expect(titleHtml?.replace(/<[^>]+>/g, "")).toBe("血圧を考える");
+    expect(titleHtml).toContain('<span class="article-heading-phrases">');
     expect(rendered.documentHtml).toContain('<div id="public-static-root">');
     expect(rendered.documentHtml).toContain('<div id="root" hidden></div>');
     expect(rendered.documentHtml).toContain('class="public-static-site-header"');
@@ -752,3 +752,76 @@ function requestV1(
     method,
   });
 }
+
+import { articleReadingFixtureV1 } from "./fixtures/articleReadingFixtureV1";
+import { validateStudioArticleDraftV2 } from "@/studio/application/authoring/StudioArticleDataV2";
+import { buildArticleReadingIndexV1, parseArticleReadingTextV1 } from "@/studio/application/article/StudioArticleReadingV1";
+
+describe("Article reading references across delivery surfaces", () => {
+  it("numbers by first mention, preserves every backlink and separates definitions from cards", () => {
+    const draft = validateStudioArticleDraftV2(articleReadingFixtureV1());
+    const reading = buildArticleReadingIndexV1(draft.blocks);
+    expect(reading.errors).toEqual([]);
+    expect(reading.references.map(e => e.block.blockId)).toEqual(["ref/b", "ref/a"]);
+    expect(reading.notes.map(e => e.block.blockId)).toEqual(["note/b", "note/a"]);
+    expect(reading.references[0].backlinks).toHaveLength(3);
+    expect(new Set(reading.references[0].backlinks).size).toBe(3);
+    expect(reading.body.filter(b => b.kind === "link").map(b => b.blockId)).toEqual(["card", "broken-card"]);
+    const reordered = [draft.blocks.find(b => b.blockId === "repeat")!, ...draft.blocks.filter(b => b.blockId !== "repeat")];
+    expect(buildArticleReadingIndexV1(reordered).notes.map(e => e.block.blockId)).toEqual(["note/a", "note/b"]);
+  });
+  it("preserves escaped markers and ordinary brackets, with stable source offsets", () => {
+    const text = String.raw`式 [a+b]、\[@ref/a]、[@ref/b]。`;
+    const tokens = parseArticleReadingTextV1(text);
+    expect(tokens.filter(t => t.kind !== "text")).toEqual([{ kind: "reference", targetId: "ref/b", raw: "[@ref/b]", offset: text.indexOf("[@ref/b]") }]);
+    expect(tokens.filter(t => t.kind === "text").map(t => t.text).join("")).toBe("式 [a+b]、[@ref/a]、。");
+  });
+  it("numbers figures after moving notes to the end and keeps definitions out of excerpts", () => {
+    const draft = articleReadingFixtureV1();
+    const figure = draft.blocks.find(b => b.kind === "image")!;
+    const blocks = [
+      { blockId: "first-definition", kind: "accordion", role: "note", title: "Early definition", blocks: [{ ...figure, blockId: "note-figure", credit: undefined }] },
+      ...draft.blocks,
+    ];
+    // Omit the optional field, rather than sending undefined over a JSON boundary.
+    const portable = JSON.parse(JSON.stringify(blocks));
+    const reading = buildArticleReadingIndexV1(portable);
+    expect(reading.figures.get("fig/one")?.number).toBe(1);
+    expect(reading.figures.get("note-figure")?.number).toBe(2);
+    const article = validateStudioPublishedArticleV1({ ...publishedArticleV1(), blocks: portable });
+    const result = renderStudioPublishedArticleV1({ article, clientTemplate: TEMPLATE_V1, canonicalOrigin: "https://www.circleheart.dev" });
+    expect(result.metadata.description).toBe("本文から文献へ移動します。補足も確認できます。");
+  });
+  it("saves incomplete references as drafts and rejects them at publication", () => {
+    const draft = articleReadingFixtureV1();
+    const blocks = [...draft.blocks, { blockId: "unfinished", kind: "paragraph", text: "追加文献[@missing]" }];
+    expect(validateStudioArticleDraftV2({ ...draft, blocks }).blocks).toEqual(blocks);
+    expect(() => validateStudioPublishedArticleV1({ ...publishedArticleV1(), blocks })).toThrow(/missing reference missing/);
+  });
+  it("shares numbering and targets between HTML and Markdown, with compact credits and clean metadata", () => {
+    const draft = articleReadingFixtureV1();
+    const article = validateStudioPublishedArticleV1({ ...publishedArticleV1(), blocks: draft.blocks });
+    const result = renderStudioPublishedArticleV1({ article, clientTemplate: TEMPLATE_V1, canonicalOrigin: "https://www.circleheart.dev" });
+    expect(result.bodyHtml).toContain('id="article-reference-ref/b"');
+    expect(result.bodyHtml).toContain('href="#article-reference-ref%2Fb"');
+    expect(result.bodyHtml).toContain('role="doc-biblioref"');
+    expect(result.bodyHtml).toContain('role="doc-endnotes"');
+    expect(result.bodyHtml).toContain('class="article-figure-credit"');
+    expect(result.bodyHtml).toContain('class="article-resource-image"');
+    expect(result.bodyHtml).not.toMatch(/\[@|\[\^|\[fig:/);
+    expect(result.metadata.description).toBe("本文から文献へ移動します。補足も確認できます。");
+    expect(result.markdown).toContain("[^note-1]");
+    expect(result.markdown).toContain("[^note-1]: **圧の基準**");
+    expect(result.markdown).toContain("![表示テスト用の画像](<https://example.test/figure.png>)");
+    expect(result.markdown).toContain("[1)](#article-reference-ref%2Fb)");
+    expect(result.markdown).not.toContain("<section");
+    expect(result.markdown).not.toContain("<figure");
+    expect(result.markdown).not.toContain("[@ref/");
+  });
+  it("keeps image metadata portable and rejects unsafe thumbnail and license URLs", () => {
+    const draft = articleReadingFixtureV1();
+    const image = draft.blocks.find(b => b.kind === "image")!;
+    expect(() => validateStudioArticleDraftV2({ ...draft, blocks: [{ ...image, credit: { text: "Credit", licenseLabel: "License", licenseHref: "javascript:alert(1)" } }] })).toThrow();
+    expect(() => validateStudioArticleDraftV2({ ...draft, blocks: [{ blockId: "bad", kind: "link", label: "bad", href: "https://example.test", description: "", imageUrl: "javascript:alert(1)" }] })).toThrow();
+  });
+});
