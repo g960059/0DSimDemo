@@ -200,8 +200,8 @@ body[data-app-theme="light"] {
 
 .workbench-app-header {
   position: relative;
-  /* Keep anchored header popovers above the tool plane below the header. */
-  z-index: 20;
+  /* Header popovers must also clear the workspace resize handles (z-40). */
+  z-index: 50;
   border-bottom: 1px solid var(--wb-border);
   background: var(--wb-header-bg);
 }

@@ -4,6 +4,36 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/rest/v1/rpc/save_experiment_v1", route => route.abort("blockedbyclient"));
 });
 
+test("@desktop @webkit @startup keeps playback presets clickable above layout resize handles", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/ja/experiments/new", { waitUntil: "domcontentloaded" });
+  const rate = page.getByTestId("v3-playback-rate-trigger");
+  await expect(rate).toBeEnabled();
+  await rate.click();
+  const halfSpeed = page.getByTestId("v3-playback-rate-popover").getByRole("button", { name: "0.5×", exact: true });
+  const button = (await halfSpeed.boundingBox())!;
+  const clickX = button.x + button.width / 2;
+  await page.keyboard.press("Escape");
+  const handle = page.getByTestId("workbench-inspector-resize-handle");
+  const before = (await handle.boundingBox())!;
+  await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(clickX, before.y + before.height / 2);
+  await page.mouse.up();
+  await rate.click();
+  // Exercise a real overlap: header contents differ between local and
+  // configured deployments, and the inspector width is user-adjustable.
+  const resized = (await handle.boundingBox())!;
+  expect(Math.abs(resized.x + resized.width / 2 - clickX)).toBeLessThan(2);
+  expect(button.y + button.height / 2).toBeGreaterThan(resized.y);
+  await halfSpeed.click({ timeout: 5_000 });
+  await expect(rate).toHaveText("0.5×");
+  await page.keyboard.press("Escape");
+  await handle.focus();
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(async () => (await handle.boundingBox())!.x).toBeLessThan(resized.x - 1);
+});
+
 test("@desktop @mobile @webkit @startup preserves the requested speed through startup and Scenario changes", async ({ page, context }) => {
   // Capture even brief intermediate labels from the very first live render.
   await page.addInitScript(() => {
