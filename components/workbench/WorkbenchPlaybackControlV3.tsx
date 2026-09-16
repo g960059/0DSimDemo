@@ -5,6 +5,7 @@ import { Minus, Pause, Play, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import {
+  WORKBENCH_DEFAULT_PLAYBACK_RATE_V3,
   WORKBENCH_MAXIMUM_PLAYBACK_RATE_V3,
   WORKBENCH_MINIMUM_PLAYBACK_RATE_V3,
   WORKBENCH_PLAYBACK_RATE_STEP_V3,
@@ -49,8 +50,12 @@ export function WorkbenchPlaybackControlV3({
       ? rootRef.current?.closest<HTMLElement>('[role="dialog"]') ?? document.body
       : null);
   }, [mobilePopover, open]);
-  const calibratedMaximum = rate.maximumRate
+  const measuredMaximum = rate.maximumRate
     ?? WORKBENCH_MAXIMUM_PLAYBACK_RATE_V3;
+  const calibratedMaximum = Math.max(
+    WORKBENCH_DEFAULT_PLAYBACK_RATE_V3,
+    measuredMaximum,
+  );
   // An explicit selection is retained across a Scenario-topology
   // recalibration. If the new ceiling is lower, keep the old position visible
   // so the next drag can move it back into the supported range.
@@ -190,14 +195,14 @@ export function WorkbenchPlaybackControlV3({
           ))}
         </div>
 
-        {(rate.calibrating || rate.performanceLimited || calibratedMaximum < WORKBENCH_MAXIMUM_PLAYBACK_RATE_V3) && (
+        {(rate.calibrating || rate.performanceLimited || measuredMaximum < WORKBENCH_MAXIMUM_PLAYBACK_RATE_V3) && (
           <p className="mt-2 text-center text-[0.68rem] leading-4 text-wb-subtle">
             {rate.calibrating
               ? t("workbench.live.measuringPlaybackCapacity")
               : rate.performanceLimited
                 ? t("workbench.live.playbackPerformanceLimited")
                 : t("workbench.live.devicePlaybackLimit", {
-                    rate: formatWorkbenchPlaybackRateV3(calibratedMaximum),
+                    rate: formatWorkbenchPlaybackRateV3(measuredMaximum),
                   })}
           </p>
         )}

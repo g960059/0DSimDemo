@@ -167,6 +167,7 @@ import {
 } from "@/components/workbench/presentation";
 import {
   WorkbenchBackgroundWorkerPoolV3,
+  WORKBENCH_DEFAULT_PLAYBACK_RATE_V3,
   WorkbenchBackgroundJobCancelledErrorV3,
   resolveWorkbenchBackgroundWorkerBudgetV3,
   recordWorkbenchPerformanceDurationV3,
@@ -242,7 +243,7 @@ type WorkbenchRuntimeRestartFeedbackV3 = Readonly<{
 const WORKBENCH_ANALYSIS_PROGRESS_COMMIT_INTERVAL_MS_V3 = 400;
 const INITIAL_WORKBENCH_PLAYBACK_RATE_STATE_V3: WorkbenchGroupPlaybackRateStateV3 =
   Object.freeze({
-    playbackRate: 0.5,
+    playbackRate: WORKBENCH_DEFAULT_PLAYBACK_RATE_V3,
     maximumRate: null,
     calibrating: true,
     userSelected: false,

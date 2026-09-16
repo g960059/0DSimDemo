@@ -55,7 +55,7 @@ describe("WorkbenchGroupTimeConductorV3", () => {
     await conductor.pause();
   });
 
-  it("calibrates once, defaults to real time, and keeps the selected rate fixed", async () => {
+  it("starts at real time and measures capacity without changing the requested pace", async () => {
     const clock = new GroupClockV3();
     let acceptedTimeSec = 0;
     let groupWallMs = 16;
@@ -74,6 +74,11 @@ describe("WorkbenchGroupTimeConductorV3", () => {
       presentationIntervalMs: 0,
     });
 
+    expect(conductor.playbackRateState()).toMatchObject({
+      playbackRate: 1,
+      calibrating: true,
+      userSelected: false,
+    });
     conductor.play();
     for (let attempt = 0; attempt < 24; attempt += 1) {
       await clock.runNextTimer();
@@ -102,11 +107,20 @@ describe("WorkbenchGroupTimeConductorV3", () => {
       maximumRate: 1.5,
       performanceLimited: true,
     });
+    groupWallMs = 16;
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      await clock.runNextTimer();
+    }
+    expect(conductor.playbackRateState()).toMatchObject({
+      playbackRate: 1.5,
+      maximumRate: 1.5,
+      performanceLimited: false,
+    });
     await conductor.pause();
   });
 
   it.each([{ wallMs: 50, rate: 0.5 }, { wallMs: 160, rate: 0.25 }])(
-    "keeps a genuinely slow workload below real time ($wallMs ms/batch)",
+    "reports a genuinely slow workload without replacing its requested pace ($wallMs ms/batch)",
     async ({ wallMs, rate }) => {
     const clock = new GroupClockV3();
     let acceptedTimeSec = 0;
@@ -131,12 +145,64 @@ describe("WorkbenchGroupTimeConductorV3", () => {
       if (!conductor.playbackRateState().calibrating) break;
     }
     expect(conductor.playbackRateState()).toMatchObject({
-      playbackRate: rate,
+      playbackRate: 1,
       maximumRate: rate,
       calibrating: false,
       userSelected: false,
+      performanceLimited: true,
     });
+    // Actual model time follows completed computation, never a fabricated 1×
+    // wall clock, and no extra idle time is imposed by the coarse capacity tier.
+    expect(acceptedTimeSec / (clock.now() / 1_000)).toBeCloseTo(32 / wallMs, 8);
+    conductor.setPlaybackRate(0.25);
+    expect(conductor.setPlaybackRate(1)).toMatchObject({ playbackRate: 1, userSelected: true });
+    expect(() => conductor.setPlaybackRate(1.25)).toThrow(/calibrated limit/);
     await conductor.pause();
+  });
+
+  it("bounds normal presentation queues and keeps slow Scenarios synchronized at a requested 1×", async () => {
+    const clock = new GroupClockV3();
+    const performance = new WorkbenchPerformanceDiagnosticsV3({ enabled: true, nowMs: clock.now });
+    const accepted = new Map([["fast", 0], ["slow", 0]]);
+    const inFlight = new Map([["fast", 0], ["slow", 0]]);
+    const published = new Map<string, number[]>([["fast", []], ["slow", []]]);
+    let maximumConcurrentPerLane = 0;
+    const onError = vi.fn();
+    const conductor = new WorkbenchGroupTimeConductorV3({
+      lanes: () => [...accepted].map(([id, time]) => laneV3(id, time, stepCount => new Promise(resolve => {
+        inFlight.set(id, inFlight.get(id)! + 1);
+        maximumConcurrentPerLane = Math.max(maximumConcurrentPerLane, inFlight.get(id)!);
+        clock.schedule(() => {
+          const frames = framesV3(id, time, stepCount);
+          accepted.set(id, frames.at(-1)!.timeSec);
+          inFlight.set(id, inFlight.get(id)! - 1);
+          resolve(frames);
+        }, id === "fast" ? 10 : 50);
+      }))),
+      onFrames: frames => {
+        for (const frame of frames) published.get(frame.laneId)!.push(frame.timeSec);
+        expect(published.get("fast")).toEqual(published.get("slow"));
+      },
+      onError, nowMs: clock.now, schedule: clock.schedule, cancel: clock.cancel,
+      performanceRecorder: performance,
+      // Production defaults: 16 accepted steps, then synchronized 16 ms slices.
+    });
+    conductor.play();
+    await clock.advanceBy(0);
+    for (let ms = 0; ms < 2_000; ms++) await clock.advanceBy(1);
+    expect(conductor.playbackRateState()).toMatchObject({ playbackRate: 1, maximumRate: 0.5, performanceLimited: true });
+    expect(maximumConcurrentPerLane).toBe(1);
+    expect(performance.snapshot().values["scheduler.group.requested-playback-rate"]!.latest).toBe(1);
+    expect(performance.snapshot().values["scheduler.group.safe-playback-rate"]!.latest).toBe(0.5);
+    expect(performance.snapshot().values["scheduler.group.presentation-backlog-frames-per-lane"]!.maximum).toBeLessThanOrEqual(16);
+    expect(published.get("slow")!.at(-1)).toBeCloseTo(1.28, 8);
+    const paused = conductor.pause();
+    await clock.advanceBy(100);
+    await paused;
+    for (const times of published.values()) {
+      times.forEach((time, index) => expect(time).toBeCloseTo((index + 1) * 0.002, 8));
+    }
+    expect(onError).not.toHaveBeenCalled();
   });
 
   it("excludes hidden batches from calibration", async () => {
@@ -258,9 +324,10 @@ describe("WorkbenchGroupTimeConductorV3", () => {
       if (!conductor.playbackRateState().calibrating) break;
     }
     expect(conductor.playbackRateState()).toMatchObject({
-      playbackRate: 0.5,
+      playbackRate: 1,
       maximumRate: 0.5,
       calibrating: false,
+      performanceLimited: true,
     });
 
     if (userSelected) conductor.setPlaybackRate(0.5);
@@ -270,9 +337,9 @@ describe("WorkbenchGroupTimeConductorV3", () => {
       await clock.runNextTimer();
     }
     expect(conductor.playbackRateState()).toMatchObject({
-      playbackRate: 0.5,
+      playbackRate: userSelected ? 0.5 : 1,
       maximumRate: 0.5,
-      performanceLimited: false,
+      performanceLimited: !userSelected,
     });
 
     visible = true;
@@ -649,7 +716,7 @@ describe("WorkbenchGroupTimeConductorV3", () => {
       .toEqual([1, 2, 3, 4]);
   });
 
-  it("recalibrates lane membership without changing an explicit selection", () => {
+  it.each([null, 0.75])("recalibrates lane membership without resetting playback intent (%s)", (selectedRate) => {
     let laneCount = 1;
     const conductor = new WorkbenchGroupTimeConductorV3({
       lanes: () => Array.from({ length: laneCount }, (_, index) =>
@@ -658,19 +725,19 @@ describe("WorkbenchGroupTimeConductorV3", () => {
       onError: vi.fn(),
     });
     expect(conductor.playbackRateState()).toMatchObject({
-      playbackRate: 0.5,
+      playbackRate: 1,
       maximumRate: null,
       calibrating: true,
     });
 
-    conductor.setPlaybackRate(0.75);
+    if (selectedRate !== null) conductor.setPlaybackRate(selectedRate);
 
     laneCount = 4;
     expect(conductor.lanesChanged()).toMatchObject({
-      playbackRate: 0.75,
+      playbackRate: selectedRate ?? 1,
       maximumRate: null,
       calibrating: true,
-      userSelected: true,
+      userSelected: selectedRate !== null,
     });
   });
 });

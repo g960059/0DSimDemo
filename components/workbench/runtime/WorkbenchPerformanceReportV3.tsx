@@ -106,8 +106,8 @@ export function WorkbenchPerformanceReportV3() {
   const groupCapacityRatio = snapshot.values[
     "scheduler.group.model-time-ratio"
   ]?.recentMean ?? null;
-  const groupEffectiveRate = snapshot.values[
-    "scheduler.group.effective-playback-rate"
+  const groupRequestedRate = snapshot.values[
+    "scheduler.group.requested-playback-rate"
   ]?.latest ?? null;
   const groupSafeRate = snapshot.values[
     "scheduler.group.safe-playback-rate"
@@ -175,11 +175,11 @@ export function WorkbenchPerformanceReportV3() {
               <dd className="font-mono">{groupLaneCount ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-wb-subtle">Playback / safe</dt>
+              <dt className="text-wb-subtle">Requested / estimated</dt>
               <dd className="font-mono">
-                {groupEffectiveRate === null || groupSafeRate === null
+                {groupRequestedRate === null || groupSafeRate === null
                   ? "—"
-                  : `${groupEffectiveRate.toFixed(2)}× / ${groupSafeRate.toFixed(2)}×`}
+                  : `${groupRequestedRate.toFixed(2)}× / ${groupSafeRate.toFixed(2)}×`}
               </dd>
             </div>
             <div>

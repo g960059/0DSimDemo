@@ -232,7 +232,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       },
       // Measure the pace this visible Workbench can actually sustain, including
       // its background load. Existing analysis can survive a Scenario addition;
-      // waiting for an idle pool would strand recalibration at 0.5× for minutes.
+      // waiting for an idle pool would hide available acceleration for minutes.
       capacityMeasurementEligible: foregroundDocumentVisibleV3,
       batchSteps: this.#presentationProfile.maximumBatchSteps,
       presentationIntervalMs:

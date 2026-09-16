@@ -7,8 +7,8 @@ export const WORKBENCH_MINIMUM_PLAYBACK_RATE_V3 = 0.25;
 export const WORKBENCH_MAXIMUM_PLAYBACK_RATE_V3 = 5;
 export const WORKBENCH_PLAYBACK_RATE_STEP_V3 = 0.25;
 export const WORKBENCH_PLAYBACK_CAPACITY_STEP_V3 = 0.5;
+export const WORKBENCH_DEFAULT_PLAYBACK_RATE_V3 = 1;
 
-const WORKBENCH_INITIAL_CALIBRATION_RATE_V3 = 0.5;
 const WORKBENCH_GROUP_RATE_HEADROOM_V3 = 0.9;
 const WORKBENCH_GROUP_CALIBRATION_DISCARD_COUNT_V3 = 3;
 const WORKBENCH_GROUP_CALIBRATION_SAMPLE_COUNT_V3 = 9;
@@ -20,6 +20,7 @@ const WORKBENCH_GROUP_REQUALIFICATION_SAMPLE_COUNT_V3 = 24;
 export type WorkbenchGroupTimeConductorTimerV3 = ReturnType<typeof setTimeout>;
 
 export type WorkbenchGroupPlaybackRateStateV3 = Readonly<{
+  /** Requested pace, independent of the measured throughput of this device. */
   playbackRate: number;
   maximumRate: number | null;
   calibrating: boolean;
@@ -108,7 +109,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
   #lastPresentationWallMs = 0;
   #presentationFrameCreditPerLane = 0;
   #pendingPresentation: PendingGroupPresentationV3<TFrame>[] = [];
-  #playbackRate = WORKBENCH_INITIAL_CALIBRATION_RATE_V3;
+  #playbackRate = WORKBENCH_DEFAULT_PLAYBACK_RATE_V3;
   #maximumRate: number | null = null;
   #userSelected = false;
   #performanceLimited = false;
@@ -156,6 +157,11 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     ) {
       throw new Error("Workbench group TimeConductor configuration is invalid");
     }
+    this.#playbackRate = clampV3(
+      WORKBENCH_DEFAULT_PLAYBACK_RATE_V3,
+      this.#minimumPlaybackRate,
+      this.#maximumPlaybackRate,
+    );
     this.#resetCapacityEstimate();
   }
 
@@ -184,7 +190,14 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
       this.#minimumPlaybackRate,
       this.#maximumPlaybackRate,
     );
-    if (this.#maximumRate !== null && rate > this.#maximumRate + 1e-9) {
+    // Normal-speed playback remains selectable even when measured capacity is
+    // lower. Work is still bounded to one exact group batch at a time; actual
+    // model time then progresses only as fast as every lane can compute it.
+    const selectableMaximum = Math.max(
+      Math.min(WORKBENCH_DEFAULT_PLAYBACK_RATE_V3, this.#maximumPlaybackRate),
+      this.#maximumRate ?? this.#maximumPlaybackRate,
+    );
+    if (rate > selectableMaximum + 1e-9) {
       throw new Error("Workbench playback rate exceeds the calibrated limit");
     }
     this.#playbackRate = rate;
@@ -320,7 +333,6 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
       this.#recordGroupCompletion(groupWallMs, lanes.length);
       this.#updateCapacityEstimate(
         groupWallMs,
-        completedAtMs,
         capacityEligibleAtStart,
       );
       this.#pendingPresentation.push({
@@ -376,7 +388,6 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
 
   #updateCapacityEstimate(
     groupWallMs: number,
-    completedAtMs: number,
     capacityEligibleAtStart: boolean,
   ): void {
     // A zero-duration synthetic clock is valid in unit tests but carries no
@@ -408,7 +419,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
       if (
         this.#calibrationCapacitySamples.length
           >= WORKBENCH_GROUP_CALIBRATION_SAMPLE_COUNT_V3
-      ) this.#finishCalibration(completedAtMs);
+      ) this.#finishCalibration();
     } else {
       this.#steadyCapacitySamples.push(measuredCapacity);
       if (
@@ -418,11 +429,12 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
       if (
         this.#steadyCapacitySamples.length
           === WORKBENCH_GROUP_OVERLOAD_SAMPLE_COUNT_V3
-        && percentileV3(
+      ) {
+        this.#performanceLimited = percentileV3(
           this.#steadyCapacitySamples,
           WORKBENCH_GROUP_CAPACITY_PERCENTILE_V3,
-        ) < this.#playbackRate * WORKBENCH_GROUP_OVERLOAD_RATIO_V3
-      ) this.#performanceLimited = true;
+        ) < this.#playbackRate * WORKBENCH_GROUP_OVERLOAD_RATIO_V3;
+      }
       if (
         this.#maximumRate < this.#maximumPlaybackRate
       ) {
@@ -430,7 +442,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
         if (
           this.#requalificationCapacitySamples.length
             >= WORKBENCH_GROUP_REQUALIFICATION_SAMPLE_COUNT_V3
-        ) this.#requalifyCapacity(completedAtMs);
+        ) this.#requalifyCapacity();
       }
     }
     if (this.#performance.enabled) {
@@ -441,7 +453,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
         );
       }
       this.#performance.recordValue(
-        "scheduler.group.effective-playback-rate",
+        "scheduler.group.requested-playback-rate",
         this.#playbackRate,
       );
       if (this.#maximumRate !== null) {
@@ -454,38 +466,27 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     this.#publishRateState();
   }
 
-  #finishCalibration(completedAtMs: number): void {
-    const conservativeCapacity = percentileV3(
+  #finishCalibration(): void {
+    const measuredCapacity = percentileV3(
       this.#calibrationCapacitySamples,
       WORKBENCH_GROUP_CAPACITY_PERCENTILE_V3,
-    ) * WORKBENCH_GROUP_RATE_HEADROOM_V3;
+    );
     this.#maximumRate = quantizePlaybackRateDownV3(
-      conservativeCapacity,
+      measuredCapacity * WORKBENCH_GROUP_RATE_HEADROOM_V3,
       this.#minimumPlaybackRate,
       this.#maximumPlaybackRate,
     );
-    if (!this.#userSelected) {
-      const nextRate = this.#maximumRate >= 1 ? 1 : this.#maximumRate;
-      if (Math.abs(nextRate - this.#playbackRate) > 1e-9) {
-        // Finish the old presentation interval at the calibration rate. The
-        // selected rate is then fixed from this exact wall-clock boundary.
-        this.#publishOrSchedulePresentation(completedAtMs);
-        this.#cancelPresentationTimer();
-        this.#lastPresentationWallMs = completedAtMs;
-        this.#presentationFrameCreditPerLane = 0;
-        this.#playbackRate = nextRate;
-      }
-    }
-    this.#performanceLimited = this.#playbackRate > this.#maximumRate + 1e-9
-      || (
-        this.#maximumRate === this.#minimumPlaybackRate
-        && conservativeCapacity < this.#minimumPlaybackRate
-      );
+    // Calibration controls acceleration options and background-work headroom,
+    // not the requested pace. Cold Workers must not switch playback to 0.5×.
+    // Detect a real shortfall before quantization: a conservative 0.5× ceiling
+    // can still represent throughput sufficient for normal-speed playback.
+    this.#performanceLimited = measuredCapacity
+      < this.#playbackRate * WORKBENCH_GROUP_OVERLOAD_RATIO_V3;
     this.#steadyCapacitySamples = [];
     this.#requalificationCapacitySamples = [];
   }
 
-  #requalifyCapacity(completedAtMs: number): void {
+  #requalifyCapacity(): void {
     const conservativeCapacity = percentileV3(
       this.#requalificationCapacitySamples,
       WORKBENCH_GROUP_CAPACITY_PERCENTILE_V3,
@@ -501,14 +502,6 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     this.#performance.incrementCounter(
       "scheduler.group.safe-playback-rate-promotions",
     );
-    if (!this.#userSelected && this.#playbackRate < 1 && promotedRate >= 1) {
-      this.#publishOrSchedulePresentation(completedAtMs);
-      this.#cancelPresentationTimer();
-      this.#lastPresentationWallMs = completedAtMs;
-      this.#presentationFrameCreditPerLane = 0;
-      this.#playbackRate = 1;
-    }
-    this.#performanceLimited = this.#playbackRate > promotedRate + 1e-9;
   }
 
   #publishOrSchedulePresentation(nowMs: number): void {
@@ -621,13 +614,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     this.#calibrationCapacitySamples = [];
     this.#steadyCapacitySamples = [];
     this.#requalificationCapacitySamples = [];
-    if (!this.#userSelected) {
-      this.#playbackRate = clampV3(
-        WORKBENCH_INITIAL_CALIBRATION_RATE_V3,
-        this.#minimumPlaybackRate,
-        this.#maximumPlaybackRate,
-      );
-    }
+    // A changed Scenario count invalidates capacity, not playback intent.
   }
 
   #publishRateState(): void {

@@ -1303,7 +1303,7 @@ class FakeTimeConductorV3 {
 }
 
 const AUTO_RATE_STATE_V3: WorkbenchGroupPlaybackRateStateV3 = Object.freeze({
-  playbackRate: 0.5,
+  playbackRate: 1,
   maximumRate: null,
   calibrating: true,
   userSelected: false,
