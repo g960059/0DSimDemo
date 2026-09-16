@@ -14,21 +14,14 @@ import type {
 } from "../components/workbench/runtime/WorkbenchPerformanceDiagnosticsV3";
 
 const currentRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
-  "../data/model-releases/standard73/publication.json",
+  "../data/model-releases/standard74/publication.json",
   import.meta.url,
 ), "utf8")) as Readonly<{ modelId: string; artifactRevisionId: string; artifactSha256: string }>;
 
-const CANDIDATE_V1 = process.env.CIRCLEHEART_PERF_CANDIDATE;
-if (CANDIDATE_V1 !== undefined && CANDIDATE_V1 !== "control-admission")
-  throw new Error("CIRCLEHEART_PERF_CANDIDATE must be control-admission");
-const candidateMetadata = CANDIDATE_V1
-  ? JSON.parse(readFileSync(new URL("../data/model-candidates/control-admission-v1/candidate.json", import.meta.url), "utf8"))
-  : null;
-const PERFORMANCE_EXACT_MODEL_ID = candidateMetadata?.manifest.modelId as string | undefined
-  ?? currentRegistryAdmissionLock.modelId;
+const PERFORMANCE_EXACT_MODEL_ID = currentRegistryAdmissionLock.modelId;
 const artifactIdentity = Object.freeze({
-  artifactRevisionId: candidateMetadata?.artifactRevisionId as string | undefined ?? currentRegistryAdmissionLock.artifactRevisionId,
-  artifactSha256: candidateMetadata?.artifactSha256 as string | undefined ?? currentRegistryAdmissionLock.artifactSha256,
+  artifactRevisionId: currentRegistryAdmissionLock.artifactRevisionId,
+  artifactSha256: currentRegistryAdmissionLock.artifactSha256,
 });
 const CONTROL_LABEL_V1 = process.env.CIRCLEHEART_PERF_CONTROL ?? "HR";
 if (CONTROL_LABEL_V1 !== "HR" && CONTROL_LABEL_V1 !== "総血液量")
@@ -190,8 +183,7 @@ test("measures exact live Workbench throughput under background contention", asy
       return Reflect.apply(send, this, [message, ...rest]);
     };
   });
-  await page.goto(CANDIDATE_V1 ? "/ja/dev/model-lab?candidate=control-admission&workbenchPerf=1"
-    : AS_TITLE_V1 ? "/ja/dev/model-lab?workbenchPerf=1" : "/ja/experiments/new?workbenchPerf=1");
+  await page.goto("/ja/experiments/new?workbenchPerf=1");
   const root = page.getByTestId("v3-dockview-workbench");
   await expect(root).toBeVisible();
   await expect(root).toHaveAttribute(
@@ -242,7 +234,6 @@ test("measures exact live Workbench throughput under background contention", asy
     schema: "circleheart.workbench-performance-report.v1",
     exactModelId: PERFORMANCE_EXACT_MODEL_ID,
     ...artifactIdentity,
-    candidate: CANDIDATE_V1 ?? null,
     control: CONTROL_LABEL_V1,
     project: testInfo.project.name,
     proxy: profile.cpuThrottle === 1

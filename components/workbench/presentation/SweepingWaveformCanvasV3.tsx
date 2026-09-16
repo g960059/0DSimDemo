@@ -1,4 +1,5 @@
 import React from "react";
+import { workbenchManualChartDomainV3 } from "./WorkbenchManualChartDomainV3";
 
 import {
   isWorkbenchPresentationSampleV3,
@@ -320,6 +321,7 @@ function latestSweepingWaveformPointFromOrderedV3(
 }
 
 type SweepingWaveformCanvasCommonPropsV3 = Readonly<{
+  axisRanges?: import("@/studio/contracts/v2/content").ExperimentGraphAxisRangesV2;
   legendActions?: React.ReactNode;
   windowSec?: number;
   unitLabel?: string;
@@ -470,7 +472,11 @@ export function SweepingWaveformCanvasV3(
         commitKey: domainCommitKey,
       },
     );
-    const domain = domainStateRef.current.domain;
+    const domain = workbenchManualChartDomainV3(domainStateRef.current.domain, props.axisRanges?.y);
+    if (canvasRef.current) {
+      canvasRef.current.dataset.yMinimum = String(domain[0]);
+      canvasRef.current.dataset.yMaximum = String(domain[1]);
+    }
     drawWaveformAxesV3(
       context,
       plot,
@@ -534,6 +540,7 @@ export function SweepingWaveformCanvasV3(
     }
   }, [
     domainCommitKey,
+    props.axisRanges,
     hiddenLegendSelections,
     includeZero,
     legendSelection,

@@ -7,13 +7,10 @@ import {
   type VascularPvLaw,
   type PtmFromStressedVolumeOptions,
   type PtmAndVolumeTangent,
-} from "./vascularPv";
+} from "./vascularPvConstitutiveV1";
 import { softplus } from "./math";
 
-// The candidate compiler replaces imports of vascularPv with this module,
-// except for this module's own constitutive dependency. The registered exact
-// artifact and its source closure remain unchanged until successor admission.
-export * from "./vascularPv";
+export * from "./vascularPvConstitutiveV1";
 export const VASCULAR_PRESSURE_INVERSE_POLICY_V1 =
   "bracketed-step-contraction-venous-inverse-v1" as const;
 

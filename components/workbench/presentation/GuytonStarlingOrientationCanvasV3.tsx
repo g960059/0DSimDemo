@@ -1,4 +1,5 @@
 import React from "react";
+import { workbenchManualChartDomainV3 } from "./WorkbenchManualChartDomainV3";
 import { useAppTheme } from "@/appTheme";
 import { useTranslation } from "react-i18next";
 import { workbenchLoadRelationDescriptionV1 } from "./WorkbenchLoadRelationDescriptionV1";
@@ -299,6 +300,7 @@ export function GuytonStarlingOrientationCanvasV3({
 }
 
 export function GuytonStarlingComparisonCanvasV3({
+  axisRanges,
   traces,
   className,
   legendActions,
@@ -306,6 +308,7 @@ export function GuytonStarlingComparisonCanvasV3({
   recalculatingLabel = "Recalculating Guyton / Starling",
 }: Readonly<{
   traces: readonly GuytonStarlingComparisonTraceV3[];
+  axisRanges?: import("@/studio/contracts/v2/content").ExperimentGraphAxisRangesV2;
   className?: string;
   legendActions?: React.ReactNode;
   onRetryAnalysis?: () => boolean;
@@ -338,8 +341,15 @@ export function GuytonStarlingComparisonCanvasV3({
   const selection = visibleTraces.some((trace) =>
     workbenchLegendSelectionMatchesTraceV3(hoveredSelection, descriptor(trace))) ? hoveredSelection : null;
   const domain = React.useMemo(
-    () => guytonStarlingComparisonPlotDomainV3(visibleTraces.length === 0 ? traces : visibleTraces),
-    [traces, hiddenSelections],
+    () => {
+      const automatic = guytonStarlingComparisonPlotDomainV3(visibleTraces.length === 0 ? traces : visibleTraces);
+      const [pressureMinimumMmHg, pressureMaximumMmHg] = workbenchManualChartDomainV3(
+        [automatic.pressureMinimumMmHg, automatic.pressureMaximumMmHg], axisRanges?.x);
+      const [flowMinimumLPerMin, flowMaximumLPerMin] = workbenchManualChartDomainV3(
+        [automatic.flowMinimumLPerMin, automatic.flowMaximumLPerMin], axisRanges?.y);
+      return { ...automatic, pressureMinimumMmHg, pressureMaximumMmHg, flowMinimumLPerMin, flowMaximumLPerMin };
+    },
+    [traces, hiddenSelections, axisRanges],
   );
   const draw = React.useCallback(
     (context: CanvasRenderingContext2D, width: number, height: number) => {

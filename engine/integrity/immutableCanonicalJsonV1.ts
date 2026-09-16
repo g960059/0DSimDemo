@@ -1,10 +1,6 @@
 import { canonicalJsonStringify as serialize } from "./canonicalJson";
 import { isTransitivelyFrozenPlainDataV1, validationStampReuseEligibleV1 } from "../validationStampModeV1";
 
-export * from "./index";
-
-// Candidate-owned integrity entry point. The published exact module keeps its
-// original import closure until the candidate has qualified for admission.
 // A weak key never retains a discarded scenario or its immutable settings.
 const serialized = new WeakMap<object, string>();
 

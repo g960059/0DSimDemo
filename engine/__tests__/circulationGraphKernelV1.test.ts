@@ -173,7 +173,7 @@ describe("circulation graph kernel V1", () => {
     expect(() => ptmFromStressedVolume({
       ...law,
       Copen: -1,
-    }, 0)).toThrow("venous Copen must be positive and finite");
+    }, 0)).toThrow("Venous Copen must be positive and finite");
   });
 
   it("compiles pure venous law constants without changing the fixed32 inverse", () => {

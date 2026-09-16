@@ -414,7 +414,7 @@ export function WorkbenchScenarioManagerV3(
               {strings.emptyScenarios}
             </p>
           ) : (
-            <div className="mt-1 grid gap-0.5">
+            <div className="mt-1 grid min-w-0 grid-cols-1 gap-0.5">
               {scenarios.map((scenario, index) => {
                 const active = scenario.scenarioId === activeScenarioId;
                 const editing = scenario.scenarioId === editingScenarioId;
@@ -427,7 +427,7 @@ export function WorkbenchScenarioManagerV3(
                 return (
                   <div
                     key={scenario.scenarioId}
-                    className={`workbench-scenario-row group flex min-h-11 items-center gap-1 rounded-lg px-2 transition-colors ${
+                    className={`workbench-scenario-row group flex min-h-11 min-w-0 items-center gap-1 rounded-lg px-2 transition-colors ${
                       active ? "bg-wb-selected" : "hover:bg-wb-hover"
                     }`}
                     onContextMenu={(event) => {
@@ -502,12 +502,12 @@ export function WorkbenchScenarioManagerV3(
                         className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                         aria-label={`${scenario.label} ${scenario.scenarioId}`}
                         aria-pressed={active}
-                        title={scenario.scenarioId}
+                        title={scenario.label}
                         onClick={() => onSelectScenario(scenario.scenarioId)}
                         onDoubleClick={() => beginRename(scenario)}
                       >
                         <span
-                          className={`workbench-scenario-label truncate ${
+                          className={`workbench-scenario-label min-w-0 flex-1 truncate ${
                             scenarioVisible ? "text-wb-text" : "text-wb-subtle"
                           }`}
                         >

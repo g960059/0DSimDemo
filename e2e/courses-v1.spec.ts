@@ -11,13 +11,13 @@ import type { CourseDraftV1 } from "../studio/application/course/StudioCourseV1"
 const supabaseUrl = "https://public-content.test";
 const bundle = JSON.parse(
   readFileSync(
-    new URL("../data/model-releases/standard73/bundle.json", import.meta.url),
+    new URL("../data/model-releases/standard74/bundle.json", import.meta.url),
     "utf8",
   ),
 );
 const artifact = readFileSync(
   new URL(
-    "../data/model-releases/standard73/artifact.mjs.txt",
+    "../data/model-releases/standard74/artifact.mjs.txt",
     import.meta.url,
   ),
   "utf8",
@@ -334,7 +334,7 @@ for (const signedIn of [false, true])
     const baseline = JSON.parse(
       readFileSync(
         new URL(
-          "../data/model-baselines/standard73-baseline-v1.json",
+          "../data/model-baselines/standard74-baseline-v1.json",
           import.meta.url,
         ),
         "utf8",

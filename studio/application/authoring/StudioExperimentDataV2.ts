@@ -488,6 +488,10 @@ function assertExperimentModelAndSurfaceMatchV2(
     const scopedScenarioIds = pane.scenarioScope.mode === "fixed"
       ? pane.scenarioScope.scenarioIds
       : content.scenarios.map(({ scenarioId }) => scenarioId);
+    if (pane.axisRanges !== undefined && (graph.renderer === "cycle-waveform"
+      || (graph.renderer === "sweep" && pane.axisRanges.x !== undefined))) {
+      throw validationErrorV2(`${panePath}.axisRanges`, "waveforms use their time window for the horizontal axis; completed-cycle graphs use automatic scaling");
+    }
     if (pane.showPvaBoundary !== undefined && (graph.renderer !== "pressure-volume"
       || pane.pressureVolumeAnalysisMode === "raw-exact-orbit")) {
       throw validationErrorV2(`${panePath}.showPvaBoundary`,
@@ -1266,6 +1270,7 @@ function assertExperimentSurfaceV2(
       ],
       [
         "windowSec",
+        "axisRanges",
         "historyDepth",
         "pressureVolumeAnalysisMode",
         "showPressureEnvelope",
@@ -1312,6 +1317,9 @@ function assertExperimentSurfaceV2(
     }
     if (pane.windowSec !== undefined) {
       sweepWindowSecV2(pane.windowSec, `${panePath}.windowSec`);
+    }
+    if (pane.axisRanges !== undefined) {
+      assertGraphAxisRangesV2(pane.axisRanges, `${panePath}.axisRanges`);
     }
     if (pane.historyDepth !== undefined) {
       graphHistoryDepthV2(pane.historyDepth, `${panePath}.historyDepth`);
@@ -1708,6 +1716,20 @@ function assertPlacementBriefingV2(
     );
     assertControlBriefingBindingV2(control.binding, `${controlPath}.binding`);
   });
+}
+
+function assertGraphAxisRangesV2(value: unknown, path: string): void {
+  assertRequiredOptionalKeysV2(value, [], ["x", "y"], path);
+  for (const axis of ["x", "y"] as const) {
+    if (!hasOwnV2(value, axis)) continue;
+    const range = value[axis];
+    assertExactKeysV2(range, ["minimum", "maximum"], `${path}.${axis}`);
+    if (typeof range.minimum !== "number" || !Number.isFinite(range.minimum)
+      || typeof range.maximum !== "number" || !Number.isFinite(range.maximum)
+      || range.maximum <= range.minimum || !Number.isFinite(range.maximum - range.minimum)) {
+      throw validationErrorV2(`${path}.${axis}`, "must contain finite increasing display bounds");
+    }
+  }
 }
 
 function assertGraphBriefingOverridesV2(

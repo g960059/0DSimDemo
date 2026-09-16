@@ -1,4 +1,5 @@
 import React from "react";
+import { workbenchManualChartDomainV3 } from "./WorkbenchManualChartDomainV3";
 import { useAppTheme } from "@/appTheme";
 import { useTranslation } from "react-i18next";
 import { SimulationChartStatusV1 } from "@/components/simulation/SimulationPreparationV1";
@@ -396,6 +397,7 @@ function extractPvPointsV3(
 }
 
 type PressureVolumeLoopCanvasCommonPropsV3 = Readonly<{
+  axisRanges?: import("@/studio/contracts/v2/content").ExperimentGraphAxisRangesV2;
   playbackRunning?: boolean;
   className?: string;
   legendActions?: React.ReactNode;
@@ -603,9 +605,11 @@ export function PressureVolumeLoopCanvasV3(
         commitKey: domainCommitKey,
       },
     );
-    const volumeDomain = volumeDomainStateRef.current.domain;
-    const pressureDomain = pressureDomainStateRef.current.domain;
+    const volumeDomain = workbenchManualChartDomainV3(volumeDomainStateRef.current.domain, props.axisRanges?.x);
+    const pressureDomain = workbenchManualChartDomainV3(pressureDomainStateRef.current.domain, props.axisRanges?.y);
     if (canvasRef.current !== null) {
+      canvasRef.current.dataset.volumeMinimumMl = String(volumeDomain[0]);
+      canvasRef.current.dataset.pressureMinimumMmhg = String(pressureDomain[0]);
       canvasRef.current.dataset.volumeMaximumMl = String(volumeDomain[1]);
       canvasRef.current.dataset.pressureMaximumMmhg = String(pressureDomain[1]);
     }
@@ -714,6 +718,7 @@ export function PressureVolumeLoopCanvasV3(
 
   }, [
     appTheme,
+    props.axisRanges,
     domainCommitKey,
     legendSelection,
     periodicPvaSupported,

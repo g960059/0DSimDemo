@@ -4,14 +4,15 @@ import { Session as InspectorSession } from "node:inspector/promises";
 import { resolve } from "node:path";
 import { cpus } from "node:os";
 import { importExactExecutableArtifactModuleV2 } from "@/runtime/ExactExecutableArtifactModuleLoaderV2";
-import { loadControlAdmissionCandidateModuleV1 } from "@/analysis/methods/mainWire/MainWireControlAdmissionCandidateModuleV1";
+import type { MainWireStaticCaseSessionV1 } from "@/engine/vnext/MainWireStaticCaseSessionV1";
+import type { createMainWireIntegratedStudioStaticCaseCoreReleaseV1 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
 import { wrapMainWirePressureCrossingSessionV1 } from "@/analysis/methods/mainWire/MainWirePressureCrossingSessionV1";
 import { runMainWireIntegratedModelFormalPressureVolumeProtocolV3 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
-import candidate from "@/data/model-candidates/control-admission-v1/candidate.json";
-import launches from "@/data/model-candidates/control-admission-v1/launches.json";
+import candidate from "@/data/model-releases/standard74/publication.json";
+import bundle from "@/data/model-releases/standard74/bundle.json";
 import { selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 
-// Run the real, compiled candidate and complete protocol from saved warm
+// Run the current compiled exact model and complete protocol from saved warm
 // captures. Reference comparison includes every progress result, not just the
 // final curve. Profiling is optional: sampled timings are not speed benchmarks.
 function option(name: string, fallback?: string): string | undefined {
@@ -21,6 +22,7 @@ function option(name: string, fallback?: string): string | undefined {
   if (!value || value.startsWith("--")) throw new Error(`${name} requires a value`);
   return value;
 }
+const launches = { modelId: bundle.manifest.modelId, presets: [bundle.baseline, ...bundle.presets] };
 const selection = option("--preset", "all")!;
 if (selection !== "all" && (!/^\d+$/.test(selection) || Number(selection) >= launches.presets.length))
   throw new Error(`--preset must be all or 0..${launches.presets.length - 1}`);
@@ -30,17 +32,18 @@ const artifactPath = option("--artifact");
 const profiling = process.argv.includes("--profile");
 await mkdir(directory, { recursive: true });
 selectHotPathIntegrityTierV1("hot-path-lean");
-const artifactBytes = artifactPath ? await readFile(artifactPath) : undefined;
-const module = artifactBytes
-  ? await importExactExecutableArtifactModuleV2(artifactBytes) as unknown as Awaited<ReturnType<typeof loadControlAdmissionCandidateModuleV1>>
-  : await loadControlAdmissionCandidateModuleV1();
+const artifactBytes = await readFile(artifactPath ?? "data/model-releases/standard74/artifact.mjs.txt");
+const module = await importExactExecutableArtifactModuleV2(artifactBytes) as unknown as {
+  ExactSessionV1: typeof MainWireStaticCaseSessionV1;
+  createCircleHeartExactModelReleaseV1: typeof createMainWireIntegratedStudioStaticCaseCoreReleaseV1;
+};
 if (module.createCircleHeartExactModelReleaseV1().manifest.modelId !== launches.modelId)
   throw new Error("Benchmark artifact and captured presets belong to different models");
-const { ControlCandidateSessionV1: Owner } = module;
+const { ExactSessionV1: Owner } = module;
 for (const [index, preset] of launches.presets.entries()) {
   if (selection !== "all" && index !== Number(selection)) continue;
   const fixture = preset.capture.fixture;
-  const source = await Owner.restoreWithStepRecovery(preset.capture.checkpoint.payload,
+  const source = await Owner.restore(preset.capture.checkpoint.payload,
     fixture.anatomyId as never, fixture.hemodynamicResearchInputs as never, 1,
     fixture.mechanismResearchInputs as never);
   const progress: unknown[] = [];

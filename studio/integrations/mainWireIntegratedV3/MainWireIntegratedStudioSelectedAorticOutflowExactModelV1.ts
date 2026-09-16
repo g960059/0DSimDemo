@@ -1,5 +1,6 @@
 import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 } from "./MainWireIntegratedStudioModelIdentityV1";
 import { MainWireStaticCaseSessionV1 } from "@/engine/vnext/MainWireStaticCaseSessionV1";
+import { isMainWireUncommittedSolveFailureV1, isMainWireUncommittedSolveRejectionV1 } from "@/engine/vnext/MainWireProjectionStepRecoveryV1";
 import { MAIN_WIRE_STATIC_CASE_CHECKPOINT_V1_ID, type MainWireStaticCaseCheckpointV1 } from "@/engine/myocardium/MainWireStaticCaseCheckpointV1";
 import { createMainWireIntegratedModelStaticCaseFixtureV1 } from "@/engine/myocardium/experiments/MainWireIntegratedModelStaticCaseFixtureV1";
 import { resolveMainWireStaticCaseAnatomyV1, type MainWireStaticCaseAnatomyIdV1 } from "@/engine/myocardium/mechanics/MainWireStaticCaseAnatomyV1";
@@ -406,7 +407,7 @@ const STANDARD72_EXACT_VARIANT_V1 = Object.freeze({
 });
 
 const STATIC_CASE_EXACT_VARIANT_V1 = Object.freeze({ ...STANDARD72_EXACT_VARIANT_V1,
-  label: "Standard73" as const, modelId: MAIN_WIRE_STATIC_CASE_MODEL_ID_V1,
+  label: "Standard74" as const, modelId: MAIN_WIRE_STATIC_CASE_MODEL_ID_V1,
   fixtureId: "main-wire-integrated-model-static-case-fixture-v1",
   fixtureClaim: Object.freeze({ ...MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_CLAIM,
     fixtureId: "main-wire-integrated-model-static-case-fixture-v1",
@@ -415,7 +416,7 @@ const STATIC_CASE_EXACT_VARIANT_V1 = Object.freeze({ ...STANDARD72_EXACT_VARIANT
     coronaryBed: "unchanged-reference-bed-not-current-mass-normalized",
   }),
   runtimeScope: "finite-static-anatomy-fixed-material-calcium-algebraic-roots-regular-sinus-all-off",
-  numericalSessionId: "main-wire-static-case-session-v1",
+  numericalSessionId: "main-wire-static-case-convergent-venous-inverse-bounded-recovery-session-v1",
   checkpointId: MAIN_WIRE_STATIC_CASE_CHECKPOINT_V1_ID,
   checkpointCodecId: "circleheart.main-wire-static-case-studio-checkpoint-codec-v1",
   checkpointFixturePairing: "complete-static-anatomy-effective-inputs-and-predictor-history",
@@ -504,7 +505,8 @@ const SELECTED_PRESENTATION_DT_SEC_V1 =
   SELECTED_EXECUTION_PLAN_DESCRIPTOR_V1.updateSchedule.presentationStepSec;
 // A failed direct TBV rebase falls back to a deterministic adaptive volume
 // homotopy. Broad well-conditioned intervals stay fast; only a rejected
-// interval is bisected down to the public 50-mL control resolution.
+// interval is bisected down to the 50-mL continuation floor (independent of
+// the current public control's finer step).
 const STANDARD68_TBV_CONTINUATION_INITIAL_STEP_ML_V1 = 1_000;
 const STANDARD68_TBV_CONTINUATION_MIN_STEP_ML_V1 = 50;
 const STANDARD68_TBV_CONTINUATION_MAX_ATTEMPTS_V1 = 64;
@@ -942,7 +944,7 @@ function createSelectedNumericalFixtureV1(
 }
 
 /** Worker-local owner shared by the fixed Standard66/67 exact assemblies. */
-export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
+class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
   readonly #variant: SelectedExactModelVariantV1;
   readonly #defaultBaselineCheckpoint:
     MainWireIntegratedModelStandard68CheckpointV1 | undefined;
@@ -1734,13 +1736,9 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
       );
     }
 
-    // Changing TBV is the one warm-start operation that redistributes stored
-    // volume. Preflight a full target cycle on a detached exact restore before
-    // committing the live owner. If a large instantaneous rebase fails, run a
-    // deterministic adaptive homotopy on detached exact owners: each accepted
-    // volume stage relaxes for one target cycle, while a failed interval is
-    // bisected down to the public 50-mL resolution. The live owner is swapped
-    // only after the final target stage succeeds.
+    // Probe the next live batch on a detached owner. This admits a control
+    // change, not a stability certificate. Large changes retain the bounded
+    // continuation protocol, whose computed state is adopted.
     if (
       fixture.hemodynamicResearchInputs.totalBloodVolumeMl
       !== original.fixture.hemodynamicResearchInputs.totalBloodVolumeMl
@@ -1755,33 +1753,43 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
       const requiresBoundedContinuation =
         sourceTbvMl - targetTbvMl >
           STANDARD68_TBV_CONTINUATION_INITIAL_STEP_ML_V1;
-      const preflightExecutionPlan = this.#prepareExecutionPlan(
-        runtimeSessionId,
-        scenarioId,
-        bindMainWireIntegratedStudioSelectedAorticOutflowExecutionPlanV1(),
-      );
-      const preflight = await restoreSelectedNumericalSessionV1(
-        this.#variant,
-        await checkpointSelectedNumericalSessionV1(candidate),
-        fixture.hemodynamicResearchInputs,
-        1,
-        preflightExecutionPlan.initialization,
-        fixture.mechanismResearchInputs,
-        fixture.anatomyId,
-      );
-      if (!isMatchingWarmStartSessionV1(this.#variant, preflight)) {
-        throw new Error(
-          `${this.#variant.label} TBV preflight restored the wrong exact owner`,
+      let directFailure: string | null = "large downward TBV rebase requires bounded continuation";
+      if (!requiresBoundedContinuation) {
+        const preflightExecutionPlan = this.#prepareExecutionPlan(
+          runtimeSessionId,
+          scenarioId,
+          bindMainWireIntegratedStudioSelectedAorticOutflowExecutionPlanV1(),
         );
-      }
-      const directFailure = requiresBoundedContinuation
-        ? "large downward TBV rebase requires bounded continuation"
-        : this.#advanceDetachedWarmStartCycles(
+        // Two independent warm owners from the same accepted source give the
+        // probe the identical rebased state without serializing, hashing and
+        // restoring an intermediate checkpoint. Never adopt the probed owner.
+        const preflight = isStaticCaseVariantV1(this.#variant)
+          ? await warmSelectedSessionV1(original.modelSession,
+            fixture.hemodynamicResearchInputs, 1, preflightExecutionPlan.initialization,
+            fixture.mechanismResearchInputs)
+          : await restoreSelectedNumericalSessionV1(
+            this.#variant,
+            await checkpointSelectedNumericalSessionV1(candidate),
+            fixture.hemodynamicResearchInputs,
+            1,
+            preflightExecutionPlan.initialization,
+            fixture.mechanismResearchInputs,
+            fixture.anatomyId,
+          );
+        if (!isMatchingWarmStartSessionV1(this.#variant, preflight)) {
+          throw new Error(
+            `${this.#variant.label} TBV preflight restored the wrong exact owner`,
+          );
+        }
+        directFailure = isStaticCaseVariantV1(this.#variant)
+          ? this.#probeLiveWarmStartBatch(preflight, preflightExecutionPlan.updateSchedule)
+          : this.#advanceDetachedWarmStartCycles(
             preflight,
             preflightExecutionPlan.updateSchedule,
             fixture.hemodynamicResearchInputs.heartRateBpm,
             1,
           );
+      }
       if (directFailure !== null) {
         if (!isMatchingWarmStartSessionV1(
           this.#variant,
@@ -1938,9 +1946,37 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
       if (targetTimeSec > endTimeSec + 1e-12) return null;
       const advance = session.advanceToPresentationTime(targetTimeSec);
       if (advance.status !== "advanced") {
+        if (!isMainWireUncommittedSolveRejectionV1(advance)) throw new Error(selectedAdvanceFailureMessageV1(advance));
         return selectedAdvanceFailureMessageV1(advance);
       }
     }
+  }
+
+  #probeLiveWarmStartBatch(
+    session: SelectedWarmStartNumericalSessionV1,
+    updateSchedule: BoundExecutionPlanUpdateScheduleV1,
+  ): string | null {
+    const origin = executionPlanBaseTickAtTimeV1(updateSchedule, session.currentAcceptedState().acceptedTimeSec);
+    // One 32-ms presentation batch. Discard the trial owner and retain the
+    // source-time candidate: live playback publishes every real sample, once,
+    // with the new epoch. No lookahead clock or invented samples escape.
+    for (let ordinal = 1; ordinal <= 16; ordinal += 1) {
+      const target = executionPlanTimeAtBaseTickV1(updateSchedule,
+        executionPlanPresentationBaseTickV1(updateSchedule, origin, ordinal));
+      try {
+        const projection = advanceSelectedNumericalProjectionV1(session, target, []);
+        if (projection.advance.status !== "advanced") {
+          if (!isMainWireUncommittedSolveRejectionV1(projection.advance)) throw new Error(selectedAdvanceFailureMessageV1(projection.advance));
+          return selectedAdvanceFailureMessageV1(projection.advance);
+        }
+      } catch (error) {
+        // A known numerical rejection is recoverable; invariant/programming
+        // errors must not be disguised as a volume-continuation retry.
+        if (isMainWireUncommittedSolveFailureV1(error)) return error.message;
+        throw error;
+      }
+    }
+    return null;
   }
 
   async #coldRestartFixtureAtomically(
@@ -1996,150 +2032,11 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
   }
 }
 
-/** Fixed artifact ABI consumed by DynamicExactModelRuntimeLoaderV2. */
-export function createCircleHeartExactModelReleaseV1():
-  MainWireIntegratedStudioSelectedAorticOutflowExactReleaseV1 {
-  const host =
-    new MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1(
-      SELECTED_STANDARD66_EXACT_VARIANT_V1,
-    );
-  return Object.freeze({
-    manifest: createSelectedExactKernelV1(
-      SELECTED_STANDARD66_EXACT_VARIANT_V1,
-    ),
-    executables: selectedExecutableBundleV1(
-      host,
-      SELECTED_STANDARD66_EXACT_VARIANT_V1,
-    ),
-  });
-}
-
-export const createMainWireIntegratedStudioSelectedAorticOutflowReleaseV1 =
-  createCircleHeartExactModelReleaseV1;
-
-export function createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1():
-  MainWireIntegratedStudioSelectedAorticOutflowExactReleaseV1 {
-  const host =
-    new MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1(
-      SELECTED_STANDARD67_EXACT_VARIANT_V1,
-    );
-  return Object.freeze({
-    manifest: createSelectedExactKernelV1(
-      SELECTED_STANDARD67_EXACT_VARIANT_V1,
-    ),
-    executables: selectedExecutableBundleV1(
-      host,
-      SELECTED_STANDARD67_EXACT_VARIANT_V1,
-    ),
-  });
-}
-
-export function createMainWireIntegratedStudioRoundedEjectionReleaseV1(
-  defaultBaselineCheckpoint?: MainWireIntegratedModelStandard68CheckpointV1,
-):
-  MainWireIntegratedStudioSelectedAorticOutflowExactReleaseV1 {
-  const host =
-    new MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1(
-      ROUNDED_EJECTION_STANDARD68_EXACT_VARIANT_V1,
-      defaultBaselineCheckpoint,
-    );
-  return Object.freeze({
-    manifest: createSelectedExactKernelV1(
-      ROUNDED_EJECTION_STANDARD68_EXACT_VARIANT_V1,
-    ),
-    executables: selectedExecutableBundleV1(
-      host,
-      ROUNDED_EJECTION_STANDARD68_EXACT_VARIANT_V1,
-    ),
-  });
-}
-
-/**
- * Unsettled Standard69 core release. Its thin exact entry installs the
- * qualified default checkpoint without changing this shared numerical host.
- */
-export function createMainWireIntegratedStudioQualifiedBaselineCoreReleaseV1():
-  MainWireIntegratedStudioSelectedAorticOutflowExactReleaseV1 {
-  const host =
-    new MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1(
-      QUALIFIED_BASELINE_STANDARD69_EXACT_VARIANT_V1,
-    );
-  return Object.freeze({
-    manifest: createSelectedExactKernelV1(
-      QUALIFIED_BASELINE_STANDARD69_EXACT_VARIANT_V1,
-    ),
-    executables: selectedExecutableBundleV1(
-      host,
-      QUALIFIED_BASELINE_STANDARD69_EXACT_VARIANT_V1,
-    ),
-  });
-}
-
-/** Unregistered successor; the thin wrapper installs its own fresh checkpoint. */
-export function createMainWireIntegratedStudioStandard72CoreReleaseV1(): MainWireIntegratedStudioSelectedAorticOutflowExactReleaseV1 {
-  const host = new MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1(STANDARD72_EXACT_VARIANT_V1);
-  return Object.freeze({ manifest: createSelectedExactKernelV1(STANDARD72_EXACT_VARIANT_V1),
-    executables: selectedExecutableBundleV1(host, STANDARD72_EXACT_VARIANT_V1) });
-}
-
-/** Local development only. Adoption and a fixed release identity are separate. */
+/** Sole executable release entry; retired model identities are not reminted. */
 export function createMainWireIntegratedStudioStaticCaseCoreReleaseV1(): MainWireIntegratedStudioSelectedAorticOutflowExactReleaseV1 {
   const host = new MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1(STATIC_CASE_EXACT_VARIANT_V1);
   return Object.freeze({ manifest: createSelectedExactKernelV1(STATIC_CASE_EXACT_VARIANT_V1),
     executables: selectedExecutableBundleV1(host, STATIC_CASE_EXACT_VARIANT_V1) });
-}
-
-/** Unsettled Standard70 core; the thin entry installs its qualified checkpoint. */
-export function createMainWireIntegratedStudioAlgebraicPulmonaryRootCoreReleaseV1():
-  MainWireIntegratedStudioSelectedAorticOutflowExactReleaseV1 {
-  const host =
-    new MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1(
-      ALGEBRAIC_PULMONARY_ROOT_STANDARD70_EXACT_VARIANT_V1,
-    );
-  return Object.freeze({
-    manifest: createSelectedExactKernelV1(
-      ALGEBRAIC_PULMONARY_ROOT_STANDARD70_EXACT_VARIANT_V1,
-    ),
-    executables: selectedExecutableBundleV1(
-      host,
-      ALGEBRAIC_PULMONARY_ROOT_STANDARD70_EXACT_VARIANT_V1,
-    ),
-  });
-}
-
-export function createMainWireIntegratedStudioSelectedAorticOutflowKernelV1():
-  ExactModelKernelManifestV3 {
-  return createSelectedExactKernelV1(
-    SELECTED_STANDARD66_EXACT_VARIANT_V1,
-  );
-}
-
-export function createMainWireIntegratedStudioAlgebraicProximalRootsKernelV1():
-  ExactModelKernelManifestV3 {
-  return createSelectedExactKernelV1(
-    SELECTED_STANDARD67_EXACT_VARIANT_V1,
-  );
-}
-
-export function createMainWireIntegratedStudioRoundedEjectionKernelV1():
-  ExactModelKernelManifestV3 {
-  return createSelectedExactKernelV1(
-    ROUNDED_EJECTION_STANDARD68_EXACT_VARIANT_V1,
-  );
-}
-
-export function createMainWireIntegratedStudioQualifiedBaselineKernelV1():
-  ExactModelKernelManifestV3 {
-  return createSelectedExactKernelV1(
-    QUALIFIED_BASELINE_STANDARD69_EXACT_VARIANT_V1,
-  );
-}
-
-export function createMainWireIntegratedStudioAlgebraicPulmonaryRootKernelV1():
-  ExactModelKernelManifestV3 {
-  return createSelectedExactKernelV1(
-    ALGEBRAIC_PULMONARY_ROOT_STANDARD70_EXACT_VARIANT_V1,
-  );
 }
 
 function createSelectedExactKernelV1(
@@ -2188,7 +2085,7 @@ function createSelectedExactKernelV1(
       acceptedBoundaryCapture: true,
       fixtureChangeSemantics:
         isStaticCaseVariantV1(variant)
-          ? "same-anatomy-atomic-warm-edit-cross-anatomy-requires-target-scenario-capture"
+          ? "same-anatomy-atomic-warm-edit-live-batch-tbv-probe-existing-bounded-continuation"
           : variant.generation === 68
           ? "atomic-accepted-state-warm-start-bounded-tbv-continuation-new-fixture-epoch"
           : "atomic-cold-restart-at-zero-clock-new-fixture-epoch",
@@ -2199,6 +2096,11 @@ function createSelectedExactKernelV1(
         "event-limited-atomic-composed-rhythm-coronary-dynamic-mcs",
       acceptedStateMutation: false,
       failureRollback: "previous-accepted-tuple",
+      ...(isStaticCaseVariantV1(variant) ? {
+        vascularPressureInverse: "bracketed-step-contraction-venous-inverse-v1",
+        vascularPressureInverseFailure: "explicit-nonconvergence-no-unverified-pressure",
+        nonconvergenceRecovery: "selected-projection-newton-rejection-remaining-interval-bisection-depth-5-trials-63-minimum-step-0.0000625s-empty-predictor-on-retry-and-exit",
+      } : {}),
     }),
     fixtureSchema: Object.freeze({
       fixtureSchemaId:

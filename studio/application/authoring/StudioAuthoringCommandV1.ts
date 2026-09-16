@@ -509,6 +509,10 @@ export function describeStudioAuthoringProtocolV1(selectedAction?: string): Read
       scenarioId: id, seriesId: nullableId,
     }) },
     windowSec: sweepWindow,
+    axisRanges: object([], {
+      x: object(["minimum", "maximum"], { minimum: finiteNumber, maximum: finiteNumber }),
+      y: object(["minimum", "maximum"], { minimum: finiteNumber, maximum: finiteNumber }),
+    }),
     historyDepth,
     pressureVolumeAnalysisMode: {
       enum: ["raw-exact-orbit", "responsive-preview", "formal-periodic"],

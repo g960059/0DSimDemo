@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { workbenchManualChartDomainV3 } from "@/components/workbench/presentation/WorkbenchManualChartDomainV3";
 import { nextZeroBasedPvDomainV3, workbenchPvLoopDomainPointsV3 } from "@/components/workbench/presentation/PressureVolumeLoopCanvasV3";
 
 import {
@@ -77,6 +78,17 @@ const sampleV3 = (
   });
 
 describe("V3-neutral Workbench Canvas helpers", () => {
+  it("uses authored ranges verbatim without expanding to data or mutating automatic domains", () => {
+    const automatic = Object.freeze([0, 150] as const);
+    expect(workbenchManualChartDomainV3(automatic, undefined)).toBe(automatic);
+    expect(workbenchManualChartDomainV3(automatic, { minimum: 40, maximum: 100 })).toEqual([40, 100]);
+    for (const range of [{ minimum: 0, maximum: 0 }, { minimum: 20, maximum: -1 },
+      { minimum: NaN, maximum: 1 }, { minimum: 0, maximum: Infinity },
+      { minimum: -Number.MAX_VALUE, maximum: Number.MAX_VALUE }]) {
+      expect(workbenchManualChartDomainV3(automatic, range)).toBe(automatic);
+    }
+    expect(automatic).toEqual([0, 150]);
+  });
   it("builds leading-cap tints as opaque colors against either Canvas theme", () => {
     expect(mixOpaqueWorkbenchCanvasColorV3("#ff0000", "#ffffff", 0.25))
       .toBe("#ffbfbf");

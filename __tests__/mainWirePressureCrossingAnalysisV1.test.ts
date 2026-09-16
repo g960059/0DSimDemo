@@ -14,9 +14,9 @@ import type { AnalysisExecutorV1 } from "@/analysis/contracts/AnalysisExecutionV
 import current from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 import candidate from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 import { CURRENT_MODEL_PRESETS_V1 } from "@/data/model-releases/CurrentModelReleaseV1";
-import high from "@/data/model-presets/standard73/as-high-gradient-v1.json";
-import low from "@/data/model-presets/standard73/as-low-flow-v1.json";
-import lock from "@/data/model-releases/standard73/publication.json";
+import currentBundle from "@/data/model-releases/standard74/bundle.json";
+const high = currentBundle.presets[1]!, low = currentBundle.presets[2]!;
+import lock from "@/data/model-releases/standard74/publication.json";
 import type { MainWireIntegratedStudioSelectedAorticOutflowFixtureV1 as Fixture,
   createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as Factory } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
 import { importExactExecutableArtifactModuleV2 as importArtifact } from "@/runtime/ExactExecutableArtifactModuleLoaderV2";
@@ -27,6 +27,34 @@ const tier = hotPathIntegrityTierV1();
 afterEach(() => selectHotPathIntegrityTierV1(tier));
 
 describe("analysis-owned quasi-steady semilunar closure", () => {
+  it("serializes same-realm async tier ownership and releases it after failures", async () => {
+    selectHotPathIntegrityTierV1("full-invariant");
+    const rejections: ((error: Error) => void)[] = [];
+    const restore = vi.spyOn(Session, "restore").mockImplementation(async () => {
+      expect(hotPathIntegrityTierV1()).toBe("hot-path-lean");
+      return new Promise<Session>((_resolve, reject) => { rejections.push(reject); });
+    });
+    const input = { source: { acceptedFrame: { modelId: high.modelId, runtimeSessionId: "physical", scenarioId: "high",
+      inputEpoch: 1, acceptedRevision: high.capture.checkpoint.acceptedRevision, acceptedTimeSec: high.capture.checkpoint.acceptedTimeSec, outputs: {} },
+      surfaceRelease: candidate, capture: async () => ({ artifactRevisionId: supportedArtifact, scenario: high.capture }), legacyExact: null },
+      request: { runtimeSessionId: "physical", scenarioId: "high", analysisId, expectedInputEpoch: 1,
+        expectedAcceptedRevision: high.capture.checkpoint.acceptedRevision, expectedAcceptedTimeSec: high.capture.checkpoint.acceptedTimeSec },
+    } as Parameters<AnalysisExecutorV1["execute"]>[0];
+    try {
+      const first = execute(input).catch(error => error);
+      const second = execute(input).catch(error => error);
+      await vi.waitFor(() => expect(restore).toHaveBeenCalledTimes(1));
+      expect(hotPathIntegrityTierV1()).toBe("hot-path-lean");
+      rejections[0]!(new Error("first stopped"));
+      expect((await first).message).toBe("first stopped");
+      await vi.waitFor(() => expect(restore).toHaveBeenCalledTimes(2));
+      expect(hotPathIntegrityTierV1()).toBe("hot-path-lean");
+      rejections[1]!(new Error("second stopped"));
+      expect((await second).message).toBe("second stopped");
+      expect(hotPathIntegrityTierV1()).toBe("full-invariant");
+    } finally { restore.mockRestore(); }
+  });
+
   it("opts into candidate sampling without dropping the anchor diagnostic readback", () => {
     const { source } = syntheticClosureSource();
     const ordinary = vi.spyOn(source, "advanceToPresentationTime");
@@ -181,7 +209,7 @@ describe("analysis-owned quasi-steady semilunar closure", () => {
   it.each([...CURRENT_MODEL_PRESETS_V1, validateScenarioPresetV2(high), validateScenarioPresetV2(low)])(
     "matches the admitted artifact for a complete continuation: $title", async preset => {
       selectHotPathIntegrityTierV1("hot-path-lean");
-      const bytes = new Uint8Array(readFileSync("data/model-releases/standard73/artifact.mjs.txt"));
+      const bytes = new Uint8Array(readFileSync("data/model-releases/standard74/artifact.mjs.txt"));
       expect(createHash("sha256").update(bytes).digest("hex")).toBe(lock.artifactSha256);
       expect(supportedArtifact).toBe(lock.artifactRevisionId);
       const namespace = await importArtifact(bytes), release = await (namespace.createCircleHeartExactModelReleaseV1 as typeof Factory)();

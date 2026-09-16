@@ -776,9 +776,7 @@ export const WorkbenchSession = ({
                   sourceSnapshot.surfaceReleaseId,
                 )
               : modelLab
-                ? new URLSearchParams(location.search).get("candidate") === "control-admission"
-                  ? await (await import("@/studio/composition/StudioControlAdmissionCandidateV1")).loadStudioControlAdmissionCandidateV1()
-                  : await loadStudioLocalCurrentClientCompositionV1()
+                ? await loadStudioLocalCurrentClientCompositionV1()
                 : await loadStudioDefaultClientCompositionV2();
       } catch (error) {
         if (

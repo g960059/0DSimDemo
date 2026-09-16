@@ -8,7 +8,7 @@ import { STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1 } from "@/studio/contract
 import { assertAdditiveModelSurfaceUpgradeV1, assertExactModelKernelManifestV3, assertModelSurfaceReleaseManifestV1, assertModelSurfaceReleaseLineageV1, composeStandardModelContractV1, derivationCapabilityV1, outputCapabilityV1 } from "@/studio/contracts/v2/modelSurface";
 import { STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID, validateStudioModelWorkerReleaseTicketV2 } from "@/studio/contracts/v2/release";
 import { DynamicExactModelRuntimeLoaderV2, fetchImmutableExactModelArtifactV2 } from "@/studio/infrastructure/model/DynamicExactModelRuntimeLoaderV2";
-import mainWireIntegratedStudioStandardArtifactV1 from "@/data/model-releases/standard73/artifact.mjs.txt?raw";
+import mainWireIntegratedStudioStandardArtifactV1 from "@/data/model-releases/standard74/artifact.mjs.txt?raw";
 
 import mainWireIntegratedStudioStandardClientV1 from "@/data/model-releases/CurrentModelReleaseV1";
 
@@ -18,7 +18,7 @@ import { MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V16
 import { MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1, resolveMainWireAnalysisMethodsForSurfaceV1 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 
-import mainWireIntegratedStudioStandardRegistryLockV1 from "@/data/model-releases/standard73/publication.json";
+import mainWireIntegratedStudioStandardRegistryLockV1 from "@/data/model-releases/standard74/publication.json";
 
 import { materializeStudioSimulationPresentationFramesV2 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
 
@@ -61,7 +61,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       const composition =
         await import("@/studio/composition/StudioDefaultCompositionV2");
       const current = (await import("@/data/model-releases/CurrentModelReleaseV1")).default;
-      const currentLock = (await import("@/data/model-releases/standard73/publication.json")).default;
+      const currentLock = (await import("@/data/model-releases/standard74/publication.json")).default;
       const surface = (await import("@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5")).default;
       const revisioned = composition.localCurrentArtifactRevisionUrlV1(
         new URL("http://127.0.0.1:4176/standard72.artifact.mjs?keep=1"),
@@ -159,7 +159,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
   it("rejects retired remote bundles and preserves supported remote Surface pins", async () => {
     vi.resetModules();
     const current = (await import("@/data/model-releases/CurrentModelReleaseV1")).default;
-    const currentLock = (await import("@/data/model-releases/standard73/publication.json")).default;
+    const currentLock = (await import("@/data/model-releases/standard74/publication.json")).default;
     const surface = (await import("@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1")).default;
     const release = {
       defaultFixture: current.defaultFixture,

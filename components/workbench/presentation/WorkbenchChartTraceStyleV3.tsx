@@ -1,4 +1,6 @@
 import React from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { SimulationUpdatingIndicatorV1 } from "@/components/simulation/SimulationPreparationV1";
 
 import {
@@ -223,10 +225,45 @@ export function WorkbenchChartLegendV3({ actions, updatingLabel, ...props }: Rea
   actions?: React.ReactNode;
   updatingLabel?: string;
 }>) {
-  if (props.model.traces.length === 0 && actions == null && updatingLabel === undefined) return null;
+  const { i18n } = useTranslation();
+  const japanese = (i18n.resolvedLanguage ?? i18n.language ?? "en").startsWith("ja");
+  const contentRef = React.useRef<HTMLDivElement>(null);
+  const [overflowing, setOverflowing] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(false);
+  const contentId = React.useId();
+  const hasContent = props.model.traces.length > 0 || actions != null || updatingLabel !== undefined;
+  React.useEffect(() => {
+    const content = contentRef.current;
+    if (!content) return;
+    const measure = () => {
+      const overflows = content.getBoundingClientRect().height > 56;
+      setOverflowing(overflows);
+      if (!overflows) setExpanded(false);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [hasContent]);
+  if (!hasContent) return null;
+  const toggleLabel = japanese
+    ? expanded ? "凡例を折りたたむ" : "凡例を展開"
+    : expanded ? "Collapse legend" : "Expand legend";
   return (
-    <WorkbenchChartLegendRowV3 actions={actions} updatingLabel={updatingLabel}>
-      <WorkbenchChartLegendItemsV3 {...props} />
+    <WorkbenchChartLegendRowV3 actions={!overflowing && actions == null ? undefined : <>
+      {overflowing && <button type="button" title={toggleLabel} aria-label={toggleLabel}
+        aria-expanded={expanded} aria-controls={contentId}
+        onClick={() => setExpanded(value => !value)}
+        className="flex h-7 w-7 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text focus-visible:outline-2 focus-visible:outline-wb-accent">
+        {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </button>}
+      {actions}
+    </>} updatingLabel={updatingLabel}>
+      <div id={contentId} role="group" aria-label={japanese ? "凡例" : "Legend"}
+        data-legend-expanded={expanded} className={`overflow-y-auto overscroll-contain ${expanded ? "max-h-40" : "max-h-14"}`}>
+        <div ref={contentRef}><WorkbenchChartLegendItemsV3 {...props} /></div>
+      </div>
     </WorkbenchChartLegendRowV3>
   );
 }
@@ -361,11 +398,12 @@ function WorkbenchChartLegendItemsV3({
             <button
               key={scenario.scenarioId}
               type="button"
-              className={`${commonClassName} ${selectionClassName(candidate)} ${visibilityClassName(candidate)}`}
+              title={scenario.label}
+              className={`${commonClassName} min-w-0 max-w-36 ${selectionClassName(candidate)} ${visibilityClassName(candidate)}`}
               {...interactionProps(candidate)}
             >
               <LegendLineV3 color={trace.color} />
-              {scenario.label}
+              <span className="truncate">{scenario.label}</span>
             </button>
           );
         })}

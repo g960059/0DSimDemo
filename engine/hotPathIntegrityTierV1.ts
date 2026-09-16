@@ -1,13 +1,16 @@
 /**
  * Chooses complete invariant revalidation or the admitted live hot path.
  *
- * Lean mode skips only redundant walks of state constructed by private exact
- * model owners. Cold initialization, restore boundaries, arithmetic checks,
- * checkpoint validation, and mutable scientific inputs remain validated.
- * Validation-stamp provenance is owned and tested at each issuer site.
+ * Lean mode uses the admitted typed ordinary-step path, including its coupled
+ * predictor, and skips redundant validation of privately constructed state.
+ * Full-invariant retains the independent public, unpredicted transaction path;
+ * it is not a byte-equivalent execution mode for predictor-enabled releases.
+ * Cold initialization, restores, arithmetic, checkpoints and mutable inputs
+ * remain validated in either mode. To audit validation reuse without changing
+ * numerical paths, disable validation stamps while retaining the same tier.
  *
  * The default is full validation. Scientific Worker entry points explicitly
- * select lean mode; tests compare both tiers and exercise stamp-disabled runs.
+ * select lean mode; tests qualify that path and exercise stamp-disabled runs.
  */
 
 export const HOT_PATH_INTEGRITY_TIER_V1_ID =

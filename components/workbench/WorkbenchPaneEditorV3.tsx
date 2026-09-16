@@ -1,4 +1,5 @@
 import React from "react";
+import { WorkbenchGraphAxisSettingsV3 } from "./WorkbenchGraphAxisSettingsV3";
 import { X } from "lucide-react";
 import type {
   ExperimentSurfaceControlItemV2,
@@ -215,12 +216,14 @@ export function workbenchGraphDisplaySettingsAvailableV3(
 export function GraphDisplaySettingsV3({
   graph,
   pane,
+  waveformUnit,
   periodicPvaSupported,
   strings,
   onChange,
 }: Readonly<{
   graph: GraphDefinitionV2 | undefined;
   pane: ExperimentSurfaceGraphPaneV2;
+  waveformUnit?: string;
   periodicPvaSupported: boolean;
   strings: WorkbenchPaneEditorStringsV3;
   onChange: (pane: ExperimentSurfaceGraphPaneV2) => void;
@@ -234,6 +237,7 @@ export function GraphDisplaySettingsV3({
         pane.pressureVolumeAnalysisMode,
       ) && (
         <section id="pane-settings-display-v3" className="space-y-4">
+          {graph && <WorkbenchGraphAxisSettingsV3 graph={graph} pane={pane} waveformUnit={waveformUnit} onChange={onChange} />}
           {(graph?.renderer === "pressure-volume" ||
             graph?.renderer === "structural-return") && (
             <fieldset className="space-y-2">

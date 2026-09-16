@@ -1081,6 +1081,7 @@ function ArticleReaderLiveGraphV3({
         }
       >
         <ArticleReaderPressureVolumeCanvasV3
+          axisRanges={pane.axisRanges}
           historyDepth={resolved.historyDepth}
           analysisId={
             mainWireFormalPvAnalysisIdV1(runtime.periodicPvaDerivation)
@@ -1192,6 +1193,7 @@ function ArticleReaderLiveGraphV3({
       }
     >
       <SweepingWaveformCanvasV3
+        axisRanges={pane.axisRanges}
         activeScenarioId={activeScenarioId}
         includeZero={includeZero}
         traces={traces}
@@ -1203,6 +1205,7 @@ function ArticleReaderLiveGraphV3({
 }
 
 function ArticleReaderPressureVolumeCanvasV3({
+  axisRanges,
   analysisId,
   historyDepth,
   pressureVolumeAnalysisMode,
@@ -1213,6 +1216,7 @@ function ArticleReaderPressureVolumeCanvasV3({
 }: Readonly<{
   analysisId: string;
   historyDepth: number;
+  axisRanges?: ExperimentSurfaceGraphPaneV2["axisRanges"];
   pressureVolumeAnalysisMode:
     ExperimentSurfaceGraphPaneV2["pressureVolumeAnalysisMode"];
   showPressureEnvelope: ExperimentSurfaceGraphPaneV2["showPressureEnvelope"];
@@ -1318,6 +1322,7 @@ function ArticleReaderPressureVolumeCanvasV3({
   );
   return (
     <PressureVolumeLoopCanvasV3
+      axisRanges={axisRanges}
       playbackRunning={runtime.state.status === "playing"}
       periodicPvaSupported={periodicPvaEnabled}
       traces={enrichedTraces}
@@ -1524,6 +1529,7 @@ export function ArticleReaderStructuralReturnGraphV3({
         </div>
       ) : (
         <GuytonStarlingComparisonCanvasV3
+          axisRanges={pane.axisRanges}
           recalculatingLabel={t("workbench.live.analysisRecalculating")}
           traces={comparisonTraces}
         />

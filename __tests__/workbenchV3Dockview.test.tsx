@@ -2741,7 +2741,7 @@ describe("V3 Dockview Workbench", () => {
 
   it("keeps preset browsing copy separate from capture and supports bilingual search", () => {
     const preset: ScenarioPresetV2 = {
-      schemaId: "circleheart-studio-scenario-preset-v2", presetId: "standard73-as-low-flow-reduced-ef-v1",
+      schemaId: "circleheart-studio-scenario-preset-v2", presetId: "standard74-as-low-flow-reduced-ef-v1",
       modelId: "model/test", title: "AS · 低EF・低流量・低勾配", description: "Original scientific description",
       capture: { fixture: {}, checkpoint: { acceptedRevision: 0, acceptedTimeSec: 0, payload: {} } },
     };

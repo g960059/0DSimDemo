@@ -184,6 +184,7 @@ export function GraphPaneBodyV3({
     );
     return (
       <StructuralReturnGraphPaneV3
+        axisRanges={pane.axisRanges}
         legendActions={legendActions}
         acceptedStepAvailable={(frame?.acceptedRevision ?? 0) > 0}
         analysisId={structuralAnalysisId}
@@ -447,6 +448,7 @@ function SampledGraphPaneBodyV3({
         canvasClassName="h-full min-h-0"
       >
         <PressureVolumeLoopCanvasV3
+          axisRanges={pane.axisRanges}
           playbackRunning={playbackRunning}
           legendActions={legendActions}
           periodicPvaSupported={periodicPvaEnabled}
@@ -565,6 +567,7 @@ function SampledGraphPaneBodyV3({
       canvasClassName="h-full min-h-0"
     >
       <SweepingWaveformCanvasV3
+        axisRanges={pane.axisRanges}
         legendActions={legendActions}
         activeScenarioId={activeScenarioId}
         includeZero={outputs.every(
@@ -633,6 +636,7 @@ type StructuralReturnScenarioTraceV3 = Readonly<{
 }>;
 
 function StructuralReturnGraphPaneV3({
+  axisRanges,
   legendActions,
   acceptedStepAvailable,
   analysisId,
@@ -642,6 +646,7 @@ function StructuralReturnGraphPaneV3({
   traces,
 }: Readonly<{
   acceptedStepAvailable: boolean;
+  axisRanges?: ExperimentSurfaceGraphPaneV2["axisRanges"];
   analysisId: string;
   onRequestAnalysis: (
     analysisId: string,
@@ -771,6 +776,7 @@ function StructuralReturnGraphPaneV3({
           </div>
         ) : (
           <GuytonStarlingComparisonCanvasV3
+            axisRanges={axisRanges}
             legendActions={legendActions}
             onRetryAnalysis={operationPending || !traces.some(trace => trace.error && !trace.pending)
               ? undefined : () => onRequestAnalysis(analysisId, traces.filter(trace => trace.error && !trace.pending).map(trace => trace.scenarioId))}

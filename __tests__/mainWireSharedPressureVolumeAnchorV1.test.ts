@@ -4,21 +4,17 @@ import { MAIN_WIRE_PRESSURE_CROSSING_PV_ANALYSIS_V1_ID as analysisId } from "@/a
 import type { AnalysisExecutorV1 } from "@/analysis/contracts/AnalysisExecutionV1";
 import type { StudioJsonValueV2 as Json } from "@/studio/contracts/v2/json";
 import type { StudioSimulationAnalysisV2 as Analysis } from "@/studio/contracts/v2/simulation";
-import candidate from "@/data/model-candidates/control-admission-v1/candidate.json";
-import launches from "@/data/model-candidates/control-admission-v1/launches.json";
 import { hotPathIntegrityTierV1, selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { sha256StudioCanonicalJsonHex as digest } from "@/domain/json/CanonicalJsonSha256";
 import { CURRENT_MODEL_PRESETS_V1 } from "@/data/model-releases/CurrentModelReleaseV1";
-import publication from "@/data/model-releases/standard73/publication.json";
+import publication from "@/data/model-releases/standard74/publication.json";
 
 const tier = hotPathIntegrityTierV1();
 afterEach(() => selectHotPathIntegrityTierV1(tier));
 
 describe("shared pressure-volume anchor", () => {
-  it.each([
-    ...launches.presets.map(preset => ({ ...preset, artifactRevisionId: candidate.artifactRevisionId })),
-    { ...CURRENT_MODEL_PRESETS_V1[0]!, title: "admitted baseline", artifactRevisionId: publication.artifactRevisionId },
-  ])("preserves both first measured loads, native evidence and orientation: $title", async preset => {
+  it.each(CURRENT_MODEL_PRESETS_V1.map(preset => ({ ...preset, artifactRevisionId: publication.artifactRevisionId })))
+  ("preserves both first measured loads, native evidence and orientation: $title", async preset => {
     selectHotPathIntegrityTierV1("hot-path-lean");
     const checkpoint = preset.capture.checkpoint!;
     const source = { acceptedFrame: { modelId: preset.modelId, runtimeSessionId: "test", scenarioId: "source",

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 
 const defaultRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
-  "../data/model-releases/standard73/publication.json",
+  "../data/model-releases/standard74/publication.json",
   import.meta.url,
 ), "utf8")) as Readonly<{ modelId: string }>;
 
@@ -597,6 +597,100 @@ test("@desktop @mobile @as-jet opt-in jet outputs preserve live and stale behavi
   expect(errors).toEqual([]);
 });
 
+test("@desktop @mobile @axis-ranges graph ranges persist without changing numerical state", async ({ page }, testInfo) => {
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768;
+  const root = page.getByTestId("v3-dockview-workbench");
+  await page.getByTestId("v3-playback-toggle").click();
+  await expect(root).toHaveAttribute("data-playback", "paused");
+  const epoch = await inputEpoch(page);
+  const edit = async (name: string) => {
+    if (mobile) {
+      await page.getByTestId("workbench-mobile-graph-view-rail").getByRole("tab", { name, exact: true }).click();
+      await page.getByRole("button", { name: `Pane設定: ${name}`, exact: true }).click();
+    } else await openPaneSettings(page, name);
+    const settings = page.getByTestId("workbench-pane-picker-v3");
+    await expect(settings).toBeVisible();
+    if (name === "PV loop" || name === "Pressure waveforms") await settings.getByRole("tab", { name: "表示", exact: true }).click();
+    return settings;
+  };
+  const setRange = async (settings: Locator, axis: string, minimum: string, maximum: string) => {
+    const section = settings.locator(`[data-axis-range="${axis}"]`);
+    await section.getByRole("combobox").selectOption("manual");
+    const inputs = section.getByRole("textbox");
+    await inputs.nth(0).fill(minimum); await inputs.nth(1).fill(maximum); await inputs.nth(1).press("Tab");
+  };
+  let settings = await edit("PV loop");
+  await setRange(settings, "x", "20", "180");
+  await setRange(settings, "y", "-10", "130");
+  await settings.getByRole("button", { name: "適用", exact: true }).click();
+  const pv = page.locator('[data-chart-kind="pressure-volume-loop-v3"] canvas').first();
+  await expect(pv).toHaveAttribute("data-volume-minimum-ml", "20");
+  await expect(pv).toHaveAttribute("data-volume-maximum-ml", "180");
+  await expect(pv).toHaveAttribute("data-pressure-minimum-mmhg", "-10");
+  await expect(pv).toHaveAttribute("data-pressure-maximum-mmhg", "130");
+  settings = await edit("Pressure waveforms");
+  await expect(settings.locator('[data-axis-range="x"]')).toHaveCount(0);
+  await setRange(settings, "y", "0", "120");
+  await settings.getByRole("button", { name: "適用", exact: true }).click();
+  await expect(page.locator('[data-chart-kind="sweeping-waveform-v3"] canvas').first()).toHaveAttribute("data-y-maximum", "120");
+  settings = await edit("Systemic Guyton / Starling");
+  await setRange(settings, "x", "-5", "25"); await setRange(settings, "y", "0", "12");
+  await settings.getByRole("button", { name: "適用", exact: true }).click();
+  const gs = page.locator('[data-chart-kind="guyton-starling-structural-orientation-v3"]').first();
+  await expect(gs).toHaveAttribute("data-pressure-minimum-mmhg", "-5");
+  await expect(gs).toHaveAttribute("data-flow-maximum-l-per-min", "12");
+  expect(await inputEpoch(page)).toBe(epoch);
+  await page.keyboard.press("ControlOrMeta+s");
+  await expect(page.getByTestId("v3-save-experiment")).toContainText("保存済み");
+  await expect(page).toHaveURL(new RegExp(`/ja/experiments/${EXPERIMENT_RESOURCE_ID}$`));
+  await page.reload(); await expect(root).toBeVisible();
+  settings = await edit("PV loop");
+  await expect(settings.locator('[data-axis-range="x"]').getByRole("textbox").nth(0)).toHaveValue("20");
+  await settings.locator('[data-axis-range="x"]').getByRole("combobox").selectOption("auto");
+  await settings.locator('[data-axis-range="y"]').getByRole("combobox").selectOption("auto");
+  await settings.getByRole("button", { name: "適用", exact: true }).click();
+  await expect(pv).toHaveAttribute("data-volume-minimum-ml", "0");
+  await page.screenshot({ path: testInfo.outputPath("manual-axis-ranges.png") });
+});
+
+test("@desktop @mobile @legend-density long scenario names keep actions fixed and legends bounded", async ({ page }, testInfo) => {
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768;
+  const deck = page.getByTestId("workbench-mobile-task-deck");
+  if (mobile) await deck.getByRole("tab", { name: "Scenario", exact: true }).click();
+  const manager = mobile ? deck.getByTestId("workbench-scenario-manager-v3") : page.getByRole("region", { name: "Scenarios", exact: true });
+  await page.getByTestId("v3-playback-toggle").click();
+  const icons = manager.getByRole("button", { name: "Scenarioメニュー: baseline", exact: true });
+  const original = await icons.boundingBox();
+  const longName = "比較用シナリオと十分に長い病態の説明".repeat(6);
+  await openScenarioMenu(page, manager, "baseline");
+  await page.getByRole("menuitem", { name: "名前を変更", exact: true }).click();
+  const name = manager.getByRole("textbox", { name: "Scenario名", exact: true });
+  await name.fill(longName); await name.press("Enter");
+  const renamed = manager.getByRole("button", { name: `Scenarioメニュー: ${longName}`, exact: true });
+  const after = await renamed.boundingBox(), bounds = await manager.boundingBox();
+  expect(Math.abs(after!.x - original!.x)).toBeLessThan(2);
+  expect(after!.x + after!.width).toBeLessThanOrEqual(bounds!.x + bounds!.width);
+  await expect(manager.getByRole("button", { name: `グラフで非表示: ${longName}`, exact: true })).toBeInViewport();
+  expect(await manager.locator(".workbench-scenario-label").evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
+  for (let i = 0; i < 4; i++) {
+    await manager.getByRole("button", { name: "Presetから追加", exact: true }).click();
+    await page.getByRole("dialog", { name: "シナリオを追加" }).getByRole("button", { name: "baseline", exact: true }).click();
+  }
+  if (mobile) await page.getByTestId("workbench-mobile-graph-view-rail").getByRole("tab", { name: "Pressure waveforms", exact: true }).click();
+  const waveform = page.locator('[data-chart-kind="sweeping-waveform-v3"]');
+  const legend = waveform.locator('[data-legend-expanded]');
+  await expect(waveform.getByRole("button", { name: "凡例を展開", exact: true })).toBeVisible();
+  expect((await legend.boundingBox())!.height).toBeLessThanOrEqual(57);
+  await waveform.getByRole("button", { name: "凡例を展開", exact: true }).click();
+  await expect(legend).toHaveAttribute("data-legend-expanded", "true");
+  await waveform.getByRole("button", { name: "凡例を折りたたむ", exact: true }).click();
+  await waveform.getByRole("button", { name: "baseline 4, AoP", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(waveform.getByRole("button", { name: "baseline 4, AoP", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(waveform.getByRole("button", { name: `${longName}, AoP`, exact: true })).toHaveAttribute("aria-pressed", "false");
+  await page.screenshot({ path: testInfo.outputPath("compact-legends-long-label.png") });
+});
+
 test("@desktop @mobile @preset-picker browses without changing Scenarios and preserves five baseline copies", async ({ page }, testInfo) => {
   const mobile = (page.viewportSize()?.width ?? 1440) < 768;
   const deck = page.getByTestId("workbench-mobile-task-deck");
@@ -619,7 +713,7 @@ test("@desktop @mobile @preset-picker browses without changing Scenarios and pre
   await picker.getByRole("button", { name: "AS · 弁狭窄のみ・高勾配: 詳細", exact: true }).click();
   await expect(rows).toHaveCount(1);
   await expect(manager.getByRole("button", { name: "baseline workbench-live-default", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(picker.getByRole("link", { name: /設定と検証/ })).toHaveAttribute("href", /standard73-as-high-gradient-document/);
+  await expect(picker.getByRole("link", { name: /設定と検証/ })).toHaveAttribute("href", /standard74-as-high-gradient-document/);
   await expect(picker.getByRole("link", { name: /設定と検証/ })).toHaveAttribute("target", "_blank");
   await expect(picker.getByRole("button", { name: "一覧に戻る" })).toBeFocused();
   await picker.getByRole("button", { name: "一覧に戻る" }).click();

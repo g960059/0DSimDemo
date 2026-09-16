@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import { buildAuthoritativeCirculationGraphV1, vascularPvLawFromNodeV1 } from "@/engine/core/circulationGraphKernelV1";
-import { ptmFromStressedVolume as oldInverse, stressedVolumeFromPtm, type VascularPvLaw } from "@/engine/vascularPv";
+import { ptmFromStressedVolume as oldInverse, stressedVolumeFromPtm, type VascularPvLaw } from "@/engine/vascularPvConstitutiveV1";
 import { ptmFromStressedVolume as inverse, ptmAndVolumeTangentFromStressedVolume as paired,
   VenousPressureInverseConvergenceErrorV1 } from "@/engine/vascularPvConvergentV1";
 
@@ -17,7 +17,7 @@ function reference(law: VascularPvLaw, target: number): number {
   return (lower + upper) / 2;
 }
 
-describe("candidate convergent venous pressure inverse", () => {
+describe("convergent venous pressure inverse", () => {
   it("solves the actual large-TBV-edit counterexamples without an unchecked midpoint", () => {
     for (const law of [vc, { ...vc }]) for (const physicalVolume of [169.43023662405744, 169.2976081900824, 169.22759941802735, 169.26784265322985]) {
       const target = physicalVolume - law.Vu;

@@ -119,6 +119,13 @@ export type ExperimentSurfaceGraphTraceRefV2 = Readonly<{
 export type ExperimentSurfacePressureVolumeAnalysisModeV2 =
   "raw-exact-orbit" | "responsive-preview" | "formal-periodic";
 
+/** Display bounds only; omitting an axis retains automatic scaling. */
+export type ExperimentGraphAxisRangeV2 = Readonly<{ minimum: number; maximum: number }>;
+export type ExperimentGraphAxisRangesV2 = Readonly<{
+  x?: ExperimentGraphAxisRangeV2;
+  y?: ExperimentGraphAxisRangeV2;
+}>;
+
 export type ExperimentSurfaceGraphPaneV2 = Readonly<{
   paneId: SurfacePaneIdV2;
   role: "graph";
@@ -136,6 +143,8 @@ export type ExperimentSurfaceGraphPaneV2 = Readonly<{
    * it because they do not own a time window.
    */
   windowSec?: number;
+  /** Waveform x extent is owned by windowSec; only y may be fixed there. */
+  axisRanges?: ExperimentGraphAxisRangesV2;
   /**
    * Number of completed input epochs shown behind the current graph. Required
    * for PV and structural renderers; sweep renderers carry prior epochs out in

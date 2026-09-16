@@ -67,76 +67,37 @@ export function validationStampReuseEligibleV1(): boolean {
   return reuseEnabled;
 }
 
-/**
- * Stamp issuance eligibility. Every reachable value must be frozen plain data,
- * and the stamps-disabled verification mode makes the verdict false.
- */
-export function validationStampIssuanceEligibleV1(
-  ...values: readonly unknown[]
-): boolean {
-  return reuseEnabled
-    && values.every((value) => isTransitivelyFrozenPlainDataV1(value));
+export function validationStampIssuanceEligibleV1(...values: readonly unknown[]): boolean {
+  if (!validationStampReuseEligibleV1()) return false;
+  for (const value of values) if (!isTransitivelyFrozenPlainDataV1(value)) return false;
+  return true;
 }
 
-/**
- * True only for primitives and transitively frozen arrays/plain records whose
- * own properties are data properties. Functions are rejected explicitly:
- * their mutable object graph is otherwise hidden behind `typeof "function"`.
- */
-export function isTransitivelyFrozenPlainDataV1(
-  value: unknown,
-): boolean {
-  const visited = new Set<object>();
-  const result = inspectTransitivelyFrozenPlainDataV1(
-    value,
-    new WeakSet<object>(),
-    visited,
-  );
-  if (result && validationStampReuseEligibleV1()) {
-    for (const item of visited) {
-      transitivelyFrozenPlainDataProofsV1.add(item);
-    }
-  }
-  return result;
-}
-
-function inspectTransitivelyFrozenPlainDataV1(
-  value: unknown,
-  seen: WeakSet<object>,
-  visited: Set<object>,
-): boolean {
+export function isTransitivelyFrozenPlainDataV1(value: unknown): boolean {
   if (value === null) return true;
-  if (typeof value === "function") return false;
-  if (typeof value !== "object") return true;
-  if (
-    validationStampReuseEligibleV1()
-    && transitivelyFrozenPlainDataProofsV1.has(value)
-  ) return true;
-  if (seen.has(value)) return true;
-  if (!Object.isFrozen(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  if (
-    prototype !== null
-    && prototype !== Object.prototype
-    && prototype !== Array.prototype
-  ) {
-    return false;
-  }
-  seen.add(value);
-  visited.add(value);
-  for (const key of Reflect.ownKeys(value)) {
-    const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (
-      descriptor === undefined
-      || !("value" in descriptor)
-      || !inspectTransitivelyFrozenPlainDataV1(
-        descriptor.value,
-        seen,
-        visited,
-      )
-    ) {
-      return false;
-    }
+  if (typeof value !== "object") return typeof value !== "function";
+  const reuse = validationStampReuseEligibleV1();
+  // Most step-boundary checks revisit a configuration transitivelyFrozenPlainDataProofsV1 at admission.
+  // Do not allocate traversal collections for these already immutable roots.
+  if (reuse && transitivelyFrozenPlainDataProofsV1.has(value)) return true;
+  const visited = new Set<object>();
+  if (!inspect(value, reuse, visited)) return false;
+  // A failed traversal must not bless a partially inspected cyclic graph.
+  if (reuse) for (const item of visited) transitivelyFrozenPlainDataProofsV1.add(item);
+  return true;
+}
+
+function inspect(item: unknown, reuse: boolean, visited: Set<object>): boolean {
+  if (item === null) return true;
+  if (typeof item !== "object") return typeof item !== "function";
+  if ((reuse && transitivelyFrozenPlainDataProofsV1.has(item)) || visited.has(item)) return true;
+  if (!Object.isFrozen(item)) return false;
+  const prototype = Object.getPrototypeOf(item);
+  if (prototype !== null && prototype !== Object.prototype && prototype !== Array.prototype) return false;
+  visited.add(item);
+  for (const key of Reflect.ownKeys(item)) {
+    const descriptor = Object.getOwnPropertyDescriptor(item, key);
+    if (!descriptor || !("value" in descriptor) || !inspect(descriptor.value, reuse, visited)) return false;
   }
   return true;
 }

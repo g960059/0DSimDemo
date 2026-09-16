@@ -6,7 +6,7 @@
  */
 
 export const FAST_SUITE_FILE_BUDGET = 100;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 61;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 65;
 
 export const fastTests = [
   "__tests__/mainWireCardiacCycleMetricsV1.test.ts",
@@ -120,6 +120,10 @@ export const fastTests = [
  * on a two-core runner.
  */
 export const prSmokeTests = [
+  "__tests__/authoredModelSuccessorV1.test.ts",
+  "__tests__/vascularPvConvergentV1.test.ts",
+  "__tests__/immutableValidationProofV1.test.ts",
+  "__tests__/immutableCanonicalJsonV1.test.ts",
   "__tests__/mainWireCardiacCycleMetricsV1.test.ts",
   "__tests__/mainWireStaticCaseStudioV1.test.ts",
   "__tests__/mainWireStaticCaseContinuationV1.test.ts",
@@ -184,11 +188,12 @@ export const prSmokeTests = [
 ] as const;
 
 export const regressionTests = [
+  "__tests__/authoredModelSuccessorV1.test.ts",
   "__tests__/immutableCanonicalJsonV1.test.ts",
   "__tests__/immutableValidationProofV1.test.ts",
   "__tests__/mainWireSweepComputeV1.test.ts",
   "__tests__/vascularPvConvergentV1.test.ts",
-  "__tests__/mainWireControlAdmissionCandidateV1.test.ts",
+  "__tests__/mainWireControlAdmissionV1.test.ts",
   "__tests__/mainWireCardiacCycleFigureV1.test.ts",
   "__tests__/fittingRunJournalV1.test.ts",
   "__tests__/mainWireRegistryCasePreparationV1.test.ts",
@@ -277,7 +282,6 @@ export const canonicalScientificTests = [
   "__tests__/mainWireIntegratedModelBaselineValidationV1.test.ts",
   "__tests__/mainWireIntegratedModelCanonicalSequenceV3.test.ts",
   "__tests__/mainWireIntegratedModelRoundedEjectionFixtureV1.test.ts",
-  "__tests__/mainWireIntegratedModelStandard67WaveformMorphologyV1.test.ts",
   "__tests__/mainWireIntegratedModelExternalAfTransactionV1.test.ts",
   "__tests__/mainWireIntegratedModelPeriodicClassifierV3.test.ts",
   "__tests__/mainWireIntegratedModelPeriodicSteadyArtifactSvgV3.test.ts",

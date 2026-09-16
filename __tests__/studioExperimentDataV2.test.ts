@@ -22,6 +22,24 @@ import type {
 } from "@/studio/contracts/v2/model";
 
 describe("Studio Experiment data V2", () => {
+  it("round-trips finite display bounds without changing captures and rejects malformed ranges", () => {
+    const input = experimentV2() as any;
+    const capture = structuredClone(input.content.scenarios[0].capture);
+    input.content.surface.graphPanes[0].axisRanges = { y: { minimum: -5, maximum: 180 } };
+    const valid = validateExperimentV2(input);
+    expect(valid.content.surface.graphPanes[0].axisRanges).toEqual(input.content.surface.graphPanes[0].axisRanges);
+    expect(valid.content.scenarios[0].capture).toEqual(capture);
+    expect(() => assertExperimentContentMatchesModelV2(valid.content, modelContractV2())).not.toThrow();
+    for (const axisRanges of [null, { z: { minimum: 0, maximum: 1 } }, { y: null },
+      { y: { minimum: 1, maximum: 1 } }, { y: { minimum: 5, maximum: 2 } },
+      { y: { minimum: "0", maximum: 1 } }, { y: { minimum: 0 } },
+      { y: { minimum: 0, maximum: Infinity } }]) {
+      input.content.surface.graphPanes[0].axisRanges = axisRanges;
+      expect(() => validateExperimentV2(input)).toThrow();
+    }
+    input.content.surface.graphPanes[0].axisRanges = { x: { minimum: 0, maximum: 1 } };
+    expect(() => assertExperimentContentMatchesModelV2(validateExperimentV2(input).content, modelContractV2())).toThrow(/time window/);
+  });
   it("detaches and deeply freezes a mutable experiment with an atomic Scenario capture", () => {
     const caller = experimentV2();
     const validated = validateExperimentV2(caller);

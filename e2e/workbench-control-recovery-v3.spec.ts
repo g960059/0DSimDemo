@@ -33,9 +33,9 @@ async function instrument(page: Page) {
     };
   });
 }
-const candidateUrl = "/ja/dev/model-lab?candidate=control-admission&workbenchPerf=1";
+const currentModelUrl = "/ja/experiments/new?workbenchPerf=1";
 
-test("@desktop @webkit @control-admission candidate loads its own prepared curves and continues after large TBV edits", async ({ page }, testInfo) => {
+test("@desktop @webkit @control-admission current model loads its own prepared curves and continues after large TBV edits", async ({ page }, testInfo) => {
   await instrument(page);
   const errors: string[] = [], prepared: { modelId: string; artifactRevisionId: string }[] = [];
   page.on("pageerror", error => errors.push(error.message));
@@ -45,7 +45,7 @@ test("@desktop @webkit @control-admission candidate loads its own prepared curve
       if (body.schemaId === "prepared-model-analysis-v1") prepared.push(body);
     }
   });
-  await page.goto(candidateUrl);
+  await page.goto(currentModelUrl);
   const root = page.getByTestId("v3-dockview-workbench");
   const pv = root.locator('[data-chart-kind="pressure-volume-loop-v3"]');
   const curves = root.locator('[data-chart-kind="guyton-starling-structural-orientation-v3"]');
@@ -71,15 +71,15 @@ test("@desktop @webkit @control-admission candidate loads its own prepared curve
   await page.screenshot({ path: testInfo.outputPath("candidate-after-large-edits.png") });
 });
 
-test("@desktop @webkit @control-admission candidate keeps exact live samples and measures edit response", async ({ page }, testInfo) => {
+test("@desktop @webkit @control-admission current model keeps exact live samples and measures edit response", async ({ page }, testInfo) => {
   await instrument(page);
   const measurements: { variant: string; workerMs: number; resumeMs: number }[] = [];
-  for (const [variant, url] of [["admitted", "/ja/experiments/new"], ["candidate", candidateUrl]]) {
+  for (const [variant, url] of [["current", currentModelUrl]]) {
     await page.goto(url!);
     const root = page.getByTestId("v3-dockview-workbench");
     const pv = root.locator('[data-chart-kind="pressure-volume-loop-v3"]');
     await expect(pv).toHaveAttribute("data-pv-ready-trace-count", "1");
-    if (variant === "candidate") await expect(root).toHaveAttribute("data-model-id", /control-admission-candidate-v1$/);
+    await expect(root).toHaveAttribute("data-model-id", /standard-74$/);
     for (let edit = 0; edit < 3; edit++) {
       const slider = page.getByRole("slider", { name: "総血液量", exact: true });
       await expect(slider).toBeEnabled();
@@ -105,7 +105,7 @@ test("@desktop @webkit @control-admission candidate keeps exact live samples and
 
 test("@desktop @webkit @control-admission a later failure retains panes and explicitly restores the pre-edit group", async ({ page }, testInfo) => {
   await instrument(page);
-  await page.goto(candidateUrl);
+  await page.goto(currentModelUrl);
   const root = page.getByTestId("v3-dockview-workbench");
   const pv = root.locator('[data-chart-kind="pressure-volume-loop-v3"]');
   await expect(pv).toHaveAttribute("data-pv-ready-trace-count", "1");

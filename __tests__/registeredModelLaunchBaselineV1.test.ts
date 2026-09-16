@@ -11,8 +11,8 @@ import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegrat
 import oldSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 import currentSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
 import descriptor from "@/data/model-releases/CurrentModelReleaseV1";
-import lock from "@/data/model-releases/standard73/publication.json";
-import savedCurrentDocument from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.json";
+import lock from "@/data/model-releases/standard74/publication.json";
+import savedCurrentDocument from "@/studio/presentation/modelDocumentation/packages/standard74-document-v1.json";
 import { materializeExactModelControlValuesV1 } from "@/studio/application/model/ExactModelControlValuesV1";
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import { CURRENT_BASELINE_V1 as adopted } from "@/data/model-baselines/CurrentBaselineV1";
@@ -20,7 +20,7 @@ import selected from "@/data/model-baselines/current-baseline-selection-v1.json"
 import { CURRENT_MODEL_PRESETS_V1 } from "@/data/model-releases/CurrentModelReleaseV1";
 import { MAIN_WIRE_STATIC_CASE_DEFINITIONS_V1 } from "@/analysis/registry/MainWireStaticCaseDefinitionsV1";
 
-describe("current Standard73 launch baseline", () => {
+describe("current Standard74 launch baseline", () => {
   it("defaults to pressure-crossing analysis and exposes four independently owned presets", async () => {
     const production = await localComposition();
     expect(production.modelSurface.identity.surfaceReleaseId).toBe(currentSurface.surfaceReleaseId);
@@ -51,7 +51,7 @@ describe("current Standard73 launch baseline", () => {
       expect(f).toEqual(production.presets![i]!.capture.fixture);
       expect(p.presetId.startsWith("research/")).toBe(false);
       expect(p.modelId).toBe(lock.modelId);
-      expect(lock.cases.some(existing => existing.presetId === p.presetId)).toBe(false);
+      expect(lock.cases.find(existing => existing.presetId === p.presetId)?.checkpointSha256).toBe(checkpointSha256);
     }
   });
   afterEach(() => { vi.restoreAllMocks(); invalidateStudioClientCompositionCachesV2(); });
@@ -86,7 +86,7 @@ describe("current Standard73 launch baseline", () => {
     const controls = materializeExactModelControlValuesV1(composition.modelSurface.contract,
       composition.exactModel.defaultFixture, composition.exactModel.fixtureProjection);
     expect(Object.keys(controls)).toHaveLength(53);
-    expect(composition.presets?.slice(0, 2).map(p => p.presetId)).toEqual(lock.cases.map(c => c.presetId));
+    expect(composition.presets?.map(p => p.presetId)).toEqual(lock.cases.map(c => c.presetId));
     expect(controls["rhythm.heart-rate-bpm"]).toEqual({ status: "value", value: 70 });
     expect(controls["hemodynamics.total-blood-volume-ml"]).toEqual({ status: "value", value: 4935 });
     expect(controls["myocardium.active-tension-scale.LVFW"]).toEqual({ status: "value", value: 1 });

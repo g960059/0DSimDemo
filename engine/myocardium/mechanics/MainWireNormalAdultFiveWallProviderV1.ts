@@ -1135,20 +1135,12 @@ function scaledPassiveEvaluatorV1(
   scale: number,
   wallId: MainWireFiveWallIdV1,
 ): PassiveEvaluatorV1 {
-  const identity = import.meta.env.VITE_CIRCLEHEART_CANDIDATE_COMPUTE === "1"
-    ? createScaledPassiveIdentityV1(scale, wallId) : null;
+  const identity = createScaledPassiveIdentityV1(scale, wallId);
   return (fiberLogStrain) => {
     const evaluated = base(fiberLogStrain);
     return Object.freeze({
       modelId: evaluated.modelId,
-      parameterIdentityHash: import.meta.env.VITE_CIRCLEHEART_CANDIDATE_COMPUTE === "1"
-        ? identity!(evaluated.parameterIdentityHash) : stableHash(
-        sanitizeForStableHash({
-          sourceParameterIdentityHash: evaluated.parameterIdentityHash,
-          wallId,
-          equilibriumPassiveScale: scale,
-        }),
-      ),
+      parameterIdentityHash: identity(evaluated.parameterIdentityHash),
       input: Object.freeze({
         stressPa: evaluated.input.stressPa * scale,
         tangentPa: evaluated.input.tangentPa * scale,

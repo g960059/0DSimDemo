@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import raw from "@/data/physiology/main-wire-hfref-reference-v1.json";
-import bundle from "@/data/model-releases/standard73/bundle.json";
+import bundle from "@/data/model-releases/standard74/bundle.json";
 import { resolveMainWireFittingReferenceV1 as reference } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
 import { validateMainWireHfrefReferenceV1 as validate, assessMainWireHfrefRestV1 as assess } from "@/analysis/policies/mainWire/MainWireHfrefReferenceV1";
 import { readMainWireHfrefBeatV1 as readBeat, observeMainWireHfrefTimingContextV1 as context } from "@/analysis/methods/mainWire/MainWireHfrefObservationV1";

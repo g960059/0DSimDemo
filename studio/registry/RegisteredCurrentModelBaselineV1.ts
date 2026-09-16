@@ -4,13 +4,12 @@ import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import type { StudioModelWorkerReleaseTicketV2 } from "@/studio/contracts/v2/release";
 import descriptor from "@/data/model-releases/CurrentModelReleaseV1";
 import { CURRENT_BASELINE_V1 as adopted } from "@/data/model-baselines/CurrentBaselineV1";
-import lock from "@/data/model-releases/standard73/publication.json";
-import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
+import lock from "@/data/model-releases/standard74/publication.json";
+import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
+import originalSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import beatSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 import jetSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV3";
 import crossingSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
-
-import boundedSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
 
 const equal = (a: unknown, b: unknown) => studioCanonicalJsonStringify(a) === studioCanonicalJsonStringify(b);
 
@@ -49,8 +48,8 @@ export function resolveRegisteredCurrentModelLaunchV1(input: Readonly<{
 }>) {
   return isRegisteredCurrentBaselineFixtureV1(input.ticket.modelId, input.defaultFixture)
     && equal(input.ticket.manifest, descriptor.manifest)
-    // These Surfaces change observers/derived analysis only; the exact launch capture stays qualified.
-    && [surface, beatSurface, jetSurface, crossingSurface, boundedSurface].some(known => equal(input.ticket.surfaceRelease, known))
+    // Explicit compatible observers only; new sessions inherit V5 and its pins.
+    && [surface, originalSurface, beatSurface, jetSurface, crossingSurface].some(known => equal(input.ticket.surfaceRelease, known))
     ? Object.freeze({ defaultFixture: REGISTERED_CURRENT_MODEL_BASELINE_V1.fixture,
       defaultCheckpoint: REGISTERED_CURRENT_MODEL_BASELINE_V1.checkpoint }) : undefined;
 }

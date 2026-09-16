@@ -437,6 +437,8 @@ export function WorkbenchPanePickerV3({
               <GraphDisplaySettingsV3
                 graph={graph}
                 pane={pane}
+                waveformUnit={graph?.renderer === "sweep" ? contract.outputCatalog.find(output =>
+                  output.outputId === graph.seriesCatalog.find(series => pane.series.some(item => item.seriesId === series.seriesId))?.outputId)?.unit : undefined}
                 periodicPvaSupported={periodicPvaSupported}
                 strings={strings}
                 onChange={update}

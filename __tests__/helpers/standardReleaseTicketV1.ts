@@ -7,7 +7,7 @@ import standardClientDescriptorV1 from
 import standardSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import standardRegistryAdmissionLockV1 from
-  "@/data/model-releases/standard73/publication.json";
+  "@/data/model-releases/standard74/publication.json";
 
 export const STANDARD_TEST_SURFACE_SERIES_ID_V1 =
   standardSurfaceReleaseV1.surfaceSeriesId;

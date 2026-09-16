@@ -15,7 +15,7 @@ type PresetPresentation = Readonly<{
 
 // Browsing copy belongs to presentation, not the preset's exact capture.
 const PRESENTATION: Readonly<Record<string, PresetPresentation>> = {
-  "standard73-baseline-v1": {
+  "standard74-baseline-v1": {
     group: "baseline",
     summary: {
       ja: "このモデルに登録された基準設定と保存状態です。ほかのプリセットとの比較の出発点になります。",
@@ -23,7 +23,7 @@ const PRESENTATION: Readonly<Record<string, PresetPresentation>> = {
     },
     aliases: ["baseline", "基準", "ベースライン", "reference"],
   },
-  "standard73-hfref-chronic-dilated-v1": {
+  "standard74-hfref-chronic-dilated-v1": {
     group: "heartFailure",
     englishLabel: "HFrEF · Chronic LV dilation",
     summary: {
@@ -32,7 +32,7 @@ const PRESENTATION: Readonly<Record<string, PresetPresentation>> = {
     },
     aliases: ["HFrEF", "heart failure", "reduced ejection fraction", "心不全", "左室拡大", "収縮機能低下"],
   },
-  "standard73-as-high-gradient-valve-only-v1": {
+  "standard74-as-high-gradient-valve-only-v1": {
     group: "valves",
     englishLabel: "AS · Valve-only, high gradient",
     summary: {
@@ -41,7 +41,7 @@ const PRESENTATION: Readonly<Record<string, PresetPresentation>> = {
     },
     aliases: ["AS", "aortic stenosis", "high gradient", "valve only", "大動脈弁狭窄", "高勾配", "弁膜症"],
   },
-  "standard73-as-low-flow-reduced-ef-v1": {
+  "standard74-as-low-flow-reduced-ef-v1": {
     group: "valves",
     englishLabel: "AS · Low EF, low flow, low gradient",
     summary: {

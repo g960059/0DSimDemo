@@ -1,5 +1,4 @@
 import type { MainWireStaticCaseSessionV1 as Session } from "@/engine/vnext/MainWireStaticCaseSessionV1";
-import type { MainWireStaticCaseSessionV1 as CandidateSession } from "@/engine/vnext/MainWireControlAdmissionCandidateSessionV1";
 import type { MainWireIntegratedModelCompletedBeatMetricsV3 as Beat,
   MainWireIntegratedModelPressureVolumeLandmarkV3 as Landmark } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 import type { MainWireIntegratedModelOutputIdV3 as Id,
@@ -19,7 +18,7 @@ const ids = Object.freeze(sides.flatMap(({ ventricle, valve, downstream }) => [
 ]) as Id[]);
 type Sample = Readonly<{ timeSec: number; values: Readonly<Record<string, Value>> }>;
 type Crossing = Readonly<{ timeSec: number; bracketEndSec: number; landmark: Landmark & { event: "semilunar-valve-closure" } }>;
-const owners = new WeakMap<StructuralSession, Session | CandidateSession>();
+const owners = new WeakMap<StructuralSession, Session>();
 
 /** Exact continuation remains owned by the model; event collectors are not
  * serialized into its checkpoint. Every subsequent load forks a new collector. */
@@ -49,11 +48,11 @@ export function interpolateMainWireSemilunarClosureV1(
 
 /** Ephemeral analysis view; it does not mutate or relabel native beat metrics.
  * Each fixed-TBV fork owns its own event collector and the same requested dt. */
-export function wrapMainWirePressureCrossingSessionV1(source: Session | CandidateSession, dt: .002 | .001 = .002): StructuralSession {
+export function wrapMainWirePressureCrossingSessionV1(source: Session, dt: .002 | .001 = .002): StructuralSession {
   return wrapPressureCrossingSession(source, dt, true);
 }
 
-function wrapPressureCrossingSession(source: Session | CandidateSession, dt: .002 | .001, retainDiagnosticReadback: boolean): StructuralSession {
+function wrapPressureCrossingSession(source: Session, dt: .002 | .001, retainDiagnosticReadback: boolean): StructuralSession {
   let previous: Sample | null = null;
   const initial = source.currentAcceptedState();
   const origin = initial.acceptedTimeSec;

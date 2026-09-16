@@ -188,6 +188,17 @@ jobs:
       - name: Start local Supabase
         run: supabase start
 
+      - name: Setup Node for authored-state succession regression
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Verify atomic authored-state migration and rollback
+        run: CIRCLEHEART_TEST_SUCCESSOR_SQL=1 npx vitest run __tests__/authoredModelSuccessorV1.test.ts
+
       - name: Run database tests
         run: supabase test db --local supabase/tests/database
 

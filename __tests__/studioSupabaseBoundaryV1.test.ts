@@ -53,7 +53,7 @@ describe("Studio Supabase boundary V1", () => {
   it("binds publication to the current exact model, fixture, lock, artifact and Surface", async () => {
     const fetchV1 = vi.fn();
     vi.stubGlobal("fetch", fetchV1);
-    const directory = "data/model-releases/standard73/";
+    const directory = "data/model-releases/standard74/";
     const input = {
       artifact: readFileSync(directory
         + "artifact.mjs.txt"),
@@ -113,7 +113,7 @@ describe("Studio Supabase boundary V1", () => {
     await expect(loadModelSurfacePublicationManifestV1("package.json"))
       .rejects.toThrow();
     await expect(loadModelSurfacePublicationManifestV1(
-      "tools/registry/verifyCurrentModelPublicationV1.ts",
+      "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1.ts",
     )).rejects.toThrow(/Only the current Model Surface/);
     expect(fetchV1).not.toHaveBeenCalled();
   });

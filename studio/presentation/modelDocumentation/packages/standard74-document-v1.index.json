@@ -1,0 +1,13 @@
+{
+  "schemaId": "circleheart.saved-model-document.v1",
+  "documentId": "standard74-document-v1",
+  "identity": {
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.static-anatomy.standard-74",
+    "surfaceReleaseId": "circleheart.main-wire.surface.static-anatomy.standard-73.bounded-pva-v1",
+    "surfaceSeriesId": "circleheart.main-wire.surface.static-anatomy.bounded-pva-workbench",
+    "baselineId": "standard74-baseline-v1",
+    "title": "baseline",
+    "releaseStatus": "adopted-case"
+  },
+  "contentSha256": "8295bcf6511cabbae3f5bc9b13f4d531845afb1487c283844d312a2acba64f38"
+}

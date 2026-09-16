@@ -40,7 +40,7 @@ for (const cores of [4, 3]) test(`@desktop ${cores === 4 ? "@webkit" : ""} share
   }, cores);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto("/ja/dev/model-lab?candidate=control-admission&workbenchPerf=1");
+  await page.goto("/ja/experiments/new?workbenchPerf=1");
   const root = page.getByTestId("v3-dockview-workbench");
   await expect(root.locator('[data-chart-kind="guyton-starling-structural-orientation-v3"]'))
     .toHaveAttribute("data-pending-scenario-count", "0");

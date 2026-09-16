@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import reviewed from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.json";
 import evidence from "@/data/physiology/main-wire-prospective-reference-evidence-v1.json";
-import bundle from "@/data/model-releases/standard73/bundle.json";
+import bundle from "@/data/model-releases/standard74/bundle.json";
 import { MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1 as policy, assessMainWireProspectiveRestV1 as assess } from "@/analysis/policies/mainWire/MainWireProspectiveBaselineAdmissionV1";
 import { mainWireBaselineGateRoleV1 as role } from "@/analysis/policies/mainWire/MainWireProspectiveBaselineGateRolesV1";
 import type { MainWireIntegratedModelStandard70BaselineCheckV1 as Check } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineValidationV1";

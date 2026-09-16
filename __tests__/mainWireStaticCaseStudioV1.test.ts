@@ -12,10 +12,12 @@ import type { MainWireStaticCaseCheckpointV1 } from "@/engine/myocardium/MainWir
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { canonicalJsonStringify as canonical, sha256CanonicalJsonHex as hash } from "@/engine/integrity";
-import localBundle from "@/data/model-releases/standard73/bundle.json";
-import localPackage from "@/data/model-releases/standard73/package.json";
-import baselineDoc from "@/studio/presentation/modelDocumentation/packages/standard73-document-v1.json";
-import hfrefDoc from "@/studio/presentation/modelDocumentation/packages/standard73-hfref-document-v1.json";
+import localBundle from "@/data/model-releases/standard74/bundle.json";
+import localPackage from "@/data/model-releases/standard74/package.json";
+import baselineDoc from "@/studio/presentation/modelDocumentation/packages/standard74-document-v1.json";
+import hfrefDoc from "@/studio/presentation/modelDocumentation/packages/standard74-hfref-document-v1.json";
+import asHighDoc from "@/studio/presentation/modelDocumentation/packages/standard74-as-high-gradient-document-v1.json";
+import asLowDoc from "@/studio/presentation/modelDocumentation/packages/standard74-as-low-flow-document-v1.json";
 import cycleSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 import currentSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 import boundedSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
@@ -90,6 +92,12 @@ describe("static case exact adapter and inherited Surface", () => {
       expect(filling.status).toBe("available");
       expect(fillingEmission?.payload).toEqual(filling);
       for (const id of Object.values(fillingIds)) expect(frame.outputs[id]).toBeUndefined();
+      // Filling-wave availability is phenotype-dependent; the AS cases are
+      // checked above against the accepted-sample reference, not normal-wave assumptions.
+      if (preset.presetId !== localBundle.baseline.presetId && preset.presetId !== localBundle.presets[0].presetId) {
+        expect(Object.values(filling.values).every(value => value === null || Number.isFinite(value))).toBe(true);
+        return;
+      }
       expect(filling.values[fillingIds.mitralPeakEToA]).toBeGreaterThan(0);
       expect(filling.values[fillingIds.mitralDecelerationTimeMs]).toBeGreaterThan(0);
       expect(filling.values[fillingIds.pulmonarySystolicPeakFlowMlPerSec]).toBeGreaterThan(0);
@@ -102,7 +110,7 @@ describe("static case exact adapter and inherited Surface", () => {
       if (preset.presetId === localBundle.baseline.presetId) {
         expect(filling.values[fillingIds.pulmonaryArPeakMagnitudeMlPerSec]).toBeGreaterThan(0);
         expect(filling.values[fillingIds.pulmonaryArDurationMs]).toBeGreaterThan(0);
-      } else {
+      } else if (preset.presetId === localBundle.presets[0].presetId) {
         // The current HFrEF capture has combined atrial/systolic reversal.
         expect(filling.values[fillingIds.pulmonaryArPeakMagnitudeMlPerSec]).toBeNull();
         expect(filling.values[fillingIds.pulmonaryArDurationMs]).toBeNull();
@@ -113,15 +121,17 @@ describe("static case exact adapter and inherited Surface", () => {
   it("pins own baseline/case captures, documents and the production-framed executable revision without activating it", async () => {
     const { recordSha256, ...body } = localBundle;
     expect(await hash(body)).toBe(localPackage.bundleSha256); expect(recordSha256).toBe(localPackage.bundleSha256);
-    expect(localBundle.manifest).toEqual(release().manifest); expect(localBundle.surface).toEqual(surface);
-    expect(localPackage.publicRegistration).toBe(false); expect(localPackage.activeDefaultChanged).toBe(false);
-    const artifact = await readFile("data/model-releases/standard73/artifact.mjs.txt");
+    expect(localBundle.manifest).toEqual(release().manifest); expect(localBundle.surface).toEqual(boundedSurface);
+    expect(localPackage.publicRegistration).toBe(false);
+    expect(localPackage.localDefaultChanged).toBe(true);
+    expect(localPackage.remoteActiveDefaultChanged).toBe(false);
+    const artifact = await readFile("data/model-releases/standard74/artifact.mjs.txt");
     const sha = (b: Uint8Array | string) => createHash("sha256").update(b).digest("hex");
     expect(sha(artifact)).toBe(localPackage.artifactSha256);
     const manifest = Buffer.from(canonical(localBundle.manifest)), lengths = Buffer.alloc(8);
     lengths.writeUInt32BE(manifest.length, 0); lengths.writeUInt32BE(artifact.length, 4);
     expect(sha(Buffer.concat([lengths, manifest, artifact]))).toBe(localPackage.artifactRevisionId);
-    const documents = [baselineDoc, hfrefDoc];
+    const documents = [baselineDoc, hfrefDoc, asHighDoc, asLowDoc];
     for (const [i, p] of [localBundle.baseline, ...localBundle.presets].entries()) {
       const doc = documents[i], { contentSha256, ...body } = doc, entry = localPackage.cases[i];
       expect(sha(JSON.stringify(body))).toBe(contentSha256); expect(contentSha256).toBe(entry.documentSha256);
@@ -129,9 +139,10 @@ describe("static case exact adapter and inherited Surface", () => {
       expect(p.presetId).toBe(entry.presetId); expect(doc.identity.baselineId).toBe(p.presetId);
       expect(p.capture.checkpoint.payload.checkpointSha256).toBe(entry.checkpointSha256);
       expect(p.capture.checkpoint.payload.checkpointId).toBe("circleheart.main-wire-static-case-checkpoint.standard-73.v1");
-      expect(doc.scientificRecord.measurements.construction).toEqual(p.capture.checkpoint.payload.construction);
+      expect(doc.scientificRecord.measurements.launch.preset.capture.checkpoint).toEqual(p.capture.checkpoint);
+      expect(doc.scientificRecord.measurements.formalReview.status).toBe("accepted");
     }
-    expect(hfrefDoc.scientificRecord.measurements.historicalEvidence.documentId).toBe("hfref-static-case-document-v4");
+    expect(localPackage.cases).toHaveLength(4);
   });
 
   it("pins bounded PE-tail V16 through a new Surface series while historical pressure-crossing snapshots keep V15", async () => {
@@ -180,7 +191,7 @@ describe("static case exact adapter and inherited Surface", () => {
     const changed = new Set(["surfaceReleaseId", "surfaceSeriesId", "displayName", "derivedOutputCatalog", "controlCatalog", "predecessorSurfaceReleaseId"]);
     for (const [key, value] of Object.entries(inherited)) if (!changed.has(key)) expect(surface[key as keyof typeof surface]).toEqual(value);
     const exact = release(), contract = composeStandardModelContractV1(exact.manifest, surface, methods(surface).capabilities).contract;
-    expect(contract.modelId).toContain("static-anatomy.standard-73");
+    expect(contract.modelId).toContain("static-anatomy.standard-74");
     expect(exact.manifest.fixtureSchema.fixtureSchemaId).toBe(schemaId);
     expect(exact.manifest.primitiveControlCatalog.length).toBeGreaterThan(20);
     expect(surface.controlCatalog.slice(0, -1)).toEqual(inherited.controlCatalog);

@@ -19,4 +19,4 @@ if (!artifact.equals(readFileSync(resolve(root, files.artifact)))) throw new Err
 const admitted = await prepareCurrentModelPublicationV1(root, { artifact,
   lockJson: readFileSync(resolve(root, files.lock), "utf8"), expectedModelId: MAIN_WIRE_STATIC_CASE_MODEL_ID_V1 });
 console.log(JSON.stringify({ status: "admitted", modelId: admitted.manifest.modelId,
-  artifactRevisionId: admitted.lock.artifactRevisionId, sourceArtifactEqual: true, ownCapturesValidated: 2, writesPerformed: false }));
+  artifactRevisionId: admitted.lock.artifactRevisionId, sourceArtifactEqual: true, ownCapturesValidated: admitted.lock.cases.length, writesPerformed: false }));
