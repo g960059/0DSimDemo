@@ -743,6 +743,7 @@ function validatePublicArticleSummaryV1(
     locale: requiredStringV1(record.locale, "locale"),
     title: requiredStringV1(record.title, "title"),
     excerpt: record.excerpt === null ? null : stripArticleReadingMarkupV1(nullableStringV1(record.excerpt, "excerpt") ?? ""),
+    ...(record.thumbnailUrl === undefined ? {} : { thumbnailUrl: publicThumbnailUrlV1(record.thumbnailUrl) }),
     publicSlug: requiredStringV1(record.publicSlug, "publicSlug"),
     publishedAt: isoTimestampV1(record.publishedAt, "publishedAt"),
   });
@@ -964,4 +965,12 @@ function isoTimestampV1(value: unknown, label: string): string {
     throw new Error(`${label} must be an ISO timestamp`);
   }
   return timestamp;
+}
+
+function publicThumbnailUrlV1(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value !== 'string' || value.length > 2048) throw new Error('Invalid thumbnail URL');
+  const url = new URL(value);
+  if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Invalid thumbnail URL');
+  return value;
 }

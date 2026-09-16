@@ -26,7 +26,7 @@ import {
   type StudioPublicArticleSummaryV1,
   validateStudioPublicHomeBootstrapV1,
 } from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
-import { renderStudioPublicHomeV1 } from "@/studio/application/publication/StudioPublicHomeRendererV1";
+import { renderStudioPublicHomeV1 } from "@/server/StudioPublicHomeRendererV1";
 import {
   DEFAULT_LOCALE,
   LOCALE_NEGOTIATION_PATH,
@@ -140,19 +140,22 @@ export async function handleStudioPublicContentRequestV1(
   const homeMatch = /^\/(ja|en)\/?$/.exec(url.pathname);
   if (homeMatch !== null) {
     const locale = homeMatch[1] as "ja" | "en";
-    const [articles, experimentPage, courses] = await Promise.all([
+    const [articles, experimentPage, publicCourses, featuredCourses] = await Promise.all([
       listLocalizedHomeArticlesV1(dependencies.dataSource, locale),
       dependencies.dataSource.listPublicExperiments({
         limit: STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1,
       }),
+      dependencies.dataSource.listPublicCourses({ locale }),
       dependencies.dataSource.listPublicCourses({ locale, featured: true }),
     ]);
+    const courses = [...new Map([...featuredCourses, ...publicCourses].map(c => [c.courseId, c])).values()].slice(0, 50);
     const bootstrap = validateStudioPublicHomeBootstrapV1({
       schemaId: STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_SCHEMA_ID,
       locale,
       articles,
       experiments: experimentPage.items,
       courses,
+      featuredCourseIds: featuredCourses.map(c => c.courseId).filter(id => courses.some(c => c.courseId === id)),
     });
     const rendered = renderStudioPublicHomeV1({
       bootstrap,

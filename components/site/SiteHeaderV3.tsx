@@ -9,6 +9,8 @@ import {
   Plus,
   Settings,
   Sun,
+  Search,
+  Menu,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
@@ -45,6 +47,29 @@ export function SiteHeaderV3() {
   const locale = localeFromPathname(location.pathname);
   const { appTheme, setAppTheme } = useAppTheme();
   const accountSession = useSiteAccountSessionV3();
+  const mobileNavRef = React.useRef<HTMLDetailsElement>(null);
+  React.useEffect(() => {
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !mobileNavRef.current?.contains(event.target) && mobileNavRef.current) mobileNavRef.current.open = false;
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && mobileNavRef.current?.open) {
+        mobileNavRef.current.open = false;
+        mobileNavRef.current.querySelector("summary")?.focus();
+      }
+    };
+    window.addEventListener("pointerdown", closeOutside);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", closeOutside);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+  React.useEffect(() => {
+    if (mobileNavRef.current) mobileNavRef.current.open = false;
+  }, [location.pathname]);
+  const isHome = /^\/(ja|en)\/?$/.test(location.pathname);
+  const homeNav = <>{[["courses", locale === "ja" ? "コース" : "Courses"], ["articles", t("nav.articles")], ["experiments", locale === "ja" ? "シミュレーション" : "Simulations"], ["models", locale === "ja" ? "数理モデル" : "Models"]].map(([path, title]) => <Link key={path} to={`/${locale}/${path}`}>{title}</Link>)}</>;
 
   React.useEffect(() => {
     if (i18n.language !== locale) void i18n.changeLanguage(locale);
@@ -54,7 +79,7 @@ export function SiteHeaderV3() {
 
   return (
     <header
-      className="z-50 flex h-14 shrink-0 items-center gap-3 bg-wb-header/95 px-3 shadow-[inset_0_-1px_0_color-mix(in_srgb,var(--wb-border)_72%,transparent)] backdrop-blur-xl sm:px-5"
+      className={`${isHome ? "home-site-header " : ""}z-50 flex h-14 shrink-0 items-center gap-3 bg-wb-header/95 px-3 shadow-[inset_0_-1px_0_color-mix(in_srgb,var(--wb-border)_72%,transparent)] backdrop-blur-xl sm:px-5`}
       data-testid="site-header-v3"
     >
       <Link
@@ -65,7 +90,9 @@ export function SiteHeaderV3() {
         {t("common.appName")}
       </Link>
 
+      {isHome && <><nav className="home-site-links" aria-label={locale === 'ja' ? '主要ナビゲーション' : 'Main navigation'}>{homeNav}</nav><details ref={mobileNavRef} className="home-header-mobile-nav"><summary aria-label={locale === 'ja' ? 'メニュー' : 'Menu'}><Menu className="h-4 w-4" /></summary><nav>{homeNav}</nav></details></>}
       <span className="min-w-0 flex-1" />
+      {isHome && <button type="button" className="home-header-search" aria-label={locale === 'ja' ? 'コンテンツを検索' : 'Search content'} onClick={() => document.getElementById('home-search')?.focus()}><Search aria-hidden="true"/><span>{locale === 'ja' ? 'コンテンツを検索' : 'Search content'}</span><kbd>⌘K</kbd></button>}
 
       {accountSession.account === null && (
         <nav

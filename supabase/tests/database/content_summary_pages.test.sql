@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(21);
+select plan(22);
 
 insert into auth.users (
   id,
@@ -185,7 +185,7 @@ with inserted as (
     '30000000-0000-0000-0000-000000000001',
     'en',
     'Summary article',
-    '[{"blockId":"block/1","kind":"paragraph","text":"Public summary excerpt"}]'::jsonb
+    '[{"blockId":"block/1","kind":"paragraph","text":"Public summary excerpt"},{"blockId":"figure/1","kind":"image","imageUrl":"https://example.org/published-figure.png","alt":"Published figure"},{"blockId":"figure/2","kind":"image","imageUrl":"https://example.org/second.png","alt":"Second figure"}]'::jsonb
   ) returning article_content_id
 )
 insert into summary_state (key, value)
@@ -312,8 +312,24 @@ select ok(
   'Public Experiment list does not embed full Snapshot content'
 );
 
+-- A later private draft must not replace the published cover.
+with draft as (
+  insert into studio.article_contents(owner_id, locale, title, blocks)
+  values ('30000000-0000-0000-0000-000000000001', 'en', 'Private draft',
+  '[{"blockId":"private","kind":"image","imageUrl":"https://example.org/private.png","alt":"Private"}]'::jsonb)
+  returning article_content_id
+)
+update studio.articles set current_draft_content_id=(select article_content_id from draft)
+where article_id='33000000-0000-0000-0000-000000000001';
+
 insert into summary_state (key, value)
 select 'public-article-page', public.list_public_article_summaries_v1(50, null, null);
+select is(
+  (select value #>> '{items,0,thumbnailUrl}' from summary_state where key = 'public-article-page'),
+  'https://example.org/published-figure.png',
+  'Public cover selects the first published image, never a private draft image'
+);
+
 
 select is(
   (select value #>> '{items,0,excerpt}' from summary_state where key = 'public-article-page'),

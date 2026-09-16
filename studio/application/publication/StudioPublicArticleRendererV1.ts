@@ -516,6 +516,7 @@ function publicStaticSiteHeaderHtmlV1(
   return [
     `<header class="public-static-site-header">`,
     `<a class="public-static-brand" href="/${locale}" aria-label="${homeLabel}">${SITE_NAME_V1}</a>`,
+    ...(/^\/(ja|en)\/?$/.test(canonical.pathname) ? [`<nav class="home-site-links" aria-label="${locale === 'ja' ? '主要ナビゲーション' : 'Main navigation'}"><a href="/${locale}/courses">${locale === 'ja' ? 'コース' : 'Courses'}</a><a href="/${locale}/articles">${locale === 'ja' ? '記事' : 'Articles'}</a><a href="/${locale}/experiments">${locale === 'ja' ? 'シミュレーション' : 'Simulations'}</a><a href="/${locale}/models">${locale === 'ja' ? '数理モデル' : 'Models'}</a></nav>`] : []),
     `<span class="public-static-site-header-spacer"></span>`,
     `<nav class="public-static-language" aria-label="${siteHeaderCopy.language}">`,
     `<a${locale === "ja" ? " aria-current=\"true\"" : ""} href="${locale === "ja" ? canonical.pathname : alternatePath}">JA</a>`,

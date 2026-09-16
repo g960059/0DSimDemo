@@ -1,0 +1,277 @@
+import type { PublicAuthorV1 } from "@/studio/application/profile/StudioPublicProfileV1";
+import type { PublicCourseV1 } from "@/studio/application/course/StudioCourseV1";
+import type { StudioPublicHomeBootstrapV1 } from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
+
+export type HomeKindV1 = "course" | "article" | "experiment";
+export type HomeItemV1 = Readonly<{
+  key: string;
+  id: string;
+  kind: HomeKindV1;
+  title: string;
+  description: string;
+  href: string;
+  publishedAt: string;
+  author?: PublicAuthorV1;
+  authorName?: string;
+  course?: PublicCourseV1;
+  scenarioCount?: number;
+  featured: boolean;
+  topics: readonly string[];
+  thumbnailUrl?: string | null;
+  chapterThumbnails?: readonly string[];
+}>;
+export const HOME_TOPICS_V1 = [
+  {
+    id: "pv",
+    ja: "PVループ",
+    en: "PV loops",
+    match: /PV|圧容積|pressure.volume/i,
+  },
+  {
+    id: "pressure",
+    ja: "圧波形",
+    en: "Pressure",
+    match: /圧波形|圧・|pressure|waveform/i,
+  },
+  {
+    id: "preload",
+    ja: "前負荷・血液量",
+    en: "Preload",
+    match: /前負荷|充満|血液量|preload|filling|blood volume/i,
+  },
+  {
+    id: "afterload",
+    ja: "後負荷・抵抗",
+    en: "Afterload",
+    match: /後負荷|抵抗|afterload|resistance/i,
+  },
+  {
+    id: "contractility",
+    ja: "収縮性",
+    en: "Contractility",
+    match: /収縮|Ees|contractil/i,
+  },
+  {
+    id: "equilibrium",
+    ja: "循環平衡",
+    en: "Equilibrium",
+    match: /循環平衡|Guyton|Starling|equilibrium/i,
+  },
+  {
+    id: "respiration",
+    ja: "呼吸・PEEP",
+    en: "Respiration",
+    match: /呼吸|PEEP|respira/i,
+  },
+] as const;
+export function homeItemsV1(
+  data: StudioPublicHomeBootstrapV1,
+): readonly HomeItemV1[] {
+  const locale = data.locale;
+  const featured = new Set(data.featuredCourseIds ?? []);
+  const make = (item: Omit<HomeItemV1, "topics">): HomeItemV1 => ({
+    ...item,
+    topics: HOME_TOPICS_V1.filter((t) =>
+      t.match.test(
+        item.title +
+          " " +
+          item.description +
+          (item.course?.entries
+            .filter((e) => e.available)
+            .map((e) => e.title)
+            .join(" ") ?? ""),
+      ),
+    ).map((t) => t.id),
+  });
+  return [
+    ...(data.courses ?? []).map((c) =>
+      make({
+        key: "course:" + c.courseId,
+        id: c.courseId,
+        kind: "course",
+        title: c.title,
+        description: c.description,
+        href: `/${locale}/courses/${encodeURIComponent(c.courseId)}`,
+        publishedAt: c.updatedAt,
+        author: c.author,
+        authorName: c.authorName,
+        course: c,
+        featured: featured.has(c.courseId),
+        thumbnailUrl: c.coverUrl,
+        chapterThumbnails: [
+          ...new Set(
+            c.entries
+              .filter((e) => e.available)
+              .flatMap((e) => {
+                const image = data.articles.find(
+                  (a) => a.articleId === e.articleId,
+                )?.thumbnailUrl;
+                return image ? [image] : [];
+              }),
+          ),
+        ].slice(0, 4),
+      }),
+    ),
+    ...data.articles.map((a) =>
+      make({
+        key: "article:" + a.articleId,
+        id: a.articleId,
+        kind: "article",
+        title: a.title,
+        description: a.excerpt ?? "",
+        href: `/${locale}/articles/${encodeURIComponent(a.publicSlug)}`,
+        publishedAt: a.publishedAt,
+        author: a.author,
+        featured: false,
+        thumbnailUrl: a.thumbnailUrl,
+      }),
+    ),
+    ...data.experiments.map((e) =>
+      make({
+        key: "experiment:" + e.experimentId,
+        id: e.experimentId,
+        kind: "experiment",
+        title: e.title,
+        description: "",
+        href: `/${locale}/snapshots/${encodeURIComponent(e.snapshotId)}`,
+        publishedAt: e.publishedAt,
+        author: e.author,
+        scenarioCount: e.scenarioCount,
+        featured: false,
+      }),
+    ),
+  ];
+}
+export type HomeFilterV1 = Readonly<{
+  kind: HomeKindV1 | "all";
+  sort: "recommended" | "new" | "saved";
+  query: string;
+  topic: string;
+  since: number | null;
+}>;
+export const HOME_FILTER_V1: HomeFilterV1 = {
+  kind: "all",
+  sort: "recommended",
+  query: "",
+  topic: "",
+  since: null,
+};
+/** A course can collect another author's article; that must never hide their card. */
+export function selectHomeItemsV1(
+  items: readonly HomeItemV1[],
+  filter: HomeFilterV1,
+  saved: ReadonlySet<string> = new Set(),
+): readonly HomeItemV1[] {
+  const query = filter.query.trim().normalize("NFKC").toLocaleLowerCase();
+  let found = items.filter(
+    (item) =>
+      (filter.kind === "all" || item.kind === filter.kind) &&
+      (!filter.topic || item.topics.includes(filter.topic)) &&
+      (!filter.since || Date.parse(item.publishedAt) > filter.since) &&
+      (filter.sort !== "saved" || saved.has(item.key)) &&
+      (!query ||
+        [
+          item.title,
+          item.description,
+          item.author?.displayName,
+          item.authorName,
+          ...(item.course?.entries
+            .filter((e) => e.available)
+            .map((e) => e.title) ?? []),
+        ]
+          .join(" ")
+          .normalize("NFKC")
+          .toLocaleLowerCase()
+          .includes(query)),
+  );
+  // Search and private saves remain direct entry points to individual chapters.
+  if (filter.kind === "all" && filter.sort === "recommended" && !query) {
+    const grouped = new Set<string>();
+    for (const item of found)
+      if (item.course)
+        for (const e of item.course.entries) {
+          if (e.available && e.author?.userId === item.course.ownerId)
+            grouped.add(e.articleId);
+        }
+    found = found.filter(
+      (item) => item.kind !== "article" || !grouped.has(item.id),
+    );
+  }
+  const recent = (a: HomeItemV1, b: HomeItemV1) =>
+    Date.parse(b.publishedAt) - Date.parse(a.publishedAt) ||
+    a.key.localeCompare(b.key);
+  if (filter.sort !== "recommended") return found.sort(recent);
+  const ordered = found.sort(
+    (a, b) => Number(b.featured) - Number(a.featured) || recent(a, b),
+  );
+  // Keep editorial course order, then interleave formats without fake popularity.
+  const pinned = ordered.filter((i) => i.featured);
+  const rest = ordered.filter((i) => !i.featured);
+  const queues = (["experiment", "article", "course"] as const).map((k) =>
+    rest.filter((i) => i.kind === k),
+  );
+  const result = [...pinned];
+  while (queues.some((q) => q.length))
+    for (const queue of queues) {
+      const item = queue.shift();
+      if (item) result.push(item);
+    }
+  return result;
+}
+export function readHomeBookmarksV1(
+  accountId: string | null,
+  storage?: Pick<Storage, "getItem">,
+): ReadonlySet<string> {
+  if (!accountId) return new Set();
+  try {
+    const values: unknown = JSON.parse(
+      storage?.getItem("circleheart.home.saved.v1:" + accountId) ?? "[]",
+    );
+    return new Set(
+      Array.isArray(values)
+        ? values
+            .filter(
+              (s): s is string =>
+                typeof s === "string" &&
+                /^(course|article|experiment):.{1,200}$/.test(s),
+            )
+            .slice(0, 500)
+        : [],
+    );
+  } catch {
+    return new Set();
+  }
+}
+export function writeHomeBookmarksV1(
+  accountId: string,
+  values: ReadonlySet<string>,
+  storage: Pick<Storage, "setItem">,
+): boolean {
+  try {
+    storage.setItem(
+      "circleheart.home.saved.v1:" + accountId,
+      JSON.stringify([...values].slice(0, 500)),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export const HOME_INTRO_COLLAPSED_KEY_V1 =
+  "circleheart.home.intro-collapsed.v1";
+/** Visiting Home alone is not evidence that someone has learned how to use it. */
+export function readHomeIntroCollapsedV1(
+  storage?: Pick<Storage, "getItem">,
+): boolean {
+  try {
+    return (
+      (
+        storage ??
+        (typeof localStorage === "undefined" ? undefined : localStorage)
+      )?.getItem(HOME_INTRO_COLLAPSED_KEY_V1) === "1"
+    );
+  } catch {
+    return false;
+  }
+}

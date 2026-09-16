@@ -1,3 +1,4 @@
+@import "./components/home/home.css";
 @import "tailwindcss";
 
 /* Shared application palette. Components consume it through the wb-* tokens. */
