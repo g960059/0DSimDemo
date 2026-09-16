@@ -1,3 +1,10 @@
+import { readFile } from "node:fs/promises";
+import { gzipSync } from "node:zlib";
+import { compileModelDocumentPageV1 } from "@/tools/modelDocumentation/compileModelDocumentPageV1";
+import { buildModelDocumentPagesV1, renderModelDocumentFragmentV1 } from "@/tools/modelDocumentation/buildModelDocumentPagesV1";
+import { modelDocumentPagePathV1, matchesModelDocumentPageV1 } from "@/studio/presentation/modelDocumentation/ModelDocumentDeliveryV1";
+import { handleModelDocumentRequestV1 } from "@/server/ModelDocumentContentV1";
+
 import { createHash } from "node:crypto";
 import hfrefArchive from "@/studio/presentation/modelDocumentation/packages/hfref-static-case-document-v4.json";
 import reading from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.reading-v1.json";
@@ -12,7 +19,7 @@ import React from "react";
 import { renderToPipeableStream } from "react-dom/server";
 import { PassThrough } from "node:stream";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ModelDocumentationPage } from "@/components/model/ModelDocumentationPage";
 import { modelDocumentationHref } from "@/homeLinks";
 import saved from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.json";
@@ -39,6 +46,26 @@ import { MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID } from "@/analysis/methods/mainWir
 import hfref from "@/studio/presentation/modelDocumentation/packages/hfref-static-case-document-v4.index.json";
 import baseline73 from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.index.json";
 import hfref73 from "@/studio/presentation/modelDocumentation/packages/standard73-hfref-document-v2.index.json";
+
+vi.mock("@/studio/presentation/modelDocumentation/ModelDocumentPageLoaderV1", () => {
+  const cache = new Map();
+  return {
+    loadModelDocumentPageV1: (index, locale, view, recordId) => {
+      const key = `${index.documentId}/${locale}/${view}/${recordId}`;
+      if (cache.has(key)) return cache.get(key);
+      const promise = (async () => {
+        const base = `${process.cwd()}/studio/presentation/modelDocumentation/packages/${index.documentId}`;
+        const archive = JSON.parse(await readFile(`${base}.json`, "utf8"));
+        let reading = null;
+        try { reading = JSON.parse(await readFile(`${base}.reading-v1.json`, "utf8")); }
+        catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+        return compileModelDocumentPageV1(archive, reading, locale, view, recordId);
+      })();
+      cache.set(key, promise);
+      return promise;
+    },
+  };
+});
 
 const launch = bundle.baseline.capture.checkpoint.payload as unknown as MainWireStaticCaseCheckpointV1;
 
@@ -291,5 +318,71 @@ describe("separate model and preset reader, bound to preserved records", () => {
     expect(entries[1].capture).toBe(startup);
     expect(workbenchReferencePresetsV1({ modelId: baseline.modelId, baseline,
       startup: structuredClone(baseline.capture), supplied: [], loadedLabel: "loaded", loadedDescription: "" })).toEqual([baseline]);
+  });
+});
+
+
+describe("model documentation delivery", () => {
+  const archive = saved as SavedModelDocumentV1, projection = reading as SavedModelReadingV1;
+  const entry = MODEL_READING_ENTRIES_V1.find(e => e.documentId === saved.documentId)!;
+  const template = '<html lang="ja"><head><title>CircleHeart</title></head><body><div id="root"></div></body></html>';
+  it("delivers only the requested language, view and assessment, preserving numeric evidence", () => {
+    const guide = compileModelDocumentPageV1(archive, projection, "ja", "guide");
+    expect(guide.html).toBe(projection.views.ja.guide.html);
+    expect(JSON.stringify(guide)).not.toContain("archiveCss");
+    expect(JSON.stringify(guide)).not.toContain(projection.views.en.guide.html.slice(0, 100));
+    expect(gzipSync(JSON.stringify(guide)).byteLength).toBeLessThan(65_000);
+    for (const record of projection.views.ja.preset.records) {
+      const page = compileModelDocumentPageV1(archive, projection, "ja", "presets", record.recordId);
+      const numbers = (html: string) => [...html.matchAll(/data-stored-number="([^"]+)"/g)].map(m => m[1]).sort();
+      expect(numbers(page.html)).toEqual(numbers(savedReadingHtmlV1(projection, "ja", "presets", record.recordId)));
+      expect(page.html).toContain("data-reader-record");
+      expect(page.html).not.toContain("<select");
+      expect(page.html).not.toContain("data-equation-block");
+      expect(matchesModelDocumentPageV1(page, entry, "ja", "presets", record.recordId)).toBe(true);
+      expect(matchesModelDocumentPageV1(page, entry, "en", "presets", record.recordId)).toBe(false);
+      expect(matchesModelDocumentPageV1(page, { ...entry, contentSha256: "wrong" }, "ja", "presets", record.recordId)).toBe(false);
+    }
+    expect(() => compileModelDocumentPageV1(archive, projection, "ja", "presets", "missing")).toThrow();
+    expect(() => compileModelDocumentPageV1(archive, { ...projection, source: { ...projection.source, contentSha256: "wrong" } }, "ja", "guide")).toThrow();
+  });
+  it("generates every registered public document automatically, excluding research packages", async () => {
+    const paths = new Set<string>();
+    await buildModelDocumentPagesV1({ root: process.cwd(), production: true, emit: path => { paths.add(path); } });
+    for (const entry of MODEL_READING_ENTRIES_V1) {
+      for (const locale of ["ja", "en"] as const) {
+        for (const view of ["guide", "presets"] as const) {
+          const path = modelDocumentPagePathV1(entry, locale, view);
+          expect(paths.has(path)).toBe(entry.state !== "research");
+          expect(paths.has(path.replace(/\.json$/, ".html"))).toBe(entry.state !== "research");
+        }
+      }
+    }
+  });
+  it("serves semantic HTML without a database, binds canonical identity, and supports HEAD and revalidation", async () => {
+    const page = compileModelDocumentPageV1(archive, projection, "ja", "guide");
+    const path = modelDocumentPagePathV1(entry, "ja", "guide");
+    const fragment = renderModelDocumentFragmentV1(page, entry, [entry], path);
+    const readAsset = vi.fn(async key => key === path.replace(/\.json$/, ".html") ? fragment : null);
+    const dependencies = { canonicalOrigin: "https://example.test", clientTemplate: template, readAsset };
+    const url = "https://example.test" + modelDocumentationHref({ locale: "ja", ...archive.identity });
+    const response = (await handleModelDocumentRequestV1(new Request(url), dependencies))!;
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain("katex-mathml");
+    expect(html).toContain('type="application/json"');
+    expect(html).toContain(`document=${archive.documentId}`);
+    expect(html.match(/data-model-reading-body/g)).toHaveLength(1);
+    expect(html).not.toContain('"html":');
+    expect(response.headers.get("cache-control")).toContain("must-revalidate");
+    const head = (await handleModelDocumentRequestV1(new Request(url, { method: "HEAD" }), dependencies))!;
+    expect(head.status).toBe(200); expect(await head.text()).toBe("");
+    const cached = (await handleModelDocumentRequestV1(new Request(url, { headers: { "If-None-Match": response.headers.get("etag")! } }), dependencies))!;
+    expect(cached.status).toBe(304);
+    for (const suffix of ["&record=missing", "&document=missing"]) expect((await handleModelDocumentRequestV1(new Request(url + suffix), dependencies))!.status).toBe(404);
+    const redirect = (await handleModelDocumentRequestV1(new Request("https://example.test/ja/models"), dependencies))!;
+    expect(redirect.status).toBe(302); expect(redirect.headers.get("location")).toContain(archive.documentId);
+    const research = MODEL_READING_ENTRIES_V1.find(e => e.state === "research")!;
+    expect((await handleModelDocumentRequestV1(new Request("https://example.test" + modelDocumentationHref({ locale: "ja", ...research.identity, documentId: research.documentId })), dependencies))!.status).toBe(404);
   });
 });

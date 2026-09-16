@@ -1912,7 +1912,7 @@ body[data-app-theme="light"] .public-static-theme-moon {
   overflow-wrap: anywhere;
 }
 
-.public-static-shell:not(.article-document-shell):not(.public-static-home) {
+.public-static-shell:not(.article-document-shell):not(.public-static-home):not(.public-static-model) {
   line-height: 1.85;
   padding: clamp(2.5rem, 7vw, 7rem) 1.25rem 8rem;
 }
@@ -3380,3 +3380,8 @@ body[data-app-theme="light"] .public-static-theme-moon {
 
 .public-static-home-card.course-discovery-card > .course-cover { margin-top: 0; }
 .course-discovery-copy > h3 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+
+/* Preserve ordinary document scrolling and anchors before the app is ready. */
+.public-static-model .model-reference-reader { height: auto; overflow: visible; }
+.public-static-model button[data-document-action] { display: none; }
+[data-reader-record][aria-current="page"] { color: var(--wb-text); background: var(--wb-panel); }

@@ -37,7 +37,7 @@ const requiredBoundaryPaths = [
   "data/model-baselines/CurrentBaselineV1.ts",
   "tools/registry/CurrentModelRegistryAdmissionV1.ts",
   "analysis/registry/RegisteredAnalysisMethodsV1.ts",
-  "studio/presentation/modelDocumentation/SavedModelDocumentLibraryV1.ts",
+  "studio/presentation/modelDocumentation/ModelDocumentDeliveryV1.ts",
 ];
 const portableTextExtensions = new Set([
   ".css",

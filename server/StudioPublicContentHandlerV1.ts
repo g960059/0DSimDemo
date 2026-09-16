@@ -1,3 +1,6 @@
+import { MODEL_READING_ENTRIES_V1 } from "@/studio/presentation/modelDocumentation/ModelReadingCatalogV1";
+import { modelDocumentationHref } from "@/homeLinks";
+import { handleModelDocumentRequestV1, type ModelDocumentAssetReaderV1 } from "./ModelDocumentContentV1";
 import { publicAuthorHtmlV1 } from "@/studio/application/profile/StudioPublicProfileV1";
 import { renderCourseBootstrapV1 } from "@/studio/application/course/StudioCourseBootstrapV1";
 import {
@@ -34,6 +37,7 @@ import type { StudioSummaryCursorV1 } from "@/studio/infrastructure/supabase/Stu
 import type { StudioPublicContentDataSourceV1 } from "@/server/StudioPublicContentDataSourceV1";
 
 export type StudioPublicContentHandlerDependenciesV1 = Readonly<{
+  readModelDocumentAsset?: ModelDocumentAssetReaderV1;
   canonicalOrigin: string;
   clientTemplate: string;
   dataSource: StudioPublicContentDataSourceV1;
@@ -59,6 +63,12 @@ export async function handleStudioPublicContentRequestV1(
       },
       request.method,
     );
+  }
+  if (dependencies.readModelDocumentAsset) {
+    const response = await handleModelDocumentRequestV1(request, {
+      ...dependencies, readAsset: dependencies.readModelDocumentAsset,
+    });
+    if (response) return response;
   }
   if (url.pathname === "/healthz") {
     return responseV1(
@@ -516,6 +526,9 @@ function sitemapXmlV1(
       (path) =>
         `  <url><loc>${escapeXmlV1(new URL(path, canonicalOrigin).toString())}</loc></url>`,
     ),
+    ...MODEL_READING_ENTRIES_V1.filter(entry => entry.state !== "research").flatMap(entry =>
+      (["ja", "en"] as const).flatMap(locale => (["guide", "presets"] as const).map(view =>
+        `  <url><loc>${escapeXmlV1(new URL(modelDocumentationHref({ locale, ...entry.identity, documentId: entry.documentId, view }), canonicalOrigin).href)}</loc></url>`))),
     ...courses.map(
       (course) =>
         `  <url><loc>${escapeXmlV1(new URL(`/${course.locale}/courses/${course.courseId}`, canonicalOrigin).toString())}</loc><lastmod>${escapeXmlV1(course.updatedAt)}</lastmod></url>`,
