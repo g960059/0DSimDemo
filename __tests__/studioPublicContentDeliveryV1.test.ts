@@ -106,6 +106,22 @@ describe("Studio public content delivery V1", () => {
       .toBe(false);
   });
 
+  it("returns a real uncached 404 for missing generated document assets", async () => {
+    const firebase = JSON.parse(readFileSync(new URL("../firebase.json", import.meta.url), "utf8"));
+    const rules = firebase.hosting.rewrites;
+    const index = rules.findIndex(rule => rule.source === "/model-documents/**");
+    expect(index).toBeGreaterThanOrEqual(0);
+    expect(index).toBeLessThan(rules.findIndex(rule => rule.source === "**"));
+    expect(rules[index].run.serviceId).toBe("circleheart-public-content");
+    for (const method of ["GET", "HEAD"]) {
+      const response = await handleStudioPublicContentRequestV1(new Request("https://www.circleheart.dev/model-documents/v1/missing.json", { method }), dependenciesV1());
+      expect(response.status).toBe(404);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(response.headers.get("content-type")).toContain("text/plain");
+      if (method === "HEAD") expect(await response.text()).toBe("");
+    }
+  });
+
   it("negotiates the bare origin without loading public catalog data", async () => {
     let dataSourceCalls = 0;
     const dependencies = dependenciesV1();

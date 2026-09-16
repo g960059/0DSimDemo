@@ -103,7 +103,13 @@ test("@desktop @mobile @webkit offscreen experiments load only when approached, 
   await expect(page.locator(".article-paragraph")).toHaveCount(35);
   expect(snapshots).toBe(0);
   expect(graphModules).toBe(0);
-  await page.locator('[id="placement-deferred"]').scrollIntoViewIfNeeded();
+  const placement = page.locator('[id="placement-deferred"]');
+  await placement.evaluate(element => {
+    const pane = element.closest<HTMLElement>('[data-public-static-scroll-host="true"]')!;
+    // Still offscreen, but within the 400px preparation margin of the article pane.
+    pane.scrollTop += element.getBoundingClientRect().top - pane.getBoundingClientRect().bottom - 200;
+  });
+  await expect(placement).not.toBeInViewport();
   await expect.poll(() => snapshots).toBe(1);
   await expect.poll(() => graphModules).toBe(1);
   await page.goto(`/ja/articles/${article.publicSlug}#placement-deferred`);
@@ -134,3 +140,32 @@ test("@desktop @mobile @webkit server article stays readable through the client 
     expect(articleFetches).toBe(0);
   } finally { snapshot.release(); }
 });
+
+for (const chunk of ["ArticleReaderExperimentV3", "StudioDefaultCompositionV2"]) {
+  test(`@desktop @mobile @webkit a failed ${chunk} module offers a working page reload`, async ({ page }) => {
+    await isolate(page);
+    const snapshot = gate();
+    let graphModules = 0;
+    await page.route("**/api/v1/public/articles/*", route => route.fulfill({ json: article }));
+    await page.route("**/rest/v1/rpc/read_experiment_snapshot_v1", async route => {
+      await snapshot.promise;
+      await route.fulfill({ json: null });
+    });
+    await page.route(`**/assets/${chunk}-*.js`, route => {
+      graphModules++;
+      return graphModules === 1 ? route.abort() : route.continue();
+    });
+    try {
+      await page.goto(`/ja/articles/${article.publicSlug}`);
+      const reload = page.getByRole("button", { name: "ページを再読み込み", exact: true });
+      await expect(reload).toBeVisible();
+      expect(graphModules).toBe(1);
+      await expect(page.locator(".article-title")).toHaveText(article.title);
+      snapshot.release();
+      await reload.click();
+      await expect.poll(() => graphModules).toBe(2);
+      await expect(page.getByRole("button", { name: "もう一度読み込む", exact: true })).toBeVisible();
+      await expect(reload).toHaveCount(0);
+    } finally { snapshot.release(); }
+  });
+}

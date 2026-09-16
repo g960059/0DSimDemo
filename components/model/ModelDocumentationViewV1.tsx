@@ -62,7 +62,7 @@ export function ModelDocumentationViewV1({ page, entry, entries = MODEL_READING_
   React.useEffect(() => { completePublicStaticContentHandoffV1(); }, [page]);
   const navigate = useNavigate(), location = useLocation();
   const root = React.useRef<HTMLDivElement>(null);
-  const recordPosition = React.useRef<{ open: number[]; scroll: number } | null>(null);
+  const recordPosition = React.useRef<{ documentId: string; locale: Locale; view: string; recordId: string; open: number[]; scroll: number } | null>(null);
   const [active, setActive] = React.useState("");
   React.useEffect(() => {
     const previous = document.title;
@@ -81,12 +81,14 @@ export function ModelDocumentationViewV1({ page, entry, entries = MODEL_READING_
     setActive(id);
   }, [find]);
   React.useLayoutEffect(() => {
-    if (recordPosition.current && root.current) {
-      const { open, scroll } = recordPosition.current;
+    const restore = recordPosition.current;
+    recordPosition.current = null;
+    if (restore && root.current && restore.documentId === entry.documentId && restore.locale === locale
+      && restore.view === view && restore.recordId === page.recordId) {
+      const { open, scroll } = restore;
       root.current.querySelectorAll<HTMLDetailsElement>("[data-model-reading-body] details").forEach((node, i) => { node.open = open.includes(i); });
       root.current.scrollTop = scroll;
       root.current.querySelector<HTMLElement>('[data-reader-record][aria-current="page"]')?.focus({ preventScroll: true });
-      recordPosition.current = null;
     } else if (location.hash) jump(location.hash, false);
     else root.current?.scrollTo({ top: 0 });
   }, [entry.documentId, locale, view, location.hash, page.recordId, jump]);
@@ -141,8 +143,11 @@ export function ModelDocumentationViewV1({ page, entry, entries = MODEL_READING_
     const recordLink = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>("a[data-reader-record]") : null;
     if (recordLink && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
       event.preventDefault();
-      recordPosition.current = { open: Array.from(root.current?.querySelectorAll<HTMLDetailsElement>("[data-model-reading-body] details") ?? []).flatMap((node, i) => node.open ? [i] : []), scroll: root.current?.scrollTop ?? 0 };
-      React.startTransition(() => navigate(recordLink.getAttribute("href")!));
+      const destination = recordLink.getAttribute("href")!;
+      if (recordLink.getAttribute("aria-current") === "page") return;
+      recordPosition.current = { documentId: entry.documentId, locale, view,
+        recordId: new URL(recordLink.href).searchParams.get("record")!, open: Array.from(root.current?.querySelectorAll<HTMLDetailsElement>("[data-model-reading-body] details") ?? []).flatMap((node, i) => node.open ? [i] : []), scroll: root.current?.scrollTop ?? 0 };
+      React.startTransition(() => navigate(destination));
       return;
     }
     const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('a[href^="#"]') : null;

@@ -53,6 +53,12 @@ test(`model reader reuses first-response prose and only fetches the selected rec
   await expect(page.locator('[data-reader-record][aria-current="page"]')).toContainText("1 ms");
   expect(requests.filter(url => url.includes("/model-documents/") && url.endsWith(".json"))).toHaveLength(2);
   expect(requests.some(url => /(?:archive\.html|measurements\.json|tables\.csv)$/.test(url))).toBe(false);
+  // Clicking the selected record must not leave scroll restoration for a later page.
+  await page.locator('[data-reader-record][aria-current="page"]').click();
+  await page.getByRole("link", { name: "しくみ・数式", exact: true }).first().click();
+  await expect(page.getByRole("heading", { level: 1, name: "Standard 73のしくみ" })).toBeInViewport();
+  await page.getByRole("link", { name: "baseline・プリセット", exact: true }).first().click();
+  await expect(page.getByRole("heading", { level: 1, name: "baseline", exact: true })).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByRole("button", { name: "すべて開く", exact: true }).click();
   expect(await page.locator('[data-model-reading-body] details:not([open])').count()).toBe(0);
@@ -76,4 +82,20 @@ test(`model data failures stop retrying automatically and can be retried explici
   await page.getByRole("button", { name: "再試行", exact: true }).click();
   await expect(page.getByRole("heading", { name: "baseline", level: 1, exact: true })).toBeVisible();
   expect(attempts).toBe(2);
+});
+
+test(`leaving a pending record does not restore its position into the guide ${tags}`, async ({ page }) => {
+  await page.goto(guide + "&view=presets");
+  await expect(page.locator("#public-static-root")).toHaveCount(0);
+  let release!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/model-documents/**/ja/presets-r-*.json", async route => {
+    await held;
+    await route.continue();
+  });
+  try {
+    await page.locator('[data-reader-record]').nth(1).click();
+    await page.getByRole("link", { name: "しくみ・数式", exact: true }).first().click();
+    await expect(page.getByRole("heading", { level: 1, name: "Standard 73のしくみ" })).toBeInViewport();
+  } finally { release(); }
 });

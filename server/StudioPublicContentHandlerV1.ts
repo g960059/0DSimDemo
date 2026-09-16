@@ -64,6 +64,17 @@ export async function handleStudioPublicContentRequestV1(
       request.method,
     );
   }
+  // Hosting serves existing generated files first. Missing files reach this
+  // route instead of the SPA fallback, so clients and crawlers receive a real 404.
+  if (url.pathname.startsWith("/model-documents/")) {
+    return responseV1(
+      "Model document asset not found\n",
+      404,
+      "text/plain; charset=utf-8",
+      { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" },
+      request.method,
+    );
+  }
   if (dependencies.readModelDocumentAsset) {
     const response = await handleModelDocumentRequestV1(request, {
       ...dependencies, readAsset: dependencies.readModelDocumentAsset,

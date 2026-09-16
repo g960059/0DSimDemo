@@ -144,6 +144,14 @@
     ],
     "rewrites": [
       {
+        "source": "/model-documents/**",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
+      {
         "source": "/@(ja|en)/models",
         "run": {
           "serviceId": "circleheart-public-content",

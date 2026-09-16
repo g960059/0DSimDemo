@@ -13,6 +13,8 @@ type Prepared = {
   composition: StudioClientCompositionV2;
 };
 
+class ReaderCodeLoadErrorV1 extends Error {}
+
 /** Prose never waits for Snapshot reads, model admission or graph JavaScript. */
 export function ArticleReaderDeferredExperimentV1({ loadSnapshot, ...props }: Props) {
   const { t } = useTranslation();
@@ -20,26 +22,31 @@ export function ArticleReaderDeferredExperimentV1({ loadSnapshot, ...props }: Pr
   const [near, setNear] = React.useState(false);
   const [attempt, setAttempt] = React.useState(0);
   const [prepared, setPrepared] = React.useState<Prepared | null>(null);
-  const [error, setError] = React.useState(false);
+  const [error, setError] = React.useState<"snapshot" | "code" | null>(null);
   const { placement } = props.block;
   React.useEffect(() => {
     if (typeof IntersectionObserver === "undefined") { setNear(true); return; }
+    // The document pane clips the window viewport; apply the preload margin to
+    // that scrolling pane so preparation starts before the placement is visible.
+    const scrollHost = root.current?.closest<HTMLElement>('[data-public-static-scroll-host="true"]') ?? null;
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) { setNear(true); observer.disconnect(); }
-    }, { rootMargin: "400px 0px" });
+    }, { root: scrollHost, rootMargin: "400px 0px" });
     if (root.current) observer.observe(root.current);
     return () => observer.disconnect();
   }, []);
   React.useEffect(() => {
     if (!near) return;
     let current = true;
-    setError(false);
+    setError(null);
     const prepare = async () => {
       // Start the independent code and data reads together, only near this placement.
-      const [snapshot, module, compositionModule] = await Promise.all([
-        loadSnapshot(placement.snapshotId),
+      const code = Promise.all([
         import("./ArticleReaderExperimentV3"),
         import("@/studio/composition/StudioDefaultCompositionV2"),
+      ]).catch(() => { throw new ReaderCodeLoadErrorV1(); });
+      const [snapshot, [module, compositionModule]] = await Promise.all([
+        loadSnapshot(placement.snapshotId), code,
       ]);
       if (!current) return;
       if (!snapshot) throw new Error("Unavailable snapshot");
@@ -48,7 +55,7 @@ export function ArticleReaderDeferredExperimentV1({ loadSnapshot, ...props }: Pr
       );
       if (current) setPrepared({ Component: module.ArticleReaderExperimentV3, snapshot, composition });
     };
-    void prepare().catch(() => { if (current) setError(true); });
+    void prepare().catch(error => { if (current) setError(error instanceof ReaderCodeLoadErrorV1 ? "code" : "snapshot"); });
     return () => { current = false; };
   }, [near, attempt, placement.snapshotId, loadSnapshot]);
   const title = placement.titleOverride?.trim() || placement.briefing.defaultTitle;
@@ -60,9 +67,9 @@ export function ArticleReaderDeferredExperimentV1({ loadSnapshot, ...props }: Pr
         data-reader-placement-id={placement.placementId} data-reader-model-loading={error ? undefined : "true"}>
         <p className="text-sm font-semibold text-wb-text">{title}</p>
         {error ? <div className="mt-3 text-sm text-wb-muted">
-          <p role="alert">{t("articleReader.unavailableSnapshot")}</p>
+          <p role="alert">{t(error === "code" ? "articleReader.unavailableReader" : "articleReader.unavailableSnapshot")}</p>
           <button className="mt-2 rounded text-wb-accent focus-visible:outline focus-visible:outline-2"
-            onClick={() => setAttempt(value => value + 1)}>{t("articleReader.retryLoading")}</button>
+            onClick={() => error === "code" ? window.location.reload() : setAttempt(value => value + 1)}>{t(error === "code" ? "articleReader.reloadPage" : "articleReader.retryLoading")}</button>
         </div> : <div className="mt-4" role="status" aria-label={t("articleReader.preparingSimulation")}>
           <div className="article-loading-skeleton space-y-3" aria-hidden="true">
             <div className="article-skeleton-bar h-2 w-36" />
