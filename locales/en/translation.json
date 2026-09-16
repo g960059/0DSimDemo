@@ -704,6 +704,9 @@
     "deleteFailed": "The article could not be deleted: {{message}}"
   },
   "articleReader": {
+    "unavailableReader": "The experiment could not be displayed. Reload the page to try again.",
+    "reloadPage": "Reload page",
+    "retryLoading": "Try again",
     "loading": "Loading article…",
     "backToArticles": "All articles",
     "edit": "Edit article",

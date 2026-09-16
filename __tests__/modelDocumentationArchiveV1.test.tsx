@@ -1,3 +1,4 @@
+import { compileModelDocumentPageV1 } from "@/tools/modelDocumentation/compileModelDocumentPageV1";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createHash } from "node:crypto";
@@ -152,7 +153,7 @@ describe("saved model documentation, independent of retired source", () => {
     expect(() => savedDocumentHtmlV1(document, "ja", 2)).toThrow("Unavailable documentation record");
   });
   it.each(["ja", "en"] as const)("renders %s with complete equations, independent dt records and CSV", locale => {
-    const html = renderToStaticMarkup(<SavedModelDocumentationV1 document={document} locale={locale} />);
+    const html = renderToStaticMarkup(<SavedModelDocumentationV1 page={compileModelDocumentPageV1(document, null, locale, "guide")} />);
     expect(html).toContain(document.identity.title);
     expect(html).toContain("katex-mathml"); expect(html).not.toContain("katex-error");
     expect(html).toContain("<msub>");
@@ -189,7 +190,7 @@ describe("saved model documentation, independent of retired source", () => {
   });
   it("can bundle the reader when all model/analysis/authoring sources are unavailable", async () => {
     const result = await build({
-      stdin: { contents: 'export {SavedModelDocumentationV1} from "./components/model/SavedModelDocumentationV1"; export {resolveSavedModelDocumentV1} from "./studio/presentation/modelDocumentation/SavedModelDocumentLibraryV1";', resolveDir: process.cwd(), loader: "tsx" },
+      stdin: { contents: 'export {ModelDocumentationPage} from "./components/model/ModelDocumentationPage";', resolveDir: process.cwd(), loader: "tsx" },
       bundle: true, write: false, metafile: true, platform: "browser", external: ["react", "react/jsx-runtime"],
       outdir: "unused-in-memory-reader-build",
       loader: { ".woff": "dataurl", ".woff2": "dataurl", ".ttf": "dataurl" },
@@ -201,8 +202,7 @@ describe("saved model documentation, independent of retired source", () => {
       } }],
     });
     const inputs = Object.keys(result.metafile!.inputs);
-    expect(inputs.some(p => p.endsWith("standard71-document-v1.json"))).toBe(true);
-    expect(inputs.some(p => p.endsWith("standard72-document-v1.json"))).toBe(true);
+    expect(inputs.some(p => /packages\/.*(?<!index)\.json$/.test(p))).toBe(false);
     expect(inputs.some(p => p.endsWith("katex.min.css"))).toBe(true);
     expect(inputs.some(p => /MainWireModelModules|MainWireBaselineDocumentation|MainWireEquationSpecification|ModelMathV1/.test(p))).toBe(false);
   });
@@ -222,25 +222,11 @@ describe("saved model documentation, independent of retired source", () => {
     // Budget the fixed reader plus small per-case indexes, not a fixed case count.
     expect(result.outputFiles[0].contents.byteLength).toBeLessThan(10_000 + 2 * 1_500);
   });
-  it.each([false, true])("loads independent document chunks; research visibility = %s", async dev => {
-    const result = await build({ entryPoints: ["studio/presentation/modelDocumentation/SavedModelDocumentLibraryV1.ts"],
-      bundle: true, splitting: true, format: "esm", write: false, metafile: true, platform: "browser",
-      define: { "import.meta.env.PROD": String(!dev) },
-      outdir: "unused-in-memory-reader-build", alias: { "@": process.cwd() }, logLevel: "silent" });
-    const outputs = Object.values(result.metafile!.outputs);
-    const library = outputs.find(output => output.entryPoint?.endsWith("SavedModelDocumentLibraryV1.ts"))!;
-    expect(library.bytes).toBeLessThan(10_000 + 2 * 2_000);
-    expect(library.imports.filter(item => item.kind === "dynamic-import")).toHaveLength(dev ? 13 : 11);
-    for (const id of ["standard73-document-v2", "standard73-hfref-document-v2", "standard73-as-high-gradient-document-v1", "standard73-as-low-flow-document-v1"]) {
-      expect(outputs.some(output => output.entryPoint?.endsWith(`${id}.json`))).toBe(true);
-      expect(outputs.some(output => output.entryPoint?.endsWith(`${id}.reading-v1.json`))).toBe(true);
-    }
-    expect(outputs.some(output => output.entryPoint?.endsWith("hfref-static-case-document-v4.reading-v1.json"))).toBe(dev);
-    expect(outputs.some(output => output.entryPoint?.endsWith("hfref-static-case-document-v4.json"))).toBe(dev);
-    for (const version of [71, 72]) {
-      const chunk = outputs.find(output => output.entryPoint?.endsWith(`standard${version}-document-v1.json`))!;
-      expect(chunk).toBeDefined();
-      expect(Object.keys(chunk.inputs).some(input => input.endsWith(`standard${version === 71 ? 72 : 71}-document-v1.json`))).toBe(false);
-    }
+  it("keeps delivery size independent of the number of full archived documents", async () => {
+    const result = await build({ entryPoints: ["studio/presentation/modelDocumentation/ModelDocumentPageLoaderV1.ts"],
+      bundle: true, write: false, metafile: true, platform: "browser", format: "esm",
+      alias: { "@": process.cwd() }, logLevel: "silent" });
+    expect(result.outputFiles[0].contents.byteLength).toBeLessThan(10_000);
+    expect(Object.keys(result.metafile!.inputs).some(p => p.endsWith(".json"))).toBe(false);
   });
 });

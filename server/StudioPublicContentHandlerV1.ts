@@ -1,3 +1,6 @@
+import { MODEL_READING_ENTRIES_V1 } from "@/studio/presentation/modelDocumentation/ModelReadingCatalogV1";
+import { modelDocumentationHref } from "@/homeLinks";
+import { handleModelDocumentRequestV1, type ModelDocumentAssetReaderV1 } from "./ModelDocumentContentV1";
 import { publicAuthorHtmlV1 } from "@/studio/application/profile/StudioPublicProfileV1";
 import { renderCourseBootstrapV1 } from "@/studio/application/course/StudioCourseBootstrapV1";
 import {
@@ -14,6 +17,8 @@ import { createHash } from "node:crypto";
 import {
   injectStudioPublicDocumentV1,
   renderStudioPublishedArticleV1,
+  publicArticleMetadataV1,
+  renderPublicArticleMarkdownV1,
 } from "@/studio/application/publication/StudioPublicArticleRendererV1";
 import {
   STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_SCHEMA_ID,
@@ -32,6 +37,7 @@ import type { StudioSummaryCursorV1 } from "@/studio/infrastructure/supabase/Stu
 import type { StudioPublicContentDataSourceV1 } from "@/server/StudioPublicContentDataSourceV1";
 
 export type StudioPublicContentHandlerDependenciesV1 = Readonly<{
+  readModelDocumentAsset?: ModelDocumentAssetReaderV1;
   canonicalOrigin: string;
   clientTemplate: string;
   dataSource: StudioPublicContentDataSourceV1;
@@ -57,6 +63,23 @@ export async function handleStudioPublicContentRequestV1(
       },
       request.method,
     );
+  }
+  // Hosting serves existing generated files first. Missing files reach this
+  // route instead of the SPA fallback, so clients and crawlers receive a real 404.
+  if (url.pathname.startsWith("/model-documents/")) {
+    return responseV1(
+      "Model document asset not found\n",
+      404,
+      "text/plain; charset=utf-8",
+      { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" },
+      request.method,
+    );
+  }
+  if (dependencies.readModelDocumentAsset) {
+    const response = await handleModelDocumentRequestV1(request, {
+      ...dependencies, readAsset: dependencies.readModelDocumentAsset,
+    });
+    if (response) return response;
   }
   if (url.pathname === "/healthz") {
     return responseV1(
@@ -339,24 +362,30 @@ async function publishedArticleResponseV1(
     );
   }
 
-  const author = input.format === "html" ? await input.dependencies.dataSource.readPublicResourceAuthor?.("article", article.articleId) : null;
-  const rendered = renderStudioPublishedArticleV1({
+  const [author, course] = await Promise.all([
+    input.format === "html"
+      ? input.dependencies.dataSource.readPublicResourceAuthor?.("article", article.articleId)
+      : null,
+    input.format === "html" && courseId
+      ? input.dependencies.dataSource.readPublicCourse(courseId)
+      : null,
+  ]);
+  // JSON navigation and Markdown readers do not need HTML/KaTeX rendering.
+  const rendered = input.format === "html" ? renderStudioPublishedArticleV1({
     article,
     ...(author ? { author } : {}),
     canonicalOrigin: input.dependencies.canonicalOrigin,
     clientTemplate: input.dependencies.clientTemplate,
-  });
-  const course =
-    input.format === "html" && courseId
-      ? await input.dependencies.dataSource.readPublicCourse(courseId)
-      : null;
+  }) : null;
+  const metadata = rendered?.metadata ?? publicArticleMetadataV1(article, input.dependencies.canonicalOrigin);
+  const cacheControl = courseId ? "no-store" : "public, max-age=0, s-maxage=300, must-revalidate";
   const courseNav =
     course && course.locale === article.locale
       ? courseNavigationHtmlV1(course, article.articleId)
       : "";
   const formatBody =
     input.format === "html"
-      ? rendered.documentHtml
+      ? rendered!.documentHtml
           .replace("</article>", `${courseNav && course ? courseNavigationHtmlV1(course, article.articleId, true) : ""}</article>`)
           .replace(
             '<header class="article-document-header">',
@@ -367,8 +396,8 @@ async function publishedArticleResponseV1(
             `${courseNav && course ? renderCourseBootstrapV1(course) : ""}</body>`,
           )
       : input.format === "markdown"
-        ? rendered.markdown
-        : rendered.json;
+        ? renderPublicArticleMarkdownV1(article)
+        : `${JSON.stringify(article, null, 2)}\n`;
   const representationDigest = createHash("sha256")
     .update(formatBody, "utf8")
     .digest("hex");
@@ -377,7 +406,7 @@ async function publishedArticleResponseV1(
     return new Response(null, {
       status: 304,
       headers: secureHeadersV1({
-        "Cache-Control": courseId ? "no-store" : input.format === "html" ? "public, max-age=0, s-maxage=300, must-revalidate" : PUBLIC_CACHE_V1,
+        "Cache-Control": cacheControl,
         ETag: etag,
       }),
     });
@@ -388,14 +417,14 @@ async function publishedArticleResponseV1(
       : input.format === "markdown"
         ? "text/markdown; charset=utf-8"
         : "application/json; charset=utf-8";
-  const markdownUrl = `${rendered.metadata.canonicalUrl}.md`;
+  const markdownUrl = `${metadata.canonicalUrl}.md`;
   const jsonUrl = new URL(
     `/api/v1/public/articles/${article.publicSlug}`,
     input.dependencies.canonicalOrigin,
   ).toString();
   const contentLocation =
     input.format === "html"
-      ? rendered.metadata.canonicalUrl
+      ? metadata.canonicalUrl
       : input.format === "markdown"
         ? markdownUrl
         : jsonUrl;
@@ -408,9 +437,9 @@ async function publishedArticleResponseV1(
       ...(input.format === "html" ? {} : { "X-Robots-Tag": "noindex" }),
       ETag: etag,
       "Content-Location": contentLocation,
-      ...(courseId ? { "Cache-Control": "no-store" } : input.format === "html" ? { "Cache-Control": "public, max-age=0, s-maxage=300, must-revalidate" } : {}),
+      "Cache-Control": cacheControl,
       Link: [
-        `<${rendered.metadata.canonicalUrl}>; rel="canonical"`,
+        `<${metadata.canonicalUrl}>; rel="canonical"`,
         `<${markdownUrl}>; rel="alternate"; type="text/markdown"`,
         `<${jsonUrl}>; rel="alternate"; type="application/json"`,
       ].join(", "),
@@ -508,6 +537,9 @@ function sitemapXmlV1(
       (path) =>
         `  <url><loc>${escapeXmlV1(new URL(path, canonicalOrigin).toString())}</loc></url>`,
     ),
+    ...MODEL_READING_ENTRIES_V1.filter(entry => entry.state !== "research").flatMap(entry =>
+      (["ja", "en"] as const).flatMap(locale => (["guide", "presets"] as const).map(view =>
+        `  <url><loc>${escapeXmlV1(new URL(modelDocumentationHref({ locale, ...entry.identity, documentId: entry.documentId, view }), canonicalOrigin).href)}</loc></url>`))),
     ...courses.map(
       (course) =>
         `  <url><loc>${escapeXmlV1(new URL(`/${course.locale}/courses/${course.courseId}`, canonicalOrigin).toString())}</loc><lastmod>${escapeXmlV1(course.updatedAt)}</lastmod></url>`,

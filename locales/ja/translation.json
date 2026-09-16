@@ -704,6 +704,9 @@
     "deleteFailed": "記事を削除できませんでした: {{message}}"
   },
   "articleReader": {
+    "unavailableReader": "実験を表示できませんでした。ページを再読み込みしてお試しください。",
+    "reloadPage": "ページを再読み込み",
+    "retryLoading": "もう一度読み込む",
     "loading": "記事を読み込んでいます…",
     "backToArticles": "記事一覧",
     "edit": "記事を編集",

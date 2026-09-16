@@ -1088,6 +1088,21 @@ body[data-app-theme="light"] {
     8rem;
 }
 
+/* Quiet placeholders keep the publication's column and respect reduced motion. */
+.article-loading-skeleton { animation: article-skeleton-breathe 1.8s ease-in-out infinite; }
+.article-skeleton-bar {
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--wb-text) 9%, var(--wb-app-bg));
+}
+.article-skeleton-title { height: 2rem; }
+@keyframes article-skeleton-breathe {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .article-loading-skeleton { animation: none; }
+}
+
 .article-document,
 .article-reader-companion {
   --article-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic Medium", "Yu Gothic", Meiryo, "Noto Sans CJK JP", "Noto Sans JP", sans-serif;
@@ -1639,7 +1654,7 @@ body[data-app-theme="light"] .public-static-theme-moon {
   overflow-wrap: anywhere;
 }
 
-.public-static-shell:not(.article-document-shell):not(.public-static-home) {
+.public-static-shell:not(.article-document-shell):not(.public-static-home):not(.public-static-model) {
   line-height: 1.85;
   padding: clamp(2.5rem, 7vw, 7rem) 1.25rem 8rem;
 }
@@ -3092,3 +3107,8 @@ body[data-app-theme="light"] .public-static-theme-moon {
 .public-static-home-card.course-discovery-card > .course-cover { margin-top: 0; }
 
 .course-discovery-copy > h3 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+
+/* Preserve ordinary document scrolling and anchors before the app is ready. */
+.public-static-model .model-reference-reader { height: auto; overflow: visible; }
+.public-static-model button[data-document-action] { display: none; }
+[data-reader-record][aria-current="page"] { color: var(--wb-text); background: var(--wb-panel); }
