@@ -1,4 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import "@/i18n";
+import * as canvasRuntime from "@/components/workbench/presentation/WorkbenchCanvasRuntimeV3";
+import { PressureVolumeLoopCanvasV3 } from "@/components/workbench/presentation/PressureVolumeLoopCanvasV3";
 import { WorkbenchCompletedCycleBufferV3 } from "@/components/workbench/presentation/WorkbenchCompletedCycleBufferV3";
 import { workbenchPvTrailAlphaV3, workbenchPvInputTransitionV3, workbenchPvHistoryLayersV3, projectWorkbenchPvHistoryV3 } from "@/components/workbench/presentation/PressureVolumeLoopCanvasV3";
 import { workbenchManualChartDomainV3 } from "@/components/workbench/presentation/WorkbenchManualChartDomainV3";
@@ -80,6 +85,75 @@ const sampleV3 = (
   });
 
 describe("V3-neutral Workbench Canvas helpers", () => {
+  it.each([0.2, 0.6])("draws every focused PV layer last when the other scenario is at phase %s", otherPhase => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3();
+    store.setCyclePhaseOutputId(TEST_CYCLE_PHASE_OUTPUT_ID_V3);
+    for (const [id, phase] of [["a", 0.2], ["b", otherPhase]] as const) {
+      store.append(id, Array.from({ length: 601 }, (_, index) => sampleV3(index / 500, (index % 500) / 500,
+        { volume: 95 + 10 * Math.cos(2 * Math.PI * index / 500), pressure: 45 + 40 * Math.sin(2 * Math.PI * index / 500) })));
+      store.append(id, Array.from({ length: Math.round((2 + phase) * 500) + 1 }, (_, index) =>
+        sampleV3((600 + index) / 500, (index % 500) / 500, {
+          volume: 100 + 10 * Math.cos(2 * Math.PI * index / 500),
+          pressure: 50 + 40 * Math.sin(2 * Math.PI * index / 500),
+        }, { inputEpoch: 1 })));
+    }
+    const snapshot = store.getPressureVolumeSnapshot();
+    const strokes: { color: string; alpha: number; points: number }[] = [];
+    const states: { strokeStyle: string; globalAlpha: number; lineWidth: number }[] = [];
+    let points = 0;
+    const context = {
+      strokeStyle: "", globalAlpha: 1, lineWidth: 1,
+      save() { states.push({ strokeStyle: this.strokeStyle, globalAlpha: this.globalAlpha, lineWidth: this.lineWidth }); },
+      restore() { Object.assign(this, states.pop()); },
+      beginPath() { points = 0; }, moveTo() { points += 1; }, lineTo() { points += 1; },
+      stroke() {
+        if (points > 1 && ["#ff0000", "#0000ff"].includes(this.strokeStyle)) {
+          strokes.push({ color: this.strokeStyle, alpha: this.globalAlpha, points });
+        }
+      },
+      setLineDash() {}, rect() {}, clip() {}, arc() {}, fill() {},
+      fillText() {}, strokeRect() {}, translate() {}, rotate() {},
+      measureText(text: string) { return { width: text.length * 6 }; },
+    };
+    const frame = vi.spyOn(canvasRuntime, "useResponsiveCanvasFrameV3").mockImplementation((_container, _canvas, draw) => {
+      draw(context as unknown as CanvasRenderingContext2D, 800, 500);
+    });
+    const useState = React.useState;
+    let focused = false;
+    const state = vi.spyOn(React, "useState").mockImplementation(((initial: unknown) => {
+      const result = useState(initial);
+      if (initial === null && !focused) {
+        focused = true;
+        return [{ kind: "scenario", scenarioId: "a" }, result[1]];
+      }
+      return result;
+    }) as typeof React.useState);
+    try {
+      renderToStaticMarkup(React.createElement(PressureVolumeLoopCanvasV3, {
+        periodicPvaSupported: false,
+        traces: ["a", "b"].map(id => ({
+          scenarioId: id, scenarioLabel: id, scenarioStyleIndex: 0,
+          chamberId: "LV", chamberLabel: "LV", chamberColor: id === "a" ? "#ff0000" : "#0000ff",
+          volumeOutputId: "volume", pressureOutputId: "pressure", pressureBasis: "transmural" as const,
+          cyclePhaseOutputId: TEST_CYCLE_PHASE_OUTPUT_ID_V3,
+          samples: snapshot.exactOrbitSamplesByScenarioId[id]!,
+          historyEpochs: snapshot.orbitHistoryByScenarioId[id]!,
+          cyclePosition: snapshot.cyclePositionByScenarioId[id]!,
+          completedCycleSampleSets: snapshot.completedCyclesByScenarioId[id]!,
+          currentCycleSamples: snapshot.currentCycleSamplesByScenarioId[id]!,
+        })),
+      }));
+      // Two prior-input layers, two completed beats and the current prefix.
+      expect(strokes.map(stroke => stroke.color)).toEqual([
+        ...Array<string>(5).fill("#0000ff"), ...Array<string>(5).fill("#ff0000"),
+      ]);
+      expect(strokes.slice(-3).map(stroke => stroke.points)).toEqual([501, 501, 101]);
+      expect(strokes.at(-1)!.alpha).toBe(0.88);
+    } finally {
+      frame.mockRestore(); state.mockRestore();
+    }
+  });
+
   it("retains five immutable cycles independently of the short exact window, including slow heart rates", () => {
     const store = new WorkbenchScenarioPresentationSampleStoreV3();
     store.setCyclePhaseOutputId(TEST_CYCLE_PHASE_OUTPUT_ID_V3);

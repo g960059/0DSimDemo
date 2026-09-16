@@ -688,28 +688,11 @@ export function PressureVolumeLoopCanvasV3(
       plot.bottom - plot.top,
     );
     context.clip();
-    for (const { history, recentBeats, trace } of visibleRenderedTraces) {
-      const traceAlpha = workbenchLegendTraceAlphaV3(
-        legendSelection,
-        pvLegendDescriptorV3(trace),
-      );
-      for (const historical of history) {
-        for (const { points, alpha, width } of historical.layers) drawPvCurveV3(context, points, x, y, {
-          color: trace.chamberColor,
-          width,
-          dash: Object.freeze([]),
-          alpha: alpha * traceAlpha,
-        });
-      }
-      for (const { points, alpha } of recentBeats) drawPvCurveV3(context, points, x, y, {
-        color: trace.chamberColor, width: 1.5, dash: Object.freeze([]), alpha: alpha * traceAlpha,
-      });
-    }
-    // Focused scenarios are drawn last; coincident auxiliaries remain readable.
+    // Focus the whole trajectory, including its completed beats and prior inputs.
     const drawingOrder = [...visibleRenderedTraces].sort((a, b) =>
       workbenchLegendTraceAlphaV3(legendSelection, pvLegendDescriptorV3(a.trace))
       - workbenchLegendTraceAlphaV3(legendSelection, pvLegendDescriptorV3(b.trace)));
-    // All auxiliary lines go behind all live loops, not over the previous scenario.
+    // All auxiliary lines go behind all loop geometry.
     for (const { periodicPvaHistoryDrawings, trace } of drawingOrder) {
       if (!periodicPvaSupported) continue;
       for (const { drawing, alpha } of periodicPvaHistoryDrawings) drawPeriodicPvaV1(
@@ -727,6 +710,8 @@ export function PressureVolumeLoopCanvasV3(
       );
     }
     for (const {
+      history,
+      recentBeats,
       backBufferRemainder,
       liveSegment,
       trace,
@@ -735,6 +720,17 @@ export function PressureVolumeLoopCanvasV3(
         legendSelection,
         pvLegendDescriptorV3(trace),
       );
+      for (const historical of history) {
+        for (const { points, alpha, width } of historical.layers) drawPvCurveV3(context, points, x, y, {
+          color: trace.chamberColor,
+          width,
+          dash: Object.freeze([]),
+          alpha: alpha * traceAlpha,
+        });
+      }
+      for (const { points, alpha } of recentBeats) drawPvCurveV3(context, points, x, y, {
+        color: trace.chamberColor, width: 1.5, dash: Object.freeze([]), alpha: alpha * traceAlpha,
+      });
       drawPvCurveV3(context, backBufferRemainder, x, y, {
         color: trace.chamberColor,
         width: 1.5,
