@@ -1,6 +1,7 @@
 import { validateCourseContentV1, type CourseContentV1, type CourseDraftV1 } from "@/studio/application/course/StudioCourseV1";
 import {
   STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2, STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2,
+  STUDIO_PV_TRAIL_MAX_BEATS_V2,
   STUDIO_SWEEP_WINDOW_MAX_SEC_V2, STUDIO_SWEEP_WINDOW_MIN_SEC_V2, STUDIO_SWEEP_WINDOW_STEP_SEC_V2,
 } from "@/studio/contracts/v2/content";
 import { assertStudioAuthoringTraceSamplingV1, traceStudioExperimentV1, type StudioAuthoringTraceInputV1 } from "./StudioAuthoringTraceV1";
@@ -494,6 +495,7 @@ export function describeStudioAuthoringProtocolV1(selectedAction?: string): Read
     maximum: STUDIO_SWEEP_WINDOW_MAX_SEC_V2, multipleOf: STUDIO_SWEEP_WINDOW_STEP_SEC_V2 };
   const historyDepth = { type: "integer", minimum: STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2,
     maximum: STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2 };
+  const pvTrailBeats = { type: "integer", minimum: 0, maximum: STUDIO_PV_TRAIL_MAX_BEATS_V2 };
   const graphPane = object([
     "excludedTraces", "graphId", "label", "order", "paneId", "priority",
     "role", "scenarioScope", "series",
@@ -514,6 +516,7 @@ export function describeStudioAuthoringProtocolV1(selectedAction?: string): Read
       y: object(["minimum", "maximum"], { minimum: finiteNumber, maximum: finiteNumber }),
     }),
     historyDepth,
+    pvTrailBeats,
     pressureVolumeAnalysisMode: {
       enum: ["raw-exact-orbit", "responsive-preview", "formal-periodic"],
     },
@@ -650,6 +653,7 @@ export function describeStudioAuthoringProtocolV1(selectedAction?: string): Read
       }) },
       windowSec: sweepWindow,
       historyDepth,
+      pvTrailBeats,
     }),
   });
   const briefingOutput = object([

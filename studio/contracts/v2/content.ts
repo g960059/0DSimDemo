@@ -18,11 +18,13 @@ export const STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID =
   "circleheart-studio-scenario-preset-v2" as const;
 export const STUDIO_SWEEP_WINDOW_DEFAULT_SEC_V2 = 2;
 export const STUDIO_SWEEP_WINDOW_MIN_SEC_V2 = 1;
-export const STUDIO_SWEEP_WINDOW_MAX_SEC_V2 = 6;
+export const STUDIO_SWEEP_WINDOW_MAX_SEC_V2 = 12;
 export const STUDIO_SWEEP_WINDOW_STEP_SEC_V2 = 0.5;
 export const STUDIO_GRAPH_HISTORY_DEFAULT_DEPTH_V2 = 1;
 export const STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2 = 0;
 export const STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2 = 3;
+export const STUDIO_PV_TRAIL_DEFAULT_BEATS_V2 = 2;
+export const STUDIO_PV_TRAIL_MAX_BEATS_V2 = 5;
 
 export type SurfacePaneIdV2 = string;
 export type ScenarioPresetIdV2 = string;
@@ -151,6 +153,8 @@ export type ExperimentSurfaceGraphPaneV2 = Readonly<{
    * their monotonic presentation window and therefore omit this field.
    */
   historyDepth?: number;
+  /** Additional completed beats of the current inputs, PV panes only. Omitted = 2. */
+  pvTrailBeats?: number;
   /** Required only for `pressure-volume`; every other renderer must omit it. */
   pressureVolumeAnalysisMode?: ExperimentSurfacePressureVolumeAnalysisModeV2;
   /**
@@ -345,6 +349,7 @@ export type ExperimentPlacementBriefingGraphOverridesV2 = Readonly<{
   traceColors?: readonly ExperimentPlacementBriefingGraphTraceColorV2[];
   windowSec?: number;
   historyDepth?: number;
+  pvTrailBeats?: number;
 }>;
 
 export type ExperimentPlacementBriefingGraphV2 = Readonly<{

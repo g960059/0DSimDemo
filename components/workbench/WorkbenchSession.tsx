@@ -2,7 +2,7 @@ import { ResourceAuthorV1 } from "@/components/site/PublicAuthorV1";
 import React from "react";
 import { loadPreparedScenarioAnalysisV1 } from "./runtime/PreparedModelAnalysisRegistryV1";
 import type { StudioJsonObjectV2 } from "@/studio/contracts/v2/json";
-import { workbenchPresentationAnalysisSelectionV1 } from "./presentation/WorkbenchPresentationOutputSelectionV3";
+import { workbenchPresentationAnalysisSelectionV1, workbenchModelCyclePhaseOutputIdV3 } from "./presentation/WorkbenchPresentationOutputSelectionV3";
 import { WorkbenchLastMeasuredOutputsV1 } from "./presentation/WorkbenchLastMeasuredOutputsV1";
 import { registeredCurrentBaselinePresentationV1 } from "@/studio/presentation/CurrentBaselinePresentationV1";
 import { REGISTERED_CURRENT_MODEL_BASELINE_V1 } from "@/studio/registry/RegisteredCurrentModelBaselineV1";
@@ -953,6 +953,7 @@ export const WorkbenchSession = ({
       analysisCaptureReleaseRef.current?.resolve();
       analysisCaptureReleaseRef.current = null;
       presentationSampleStore.reset();
+      presentationSampleStore.setCyclePhaseOutputId(workbenchModelCyclePhaseOutputIdV3(composition.modelSurface.contract));
       retainedPresentationRef.current.clear();
 
       const runtimeSeeds: readonly WorkbenchParallelScenarioSeedV3[] =
@@ -1187,6 +1188,9 @@ export const WorkbenchSession = ({
   }, []);
 
   const graphPanes = surface?.graphPanes ?? [];
+  React.useEffect(() => {
+    presentationSampleStore.setSweepWindowSec(Math.max(0, ...graphPanes.map(pane => pane.windowSec ?? 0)));
+  }, [surface, presentationSampleStore]);
   const outputPanes = surface?.outputPanes ?? [];
   const controlPanes = surface?.controlPanes ?? [];
   const visibleScenarioIds = React.useMemo(() => {

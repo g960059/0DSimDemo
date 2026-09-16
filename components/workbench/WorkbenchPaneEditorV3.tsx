@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { WorkbenchGraphAxisSettingsV3 } from "./WorkbenchGraphAxisSettingsV3";
 import { X } from "lucide-react";
 import type {
@@ -6,7 +7,7 @@ import type {
   ExperimentSurfaceGraphPaneV2,
   ExperimentSurfaceOutputPaneV2,
 } from "@/studio/contracts/v2/content";
-import { STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2 } from "@/studio/contracts/v2/content";
+import { STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2, STUDIO_PV_TRAIL_DEFAULT_BEATS_V2, STUDIO_PV_TRAIL_MAX_BEATS_V2 } from "@/studio/contracts/v2/content";
 import type {
   GraphDefinitionV2,
   ModelContractV2,
@@ -188,7 +189,7 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     selectedItems: "In this pane",
     title: "Pane settings",
     windowSec: "Waveform window",
-    windowSecHint: "1–6 seconds in 0.5 second steps",
+    windowSecHint: "1–12 seconds in 0.5 second steps",
   });
 
 export function canonicalWorkbenchColorHexV3(
@@ -203,8 +204,6 @@ export function canonicalWorkbenchColorHexV3(
 
 export function workbenchGraphDisplaySettingsAvailableV3(
   renderer: GraphDefinitionV2["renderer"] | undefined,
-  _periodicPvaSupported: boolean,
-  _pressureVolumeAnalysisMode?: ExperimentSurfaceGraphPaneV2["pressureVolumeAnalysisMode"],
 ): boolean {
   return (
     renderer === "sweep" ||
@@ -217,6 +216,8 @@ export function GraphDisplaySettingsV3({
   graph,
   pane,
   waveformUnit,
+  automaticRanges,
+  onValidityChange,
   periodicPvaSupported,
   strings,
   onChange,
@@ -224,20 +225,36 @@ export function GraphDisplaySettingsV3({
   graph: GraphDefinitionV2 | undefined;
   pane: ExperimentSurfaceGraphPaneV2;
   waveformUnit?: string;
+  automaticRanges?: ExperimentSurfaceGraphPaneV2["axisRanges"];
+  onValidityChange?: (valid: boolean) => void;
   periodicPvaSupported: boolean;
   strings: WorkbenchPaneEditorStringsV3;
   onChange: (pane: ExperimentSurfaceGraphPaneV2) => void;
 }>) {
+  const { i18n } = useTranslation();
+  const ja = (i18n.resolvedLanguage ?? i18n.language).startsWith("ja");
   return (
     <>
       {" "}
       {workbenchGraphDisplaySettingsAvailableV3(
         graph?.renderer,
-        periodicPvaSupported,
-        pane.pressureVolumeAnalysisMode,
       ) && (
         <section id="pane-settings-display-v3" className="space-y-4">
-          {graph && <WorkbenchGraphAxisSettingsV3 graph={graph} pane={pane} waveformUnit={waveformUnit} onChange={onChange} />}
+          {graph && <WorkbenchGraphAxisSettingsV3 graph={graph} pane={pane} waveformUnit={waveformUnit} automaticRanges={automaticRanges} onValidityChange={onValidityChange} onChange={onChange} />}
+          {graph?.renderer === "pressure-volume" && <fieldset className="space-y-2">
+            <legend className="text-xs font-medium text-wb-text">{ja ? "最近の拍" : "Recent beats"}</legend>
+            <div className="flex gap-1 rounded-lg bg-wb-soft/55 p-1">
+              {Array.from({ length: STUDIO_PV_TRAIL_MAX_BEATS_V2 + 1 }, (_, count) => <label key={count}
+                className={`relative flex min-h-9 flex-1 cursor-pointer items-center justify-center rounded-md text-xs ${(pane.pvTrailBeats ?? STUDIO_PV_TRAIL_DEFAULT_BEATS_V2) === count ? "bg-wb-selected text-wb-text" : "text-wb-muted hover:bg-wb-hover"}`}>
+                <input type="radio" name={`pv-trail-${pane.paneId}`} className="peer sr-only" value={count}
+                  checked={(pane.pvTrailBeats ?? STUDIO_PV_TRAIL_DEFAULT_BEATS_V2) === count}
+                  onChange={() => onChange({ ...pane, pvTrailBeats: count })} />
+                <span className="pointer-events-none absolute inset-0 rounded-md peer-focus-visible:ring-2 peer-focus-visible:ring-wb-accent" aria-hidden="true" />
+                {count === 0 ? (ja ? "なし" : "None") : count}
+              </label>)}
+            </div>
+            <p className="text-[10px] leading-4 text-wb-subtle">{ja ? "現在の軌跡に追加する拍数。古い拍ほど薄く表示します。" : "Completed beats behind the current trace. Older beats gradually fade."}</p>
+          </fieldset>}
           {(graph?.renderer === "pressure-volume" ||
             graph?.renderer === "structural-return") && (
             <fieldset className="space-y-2">

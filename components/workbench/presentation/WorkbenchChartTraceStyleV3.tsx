@@ -112,10 +112,7 @@ export function workbenchHistoryAlphaV3(
     || historyIndex < 0
     || historyIndex >= historyCount
   ) return 0;
-  const recency01 = historyCount === 1
-    ? 1
-    : historyIndex / (historyCount - 1);
-  return 0.15 + recency01 * 0.20;
+  return Math.max(15, 35 - (historyCount - historyIndex - 1) * 10) / 100;
 }
 
 export function workbenchTraceLegendKeyV3(
@@ -194,7 +191,7 @@ export function workbenchLegendTraceAlphaV3(
   selection: WorkbenchChartLegendSelectionV3 | null,
   trace: WorkbenchTraceLegendDescriptorV3,
 ): number {
-  return workbenchLegendSelectionMatchesTraceV3(selection, trace) ? 1 : 0.28;
+  return workbenchLegendSelectionMatchesTraceV3(selection, trace) ? 0.88 : 0.28;
 }
 
 export function workbenchLegendTraceHiddenV3(
@@ -273,15 +270,13 @@ function WorkbenchChartLegendItemsV3({
   hiddenSelections = [],
   selection,
   onHoverSelection,
-  onToggleSelection,
   onToggleVisibility,
 }: Readonly<{
   model: WorkbenchTraceLegendModelV3;
   hiddenSelections?: readonly WorkbenchChartLegendSelectionV3[];
   selection: WorkbenchChartLegendSelectionV3 | null;
   onHoverSelection: (selection: WorkbenchChartLegendSelectionV3 | null) => void;
-  onToggleSelection: (selection: WorkbenchChartLegendSelectionV3) => void;
-  onToggleVisibility?: (selection: WorkbenchChartLegendSelectionV3) => void;
+  onToggleVisibility: (selection: WorkbenchChartLegendSelectionV3) => void;
 }>) {
   if (model.traces.length === 0) return null;
   const traceByPair = new Map(model.traces.map((trace) => [
@@ -302,12 +297,8 @@ function WorkbenchChartLegendItemsV3({
     onPointerEnter: () => onHoverSelection(candidate),
     onFocus: () => onHoverSelection(candidate),
     onBlur: () => onHoverSelection(null),
-    onClick: () => onToggleVisibility === undefined
-      ? onToggleSelection(candidate)
-      : onToggleVisibility(candidate),
-    "aria-pressed": onToggleVisibility === undefined
-      ? selection !== null && legendSelectionsEqualV3(selection, candidate)
-      : hiddenSelections.some((hidden) =>
+    onClick: () => onToggleVisibility(candidate),
+    "aria-pressed": hiddenSelections.some((hidden) =>
           legendSelectionsEqualV3(hidden, candidate)),
   });
   const descriptionPopover = (

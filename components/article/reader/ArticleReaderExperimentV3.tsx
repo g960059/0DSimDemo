@@ -1,7 +1,7 @@
 import React from "react";
 import { articleBriefingInflowContentV3 } from "@/studio/application/authoring/StudioArticleBriefingPresentationV3";
 import type { ArticleReaderPlaybackPreferenceV3 } from "./ArticleReaderLiveRuntimeV3";
-import { selectPresentationAnalysisIdsV1 } from "@/components/workbench/presentation/WorkbenchPresentationOutputSelectionV3";
+import { selectPresentationAnalysisIdsV1, workbenchModelCyclePhaseOutputIdV3 } from "@/components/workbench/presentation/WorkbenchPresentationOutputSelectionV3";
 import { CompletedEjectionWaveformV1 } from "@/components/workbench/presentation/CompletedEjectionWaveformV1";
 import { createPortal } from "react-dom";
 import {
@@ -537,6 +537,9 @@ function ArticleReaderLiveOwnerV3({
     forceInline || presentation === "inflow" || expandedPresentation !== null,
     playbackPreference,
     sessionMemory,
+    workbenchModelCyclePhaseOutputIdV3(contract),
+    Math.max(0, ...briefing.graphs.map(graph => graph.overrides?.windowSec
+      ?? snapshot.content.surface.graphPanes.find(pane => pane.paneId === graph.paneId)?.windowSec ?? 0)),
   );
   const inline = (forceInline || presentation === "inflow") && expandedPresentation === null;
   const readingBriefing = inline && !forceInline ? articleBriefingInflowContentV3(briefing) : briefing;
@@ -1053,10 +1056,13 @@ function ArticleReaderLiveGraphV3({
               scenarioStatus: playbackRunning ? "Live" : "Paused",
               scenarioStyleIndex,
               samples: scenarioSamples,
-              historySampleSets: articleReaderBoundedHistoryV3(
+              currentCycleSamples: sampledPresentation.currentCycleSamplesByScenarioId[scenario.scenarioId],
+              cyclePosition: sampledPresentation.cyclePositionByScenarioId[scenario.scenarioId],
+              completedCycleSampleSets: sampledPresentation.completedCyclesByScenarioId[scenario.scenarioId],
+              historyEpochs: articleReaderBoundedHistoryV3(
                 orbitHistory[scenario.scenarioId] ?? [],
                 resolved.historyDepth,
-              ).map((entry) => entry.samples),
+              ),
               volumeOutputId: binding.volumeOutputId,
               pressureOutputId: binding.pressureOutputId,
               pressureBasis: binding.pressureBasis,
@@ -1082,6 +1088,7 @@ function ArticleReaderLiveGraphV3({
       >
         <ArticleReaderPressureVolumeCanvasV3
           axisRanges={pane.axisRanges}
+          pvTrailBeats={resolved.pvTrailBeats}
           historyDepth={resolved.historyDepth}
           analysisId={
             mainWireFormalPvAnalysisIdV1(runtime.periodicPvaDerivation)
@@ -1206,6 +1213,7 @@ function ArticleReaderLiveGraphV3({
 
 function ArticleReaderPressureVolumeCanvasV3({
   axisRanges,
+  pvTrailBeats,
   analysisId,
   historyDepth,
   pressureVolumeAnalysisMode,
@@ -1217,6 +1225,7 @@ function ArticleReaderPressureVolumeCanvasV3({
   analysisId: string;
   historyDepth: number;
   axisRanges?: ExperimentSurfaceGraphPaneV2["axisRanges"];
+  pvTrailBeats?: number;
   pressureVolumeAnalysisMode:
     ExperimentSurfaceGraphPaneV2["pressureVolumeAnalysisMode"];
   showPressureEnvelope: ExperimentSurfaceGraphPaneV2["showPressureEnvelope"];
@@ -1323,6 +1332,7 @@ function ArticleReaderPressureVolumeCanvasV3({
   return (
     <PressureVolumeLoopCanvasV3
       axisRanges={axisRanges}
+      pvTrailBeats={pvTrailBeats}
       playbackRunning={runtime.state.status === "playing"}
       periodicPvaSupported={periodicPvaEnabled}
       traces={enrichedTraces}
@@ -2209,6 +2219,7 @@ export type ArticleReaderResolvedGraphPresentationV3 = Readonly<{
   series: readonly ExperimentPlacementBriefingGraphSeriesV2[];
   windowSec: number | undefined;
   historyDepth: number;
+  pvTrailBeats: number | undefined;
 }>;
 
 export function resolveArticleReaderStaticGraphSeriesLabelV3(
@@ -2256,6 +2267,7 @@ export function resolveArticleReaderGraphPresentationV3(
     series: briefingGraphSeriesV3(pane, briefing),
     windowSec: briefing.overrides?.windowSec ?? pane.windowSec,
     historyDepth: briefing.overrides?.historyDepth ?? pane.historyDepth ?? 1,
+    pvTrailBeats: briefing.overrides?.pvTrailBeats ?? pane.pvTrailBeats,
   });
 }
 

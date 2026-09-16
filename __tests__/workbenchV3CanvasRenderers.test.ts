@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { WorkbenchCompletedCycleBufferV3 } from "@/components/workbench/presentation/WorkbenchCompletedCycleBufferV3";
+import { workbenchPvTrailAlphaV3, workbenchPvInputTransitionV3, workbenchPvHistoryLayersV3, projectWorkbenchPvHistoryV3 } from "@/components/workbench/presentation/PressureVolumeLoopCanvasV3";
 import { workbenchManualChartDomainV3 } from "@/components/workbench/presentation/WorkbenchManualChartDomainV3";
 import { nextZeroBasedPvDomainV3, workbenchPvLoopDomainPointsV3 } from "@/components/workbench/presentation/PressureVolumeLoopCanvasV3";
 
@@ -78,6 +80,135 @@ const sampleV3 = (
   });
 
 describe("V3-neutral Workbench Canvas helpers", () => {
+  it("retains five immutable cycles independently of the short exact window, including slow heart rates", () => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3();
+    store.setCyclePhaseOutputId(TEST_CYCLE_PHASE_OUTPUT_ID_V3);
+    const samples = Array.from({ length: 1201 }, (_, index) => sampleV3(index / 20, (index % 200) / 200,
+      { volume: 100 + index, pressure: index % 200 }));
+    store.append("a", samples);
+    const snapshot = store.getPressureVolumeSnapshot();
+    const cycles = snapshot.completedCyclesByScenarioId.a!;
+    expect(cycles).toHaveLength(5);
+    expect(cycles[0]![0]!.acceptedTimeSec).toBe(10);
+    expect(cycles.at(-1)!.at(-1)!.acceptedTimeSec).toBe(60);
+    expect(cycles.every(cycle => Object.isFrozen(cycle) && cycle.length === 201)).toBe(true);
+    expect(store.getScenarioExactOrbitSnapshot("a")[0]!.acceptedTimeSec).toBeGreaterThanOrEqual(56);
+    store.append("a", [sampleV3(60.05, .005, { volume: 90, pressure: 8 })]);
+    expect(store.getPressureVolumeSnapshot().completedCyclesByScenarioId.a).toBe(cycles);
+    store.cloneScenario("a", "b");
+    store.append("b", [sampleV3(60.1, .01, { volume: 91, pressure: 8 })]);
+    expect(store.getPressureVolumeSnapshot().currentCycleSamplesByScenarioId.a).toHaveLength(2);
+    expect(store.getPressureVolumeSnapshot().currentCycleSamplesByScenarioId.b).toHaveLength(3);
+    store.append("b", [sampleV3(60.1, .01, { volume: 92, pressure: 8 }, { inputEpoch: 1 })]);
+    expect(store.getPressureVolumeSnapshot().completedCyclesByScenarioId.b).toHaveLength(0);
+    expect(store.getScenarioOrbitHistorySnapshot("b").at(-1)!.completedCycles!.at(-1)![0]!.acceptedTimeSec).toBe(50);
+    expect(store.getPressureVolumeSnapshot().completedCyclesByScenarioId.a).toBe(cycles);
+    store.resetScenario("b");
+    expect(store.getPressureVolumeSnapshot().completedCyclesByScenarioId.b).toBeUndefined();
+    store.removeScenario("a");
+    expect(store.getPressureVolumeSnapshot().completedCyclesByScenarioId.a).toBeUndefined();
+  });
+
+  it("does not close partial, discontinuous, or cross-epoch cycles", () => {
+    const buffer = new WorkbenchCompletedCycleBufferV3(TEST_CYCLE_PHASE_OUTPUT_ID_V3);
+    buffer.append([sampleV3(0, .4, {}), sampleV3(.4, .8, {}), sampleV3(.6, 0, {})]);
+    expect(buffer.snapshot).toHaveLength(0);
+    buffer.append([sampleV3(.8, .2, {}), sampleV3(1, null, {}), sampleV3(1.1, .9, {}), sampleV3(1.2, 0, {})]);
+    expect(buffer.snapshot).toHaveLength(0);
+    buffer.append([sampleV3(1.4, .2, {}), sampleV3(2, .8, {}), sampleV3(2.2, .99, {}), sampleV3(2.3, 0, {})]);
+    expect(buffer.snapshot).toHaveLength(1);
+    expect(buffer.snapshot[0]!.at(-1)!.acceptedTimeSec).toBe(2.3);
+    buffer.append([sampleV3(2.4, .1, {}, { inputEpoch: 1 })]);
+    expect(buffer.snapshot).toHaveLength(0);
+    buffer.append([sampleV3(0, 0, {})]);
+    expect(buffer.currentCycle).toHaveLength(1);
+  });
+
+  it("archives startup fragments and never reconnects historical points across a phase gap", () => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3();
+    store.setCyclePhaseOutputId(TEST_CYCLE_PHASE_OUTPUT_ID_V3);
+    const values = { volume: 100, pressure: 10 };
+    store.append("startup", [sampleV3(.7, .7, values), sampleV3(.9, .9, values), sampleV3(1, 0, values), sampleV3(1.2, .2, values)]);
+    store.append("startup", [sampleV3(1.2, .2, values, { inputEpoch: 1 })]);
+    const startup = store.getScenarioOrbitHistorySnapshot("startup")[0]!;
+    expect(projectWorkbenchPvHistoryV3(startup, "volume", "pressure", TEST_CYCLE_PHASE_OUTPUT_ID_V3).liveSegment!.map(point => point.acceptedTimeSec)).toEqual([.7, .9, 1, 1.2]);
+    store.append("gap", [sampleV3(0, 0, values), sampleV3(.2, .2, values), sampleV3(.9, .9, values), sampleV3(1, 0, values), sampleV3(1.1, null, values), sampleV3(1.3, .3, values), sampleV3(1.5, .5, values)]);
+    store.append("gap", [sampleV3(1.5, .5, values, { inputEpoch: 1 })]);
+    const gap = store.getScenarioOrbitHistorySnapshot("gap")[0]!;
+    const projection = projectWorkbenchPvHistoryV3(gap, "volume", "pressure", TEST_CYCLE_PHASE_OUTPUT_ID_V3);
+    expect(projection.liveSegment!.map(point => point.acceptedTimeSec)).toEqual([1.3, 1.5]);
+    expect(projectWorkbenchPvHistoryV3(gap, "volume", "pressure", TEST_CYCLE_PHASE_OUTPUT_ID_V3)).toBe(projection);
+  });
+
+  it("keeps fade time continuous through rapid edits without counting parameter-induced phase jumps", () => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3();
+    store.setCyclePhaseOutputId(TEST_CYCLE_PHASE_OUTPUT_ID_V3);
+    store.append("a", [sampleV3(0, 0, {}), sampleV3(.8, .8, {}), sampleV3(1, 0, {})]);
+    store.append("a", [sampleV3(1, .4, {}, { inputEpoch: 1 }), sampleV3(1.2, .6, {}, { inputEpoch: 1 })]);
+    const before = store.getPressureVolumeSnapshot().cyclePositionByScenarioId.a!;
+    expect(before).toBeCloseTo(1.2);
+    const history = store.getScenarioOrbitHistorySnapshot("a")[0]!;
+    expect(before - history.sourceCyclePosition!).toBeCloseTo(.2);
+    store.append("a", [sampleV3(1.2, .1, {}, { inputEpoch: 2 })]);
+    expect(store.getPressureVolumeSnapshot().cyclePositionByScenarioId.a).toBe(before);
+    expect(store.getScenarioOrbitHistorySnapshot("a")[0]).toBe(history);
+    store.append("a", [sampleV3(1.4, .3, {}, { inputEpoch: 2 })]);
+    expect(store.getPressureVolumeSnapshot().cyclePositionByScenarioId.a! - history.sourceCyclePosition!).toBeCloseTo(.4);
+  });
+
+  it("fades trails continuously at beat boundaries and prior inputs by recorded phase only", () => {
+    expect(workbenchPvTrailAlphaV3(0, 0, 2)).toBe(1);
+    expect(workbenchPvTrailAlphaV3(0, 1, 2)).toBe(workbenchPvTrailAlphaV3(1, 0, 2));
+    expect(workbenchPvTrailAlphaV3(1, 1, 2)).toBe(0);
+    expect(workbenchPvTrailAlphaV3(0, 0, 0)).toBe(0);
+    const samples = [sampleV3(0, .7, {}), sampleV3(.1, .8, {}), sampleV3(.3, 0, {}), sampleV3(.4, .1, {})];
+    expect(workbenchPvInputTransitionV3(samples.slice(0, 1), TEST_CYCLE_PHASE_OUTPUT_ID_V3)).toBe(0);
+    expect(workbenchPvInputTransitionV3(samples, TEST_CYCLE_PHASE_OUTPUT_ID_V3)).toBeCloseTo(.4);
+    const history = projectHistoricalPvEpochV3(Object.freeze(samples), "volume", "pressure", TEST_CYCLE_PHASE_OUTPUT_ID_V3);
+    expect(history.completedBeat).toHaveLength(0);
+  });
+
+  it("preserves exactly the prior trail geometry, widths and opacity when inputs change", () => {
+    const beat = (offset: number) => [0, .25, .5, .9, 1].map(phase => ({
+      acceptedTimeSec: offset + phase, cyclePhase01: phase % 1, volumeMl: 100 + offset + phase, pressureMmHg: 10 + phase,
+    }));
+    const previous = [beat(0), beat(1)];
+    const liveSegment = beat(2).slice(0, 3);
+    const completedBeat = previous[1]!;
+    const backBufferRemainder = buildPvBackBufferRemainderV3(completedBeat, liveSegment);
+    const projection = { completedBeat, liveSegment, backBufferRemainder };
+    expect(workbenchPvHistoryLayersV3(projection, previous, 2, 0, .35)).toEqual([
+      { points: previous[0], width: 1.5, alpha: .25 },
+      { points: previous[1], width: 1.5, alpha: .75 },
+      { points: liveSegment, width: 2, alpha: 1 },
+    ]);
+    expect(workbenchPvHistoryLayersV3(projection, previous, 2, 1, .35)).toEqual([
+      { points: backBufferRemainder, width: 1.5, alpha: .35 },
+      { points: liveSegment, width: 2, alpha: .35 },
+    ]);
+    expect(workbenchPvHistoryLayersV3(projection, previous, 0, 0, .35)).toEqual([
+      { points: backBufferRemainder, width: 1.5, alpha: 1 },
+      { points: liveSegment, width: 2, alpha: 1 },
+    ]);
+  });
+
+  it("allocates twelve seconds of waveform samples only when requested", () => {
+    const normal = new WorkbenchScenarioPresentationSampleStoreV3();
+    const long = new WorkbenchScenarioPresentationSampleStoreV3();
+    long.setSweepWindowSec(12);
+    const samples = Array.from({ length: 8401 }, (_, i) => sampleV3(i / 500, (i % 500) / 500, { pressure: i }));
+    normal.append("a", samples); long.append("a", samples);
+    const span = (store: WorkbenchScenarioPresentationSampleStoreV3) => {
+      const points = store.getScenarioSnapshot("a");
+      return points.at(-1)!.presentationTimeSec - points[0]!.presentationTimeSec;
+    };
+    expect(span(normal)).toBeGreaterThanOrEqual(5.98);
+    expect(span(normal)).toBeLessThan(6.03);
+    expect(span(long)).toBeGreaterThanOrEqual(11.98);
+    expect(span(long)).toBeLessThan(12.03);
+    long.setSweepWindowSec(4); long.append("a", [sampleV3(16.9, .9, { pressure: 10 })]);
+    expect(span(long)).toBeLessThan(6.03);
+  });
   it("uses authored ranges verbatim without expanding to data or mutating automatic domains", () => {
     const automatic = Object.freeze([0, 150] as const);
     expect(workbenchManualChartDomainV3(automatic, undefined)).toBe(automatic);
@@ -845,7 +976,7 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       capacity: 4,
     });
     let notifications = 0;
-    const unsubscribe = store.subscribe(() => {
+    const unsubscribe = store.subscribeSweep(() => {
       notifications += 1;
     });
     const baselineTerminalSample = sampleV3(0.009, 0.01, { pressure: 12 });

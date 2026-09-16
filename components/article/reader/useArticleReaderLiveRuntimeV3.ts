@@ -77,6 +77,8 @@ export function useArticleReaderLiveRuntimeV3(
   presentationVisible = true,
   playbackPreference?: { current: ArticleReaderPlaybackPreferenceV3 },
   sessionMemory?: ArticleReaderSessionMemoryV3,
+  cyclePhaseOutputId?: string,
+  sweepWindowSec = 6,
 ): UseArticleReaderLiveRuntimeResultV3 {
   const requestedScopeKey = JSON.stringify(visibleScenarioIds ?? null);
   const validatedVisibleScenarioIds = React.useMemo(
@@ -95,9 +97,14 @@ export function useArticleReaderLiveRuntimeV3(
       : [...presentationOutputIds].sort(),
   );
   const sampleStore = React.useMemo(
-    () => new WorkbenchScenarioPresentationSampleStoreV3(),
-    [presentationOutputKey, snapshot.snapshotId, visibleScopeKey],
+    () => {
+      const store = new WorkbenchScenarioPresentationSampleStoreV3();
+      store.setCyclePhaseOutputId(cyclePhaseOutputId);
+      return store;
+    },
+    [presentationOutputKey, snapshot.snapshotId, visibleScopeKey, cyclePhaseOutputId],
   );
+  React.useEffect(() => sampleStore.setSweepWindowSec(sweepWindowSec), [sampleStore, sweepWindowSec]);
   const controllerRef = React.useRef<ArticleReaderLiveRuntimeV3 | null>(null);
   const presentationVisibleRef = React.useRef(presentationVisible);
   presentationVisibleRef.current = presentationVisible;

@@ -43,6 +43,7 @@ import {
 } from "./WorkbenchSurfaceV3";
 import { reconcileWorkbenchGraphColorsV3 } from "./presentation/WorkbenchGraphColorV3";
 import { WorkbenchPaneCatalogV3 } from "./WorkbenchPaneCatalogV3";
+import { readWorkbenchGraphAxisRangesV3 } from "./WorkbenchGraphAxisSettingsV3";
 
 export type WorkbenchPanePickerRequestV3 = Readonly<{
   kind: WorkbenchPaneIdentityV3["kind"];
@@ -116,6 +117,10 @@ export function WorkbenchPanePickerV3({
         : "items",
   );
   const [query, setQuery] = React.useState("");
+  const [axisValid, setAxisValid] = React.useState(true);
+  const [automaticRanges] = React.useState(() => readWorkbenchGraphAxisRangesV3(
+    typeof document === "undefined" || !request.paneId ? null : document.querySelector(`[data-workbench-graph-pane="${CSS.escape(request.paneId)}"]`),
+  ));
   const [expandedCategories, setExpandedCategories] = React.useState<
     ReadonlySet<StudioItemPresentationCategoryV1>
   >(() => new Set());
@@ -164,8 +169,6 @@ export function WorkbenchPanePickerV3({
     pane?.role === "graph" &&
     workbenchGraphDisplaySettingsAvailableV3(
       graph?.renderer,
-      periodicPvaSupported,
-      pane.pressureVolumeAnalysisMode,
     );
   const title = pane
     ? creating
@@ -287,7 +290,7 @@ export function WorkbenchPanePickerV3({
             <button
               type="button"
               className={primaryClass}
-              disabled={!canCommitWorkbenchPaneV3(pane, contract, creating)}
+              disabled={!axisValid || !canCommitWorkbenchPaneV3(pane, contract, creating)}
               onClick={() => commit(pane)}
             >
               {commitLabel}
@@ -435,8 +438,11 @@ export function WorkbenchPanePickerV3({
             />
             {pane.role === "graph" && (
               <GraphDisplaySettingsV3
+                key={pane.paneId}
                 graph={graph}
                 pane={pane}
+                automaticRanges={automaticRanges}
+                onValidityChange={setAxisValid}
                 waveformUnit={graph?.renderer === "sweep" ? contract.outputCatalog.find(output =>
                   output.outputId === graph.seriesCatalog.find(series => pane.series.some(item => item.seriesId === series.seriesId))?.outputId)?.unit : undefined}
                 periodicPvaSupported={periodicPvaSupported}

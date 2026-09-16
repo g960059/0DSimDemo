@@ -413,12 +413,15 @@ describe("Studio Experiment data V2", () => {
       modelContractV2(),
     )).toThrow(/must configure an authored waveform window/);
 
-    for (const invalidWindow of [0.5, 1.25, 6.5]) {
+    for (const invalidWindow of [0.5, 1.25, 12.5]) {
       const invalid = experimentV2() as Record<string, any>;
       invalid.content.surface.graphPanes[0].windowSec = invalidWindow;
       expect(() => validateExperimentV2(invalid))
-        .toThrow(/must be 1–6 seconds in 0.5 second steps/);
+        .toThrow(/must be 1–12 seconds in 0.5 second steps/);
     }
+    const longWindow = experimentV2() as Record<string, any>;
+    longWindow.content.surface.graphPanes[0].windowSec = 12;
+    expect(() => assertExperimentContentMatchesModelV2(validateExperimentV2(longWindow).content, modelContractV2())).not.toThrow();
 
     const expandedModel = structuredClone(
       modelContractV2(),
@@ -511,6 +514,20 @@ describe("Studio Experiment data V2", () => {
     )).toThrow(/must not configure a waveform window/);
 
     delete pressureVolume.content.surface.graphPanes[0].windowSec;
+    for (const beats of [0, 2, 5]) {
+      pressureVolume.content.surface.graphPanes[0].pvTrailBeats = beats;
+      const roundTrip = validateExperimentV2(JSON.parse(JSON.stringify(pressureVolume)));
+      expect(roundTrip.content.surface.graphPanes[0]?.pvTrailBeats).toBe(beats);
+      expect(() => assertExperimentContentMatchesModelV2(roundTrip.content, pressureVolumeModel)).not.toThrow();
+    }
+    for (const invalid of [-1, 1.5, 6, "2"]) {
+      pressureVolume.content.surface.graphPanes[0].pvTrailBeats = invalid;
+      expect(() => validateExperimentV2(pressureVolume)).toThrow(/pvTrailBeats/);
+    }
+    delete pressureVolume.content.surface.graphPanes[0].pvTrailBeats;
+    const nonPvTrails = experimentV2() as Record<string, any>;
+    nonPvTrails.content.surface.graphPanes[0].pvTrailBeats = 2;
+    expect(() => assertExperimentContentMatchesModelV2(validateExperimentV2(nonPvTrails).content, modelContractV2())).toThrow(/pvTrailBeats/);
     expect(validateExperimentV2(JSON.parse(JSON.stringify(pressureVolume))).content.surface.graphPanes[0]?.showPvaBoundary).toBe(true);
     const invalidEnergyView = structuredClone(pressureVolume);
     invalidEnergyView.content.surface.graphPanes[0].showPvaBoundary = "yes";

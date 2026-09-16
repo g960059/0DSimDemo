@@ -32,12 +32,6 @@ import {
   type WorkbenchStableNumericDomainStateV3,
 } from "./WorkbenchStableChartDomainV3";
 
-export type WorkbenchWaveformSeriesV3 = Readonly<{
-  outputId: string;
-  label: string;
-  color: string;
-}>;
-
 export type WorkbenchWaveformTraceV3 = WorkbenchScenarioTraceIdentityV3 &
   Readonly<{
     samples: readonly WorkbenchScalarSampleV3[];
@@ -330,24 +324,10 @@ type SweepingWaveformCanvasCommonPropsV3 = Readonly<{
   className?: string;
 }>;
 
-export type SweepingWaveformCanvasPropsV3 =
-  SweepingWaveformCanvasCommonPropsV3 & (
-    | Readonly<{
-        traces: readonly WorkbenchWaveformTraceV3[];
-        /** Current Workbench selection; every Scenario retains its own live head. */
-        activeScenarioId: string | null;
-        samples?: never;
-        series?: never;
-      }>
-    | Readonly<{
-        /** @deprecated Prefer one descriptor per Scenario/signal in traces. */
-        samples: readonly WorkbenchScalarSampleV3[];
-        /** @deprecated Prefer one descriptor per Scenario/signal in traces. */
-        series: readonly WorkbenchWaveformSeriesV3[];
-        traces?: undefined;
-        activeScenarioId?: never;
-      }>
-  );
+export type SweepingWaveformCanvasPropsV3 = SweepingWaveformCanvasCommonPropsV3 & Readonly<{
+  traces: readonly WorkbenchWaveformTraceV3[];
+  activeScenarioId: string | null;
+}>;
 
 export function SweepingWaveformCanvasV3(
   props: SweepingWaveformCanvasPropsV3,
@@ -369,22 +349,8 @@ export function SweepingWaveformCanvasV3(
   const [hiddenLegendSelections, setHiddenLegendSelections] =
     React.useState<readonly WorkbenchChartLegendSelectionV3[]>([]);
   const legendSelection = hoveredLegendSelection;
-  const resolvedTraces = React.useMemo<readonly WorkbenchWaveformTraceV3[]>(
-    () => props.traces ?? props.series.map((item) => Object.freeze({
-      scenarioId: "current-scenario",
-      scenarioLabel: "Current",
-      scenarioStyleIndex: 0,
-      samples: props.samples,
-      outputId: item.outputId,
-      signalLabel: item.label,
-      signalColor: item.color,
-    })),
-    [props.samples, props.series, props.traces],
-  );
-  const traces = useStableWorkbenchWaveformTracesV3(resolvedTraces);
-  const activeScenarioId = props.traces === undefined
-    ? "current-scenario"
-    : props.activeScenarioId;
+  const traces = useStableWorkbenchWaveformTracesV3(props.traces);
+  const activeScenarioId = props.activeScenarioId;
   const legendModel = React.useMemo(
     () => buildWorkbenchTraceLegendModelV3(traces.map((trace) => ({
       traceKey: workbenchTraceLegendKeyV3(trace.scenarioId, trace.outputId),
@@ -500,7 +466,11 @@ export function SweepingWaveformCanvasV3(
       plot.top,
     );
 
-    for (const { head, segments, trace } of projectedTraces) {
+    // Put the focused series on top even when several Scenarios coincide.
+    const drawingOrder = [...projectedTraces].sort((a, b) =>
+      workbenchLegendTraceAlphaV3(legendSelection, waveformLegendDescriptorV3(a.trace))
+      - workbenchLegendTraceAlphaV3(legendSelection, waveformLegendDescriptorV3(b.trace)));
+    for (const { head, segments, trace } of drawingOrder) {
       const legendDescriptor = waveformLegendDescriptorV3(trace);
       if (workbenchLegendTraceHiddenV3(
         hiddenLegendSelections,
@@ -570,7 +540,6 @@ export function SweepingWaveformCanvasV3(
         model={legendModel}
         selection={legendSelection}
         onHoverSelection={setHoveredLegendSelection}
-        onToggleSelection={() => undefined}
         onToggleVisibility={(selection) =>
           setHiddenLegendSelections((current) =>
             current.some((candidate) =>

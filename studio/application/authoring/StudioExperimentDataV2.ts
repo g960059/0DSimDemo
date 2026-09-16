@@ -4,6 +4,7 @@ import {
   STUDIO_EXPERIMENT_V2_SCHEMA_ID,
   STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2,
   STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2,
+  STUDIO_PV_TRAIL_MAX_BEATS_V2,
   STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
   STUDIO_SWEEP_WINDOW_MAX_SEC_V2,
   STUDIO_SWEEP_WINDOW_MIN_SEC_V2,
@@ -488,6 +489,9 @@ function assertExperimentModelAndSurfaceMatchV2(
     const scopedScenarioIds = pane.scenarioScope.mode === "fixed"
       ? pane.scenarioScope.scenarioIds
       : content.scenarios.map(({ scenarioId }) => scenarioId);
+    if (pane.pvTrailBeats !== undefined && graph.renderer !== "pressure-volume") {
+      throw validationErrorV2(`${panePath}.pvTrailBeats`, "only pressure-volume graphs retain completed beats");
+    }
     if (pane.axisRanges !== undefined && (graph.renderer === "cycle-waveform"
       || (graph.renderer === "sweep" && pane.axisRanges.x !== undefined))) {
       throw validationErrorV2(`${panePath}.axisRanges`, "waveforms use their time window for the horizontal axis; completed-cycle graphs use automatic scaling");
@@ -994,6 +998,9 @@ function assertBriefingReferencesContentV2(
         "source graph pane does not support graph history",
       );
     }
+    if (overrides?.pvTrailBeats !== undefined && sourcePane.pressureVolumeAnalysisMode === undefined) {
+      throw validationErrorV2(`${graphPath}.overrides.pvTrailBeats`, "source graph pane does not support PV beat trails");
+    }
   });
 
   const outputPanesById = new Map(
@@ -1272,6 +1279,7 @@ function assertExperimentSurfaceV2(
         "windowSec",
         "axisRanges",
         "historyDepth",
+        "pvTrailBeats",
         "pressureVolumeAnalysisMode",
         "showPressureEnvelope",
         "showPvaBoundary",
@@ -1324,6 +1332,7 @@ function assertExperimentSurfaceV2(
     if (pane.historyDepth !== undefined) {
       graphHistoryDepthV2(pane.historyDepth, `${panePath}.historyDepth`);
     }
+    if (pane.pvTrailBeats !== undefined) pvTrailBeatsV2(pane.pvTrailBeats, `${panePath}.pvTrailBeats`);
     if (
       pane.pressureVolumeAnalysisMode !== undefined &&
       pane.pressureVolumeAnalysisMode !== "raw-exact-orbit" &&
@@ -1746,6 +1755,7 @@ function assertGraphBriefingOverridesV2(
       "traceColors",
       "windowSec",
       "historyDepth",
+      "pvTrailBeats",
     ],
     path,
   );
@@ -1770,6 +1780,7 @@ function assertGraphBriefingOverridesV2(
   if (hasOwnV2(overrides, "historyDepth")) {
     graphHistoryDepthV2(overrides.historyDepth, `${path}.historyDepth`);
   }
+  if (hasOwnV2(overrides, "pvTrailBeats")) pvTrailBeatsV2(overrides.pvTrailBeats, `${path}.pvTrailBeats`);
   if (hasOwnV2(overrides, "series")) {
     arrayV2(overrides.series, `${path}.series`);
     const seriesIds = new Set<string>();
@@ -2077,6 +2088,12 @@ function sweepWindowSecV2(value: unknown, path: string): void {
       `must be ${STUDIO_SWEEP_WINDOW_MIN_SEC_V2}–${STUDIO_SWEEP_WINDOW_MAX_SEC_V2} ` +
         `seconds in ${STUDIO_SWEEP_WINDOW_STEP_SEC_V2} second steps`,
     );
+  }
+}
+
+function pvTrailBeatsV2(value: unknown, path: string): void {
+  if (!Number.isSafeInteger(value) || (value as number) < 0 || (value as number) > STUDIO_PV_TRAIL_MAX_BEATS_V2) {
+    throw validationErrorV2(path, `must be an integer from 0 to ${STUDIO_PV_TRAIL_MAX_BEATS_V2}`);
   }
 }
 

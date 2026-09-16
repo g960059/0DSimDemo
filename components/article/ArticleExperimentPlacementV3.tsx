@@ -18,6 +18,8 @@ import type {
 import {
   STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2,
   STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2,
+  STUDIO_PV_TRAIL_DEFAULT_BEATS_V2,
+  STUDIO_PV_TRAIL_MAX_BEATS_V2,
   STUDIO_SWEEP_WINDOW_MAX_SEC_V2,
   STUDIO_SWEEP_WINDOW_MIN_SEC_V2,
   STUDIO_SWEEP_WINDOW_STEP_SEC_V2,
@@ -963,6 +965,12 @@ function GraphBriefingRowV3({
                 onCommit={(historyDepth) => updateOverrides({ historyDepth })}
               />
             )}
+            {pane.pressureVolumeAnalysisMode !== undefined && <LabeledNumberInputV3
+              label={t("workbench.editor.pvTrailBeats")}
+              value={graph.overrides?.pvTrailBeats ?? pane.pvTrailBeats ?? STUDIO_PV_TRAIL_DEFAULT_BEATS_V2}
+              min={0} max={STUDIO_PV_TRAIL_MAX_BEATS_V2} step={1}
+              onCommit={pvTrailBeats => updateOverrides({ pvTrailBeats })}
+            />}
           </div>
 
           {pane.series.length > 0 && (
