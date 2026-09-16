@@ -405,7 +405,7 @@ test("@desktop @mobile @beat-metrics selected beat outputs stay responsive and r
   expect(errors).toEqual([]);
 });
 
-test("@desktop @mobile @model-lab @prepared-cycle prepared PV results and opt-in AV timing survive controls", async ({ page }, testInfo) => {
+test("@desktop @mobile @model-lab @prepared-cycle prepared PV results and saved AV timing survive controls", async ({ page }, testInfo) => {
   const mobile = (page.viewportSize()?.width ?? 1440) < 768, errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   const root = page.getByTestId("v3-dockview-workbench"), deck = page.getByTestId("workbench-mobile-task-deck");
@@ -416,13 +416,26 @@ test("@desktop @mobile @model-lab @prepared-cycle prepared PV results and opt-in
   await writeFile(readyPath, JSON.stringify({ waitAfterWorkbenchMs: Date.now() - started,
     navigationToReadyMs: await page.evaluate(() => performance.now()) }));
   await testInfo.attach("prepared-baseline-ready", { path: readyPath, contentType: "application/json" });
-  if (mobile) {
-    await page.getByRole("button", { name: "グラフビューを追加", exact: true }).click();
-    await page.getByRole("dialog", { name: "グラフを追加" }).getByRole("button", { name: /^AV流速・駆出時間 / }).click();
-  } else {
-    await page.getByRole("region", { name: "グラフエリア" }).getByRole("button", { name: "Paneを追加", exact: true }).first().click();
-    await page.getByRole("menu", { name: "Paneを追加" }).getByRole("menuitem", { name: "AV流速・駆出時間", exact: true }).click();
-  }
+  // The simplified add menu no longer offers a dedicated AV timing pane.
+  // The inherited current Surface still owns it in already-authored content.
+  const bundle = JSON.parse(readFileSync(new URL("../data/model-releases/standard74/bundle.json", import.meta.url), "utf8"));
+  const snapshot = {
+    schemaId: "circleheart-studio-experiment-snapshot-v2", snapshotId: "snapshot-saved-av-timing",
+    createdAt: "2026-09-16T00:00:00.000Z", surfaceReleaseId: bundle.surface.surfaceReleaseId,
+    content: { modelId: bundle.manifest.modelId, surfaceSeriesId: bundle.surface.surfaceSeriesId,
+      scenarios: [{ scenarioId: "baseline", label: "baseline", capture: bundle.baseline.capture }],
+      surface: {
+        graphPanes: [{ paneId: "av-timing", role: "graph", label: "AV timing", order: 0, priority: 0,
+          graphId: "hemodynamics.aortic-jet.cycle", scenarioScope: { mode: "visible-scenarios" }, excludedTraces: [], series: [] }],
+        controlPanes: [{ paneId: "hr", role: "control", label: "Parameters", order: 0, priority: 0,
+          binding: { mode: "active-slot" }, items: [{ controlId: "rhythm.heart-rate-bpm", label: "HR", order: 0, presentation: { kind: "slider" } }] }],
+        outputPanes: [], note: { text: "" },
+      } },
+  };
+  await page.addInitScript(snapshot => localStorage.setItem("circleheart.studio.browser-content.v9", JSON.stringify({
+    schemaId: "circleheart-studio-browser-content-v9", experiments: [], snapshots: [snapshot], articles: [],
+  })), snapshot);
+  await page.goto(`/ja/snapshots/${snapshot.snapshotId}`);
   const wave = page.locator('[data-ejection-waveform="true"]').first();
   await expect(wave).toBeVisible();
   await expect(wave.locator('[data-ejection-stale="false"]')).toHaveCount(1);
@@ -1067,11 +1080,16 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
       return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
     })
   );
-  const topGroups = [...groupBounds].sort((a, b) => a.y - b.y).slice(0, 2);
-  const lowerGroup = [...groupBounds].sort((a, b) => b.y - a.y)[0]!;
-  expect(Math.abs(topGroups[0]!.y - topGroups[1]!.y)).toBeLessThan(4);
-  expect(lowerGroup.y).toBeGreaterThan(topGroups[0]!.y + 20);
-  expect(lowerGroup.width).toBeGreaterThan(topGroups[0]!.width * 1.7);
+  // Default composition: a tall PV loop on the left, two stacked panes on the right.
+  const left = [...groupBounds].sort((a, b) => a.x - b.x)[0]!;
+  const right = groupBounds.filter(group => group.x > left.x + 20).sort((a, b) => a.y - b.y);
+  expect(right).toHaveLength(2);
+  expect(Math.abs(left.y - right[0]!.y)).toBeLessThan(4);
+  expect(Math.abs(right[0]!.x - right[1]!.x)).toBeLessThan(4);
+  expect(right[1]!.y).toBeGreaterThan(right[0]!.y + 20);
+  expect(left.width).toBeGreaterThan(right[0]!.width);
+  expect(left.height).toBeGreaterThan(right[0]!.height * 1.7);
+  expect(Math.abs(left.y + left.height - right[1]!.y - right[1]!.height)).toBeLessThan(4);
   const structuralTab = graphArea.getByText("Systemic Guyton / Starling", {
     exact: true,
   });
@@ -1189,7 +1207,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   await systemicResistance.press("ArrowRight");
   await expect(
     page.getByTestId("workbench-scenario-manager-v3").getByRole("status", {
-      name: "Guyton / Starlingを再計算中: baseline",
+      name: "Guyton / Starling曲線を更新しています…: baseline",
       exact: true,
     }),
   ).toBeVisible({ timeout: 20_000 });
@@ -1210,7 +1228,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   await expect(settings).toBeVisible();
   await expect(settings.locator('input[type="color"]')).toHaveCount(0);
   const selectedHeartRate = settings.getByRole("button", {
-    name: "HR",
+    name: "HR (現在値)",
     exact: true,
   });
   await expect(selectedHeartRate).toBeVisible();
@@ -1231,7 +1249,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   await expect(
     page
       .getByTestId("workbench-pane-picker-v3")
-      .getByRole("button", { name: "HR", exact: true }),
+      .getByRole("button", { name: "HR (現在値)", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "キャンセル" }).click();
 

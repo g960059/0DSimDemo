@@ -4,11 +4,13 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/rest/v1/rpc/save_experiment_v1", route => route.abort("blockedbyclient"));
 });
 
-test("@desktop @mobile @webkit @startup shows preparation without technical copy or fabricated progress, then releases ready content", async ({ page }, testInfo) => {
+test("@desktop @mobile @webkit @startup shows preparation without technical copy or fabricated progress, then releases ready content", async ({ page, context }, testInfo) => {
   await page.clock.install();
   let release!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
-  await page.route("**/rest/v1/rpc/get_active_model_bundle_v2", async route => {
+  // Delay the actual Worker in both local-registry and configured builds.
+  // The isolated browser CI build intentionally makes no remote registry call.
+  await context.route(/\/assets\/StudioSimulationWorkerV2-[^/]+\.js$/, async route => {
     const response = await route.fetch();
     await gate;
     await route.fulfill({ response });
@@ -19,7 +21,7 @@ test("@desktop @mobile @webkit @startup shows preparation without technical copy
   try {
     await expect(preparing).toBeVisible();
     await expect(preparing.getByRole("status")).toHaveText("シミュレーションを準備しています…");
-    await expect(root.locator('[data-simulation-placeholder="graph"]')).toBeVisible();
+    await expect(root.locator('[data-simulation-placeholder="graph"]').first()).toBeVisible();
     await expect(root.getByRole("progressbar")).toHaveCount(0);
     await expect(preparing).not.toContainText(/V3|Worker|registry|workbench|accepted/i);
     await page.screenshot({ path: testInfo.outputPath("preparing.png") });
