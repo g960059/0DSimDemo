@@ -179,10 +179,11 @@ describe("V3 Dockview Workbench", () => {
       inputEpoch: 0, acceptedRevision: index, acceptedTimeSec: time, presentationTimeSec: time,
       values: { phase: time % 1, volume: 100, pressure: 10 },
     }));
+    const historyEpochs = [{ inputEpoch: 0, sourceAcceptedRevision: 5, sourceAcceptedTimeSec: 1.2, samples }];
     const complete = renderToStaticMarkup(<PressureVolumeLoopCanvasV3 traces={[{ ...trace, samples, periodicPvaAnalysisPending: false }]} />);
     expect(complete).toContain('data-pv-ready-trace-count="1"');
     expect(complete).not.toContain('data-simulation-chart-status="true"');
-    const changed = renderToStaticMarkup(<PressureVolumeLoopCanvasV3 traces={[{ ...trace, historySampleSets: [samples] }]} />);
+    const changed = renderToStaticMarkup(<PressureVolumeLoopCanvasV3 traces={[{ ...trace, historyEpochs }]} />);
     expect(changed).toMatch(/データを取得しています|Waiting for data/);
     expect(changed).toContain('data-pv-history-loop-count="1"');
     for (const playbackRunning of [true, false]) {
@@ -193,7 +194,7 @@ describe("V3 Dockview Workbench", () => {
         expect(partial).toContain('data-pv-ready-trace-count="0"');
         expect(partial).not.toContain('data-simulation-chart-status="true"');
         const pending = renderToStaticMarkup(<PressureVolumeLoopCanvasV3
-          traces={[{ ...trace, samples: samples.slice(0, count), historySampleSets: [samples] }]} />);
+          traces={[{ ...trace, samples: samples.slice(0, count), historyEpochs }]} />);
         expect(pending).toContain('data-chart-legend-actions="true"');
         expect(pending).toContain('data-simulation-update="true"');
         expect(pending).not.toContain('data-simulation-chart-status="true"');
@@ -553,7 +554,7 @@ describe("V3 Dockview Workbench", () => {
         model={model}
         selection={null}
         onHoverSelection={() => undefined}
-        onToggleSelection={() => undefined}
+        onToggleVisibility={() => undefined}
       />,
     );
 
@@ -597,7 +598,7 @@ describe("V3 Dockview Workbench", () => {
         model={model}
         selection={null}
         onHoverSelection={() => undefined}
-        onToggleSelection={() => undefined}
+        onToggleVisibility={() => undefined}
       />,
     );
 
@@ -614,7 +615,7 @@ describe("V3 Dockview Workbench", () => {
           traceKey: `${scenarioId}:${itemId}`, scenarioId, scenarioLabel: scenarioId,
           itemId, itemLabel: itemId, color: "#cc2244",
         }))));
-    const props = { model, selection: null, onHoverSelection: () => undefined, onToggleSelection: () => undefined };
+    const props = { model, selection: null, onHoverSelection: () => undefined, onToggleVisibility: () => undefined };
     const markup = renderToStaticMarkup(<WorkbenchChartLegendV3 {...props}
       actions={<button aria-label="表示項目を編集"><svg aria-hidden="true" /></button>} />);
     expect(markup.match(/data-chart-legend-row="true"/g)).toHaveLength(1);
@@ -2080,20 +2081,10 @@ describe("V3 Dockview Workbench", () => {
       ),
     ).toBe(canonicalRawSurface);
     expect(
-      workbenchGraphDisplaySettingsAvailableV3("pressure-volume", false),
+      workbenchGraphDisplaySettingsAvailableV3("pressure-volume"),
     ).toBe(true); // Raw loops still have visual-history settings.
-    expect(
-      workbenchGraphDisplaySettingsAvailableV3("pressure-volume", true),
-    ).toBe(true);
-    expect(
-      workbenchGraphDisplaySettingsAvailableV3(
-        "pressure-volume",
-        true,
-        "raw-exact-orbit",
-      ),
-    ).toBe(true);
-    expect(workbenchGraphDisplaySettingsAvailableV3("structural-return", true)).toBe(true);
-    expect(workbenchGraphDisplaySettingsAvailableV3("sweep", false)).toBe(
+    expect(workbenchGraphDisplaySettingsAvailableV3("structural-return")).toBe(true);
+    expect(workbenchGraphDisplaySettingsAvailableV3("sweep")).toBe(
       true,
     );
 
@@ -2373,6 +2364,7 @@ describe("V3 Dockview Workbench", () => {
             ...(graph.historyDepth === undefined
               ? {}
               : { historyDepth: graph.historyDepth }),
+            ...(graph.pressureVolumeAnalysisMode === undefined ? {} : { pvTrailBeats: 4 }),
           },
         },
       ],

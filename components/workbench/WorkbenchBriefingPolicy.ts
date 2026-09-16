@@ -373,6 +373,9 @@ function reconcileWorkbenchGraphOverridesV3(
     ...(overrides.historyDepth === undefined || pane.historyDepth === undefined
       ? {}
       : { historyDepth: overrides.historyDepth }),
+    ...(overrides.pvTrailBeats === undefined || pane.pressureVolumeAnalysisMode === undefined
+      ? {}
+      : { pvTrailBeats: overrides.pvTrailBeats }),
   });
   return Object.keys(next).length === 0 ? undefined : next;
 }

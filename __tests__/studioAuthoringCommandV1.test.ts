@@ -263,7 +263,8 @@ describe("Studio authoring command V1", () => {
     const description = describeStudioAuthoringProtocolV1("experiment.presentation.save");
     const schema = description.actions[0]!.inputSchema as any;
     const properties = schema.properties.surface.properties.graphPanes.items.properties;
-    expect(properties.windowSec).toEqual({ type: "number", minimum: 1, maximum: 6, multipleOf: 0.5 });
+    expect(properties.windowSec).toEqual({ type: "number", minimum: 1, maximum: 12, multipleOf: 0.5 });
+    expect(properties.pvTrailBeats).toEqual({ type: "integer", minimum: 0, maximum: 5 });
     expect(properties.historyDepth.minimum).toBe(0);
     expect(properties.historyDepth.maximum).toBeGreaterThanOrEqual(3);
   });

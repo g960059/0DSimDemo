@@ -1214,6 +1214,14 @@ describe("settled hot-start PVA V1", () => {
     if (state === "failed") expect(html).toContain("workbench-pva-analysis-error");
   });
 
+  it("describes fixed PV minima instead of the automatic zero origin", () => {
+    const html = renderToStaticMarkup(React.createElement(PressureVolumeLoopCanvasV3, {
+      traces: [], axisRanges: { x: { minimum: 20, maximum: 200 }, y: { minimum: -10, maximum: 150 } },
+    }));
+    expect(html).toContain('data-volume-minimum-ml="20"');
+    expect(html).toContain('data-pressure-minimum-mmhg="-10"');
+  });
+
   it("does not relabel an older completed relation as the immediately previous loop", () => {
     const previous = buildMainWirePeriodicPvaMethodV8(formalLocusV1(settledPointsV1()), "LV");
     const sample = (inputEpoch: number) => ({ inputEpoch, acceptedRevision: 1, acceptedTimeSec: 0, presentationTimeSec: 0, values: {} });
@@ -1221,7 +1229,7 @@ describe("settled hot-start PVA V1", () => {
       scenarioId: "baseline", scenarioLabel: "baseline", samples: [sample(3)],
       volumeOutputId: "LV.volume", pressureOutputId: "LV.pressure", pressureBasis: "transmural",
       cyclePhaseOutputId: "clock.phase", chamberId: "LV", chamberLabel: "LV", chamberColor: "#d9822b",
-      historySampleSets: [[sample(2)]], periodicPvaHistory: [{ value: previous, inputEpoch: 0 }],
+      historyEpochs: [{ inputEpoch: 2, sourceAcceptedRevision: 1, sourceAcceptedTimeSec: 0, samples: [sample(2)] }], periodicPvaHistory: [{ value: previous, inputEpoch: 0 }],
     }, true);
     expect(description).toContain("3回前の設定: 解析曲線");
     expect(description).toContain("1回前の設定: PV loop");

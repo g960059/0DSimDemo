@@ -184,6 +184,7 @@ export function GraphPaneBodyV3({
     );
     return (
       <StructuralReturnGraphPaneV3
+        paneId={pane.paneId}
         axisRanges={pane.axisRanges}
         legendActions={legendActions}
         acceptedStepAvailable={(frame?.acceptedRevision ?? 0) > 0}
@@ -409,10 +410,13 @@ function SampledGraphPaneBodyV3({
               scenarioStatus: workbenchScenarioRuntimeStatusV3(playbackRunning),
               scenarioStyleIndex,
               samples,
-              historySampleSets: workbenchBoundedGraphHistoryV3(
+              currentCycleSamples: graphPresentation.renderer === "pressure-volume" ? graphPresentation.currentCycleSamplesByScenarioId[scenario.scenarioId] : undefined,
+              cyclePosition: graphPresentation.renderer === "pressure-volume" ? graphPresentation.cyclePositionByScenarioId[scenario.scenarioId] : undefined,
+              completedCycleSampleSets: graphPresentation.renderer === "pressure-volume" ? graphPresentation.completedCyclesByScenarioId[scenario.scenarioId] : undefined,
+              historyEpochs: workbenchBoundedGraphHistoryV3(
                 orbitHistoryByScenarioId[scenario.scenarioId] ?? [],
                 pane.historyDepth ?? 1,
-              ).map((entry) => entry.samples),
+              ),
               volumeOutputId: binding.volumeOutputId,
               pressureOutputId: binding.pressureOutputId,
               pressureBasis: binding.pressureBasis,
@@ -445,10 +449,12 @@ function SampledGraphPaneBodyV3({
     return (
       <ExperimentGraphPresentationV3
         variant="pane"
+        data-workbench-graph-pane={pane.paneId}
         canvasClassName="h-full min-h-0"
       >
         <PressureVolumeLoopCanvasV3
           axisRanges={pane.axisRanges}
+          pvTrailBeats={pane.pvTrailBeats}
           playbackRunning={playbackRunning}
           legendActions={legendActions}
           periodicPvaSupported={periodicPvaEnabled}
@@ -564,6 +570,7 @@ function SampledGraphPaneBodyV3({
   return (
     <ExperimentGraphPresentationV3
       variant="pane"
+      data-workbench-graph-pane={pane.paneId}
       canvasClassName="h-full min-h-0"
     >
       <SweepingWaveformCanvasV3
@@ -636,6 +643,7 @@ type StructuralReturnScenarioTraceV3 = Readonly<{
 }>;
 
 function StructuralReturnGraphPaneV3({
+  paneId,
   axisRanges,
   legendActions,
   acceptedStepAvailable,
@@ -646,6 +654,7 @@ function StructuralReturnGraphPaneV3({
   traces,
 }: Readonly<{
   acceptedStepAvailable: boolean;
+  paneId: string;
   axisRanges?: ExperimentSurfaceGraphPaneV2["axisRanges"];
   analysisId: string;
   onRequestAnalysis: (
@@ -750,6 +759,7 @@ function StructuralReturnGraphPaneV3({
     <ExperimentGraphPresentationV3
       variant="pane"
       canvasClassName="relative flex h-full min-h-0 flex-col overflow-auto"
+      data-workbench-graph-pane={paneId}
       data-analysis-error={error ?? undefined}
       data-analysis-pending={pending ? "true" : "false"}
     >

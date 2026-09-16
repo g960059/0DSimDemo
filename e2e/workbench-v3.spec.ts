@@ -610,12 +610,13 @@ test("@desktop @mobile @as-jet opt-in jet outputs preserve live and stale behavi
   expect(errors).toEqual([]);
 });
 
-test("@desktop @mobile @axis-ranges graph ranges persist without changing numerical state", async ({ page }, testInfo) => {
+test("@desktop @mobile @webkit @axis-ranges graph ranges and beat trails persist without changing numerical state", async ({ page }, testInfo) => {
   const mobile = (page.viewportSize()?.width ?? 1440) < 768;
   const root = page.getByTestId("v3-dockview-workbench");
   await page.getByTestId("v3-playback-toggle").click();
   await expect(root).toHaveAttribute("data-playback", "paused");
   const epoch = await inputEpoch(page);
+  const initialVolumeMax = await page.locator('[data-chart-kind="pressure-volume-loop-v3"] canvas').first().getAttribute("data-volume-maximum-ml");
   const edit = async (name: string) => {
     if (mobile) {
       await page.getByTestId("workbench-mobile-graph-view-rail").getByRole("tab", { name, exact: true }).click();
@@ -628,13 +629,24 @@ test("@desktop @mobile @axis-ranges graph ranges persist without changing numeri
   };
   const setRange = async (settings: Locator, axis: string, minimum: string, maximum: string) => {
     const section = settings.locator(`[data-axis-range="${axis}"]`);
-    await section.getByRole("combobox").selectOption("manual");
+    await section.getByText("固定", { exact: true }).click();
+    await expect(section.getByRole("radio", { name: "固定", exact: true })).toBeChecked();
     const inputs = section.getByRole("textbox");
     await inputs.nth(0).fill(minimum); await inputs.nth(1).fill(maximum); await inputs.nth(1).press("Tab");
   };
   let settings = await edit("PV loop");
+  const recent = settings.getByRole("group", { name: "最近の拍", exact: true });
+  await expect(recent.getByRole("radio", { name: "2", exact: true })).toBeChecked();
+  await recent.getByText("5", { exact: true }).click();
+  const xSection = settings.locator('[data-axis-range="x"]');
+  await xSection.getByText("固定", { exact: true }).click();
+  await expect(xSection.getByRole("textbox").nth(1)).toHaveValue(initialVolumeMax!);
+  await xSection.getByRole("textbox").nth(0).fill("9999");
+  await expect(settings.getByRole("button", { name: "適用", exact: true })).toBeDisabled();
+  await expect(xSection.getByRole("alert")).toBeVisible();
   await setRange(settings, "x", "20", "180");
   await setRange(settings, "y", "-10", "130");
+  await settings.screenshot({ path: testInfo.outputPath("pv-trails-axis-settings.png") });
   await settings.getByRole("button", { name: "適用", exact: true }).click();
   const pv = page.locator('[data-chart-kind="pressure-volume-loop-v3"] canvas').first();
   await expect(pv).toHaveAttribute("data-volume-minimum-ml", "20");
@@ -644,8 +656,12 @@ test("@desktop @mobile @axis-ranges graph ranges persist without changing numeri
   settings = await edit("Pressure waveforms");
   await expect(settings.locator('[data-axis-range="x"]')).toHaveCount(0);
   await setRange(settings, "y", "0", "120");
+  const windowInput = settings.getByRole("slider", { name: "表示時間幅", exact: true });
+  await windowInput.press("End");
+  await expect(windowInput).toHaveValue("12");
   await settings.getByRole("button", { name: "適用", exact: true }).click();
   await expect(page.locator('[data-chart-kind="sweeping-waveform-v3"] canvas').first()).toHaveAttribute("data-y-maximum", "120");
+  await expect(page.locator('[data-chart-kind="sweeping-waveform-v3"]').first()).toHaveAttribute("data-time-window-sec", "12");
   settings = await edit("Systemic Guyton / Starling");
   await setRange(settings, "x", "-5", "25"); await setRange(settings, "y", "0", "12");
   await settings.getByRole("button", { name: "適用", exact: true }).click();
@@ -659,8 +675,9 @@ test("@desktop @mobile @axis-ranges graph ranges persist without changing numeri
   await page.reload(); await expect(root).toBeVisible();
   settings = await edit("PV loop");
   await expect(settings.locator('[data-axis-range="x"]').getByRole("textbox").nth(0)).toHaveValue("20");
-  await settings.locator('[data-axis-range="x"]').getByRole("combobox").selectOption("auto");
-  await settings.locator('[data-axis-range="y"]').getByRole("combobox").selectOption("auto");
+  await expect(settings.getByRole("group", { name: "最近の拍", exact: true }).getByRole("radio", { name: "5", exact: true })).toBeChecked();
+  await settings.locator('[data-axis-range="x"]').getByText("自動", { exact: true }).click();
+  await settings.locator('[data-axis-range="y"]').getByText("自動", { exact: true }).click();
   await settings.getByRole("button", { name: "適用", exact: true }).click();
   await expect(pv).toHaveAttribute("data-volume-minimum-ml", "0");
   await page.screenshot({ path: testInfo.outputPath("manual-axis-ranges.png") });

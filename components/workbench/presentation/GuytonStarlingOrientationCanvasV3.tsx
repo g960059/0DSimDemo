@@ -467,7 +467,7 @@ export function GuytonStarlingComparisonCanvasV3({
       <WorkbenchChartLegendV3 actions={legendActions} model={legend} selection={selection} hiddenSelections={hiddenSelections}
         updatingLabel={pendingTraces.length > 0
           ? `${recalculatingLabel} ${pendingTraces.map(trace => trace.scenarioLabel).join(", ")}` : undefined}
-        onHoverSelection={setSelection} onToggleSelection={() => undefined}
+        onHoverSelection={setSelection}
         onToggleVisibility={(candidate) => setHiddenSelections((current) =>
           current.some((item) => JSON.stringify(item) === JSON.stringify(candidate))
             ? current.filter((item) => JSON.stringify(item) !== JSON.stringify(candidate))

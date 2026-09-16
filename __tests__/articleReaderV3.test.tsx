@@ -708,6 +708,17 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(resolved?.pane.structuralSide).toBe("right");
   });
 
+  it("resolves PV trails consistently for embedded, expanded and restored article graphs", () => {
+    const source = snapshotV3();
+    const pane = { ...source.content.surface.graphPanes[0]!, pvTrailBeats: 3 };
+    const snapshot = { ...source, content: { ...source.content, surface: { ...source.content.surface, graphPanes: [pane] } } };
+    const graph = { paneId: pane.paneId, order: 0, emphasis: "primary" as const };
+    expect(resolveArticleReaderGraphPresentationV3(snapshot, graph)?.pvTrailBeats).toBe(3);
+    for (const pvTrailBeats of [0, 2, 5]) {
+      expect(resolveArticleReaderGraphPresentationV3(snapshot, { ...graph, overrides: { pvTrailBeats } })?.pvTrailBeats).toBe(pvTrailBeats);
+    }
+  });
+
   it("selects a remaining visible Placement when the active one leaves the viewport", () => {
     expect(
       articleReaderPlacementAfterViewportExitV3("placement/a", "placement/a"),
