@@ -187,20 +187,6 @@ export function lastCompleteCycleRangeV3(
   return Object.freeze({ startIndex, endIndexInclusive });
 }
 
-export function extractLastCompletePvBeatV3(
-  samples: readonly WorkbenchScalarSampleV3[],
-  volumeOutputId: string,
-  pressureOutputId: string,
-  cyclePhaseOutputId: string,
-): readonly WorkbenchPvPointV3[] {
-  return extractLivePvTrajectoryV3(
-    samples,
-    volumeOutputId,
-    pressureOutputId,
-    cyclePhaseOutputId,
-  ).completedBeat;
-}
-
 /**
  * Projects an immutable, completed input epoch once. Current-epoch samples are
  * intentionally excluded because their live segment changes on every Worker
@@ -283,6 +269,22 @@ export function workbenchPvHistoryLayersV3(
 }
 
 const PV_HISTORY_EPOCH_CACHE_V3 = new WeakMap<WorkbenchOrbitHistoryEpochV3, Map<string, WorkbenchHistoricalPvProjectionV3>>();
+const PV_COMPLETED_BEAT_CACHE_V3 = new WeakMap<readonly WorkbenchScalarSampleV3[], Map<string, readonly WorkbenchPvPointV3[]>>();
+/** The shared cycle buffer already observed both boundaries. A first recorded
+ * post-wrap phase need not be near zero, so do not rediscover that boundary. */
+function projectCompletedPvBeatV3(samples: readonly WorkbenchScalarSampleV3[],
+  volumeId: string, pressureId: string, phaseId: string): readonly WorkbenchPvPointV3[] {
+  const key = JSON.stringify([volumeId, pressureId, phaseId]);
+  const cached = PV_COMPLETED_BEAT_CACHE_V3.get(samples)?.get(key);
+  if (cached) return cached;
+  const points = extractPvPointsV3(samples, 0, samples.length - 1, volumeId, pressureId, phaseId);
+  if (Object.isFrozen(samples)) {
+    const entries = PV_COMPLETED_BEAT_CACHE_V3.get(samples) ?? new Map();
+    entries.set(key, points); PV_COMPLETED_BEAT_CACHE_V3.set(samples, entries);
+  }
+  return points;
+}
+
 /** Preserve completed and active cycles separately; never bridge a missing phase. */
 export function projectWorkbenchPvHistoryV3(entry: WorkbenchOrbitHistoryEpochV3,
   volumeId: string, pressureId: string, phaseId: string): WorkbenchHistoricalPvProjectionV3 {
@@ -292,7 +294,7 @@ export function projectWorkbenchPvHistoryV3(entry: WorkbenchOrbitHistoryEpochV3,
   const latestCycle = entry.completedCycles?.at(-1);
   const projection = latestCycle !== undefined && entry.currentCycleSamples !== undefined
     ? (() => {
-      const completedBeat = projectHistoricalPvEpochV3(latestCycle, volumeId, pressureId, phaseId).completedBeat;
+      const completedBeat = projectCompletedPvBeatV3(latestCycle, volumeId, pressureId, phaseId);
       const liveSegment = projectHistoricalPvEpochV3(entry.currentCycleSamples, volumeId, pressureId, phaseId).liveSegment ?? [];
       return Object.freeze({ completedBeat, liveSegment, backBufferRemainder: buildPvBackBufferRemainderV3(completedBeat, liveSegment) });
     })()
@@ -526,8 +528,8 @@ export function PressureVolumeLoopCanvasV3(
   );
   const renderedTraces = React.useMemo(() => traces.map((trace) => {
     const historyEpochs = workbenchPvHistoryEpochsV3(trace);
-    const completed = (trace.completedCycleSampleSets ?? []).map(samples => projectHistoricalPvEpochV3(
-      samples, trace.volumeOutputId, trace.pressureOutputId, trace.cyclePhaseOutputId).completedBeat);
+    const completed = (trace.completedCycleSampleSets ?? []).map(samples => projectCompletedPvBeatV3(
+      samples, trace.volumeOutputId, trace.pressureOutputId, trace.cyclePhaseOutputId)).filter(points => points.length >= 3);
     const trajectory = completed.length > 0 && trace.currentCycleSamples !== undefined ? {
       completedBeat: completed.at(-1)!,
       liveSegment: extractPvPointsV3(trace.currentCycleSamples, 0, trace.currentCycleSamples.length - 1,
@@ -553,8 +555,8 @@ export function PressureVolumeLoopCanvasV3(
         // edits. Rapid parameter changes cannot finish another epoch's fade.
         const referenceAlpha = Math.max(.15, .35 - Math.max(0, age - 1) * .1);
         const progress = Math.min(1, age);
-        const priorBeats = (entry.completedCycles ?? []).map(cycle => projectHistoricalPvEpochV3(cycle,
-          trace.volumeOutputId, trace.pressureOutputId, trace.cyclePhaseOutputId).completedBeat);
+        const priorBeats = (entry.completedCycles ?? []).map(cycle => projectCompletedPvBeatV3(cycle,
+          trace.volumeOutputId, trace.pressureOutputId, trace.cyclePhaseOutputId)).filter(points => points.length >= 3);
         return Object.freeze({
           ...projection,
           layers: workbenchPvHistoryLayersV3(projection, priorBeats, trailBeats, progress, referenceAlpha),
@@ -849,8 +851,8 @@ export function PressureVolumeLoopCanvasV3(
       data-pv-trail-beats={trailBeats}
       data-pv-trail-count={visibleRenderedTraces.reduce((sum, { recentBeats }) => sum + recentBeats.length, 0)}
       data-pv-history-alpha={visibleRenderedTraces.map(({ history }) => history.at(-1)?.alpha ?? 0).join(",")}
-      data-volume-minimum-ml="0"
-      data-pressure-minimum-mmhg="0"
+      data-volume-minimum-ml={props.axisRanges?.x?.minimum ?? 0}
+      data-pressure-minimum-mmhg={props.axisRanges?.y?.minimum ?? 0}
       data-pv-history-loop-count={visibleRenderedTraces.reduce((sum, { history }) => sum + history.filter(({ completedBeat }) => completedBeat.length > 0).length, 0)}
       data-pv-ready-trace-count={visibleRenderedTraces.filter(
         ({ completedBeat }) => completedBeat.length > 0,

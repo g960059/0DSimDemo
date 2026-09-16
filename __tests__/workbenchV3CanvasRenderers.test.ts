@@ -23,7 +23,6 @@ import {
   createWorkbenchCanvasFrameSchedulerV3,
   drawWorkbenchLeadingCapV3,
   extractLivePvTrajectoryV3,
-  extractLastCompletePvBeatV3,
   firstSampleAtOrAfterV3,
   guytonZeroFlowPresentationMaximumV3,
   guytonStarlingPlotDomainV3,
@@ -196,6 +195,31 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     expect(buffer.snapshot).toHaveLength(0);
     buffer.append([sampleV3(0, 0, {})]);
     expect(buffer.currentCycle).toHaveLength(1);
+  });
+
+  it("projects a validated completed cycle even when its first post-wrap phase is above the startup tolerance", () => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3();
+    store.setCyclePhaseOutputId(TEST_CYCLE_PHASE_OUTPUT_ID_V3);
+    const values = { volume: 100, pressure: 10 };
+    store.append("a", [.9, 1.1, 1.5, 1.95, 2.1].map(time => sampleV3(time, time % 1, values)));
+    const snapshot = store.getPressureVolumeSnapshot();
+    expect(snapshot.completedCyclesByScenarioId.a).toHaveLength(1);
+    const html = renderToStaticMarkup(React.createElement(PressureVolumeLoopCanvasV3, {
+      traces: [{ scenarioId: "a", scenarioLabel: "a", chamberId: "LV", chamberLabel: "LV", chamberColor: "#ff0000",
+        volumeOutputId: "volume", pressureOutputId: "pressure", pressureBasis: "transmural",
+        cyclePhaseOutputId: TEST_CYCLE_PHASE_OUTPUT_ID_V3, samples: snapshot.exactOrbitSamplesByScenarioId.a!,
+        completedCycleSampleSets: snapshot.completedCyclesByScenarioId.a!,
+        currentCycleSamples: snapshot.currentCycleSamplesByScenarioId.a! }],
+    }));
+    expect(html).toContain('data-pv-ready-trace-count="1"');
+    expect(html).toContain('data-pv-trail-count="1"');
+    store.append("a", [sampleV3(2.1, .1, values, { inputEpoch: 1 })]);
+    const projection = projectWorkbenchPvHistoryV3(store.getScenarioOrbitHistorySnapshot("a")[0]!,
+      "volume", "pressure", TEST_CYCLE_PHASE_OUTPUT_ID_V3);
+    expect(projection.completedBeat.map(point => point.acceptedTimeSec)).toEqual([1.1, 1.5, 1.95, 2.1]);
+    // A new phase binding cannot reuse the old phase clock's fade positions.
+    store.setCyclePhaseOutputId("replacement.phase");
+    expect(store.getScenarioOrbitHistorySnapshot("a")).toEqual([]);
   });
 
   it("archives startup fragments and never reconnects historical points across a phase gap", () => {
@@ -630,12 +654,12 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       startIndex: 2,
       endIndexInclusive: 5,
     });
-    const beat = extractLastCompletePvBeatV3(
+    const beat = extractLivePvTrajectoryV3(
       samples,
       "volume",
       "pressure",
       TEST_CYCLE_PHASE_OUTPUT_ID_V3,
-    );
+    ).completedBeat;
     expect(beat.map(({ acceptedTimeSec }) => acceptedTimeSec)).toEqual([
       1.1, 1.4, 1.9, 2.1,
     ]);
@@ -768,12 +792,12 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       lastCompleteCycleRangeV3(samples, TEST_CYCLE_PHASE_OUTPUT_ID_V3),
     ).toBeNull();
     expect(
-      extractLastCompletePvBeatV3(
+      extractLivePvTrajectoryV3(
         samples,
         "volume",
         "pressure",
         TEST_CYCLE_PHASE_OUTPUT_ID_V3,
-      ),
+      ).completedBeat,
     ).toEqual([]);
   });
 
@@ -837,12 +861,12 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       }),
     );
 
-    const beat = extractLastCompletePvBeatV3(
+    const beat = extractLivePvTrajectoryV3(
       samples,
       volumeOutputId,
       pressureOutputId,
       cyclePhaseOutputId,
-    );
+    ).completedBeat;
 
     expect(beat.map(({ acceptedTimeSec }) => acceptedTimeSec)).toEqual([
       1.1, 1.5, 1.9, 2.1,

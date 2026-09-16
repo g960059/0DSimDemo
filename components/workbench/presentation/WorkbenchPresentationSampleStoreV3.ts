@@ -136,6 +136,7 @@ export class WorkbenchScenarioPresentationSampleStoreV3 {
     if (this.#cyclePhaseOutputId === outputId) return;
     this.#cyclePhaseOutputId = outputId;
     this.#cycleBuffers.clear();
+    this.#orbitHistoryByScenarioId = emptyScenarioOrbitHistorySnapshotV3();
     if (outputId !== undefined) for (const [scenarioId, samples] of Object.entries(this.#exactOrbitSamplesByScenarioId)) {
       const buffer = new WorkbenchCompletedCycleBufferV3(outputId);
       buffer.append(samples);

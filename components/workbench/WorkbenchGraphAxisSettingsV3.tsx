@@ -123,6 +123,6 @@ function AxisRangeV3({ ja, axis, label, unit, range, automatic, initial, onChang
         </React.Fragment>)}
       </div>
       {!valid && <p id={`${id}-error`} role="alert" className="mt-2 text-[10px] text-wb-danger">{ja ? "数値を入力し、最小値を最大値より小さくしてください。" : "Enter numbers with the minimum below the maximum."}</p>}
-    </> : automatic && <p className="mt-1 font-mono text-[10px] tabular-nums text-wb-subtle">{automatic.minimum} – {automatic.maximum}</p>}
+    </> : null}
   </div>;
 }
