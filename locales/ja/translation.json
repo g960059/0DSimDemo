@@ -181,7 +181,7 @@
       "decreasePlaybackRate": "再生速度を0.25下げる",
       "increasePlaybackRate": "再生速度を0.25上げる",
       "measuringPlaybackCapacity": "安定して再生できる速度を確認しています…",
-      "devicePlaybackLimit": "この構成での安定上限 {{rate}}",
+      "devicePlaybackLimit": "この構成での再生速度の目安 {{rate}}",
       "realtimePlaybackRate": "1× 実時間",
       "playbackRateFixed": "選択した速度は、変更するまで一定に保たれます。",
       "playbackPerformanceLimited": "現在の処理性能では選択速度に追いついていません。全シナリオは同期したまま進みます。",

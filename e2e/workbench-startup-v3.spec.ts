@@ -4,6 +4,98 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/rest/v1/rpc/save_experiment_v1", route => route.abort("blockedbyclient"));
 });
 
+test("@desktop @webkit @startup keeps playback presets clickable above layout resize handles", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/ja/experiments/new", { waitUntil: "domcontentloaded" });
+  const rate = page.getByTestId("v3-playback-rate-trigger");
+  await expect(rate).toBeEnabled();
+  await rate.click();
+  const halfSpeed = page.getByTestId("v3-playback-rate-popover").getByRole("button", { name: "0.5×", exact: true });
+  const button = (await halfSpeed.boundingBox())!;
+  const clickX = button.x + button.width / 2;
+  await page.keyboard.press("Escape");
+  const handle = page.getByTestId("workbench-inspector-resize-handle");
+  const before = (await handle.boundingBox())!;
+  await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(clickX, before.y + before.height / 2);
+  await page.mouse.up();
+  await rate.click();
+  // Exercise a real overlap: header contents differ between local and
+  // configured deployments, and the inspector width is user-adjustable.
+  const resized = (await handle.boundingBox())!;
+  expect(Math.abs(resized.x + resized.width / 2 - clickX)).toBeLessThan(2);
+  expect(button.y + button.height / 2).toBeGreaterThan(resized.y);
+  await halfSpeed.click({ timeout: 5_000 });
+  await expect(rate).toHaveText("0.5×");
+  await page.keyboard.press("Escape");
+  await handle.focus();
+  await page.keyboard.press("ArrowLeft");
+  await expect.poll(async () => (await handle.boundingBox())!.x).toBeLessThan(resized.x - 1);
+});
+
+test("@desktop @mobile @webkit @startup preserves the requested speed through startup and Scenario changes", async ({ page, context }) => {
+  // Capture even brief intermediate labels from the very first live render.
+  await page.addInitScript(() => {
+    const values: string[] = [];
+    Object.assign(window, { startupPlaybackLabels: values });
+    new MutationObserver(() => {
+      const value = document.querySelector('[data-testid="v3-playback-rate-trigger"]')?.textContent?.trim();
+      if (value && values.at(-1) !== value) values.push(value);
+    }).observe(document, { subtree: true, childList: true, characterData: true });
+  });
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await context.route(/\/assets\/StudioSimulationWorkerV2-[^/]+\.js$/, async route => {
+    const response = await route.fetch();
+    await gate;
+    await route.fulfill({ response });
+  });
+  const rate = page.getByTestId("v3-playback-rate-trigger");
+  try {
+    await page.goto("/ja/experiments/new", { waitUntil: "domcontentloaded" });
+    await expect(page.locator('[data-simulation-preparation="true"]')).toBeVisible();
+    await expect(rate).toHaveCount(0);
+  } finally {
+    release();
+  }
+  const root = page.getByTestId("v3-dockview-workbench");
+  await expect(rate).toHaveText("1×");
+  await expect(rate).toBeEnabled();
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768;
+  const deck = page.getByTestId("workbench-mobile-task-deck");
+  if (mobile) await deck.getByRole("tab", { name: "Scenario", exact: true }).click();
+  const manager = page.getByTestId("workbench-scenario-manager-v3");
+  const checkProgress = async () => {
+    const before = Number(await root.getAttribute("data-model-time-sec"));
+    await expect.poll(async () => Number(await root.getAttribute("data-model-time-sec"))).toBeGreaterThan(before + 0.5);
+    await expect(page.getByTestId("workbench-calculation-stopped")).toHaveCount(0);
+  };
+  const duplicate = async () => {
+    await manager.getByRole("button", { name: "Scenarioメニュー: baseline", exact: true }).click();
+    await page.getByRole("menu", { name: "Scenarioメニュー: baseline", exact: true }).getByRole("menuitem", { name: "複製", exact: true }).click();
+    await expect(manager.getByRole("button", { name: /Scenarioメニュー:/ })).toHaveCount(2);
+    await checkProgress();
+  };
+  await checkProgress();
+  await duplicate();
+  await expect(rate).toHaveText("1×");
+  await manager.getByRole("button", { name: "Scenarioメニュー: baseline のコピー", exact: true }).click();
+  await page.getByRole("menu", { name: "Scenarioメニュー: baseline のコピー", exact: true }).getByRole("menuitem", { name: "削除", exact: true }).click();
+  await expect(manager.getByRole("button", { name: /Scenarioメニュー:/ })).toHaveCount(1);
+  await checkProgress();
+  expect(await page.evaluate(() => (window as unknown as { startupPlaybackLabels: string[] }).startupPlaybackLabels)).toEqual(["1×"]);
+
+  // A deliberately selected slow speed is also retained, never promoted by
+  // calibration or reset after the Scenario topology changes.
+  await rate.click();
+  await page.getByTestId("v3-playback-rate-popover").getByRole("button", { name: "0.5×", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await duplicate();
+  await expect(rate).toHaveText("0.5×");
+  expect(await page.evaluate(() => (window as unknown as { startupPlaybackLabels: string[] }).startupPlaybackLabels)).toEqual(["1×", "0.5×"]);
+});
+
 test("@desktop @mobile @webkit @startup shows preparation without technical copy or fabricated progress, then releases ready content", async ({ page, context }, testInfo) => {
   await page.clock.install();
   let release!: () => void;

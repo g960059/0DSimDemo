@@ -283,9 +283,9 @@ test("measures exact live Workbench throughput under background contention", asy
     mainThreadSlowdown: report.threadThrottleProbe.mainThreadSlowdown,
     dedicatedWorkerSlowdown:
       report.threadThrottleProbe.dedicatedWorkerSlowdown,
-    effectivePlaybackRate:
+    requestedPlaybackRate:
       report.postControlContention.diagnostics.values[
-        "scheduler.group.effective-playback-rate"
+        "scheduler.group.requested-playback-rate"
       ]?.latest,
     safePlaybackRate:
       report.postControlContention.diagnostics.values[
@@ -585,18 +585,23 @@ function evaluatePerformanceBudgetV3(
         + ` != ${scenarioCount}`,
     );
   }
-  const effectiveRate = diagnostics.values[
-    "scheduler.group.effective-playback-rate"
+  const requestedRate = diagnostics.values[
+    "scheduler.group.requested-playback-rate"
   ]?.latest;
   const safeRate = diagnostics.values[
     "scheduler.group.safe-playback-rate"
   ]?.latest;
   if (
-    effectiveRate === undefined
-    || safeRate === undefined
-    || effectiveRate > safeRate + 1e-9
+    requestedRate === undefined
+    || !Number.isFinite(requestedRate)
+    || Math.abs(requestedRate - 1) > 1e-9
   ) {
-    violations.push("effective group rate exceeds or lacks its safe limit");
+    violations.push("requested normal playback rate changed or is missing");
+  }
+  // Capacity is an estimate, not a playback setting. The actual throughput,
+  // frame backlog and latency budgets above/below still determine performance.
+  if (safeRate === undefined || !Number.isFinite(safeRate) || safeRate < 0.25 || safeRate > 5) {
+    violations.push("estimated group capacity is invalid or missing");
   }
   const presentationBacklog = diagnostics.values[
     "scheduler.group.presentation-backlog-frames-per-lane"

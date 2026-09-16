@@ -181,7 +181,7 @@
       "decreasePlaybackRate": "Decrease playback speed by 0.25",
       "increasePlaybackRate": "Increase playback speed by 0.25",
       "measuringPlaybackCapacity": "Checking sustainable playback speed…",
-      "devicePlaybackLimit": "Stable limit for this setup: {{rate}}",
+      "devicePlaybackLimit": "Estimated sustainable speed: {{rate}}",
       "realtimePlaybackRate": "1× real time",
       "playbackRateFixed": "The selected speed stays fixed until you change it.",
       "playbackPerformanceLimited": "Current processing cannot sustain the selected speed. All scenarios remain synchronized.",
