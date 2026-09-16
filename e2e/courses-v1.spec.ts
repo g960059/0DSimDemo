@@ -347,8 +347,7 @@ for (const signedIn of [false, true])
       surfaceReleaseId: baseline.surfaceReleaseId,
       content: {
         modelId: baseline.modelId,
-        surfaceSeriesId:
-          "circleheart.main-wire.surface.static-anatomy.workbench",
+        surfaceSeriesId: bundle.surface.surfaceSeriesId,
         scenarios: [
           {
             scenarioId: "baseline",
