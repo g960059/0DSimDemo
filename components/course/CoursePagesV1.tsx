@@ -1,3 +1,4 @@
+import { PublicArticleLinkV1 as Link } from "@/components/article/PublicArticleLinkV1";
 import { PublicAuthorV1 } from "@/components/site/PublicAuthorV1";
 import {
   PublicSectionHeadingV1,
@@ -6,7 +7,7 @@ import {
 import { courseReadingEntryV1 } from "@/studio/application/course/StudioCourseReadingPositionV1";
 import React from "react";
 import { readStudioPublicHomeBootstrapV1 } from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowDown,
   ArrowUp,

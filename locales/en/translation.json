@@ -665,6 +665,7 @@
     "deleteFailed": "The article could not be deleted: {{message}}"
   },
   "articleReader": {
+    "retryLoading": "Try again",
     "loading": "Loading article…",
     "backToArticles": "All articles",
     "edit": "Edit article",

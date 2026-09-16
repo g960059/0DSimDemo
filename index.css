@@ -1313,6 +1313,21 @@ body[data-app-theme="light"] {
     8rem;
 }
 
+/* Quiet placeholders keep the publication's column and respect reduced motion. */
+.article-loading-skeleton { animation: article-skeleton-breathe 1.8s ease-in-out infinite; }
+.article-skeleton-bar {
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--wb-text) 9%, var(--wb-app-bg));
+}
+.article-skeleton-title { height: 2rem; }
+@keyframes article-skeleton-breathe {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .article-loading-skeleton { animation: none; }
+}
+
 .article-document,
 .article-reader-companion {
   --article-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic Medium", "Yu Gothic", Meiryo, "Noto Sans CJK JP", "Noto Sans JP", sans-serif;

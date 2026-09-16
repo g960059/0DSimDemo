@@ -1,7 +1,8 @@
+import { createStudioPublicArticleLoaderV1 } from "@/studio/infrastructure/browser/StudioPublicArticleLoaderV1";
 import { readCourseBootstrapV1, renderCourseBootstrapV1 } from "@/studio/application/course/StudioCourseBootstrapV1";
 import { readFileSync } from "node:fs";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   completePublicStaticContentHandoffV1,
@@ -455,7 +456,7 @@ describe("Studio public content delivery V1", () => {
 
     const markdown = await handleStudioPublicContentRequestV1(
       requestV1("/ja/articles/what-determines-blood-pressure.md"),
-      dependencies,
+      { ...dependencies, clientTemplate: "No HTML shell needed for Markdown" },
     );
     expect(markdown.status).toBe(200);
     expect(markdown.headers.get("etag")).toContain(
@@ -465,9 +466,10 @@ describe("Studio public content delivery V1", () => {
 
     const json = await handleStudioPublicContentRequestV1(
       requestV1("/api/v1/public/articles/what-determines-blood-pressure"),
-      dependencies,
+      { ...dependencies, clientTemplate: "No HTML shell needed for JSON" },
     );
     expect(json.status).toBe(200);
+    expect(json.headers.get("cache-control")).toBe("public, max-age=0, s-maxage=300, must-revalidate");
     expect(json.headers.get("etag")).toContain(
       "22222222-2222-4222-8222-222222222222-json-v1-",
     );
@@ -1062,5 +1064,67 @@ describe("Public profile and reading position boundaries", () => {
     expect(await after.text()).toContain('After');
     const json = await handleStudioPublicContentRequestV1(new Request(`https://www.circleheart.dev/api/v1/public/articles/${article.publicSlug}`),dependencies);
     expect(await json.json()).toEqual(article);
+  });
+});
+
+const loaderArticle = courseArticleFixtureV1();
+describe("public article navigation", () => {
+  it("uses the anonymous CDN JSON and consumes one prefetched result", async () => {
+    const fetch = vi.fn(async () => Response.json(loaderArticle));
+    const fallback = vi.fn(async () => null);
+    const loader = createStudioPublicArticleLoaderV1({ fetch, fallback });
+    loader.prefetch(loaderArticle.publicSlug);
+    loader.prefetch(loaderArticle.publicSlug);
+    expect(await loader.read(loaderArticle.publicSlug)).toEqual(loaderArticle);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith(`/api/v1/public/articles/${loaderArticle.publicSlug}`, {
+      credentials: "omit", headers: { Accept: "application/json, text/html;q=0.1" },
+    });
+    expect(fallback).not.toHaveBeenCalled();
+    await loader.read(loaderArticle.publicSlug);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("expires unused prefetches and retries failed prefetches", async () => {
+    let now = 0;
+    const fetch = vi.fn(async () => Response.json(loaderArticle));
+    const loader = createStudioPublicArticleLoaderV1({ fetch, fallback: async () => null, now: () => now });
+    loader.prefetch(loaderArticle.publicSlug);
+    await new Promise<void>(resolve => setImmediate(resolve));
+    expect(fetch).toHaveBeenCalledTimes(1);
+    now = 16_000;
+    await loader.read(loaderArticle.publicSlug);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    fetch.mockRejectedValueOnce(new Error("offline"));
+    loader.prefetch(loaderArticle.publicSlug);
+    await new Promise<void>(resolve => setImmediate(resolve));
+    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(await loader.read(loaderArticle.publicSlug)).toEqual(loaderArticle);
+    expect(fetch).toHaveBeenCalledTimes(4);
+  });
+
+  it("uses the public RPC only when a static host returns its SPA shell", async () => {
+    const fallback = vi.fn(async () => loaderArticle);
+    const loader = createStudioPublicArticleLoaderV1({
+      fetch: async () => new Response("<html></html>", { headers: { "Content-Type": "text/html" } }), fallback,
+    });
+    expect(await loader.read(loaderArticle.publicSlug)).toEqual(loaderArticle);
+    expect(fallback).toHaveBeenCalledWith(loaderArticle.publicSlug);
+  });
+
+  it.each([404, 503])("does not bypass a public %s response", async status => {
+    const fallback = vi.fn(async () => loaderArticle);
+    const loader = createStudioPublicArticleLoaderV1({ fetch: async () => new Response("", { status }), fallback });
+    if (status === 404) expect(await loader.read(loaderArticle.publicSlug)).toBeNull();
+    else await expect(loader.read(loaderArticle.publicSlug)).rejects.toThrow("503");
+    expect(fallback).not.toHaveBeenCalled();
+  });
+
+  it("rejects a different article or malformed publication", async () => {
+    const fetch = vi.fn(async () => Response.json(courseArticleFixtureV1(2)));
+    const loader = createStudioPublicArticleLoaderV1({ fetch, fallback: async () => null });
+    await expect(loader.read(loaderArticle.publicSlug)).rejects.toThrow("route mismatch");
+    fetch.mockResolvedValueOnce(Response.json({ ...loaderArticle, schemaId: "draft" }));
+    await expect(loader.read(loaderArticle.publicSlug)).rejects.toThrow("schema");
   });
 });

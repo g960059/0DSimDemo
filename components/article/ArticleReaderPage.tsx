@@ -1,3 +1,4 @@
+import { readStudioPublicArticleAsyncV1 } from "@/studio/infrastructure/browser/StudioPublicArticleLoaderV1";
 import { ResourceAuthorV1 } from "@/components/site/PublicAuthorV1";
 import { ArticleCourseNavigationV1 } from "@/components/course/ArticleCourseNavigationV1";
 import { courseUuidV1 } from "@/studio/application/course/StudioCourseV1";
@@ -6,11 +7,10 @@ import { ArticleReadingProviderV1, ArticleReadingTextV1, ArticleEndMatterV1, Art
 import { articleReadingFieldV1 } from "@/studio/application/article/StudioArticleReadingV1";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import {
-  ArticleReaderExperimentV3,
-  articleReaderPlacementAfterViewportExitV3,
-  type ArticleReaderExpandedPresentationV3,
-} from "@/components/article/reader/ArticleReaderExperimentV3";
+import type { ArticleReaderExpandedPresentationV3 } from "@/components/article/reader/ArticleReaderExperimentV3";
+import { articleReaderPlacementAfterViewportExitV3 } from "@/components/article/reader/ArticleReaderPlacementV3";
+import { ArticleReaderDeferredExperimentV1 } from "@/components/article/reader/ArticleReaderDeferredExperimentV1";
+import { ArticleLoadingSkeletonV1 } from "./ArticleLoadingSkeletonV1";
 import {
   ArticleAccordionPresentationV3,
   ArticleAccordionContentPresentationV3,
@@ -28,10 +28,6 @@ import {
   completePublicStaticContentHandoffV1,
 } from "@/components/site/PublicStaticContentHandoffV1";
 import { isLocale, localeFromPathname } from "@/localeRouting";
-import {
-  loadStudioSnapshotClientCompositionV2,
-  type StudioClientCompositionV2,
-} from "@/studio/composition/StudioDefaultCompositionV2";
 import type {
   StudioArticleDraftV2,
 } from "@/studio/contracts/v2/article";
@@ -67,18 +63,9 @@ type ArticleReaderContentStateV3 =
       article: StudioArticleDraftV2;
       canonicalPublicSlug: string | null;
       publishedAt: string | null;
-      snapshots: ReadonlyMap<string, ExperimentSnapshotV2>;
     }>
   | Readonly<{ kind: "missing" }>
   | Readonly<{ kind: "error"; message: string }>;
-
-type ArticleReaderContractStateV3 =
-  | Readonly<{ kind: "loading" }>
-  | Readonly<{
-      kind: "ready";
-      compositionBySnapshotId: ReadonlyMap<string, StudioClientCompositionV2>;
-      errors: readonly string[];
-    }>;
 
 type ArticleReaderExpandedPlacementV3 = Readonly<{
   placementId: string;
@@ -175,8 +162,19 @@ function ArticleReaderV3Resource({
   const [content, setContent] = React.useState<ArticleReaderContentStateV3>({
     kind: "loading",
   });
-  const [contractState, setContractState] =
-    React.useState<ArticleReaderContractStateV3>({ kind: "loading" });
+  const loadSnapshot = React.useMemo(() => {
+    const pending = new Map<string, Promise<ExperimentSnapshotV2 | null>>();
+    return (snapshotId: string) => {
+      const existing = pending.get(snapshotId);
+      if (existing) return existing;
+      const request = Promise.resolve().then(() => remoteRepository
+        ? remoteRepository.readSnapshot(snapshotId) : store.readSnapshot(snapshotId));
+      pending.set(snapshotId, request);
+      const clear = () => { pending.delete(snapshotId); };
+      void request.then(clear, clear);
+      return request;
+    };
+  }, [remoteRepository, store]);
   const [activePlacementId, setActivePlacementId] = React.useState<string | null>(
     null,
   );
@@ -206,7 +204,7 @@ function ArticleReaderV3Resource({
       const publishedArticle = bootstrapArticle
         ?? (authoredPreview || remoteRepository === null
           ? null
-          : await remoteRepository.readPublishedArticle(articleId));
+          : await readStudioPublicArticleAsyncV1(articleId));
       const article = publishedArticle === null
         ? remoteRepository === null
           ? store.readArticle(articleId)
@@ -217,25 +215,12 @@ function ArticleReaderV3Resource({
         setContent({ kind: "missing" });
         return;
       }
-      const snapshotIds = Object.freeze(article.blocks.flatMap((block) =>
-        block.kind === "experiment" ? [block.placement.snapshotId] : []));
-      const snapshots = remoteRepository === null
-        ? store.listSnapshots().filter(({ snapshotId }) =>
-            snapshotIds.includes(snapshotId))
-        : (await Promise.all(snapshotIds.map((snapshotId) =>
-            remoteRepository.readSnapshot(snapshotId))))
-            .filter((snapshot): snapshot is ExperimentSnapshotV2 =>
-              snapshot !== null);
       if (current) {
         setContent({
           kind: "ready",
           article,
           canonicalPublicSlug: publishedArticle?.publicSlug ?? null,
           publishedAt: publishedArticle?.publishedAt ?? null,
-          snapshots: new Map(snapshots.map((snapshot) => [
-            snapshot.snapshotId,
-            snapshot,
-          ])),
         });
       }
     };
@@ -388,44 +373,6 @@ function ArticleReaderV3Resource({
   }, []);
 
   React.useEffect(() => {
-    if (content.kind !== "ready") return undefined;
-    let current = true;
-    const snapshots = [...content.snapshots.values()];
-    setContractState({ kind: "loading" });
-    void Promise.allSettled(snapshots.map(async (snapshot) => Object.freeze({
-      snapshotId: snapshot.snapshotId,
-      composition: await loadStudioSnapshotClientCompositionV2(
-        snapshot.content.modelId,
-        snapshot.content.surfaceSeriesId,
-        snapshot.surfaceReleaseId,
-      ),
-    }))).then((results) => {
-      if (!current) return;
-      const compositions = new Map<string, StudioClientCompositionV2>();
-      const errors: string[] = [];
-      for (const result of results) {
-        if (result.status === "fulfilled") {
-          compositions.set(result.value.snapshotId, result.value.composition);
-        } else {
-          errors.push(
-            result.reason instanceof Error
-              ? result.reason.message
-              : String(result.reason),
-          );
-        }
-      }
-      setContractState({
-        kind: "ready",
-        compositionBySnapshotId: compositions,
-        errors: Object.freeze(errors),
-      });
-    });
-    return () => {
-      current = false;
-    };
-  }, [content]);
-
-  React.useEffect(() => {
     if (content.kind !== "ready" || !hash) return;
     let fragment: string;
     try {
@@ -458,19 +405,16 @@ function ArticleReaderV3Resource({
     return () => window.cancelAnimationFrame(frame);
   }, [content, hash]);
 
+  if (content.kind === "loading") return <ArticleLoadingSkeletonV1 />;
   if (content.kind !== "ready") {
     return (
       <div className="h-full overflow-y-auto bg-wb-app text-wb-text">
         <main className="mx-auto max-w-3xl px-6 py-20 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">
-            {content.kind === "loading"
-              ? t("articleReader.loading")
-              : t("articleReader.missingTitle")}
+            {t("articleReader.missingTitle")}
           </h1>
           <p className={`mt-3 text-sm leading-7 ${content.kind === "error" ? "text-wb-danger" : "text-wb-muted"}`}>
-            {content.kind === "loading"
-              ? ""
-              : content.kind === "error"
+            {content.kind === "error"
                 ? content.message
                 : t("articleReader.missingDescription")}
           </p>
@@ -596,13 +540,6 @@ function ArticleReaderV3Resource({
             if (block.kind === "accordion") {
               return <ArticleAccordionPresentationV3 key={block.blockId} block={block} />;
             }
-            const snapshot = content.snapshots.get(block.placement.snapshotId) ?? null;
-            const runtimeComposition = snapshot === null
-              || contractState.kind !== "ready"
-              ? null
-              : contractState.compositionBySnapshotId.get(
-                  snapshot.snapshotId,
-                ) ?? null;
             const isLive = expandedPlacement === null
               ? activePlacementId === block.placement.placementId
               : expandedPlacement.placementId === block.placement.placementId;
@@ -611,15 +548,10 @@ function ArticleReaderV3Resource({
                 ? expandedPlacement.presentation
                 : null;
             return (
-              <ArticleReaderExperimentV3
+              <ArticleReaderDeferredExperimentV1
                 key={block.blockId}
                 block={block}
-                snapshot={snapshot}
-                contract={runtimeComposition?.modelSurface.contract ?? null}
-                contractAvailability={contractState.kind === "loading"
-                  ? "loading"
-                  : runtimeComposition === null ? "unavailable" : "ready"}
-                runtimeComposition={runtimeComposition}
+                loadSnapshot={loadSnapshot}
                 live={isLive}
                 expandedPresentation={expandedPresentation}
                 peekPortalHost={peekPortalHost}
@@ -651,11 +583,6 @@ function ArticleReaderV3Resource({
           {!authoredPreview && <ArticleCourseNavigationV1 articleId={content.article.articleId} locale={locale} bottom />}
           <ArticleEndMatterV1 renderNoteBlock={(block) => <ArticleAccordionContentPresentationV3 block={block} />} />
 
-          {contractState.kind === "ready" && contractState.errors.length > 0 && (
-            <p className="mt-10 text-xs text-wb-danger" role="alert">
-              {contractState.errors.join(" ")}
-            </p>
-          )}
             </article>
             </ArticleReadingProviderV1>
           </main>

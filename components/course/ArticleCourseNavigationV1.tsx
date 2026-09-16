@@ -1,8 +1,9 @@
+import { PublicArticleLinkV1 as Link } from "@/components/article/PublicArticleLinkV1";
 import { useSiteAccountSessionV3 } from "@/components/site/SiteAccountSessionV3";
 import { rememberCourseReadingEntryV1 } from "@/studio/application/course/StudioCourseReadingPositionV1";
 import { readCourseBootstrapV1 } from "@/studio/application/course/StudioCourseBootstrapV1";
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { createStudioSupabaseContentRepositoryV1 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import {
   courseUuidV1,

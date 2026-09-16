@@ -665,6 +665,7 @@
     "deleteFailed": "記事を削除できませんでした: {{message}}"
   },
   "articleReader": {
+    "retryLoading": "もう一度読み込む",
     "loading": "記事を読み込んでいます…",
     "backToArticles": "記事一覧",
     "edit": "記事を編集",

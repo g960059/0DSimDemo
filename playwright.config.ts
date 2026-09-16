@@ -3,7 +3,7 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   // Public-content fixtures require a configured repository; the local numerical suite does not.
-  testIgnore: ["**/courses-v1.spec.ts"],
+  testIgnore: ["**/courses-v1.spec.ts", "**/article-loading-v1.spec.ts"],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
