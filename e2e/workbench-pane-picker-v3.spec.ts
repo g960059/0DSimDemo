@@ -222,7 +222,10 @@ test("@desktop @mobile @pane-picker preserves PV draft details, reorder, zero se
   // Clicking another control must commit the field without swallowing that click.
   await picker.getByRole("tab", { name: "表示", exact: true }).click();
   await renamePane(picker, "Atrial PV");
-  await picker.getByRole("radio", { name: "3", exact: true }).locator("..").click();
+  const previousResults = picker.getByRole("group", { name: "変更前の結果", exact: true });
+  const recentBeats = picker.getByRole("group", { name: "最近の拍", exact: true });
+  await previousResults.getByRole("radio", { name: "3", exact: true }).locator("..").click();
+  await expect(recentBeats.getByRole("radio", { name: "2", exact: true })).toBeChecked();
   await picker.getByRole("button", { name: /^PVA/ }).click();
   await picker.getByRole("button", { name: /^包絡線/ }).click();
   await items(picker);
@@ -240,7 +243,8 @@ test("@desktop @mobile @pane-picker preserves PV draft details, reorder, zero se
   await checkBounds(page, picker);
   await page.screenshot({ path: testInfo.outputPath("compact-pv-editor.png") });
   await picker.getByRole("tab", { name: "表示", exact: true }).click();
-  await expect(picker.getByRole("radio", { name: "3", exact: true })).toBeChecked();
+  await expect(previousResults.getByRole("radio", { name: "3", exact: true })).toBeChecked();
+  await expect(recentBeats.getByRole("radio", { name: "2", exact: true })).toBeChecked();
   await expect(picker.getByRole("button", { name: /^PVA/ })).toHaveAttribute("aria-pressed", "true");
   await picker.getByRole("button", { name: "表示", exact: true }).click();
   await expect(tabs).toHaveCount(count + 1);
