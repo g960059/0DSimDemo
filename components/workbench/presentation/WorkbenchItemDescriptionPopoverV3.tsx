@@ -13,6 +13,7 @@ const WORKBENCH_ITEM_DESCRIPTION_MAX_WIDTH_PX_V3 = 320;
 const WORKBENCH_ITEM_DESCRIPTION_VIEWPORT_MARGIN_PX_V3 = 12;
 const WORKBENCH_ITEM_DESCRIPTION_GAP_PX_V3 = 8;
 const WORKBENCH_ITEM_DESCRIPTION_ESTIMATED_HEIGHT_PX_V3 = 112;
+export const WORKBENCH_ITEM_DESCRIPTION_HOVER_DELAY_MS_V3 = 500;
 
 /**
  * Small progressive-disclosure affordance shared by chart legends and live
@@ -21,13 +22,20 @@ const WORKBENCH_ITEM_DESCRIPTION_ESTIMATED_HEIGHT_PX_V3 = 112;
 export function WorkbenchItemDescriptionPopoverV3({
   ariaLabel,
   description,
+  children,
+  triggerProps,
 }: Readonly<{
   ariaLabel: string;
   description: string;
+  children?: React.ReactNode;
+  /** Preserve an existing action (e.g. legend visibility) on the same label. */
+  triggerProps?: React.ButtonHTMLAttributes<HTMLButtonElement>;
 }>) {
   const buttonRef = React.useRef<HTMLButtonElement | null>(null);
   const popoverRef = React.useRef<HTMLSpanElement | null>(null);
   const closeTimerRef =
+    React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openTimerRef =
     React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusedAtPointerDownRef = React.useRef<boolean | null>(null);
   const descriptionId = React.useId();
@@ -39,6 +47,11 @@ export function WorkbenchItemDescriptionPopoverV3({
     if (closeTimerRef.current === null) return;
     clearTimeout(closeTimerRef.current);
     closeTimerRef.current = null;
+  }, []);
+  const cancelScheduledOpen = React.useCallback(() => {
+    if (openTimerRef.current === null) return;
+    clearTimeout(openTimerRef.current);
+    openTimerRef.current = null;
   }, []);
   const scheduleClose = React.useCallback(() => {
     cancelScheduledClose();
@@ -94,24 +107,30 @@ export function WorkbenchItemDescriptionPopoverV3({
       setOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
     };
     const reposition = () => updatePosition();
     document.addEventListener("pointerdown", closeOnPointerDown);
-    document.addEventListener("keydown", closeOnEscape);
+    document.addEventListener("keydown", closeOnEscape, true);
     window.addEventListener("resize", reposition);
     window.addEventListener("scroll", reposition, true);
     return () => {
       document.removeEventListener("pointerdown", closeOnPointerDown);
-      document.removeEventListener("keydown", closeOnEscape);
+      document.removeEventListener("keydown", closeOnEscape, true);
       window.removeEventListener("resize", reposition);
       window.removeEventListener("scroll", reposition, true);
     };
   }, [open, updatePosition]);
 
   React.useEffect(
-    () => () => cancelScheduledClose(),
-    [cancelScheduledClose],
+    () => () => {
+      cancelScheduledOpen();
+      cancelScheduledClose();
+    },
+    [cancelScheduledOpen, cancelScheduledClose],
   );
 
   const popover =
@@ -145,21 +164,34 @@ export function WorkbenchItemDescriptionPopoverV3({
   return (
     <>
       <button
+        {...triggerProps}
         ref={buttonRef}
         type="button"
-        aria-controls={open ? descriptionId : undefined}
+        aria-controls={triggerProps?.["aria-controls"] ?? (open ? descriptionId : undefined)}
         aria-describedby={open ? descriptionId : undefined}
-        aria-expanded={open}
-        aria-label={ariaLabel}
-        className="pointer-events-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
+        aria-expanded={triggerProps?.["aria-expanded"] ?? open}
+        aria-label={triggerProps?.["aria-label"] ?? ariaLabel}
+        className={triggerProps?.className ?? (children === undefined
+          ? "pointer-events-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
+          : "pointer-events-auto min-w-0 rounded-sm text-left hover:text-wb-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent")}
         data-testid="workbench-item-description-trigger-v3"
         onBlur={(event) => {
+          triggerProps?.onBlur?.(event);
+          cancelScheduledOpen();
           if (event.relatedTarget !== popoverRef.current) setOpen(false);
         }}
         onClick={(event) => {
+          cancelScheduledOpen();
+          cancelScheduledClose();
+          if (triggerProps?.onClick) {
+            // An existing action owns the click; its help must not cover the
+            // next target (for example another Scenario's legend entry).
+            setOpen(false);
+            triggerProps.onClick(event);
+            return;
+          }
           event.preventDefault();
           event.stopPropagation();
-          cancelScheduledClose();
           const focusedAtPointerDown = focusedAtPointerDownRef.current;
           focusedAtPointerDownRef.current = null;
           setOpen(
@@ -168,25 +200,36 @@ export function WorkbenchItemDescriptionPopoverV3({
               : true,
           );
         }}
-        onFocus={() => {
+        onFocus={(event) => {
+          triggerProps?.onFocus?.(event);
+          cancelScheduledOpen();
           cancelScheduledClose();
           setOpen(true);
         }}
         onPointerEnter={(event) => {
+          triggerProps?.onPointerEnter?.(event);
           if (event.pointerType === "touch") return;
           cancelScheduledClose();
-          setOpen(true);
+          cancelScheduledOpen();
+          if (open) return;
+          openTimerRef.current = setTimeout(() => {
+            openTimerRef.current = null;
+            setOpen(true);
+          }, WORKBENCH_ITEM_DESCRIPTION_HOVER_DELAY_MS_V3);
         }}
-        onPointerDown={() => {
+        onPointerDown={(event) => {
+          triggerProps?.onPointerDown?.(event);
           focusedAtPointerDownRef.current =
             document.activeElement === buttonRef.current;
         }}
         onPointerLeave={(event) => {
+          triggerProps?.onPointerLeave?.(event);
           if (event.pointerType === "touch") return;
+          cancelScheduledOpen();
           scheduleClose();
         }}
       >
-        <Info aria-hidden="true" className="h-3 w-3" />
+        {children ?? <Info aria-hidden="true" className="h-3 w-3" />}
       </button>
       {popover}
     </>

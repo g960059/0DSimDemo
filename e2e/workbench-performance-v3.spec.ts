@@ -7,17 +7,25 @@ import {
   type TestInfo,
 } from "@playwright/test";
 import { readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 
 import type {
   WorkbenchPerformanceSnapshotV3,
 } from "../components/workbench/runtime/WorkbenchPerformanceDiagnosticsV3";
 
 const currentRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
-  "../data/model-releases/standard73/publication.json",
+  "../data/model-releases/standard74/publication.json",
   import.meta.url,
-), "utf8")) as Readonly<{ modelId: string }>;
+), "utf8")) as Readonly<{ modelId: string; artifactRevisionId: string; artifactSha256: string }>;
 
 const PERFORMANCE_EXACT_MODEL_ID = currentRegistryAdmissionLock.modelId;
+const artifactIdentity = Object.freeze({
+  artifactRevisionId: currentRegistryAdmissionLock.artifactRevisionId,
+  artifactSha256: currentRegistryAdmissionLock.artifactSha256,
+});
+const CONTROL_LABEL_V1 = process.env.CIRCLEHEART_PERF_CONTROL ?? "HR";
+if (CONTROL_LABEL_V1 !== "HR" && CONTROL_LABEL_V1 !== "総血液量")
+  throw new Error("CIRCLEHEART_PERF_CONTROL must be HR or 総血液量");
 
 type PerformanceBudgetV3 = Readonly<{
   minimumRootModelTimeRatio: number;
@@ -54,6 +62,10 @@ type AcceptedCheckpointV3 = Readonly<{
   acceptedRevision: number;
   acceptedTimeSec: number;
 }>;
+
+type ArtifactAuditWindowV3 = Window & {
+  performanceArtifactTickets: { modelId: string; artifactRevisionId: string; artifactUrl: string }[];
+};
 
 const PROFILES_V3: Readonly<Record<string, PerformanceProfileV3>> =
   Object.freeze({
@@ -131,7 +143,7 @@ test("measures exact live Workbench throughput under background contention", asy
     "CIRCLEHEART_PERF_SCENARIOS",
     profile.defaultScenarioCount,
     AS_TITLE_V1 ? 2 : 1,
-    4,
+    8,
   );
   const cdp = await page.context().newCDPSession(page);
   await page.goto("/ja?workbenchPerf=1");
@@ -157,7 +169,21 @@ test("measures exact live Workbench throughput under background contention", asy
       / threadCalibrationBefore.dedicatedWorkerMs,
   });
 
-  await page.goto(AS_TITLE_V1 ? "/ja/dev/model-lab?workbenchPerf=1" : "/ja/experiments/new?workbenchPerf=1");
+  await page.route("**/rest/v1/rpc/save_experiment_v1", route => route.abort("blockedbyclient"));
+  await page.addInitScript(() => {
+    const audit = window as unknown as ArtifactAuditWindowV3;
+    audit.performanceArtifactTickets = [];
+    const send = Worker.prototype.postMessage;
+    Worker.prototype.postMessage = function(message: unknown, ...rest: unknown[]) {
+      const request = message as { kind?: string; releaseTicket?: ArtifactAuditWindowV3["performanceArtifactTickets"][number] };
+      if (request.kind === "initialize" && request.releaseTicket) {
+        const { modelId, artifactRevisionId, artifactUrl } = request.releaseTicket;
+        audit.performanceArtifactTickets.push({ modelId, artifactRevisionId, artifactUrl });
+      }
+      return Reflect.apply(send, this, [message, ...rest]);
+    };
+  });
+  await page.goto("/ja/experiments/new?workbenchPerf=1");
   const root = page.getByTestId("v3-dockview-workbench");
   await expect(root).toBeVisible();
   await expect(root).toHaveAttribute(
@@ -165,6 +191,16 @@ test("measures exact live Workbench throughput under background contention", asy
     PERFORMANCE_EXACT_MODEL_ID,
   );
   await expect.poll(() => acceptedRevisionV3(page)).toBeGreaterThan(10);
+  // Candidate IDs remain stable between local builds. Bind measurements to
+  // the actual Worker initialization ticket and the bytes served at its URL.
+  const ticket = await page.evaluate(modelId =>
+    (window as unknown as ArtifactAuditWindowV3).performanceArtifactTickets.find(value => value.modelId === modelId),
+    PERFORMANCE_EXACT_MODEL_ID);
+  expect(ticket?.artifactRevisionId).toBe(artifactIdentity.artifactRevisionId);
+  const servedArtifact = await page.request.get(ticket!.artifactUrl);
+  expect(servedArtifact.ok()).toBe(true);
+  expect(createHash("sha256").update(await servedArtifact.body()).digest("hex"))
+    .toBe(artifactIdentity.artifactSha256);
   await ensureScenarioCountV3(page, scenarioCount);
   await expect.poll(() => acceptedRevisionV3(page)).toBeGreaterThan(20);
 
@@ -196,6 +232,9 @@ test("measures exact live Workbench throughput under background contention", asy
   );
   const report = Object.freeze({
     schema: "circleheart.workbench-performance-report.v1",
+    exactModelId: PERFORMANCE_EXACT_MODEL_ID,
+    ...artifactIdentity,
+    control: CONTROL_LABEL_V1,
     project: testInfo.project.name,
     proxy: profile.cpuThrottle === 1
       ? "native-browser-reference"
@@ -300,8 +339,9 @@ async function ensureScenarioCountV3(
   await expect(menuButtons).toHaveCount(1);
   if (AS_TITLE_V1) {
     await scenarioHost.getByRole("button", { name: "Presetから追加", exact: true }).click();
-    await page.getByRole("menu", { name: "Presetから追加", exact: true })
-      .getByRole("menuitem").filter({ hasText: AS_TITLE_V1 }).click();
+    const picker = page.getByRole("dialog", { name: "シナリオを追加", exact: true });
+    await picker.getByRole("button", { name: AS_TITLE_V1, exact: true }).click();
+    await picker.getByRole("button", { name: "Scenarioに追加", exact: true }).click();
     await expect(menuButtons).toHaveCount(2);
     if (mobile) {
       await mobileTaskDeck.getByRole("tab", { name: "出力", exact: true }).click();
@@ -338,7 +378,7 @@ async function ensureScenarioCountV3(
     await mobileTaskDeck.getByRole("tab", { name: "コントロール" }).click();
     await expect(
       mobileTaskDeck.getByRole("slider", {
-        name: "心拍数 (HR)",
+        name: "HR",
         exact: true,
       }),
     ).toBeVisible();
@@ -448,7 +488,7 @@ async function measureWindowV3(
 
 async function measureControlLatencyV3(page: Page): Promise<number> {
   const slider = page.getByRole("slider", {
-    name: "心拍数 (HR)",
+    name: CONTROL_LABEL_V1,
     exact: true,
   }).first();
   await slider.scrollIntoViewIfNeeded();

@@ -20,7 +20,7 @@ import {
 } from "@/studio/contracts/v2/release";
 import {
   importExactExecutableArtifactModuleV2,
-} from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
+} from "@/runtime/ExactExecutableArtifactModuleLoaderV2";
 import {
   admitExactModelExecutableRuntimeV2,
 } from "@/studio/infrastructure/model/ExactModelExecutableValidationV1";

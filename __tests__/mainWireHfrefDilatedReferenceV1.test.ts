@@ -6,7 +6,7 @@ import { MAIN_WIRE_HFREF_REFERENCE_V1 as oldReference, assessMainWireHfrefRestV1
 import { MAIN_WIRE_HFREF_DILATED_REFERENCE_V1 as reference, composeMainWireHfrefDilatedReferenceV1 as compose, assessMainWireHfrefDilatedRestV1 as assess } from "@/analysis/policies/mainWire/MainWireHfrefDilatedReferenceV1";
 import { measureMainWireRelaxationTauV1 as measure } from "@/analysis/methods/mainWire/MainWireRelaxationTauV1";
 import { observeMainWireHfrefCaseV2 as observe } from "@/analysis/methods/mainWire/MainWireHfrefCaseObservationV2";
-import bundle from "@/data/model-releases/standard73/bundle.json";
+import bundle from "@/data/model-releases/standard74/bundle.json";
 import type { MainWireIntegratedModelCompletedBeatMetricsV3 as Beat } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 import { resolveMainWireFittingReferenceV1 as resolve } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
 

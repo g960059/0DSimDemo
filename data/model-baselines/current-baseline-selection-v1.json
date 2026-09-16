@@ -1,10 +1,10 @@
 {
-  "baselineId": "standard73-baseline-v1",
-  "modelId": "circleheart.main-wire-integrated-transaction-v3.static-anatomy.standard-73",
-  "surfaceReleaseId": "circleheart.main-wire.surface.static-anatomy.standard-73.workbench-v1",
-  "recordSha256": "7aaebd75ec37b1d9290edab2529ab9083d549f4e1c4cd4c7b826a4b6b30f9fb3",
+  "baselineId": "standard74-baseline-v1",
+  "modelId": "circleheart.main-wire-integrated-transaction-v3.static-anatomy.standard-74",
+  "surfaceReleaseId": "circleheart.main-wire.surface.static-anatomy.standard-73.bounded-pva-v1",
+  "recordSha256": "a44b3d1f7ccc642375a1ce3ffef0cb17512acc7ff2ad6a1e58c9e1bf4fe03ef9",
   "document": {
-    "documentId": "standard73-document-v2",
-    "contentSha256": "e1f1fdfafb8898d25998fbe537daa8772e5f06f90e534624cc44ef88fc07dcf6"
+    "documentId": "standard74-document-v1",
+    "contentSha256": "8295bcf6511cabbae3f5bc9b13f4d531845afb1487c283844d312a2acba64f38"
   }
 }

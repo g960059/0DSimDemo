@@ -18,6 +18,8 @@ import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/appTheme";
 import { WorkbenchSimulationInfoV3 } from "@/components/workbench/WorkbenchSimulationInfoV3";
 import { SimulationIconButtonV3 } from "@/components/ui/SimulationIconButtonV3";
+import { SimulationLegendPlaceholderV1, SimulationPanePlaceholderV1 } from "@/components/simulation/SimulationPreparationV1";
+import { WorkbenchChartLegendRowV3 } from "@/components/workbench/presentation/WorkbenchChartTraceStyleV3";
 import type { StudioReaderContinuationV3 } from "@/studio/infrastructure/browser/StudioExperimentSessionHandoffV3";
 import { modelDocumentationHref } from "@/homeLinks";
 import { isLocale } from "@/localeRouting";
@@ -1079,6 +1081,7 @@ function ArticleReaderLiveGraphV3({
         }
       >
         <ArticleReaderPressureVolumeCanvasV3
+          axisRanges={pane.axisRanges}
           historyDepth={resolved.historyDepth}
           analysisId={
             mainWireFormalPvAnalysisIdV1(runtime.periodicPvaDerivation)
@@ -1153,7 +1156,7 @@ function ArticleReaderLiveGraphV3({
             samples: scenarioSamples,
             outputId: binding.outputId,
             signalLabel,
-            ...(presentation.inlineDisclosure
+            ...(presentation.description
               ? {
                   signalDescription: presentation.description,
                   signalDescriptionLabel:
@@ -1190,6 +1193,7 @@ function ArticleReaderLiveGraphV3({
       }
     >
       <SweepingWaveformCanvasV3
+        axisRanges={pane.axisRanges}
         activeScenarioId={activeScenarioId}
         includeZero={includeZero}
         traces={traces}
@@ -1201,6 +1205,7 @@ function ArticleReaderLiveGraphV3({
 }
 
 function ArticleReaderPressureVolumeCanvasV3({
+  axisRanges,
   analysisId,
   historyDepth,
   pressureVolumeAnalysisMode,
@@ -1211,6 +1216,7 @@ function ArticleReaderPressureVolumeCanvasV3({
 }: Readonly<{
   analysisId: string;
   historyDepth: number;
+  axisRanges?: ExperimentSurfaceGraphPaneV2["axisRanges"];
   pressureVolumeAnalysisMode:
     ExperimentSurfaceGraphPaneV2["pressureVolumeAnalysisMode"];
   showPressureEnvelope: ExperimentSurfaceGraphPaneV2["showPressureEnvelope"];
@@ -1316,6 +1322,8 @@ function ArticleReaderPressureVolumeCanvasV3({
   );
   return (
     <PressureVolumeLoopCanvasV3
+      axisRanges={axisRanges}
+      playbackRunning={runtime.state.status === "playing"}
       periodicPvaSupported={periodicPvaEnabled}
       traces={enrichedTraces}
       showPressureEnvelope={periodicPvaEnabled ? showPressureEnvelope : false}
@@ -1508,16 +1516,20 @@ export function ArticleReaderStructuralReturnGraphV3({
       data-reader-structural-scenario-count={visibleScenarios.length}
     >
       {comparisonTraces.length === 0 ? (
-        <div
+        pending || firstError === null ? <div className="flex h-full min-h-56 flex-col">
+          <WorkbenchChartLegendRowV3 updatingLabel={t("workbench.live.analysisRunning")}>
+            <SimulationLegendPlaceholderV1 />
+          </WorkbenchChartLegendRowV3>
+          <div className="min-h-0 flex-1"><SimulationPanePlaceholderV1 showLegend={false} /></div>
+        </div> : <div
           className="flex h-full min-h-56 items-center justify-center px-5 text-center text-xs leading-6 text-wb-subtle"
-          role={firstError === null ? "status" : "alert"}
+          role="alert"
         >
-          {pending
-            ? t("workbench.live.analysisRunning")
-            : (firstError ?? t("workbench.live.analysisUnavailable"))}
+          {firstError}
         </div>
       ) : (
         <GuytonStarlingComparisonCanvasV3
+          axisRanges={pane.axisRanges}
           recalculatingLabel={t("workbench.live.analysisRecalculating")}
           traces={comparisonTraces}
         />
@@ -1650,7 +1662,7 @@ export function ArticleReaderOutputsV3({
       outputId: output.outputId,
       scenarioId: output.scenarioId,
       label: presentation.label,
-      ...(presentation.inlineDisclosure
+      ...(presentation.description
         ? {
             description: presentation.description,
             descriptionAriaLabel:
@@ -1670,13 +1682,13 @@ export function ArticleReaderOutputsV3({
   const showScenarioLabels = briefing.scenarioScope.visibleScenarioIds.length > 1;
   return (
     <section
-      className={compact ? "mt-5" : "mt-8"}
+      className={compact ? "mt-3" : "mt-5"}
       aria-label={t("articleReader.outputs")}
     >
       {scenarioIds.map(scenarioId => (
-        <div key={scenarioId} className="mt-5 first:mt-0">
+        <div key={scenarioId} className="mt-3 first:mt-0">
           {showScenarioLabels && (
-            <h3 className="mb-2 text-sm font-semibold text-wb-text">
+            <h3 className="mb-1.5 text-sm font-semibold text-wb-text">
               {scenarioLabels?.[scenarioId] ?? scenarioId}
             </h3>
           )}
@@ -1884,7 +1896,7 @@ export function ArticleReaderControlV3({
     <ExperimentNumericControlV3
       contextLabel={contextLabel}
       control={definition}
-      {...(definition.changeSemantics === "cold-restart"
+      {...(presentation.description
         ? {
             description: presentation.description,
             descriptionAriaLabel:

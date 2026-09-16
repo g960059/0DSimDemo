@@ -18,6 +18,15 @@ const ids = Object.freeze(sides.flatMap(({ ventricle, valve, downstream }) => [
 ]) as Id[]);
 type Sample = Readonly<{ timeSec: number; values: Readonly<Record<string, Value>> }>;
 type Crossing = Readonly<{ timeSec: number; bracketEndSec: number; landmark: Landmark & { event: "semilunar-valve-closure" } }>;
+const owners = new WeakMap<StructuralSession, Session>();
+
+/** Exact continuation remains owned by the model; event collectors are not
+ * serialized into its checkpoint. Every subsequent load forks a new collector. */
+export function captureMainWirePressureCrossingSessionV1(session: StructuralSession) {
+  const owner = owners.get(session);
+  if (!owner) throw new Error("Pressure-crossing continuation requires its exact owner");
+  return owner.checkpoint();
+}
 
 /** Only for a quasi-steady valve: Q changes sign at ΔP=0. Interpolating the
  * signed pressure difference avoids treating a diode's first zero-flow sample
@@ -40,8 +49,14 @@ export function interpolateMainWireSemilunarClosureV1(
 /** Ephemeral analysis view; it does not mutate or relabel native beat metrics.
  * Each fixed-TBV fork owns its own event collector and the same requested dt. */
 export function wrapMainWirePressureCrossingSessionV1(source: Session, dt: .002 | .001 = .002): StructuralSession {
+  return wrapPressureCrossingSession(source, dt, true);
+}
+
+function wrapPressureCrossingSession(source: Session, dt: .002 | .001, retainDiagnosticReadback: boolean): StructuralSession {
   let previous: Sample | null = null;
-  const origin = source.currentAcceptedState().acceptedTimeSec;
+  const initial = source.currentAcceptedState();
+  const origin = initial.acceptedTimeSec;
+  const sourceTbv = initial.coronary.fixedGlobalTotalBloodVolumeMl;
   const crossings: Record<"left" | "right", Crossing[]> = { left: [], right: [] };
   const value = (sample: Sample, id: string): number => {
     const v = sample.values[id];
@@ -61,19 +76,33 @@ export function wrapMainWirePressureCrossingSessionV1(source: Session, dt: .002 
       }
     }
     previous = next;
-    const completed = source.observe().completedBeatMetrics;
-    if (completed) for (const { side } of sides) crossings[side] = crossings[side].filter(e => e.timeSec >= completed.startTimeSec);
+  };
+  // Event detection needs only projected primitives at each numerical step.
+  // Pruning needs the completed beat only at the presentation boundary, where
+  // the ordinary detached observation already exists.
+  let prunedThrough: number | undefined;
+  const observe = () => {
+    const observation = source.observe();
+    const completed = observation.completedBeatMetrics;
+    if (completed && completed.startTimeSec !== prunedThrough) {
+      for (const { side } of sides) crossings[side] = crossings[side].filter(e => e.timeSec >= completed.startTimeSec);
+      prunedThrough = completed.startTimeSec;
+    }
+    return observation;
   };
   const numerical = wrapMainWirePreloadReserveSessionV1({
-    currentAcceptedState: () => source.currentAcceptedState(), observe: () => source.observe(),
+    currentAcceptedState: () => source.currentAcceptedState(), observe,
     projectCurrentAcceptedValuesV1: outputIds => source.projectCurrentAcceptedValuesV1(outputIds),
     advanceToPresentationTime: target => {
-      const result = source.advanceToPresentationTime(target);
+      const result = !retainDiagnosticReadback && "advancePressureCrossingPresentationV1" in source
+        ? source.advancePressureCrossingPresentationV1(target)
+        : source.advanceToPresentationTime(target);
       if (result.status === "advanced") collect({ timeSec: result.acceptedTimeSec, values: source.projectCurrentAcceptedValuesV1(ids) });
       return result;
     },
     advanceToPresentationTimeWithSelectedOutputProjectionV1: (target, selected) => {
-      const result = source.advanceToPresentationTimeWithSelectedOutputProjectionV1(target, [...new Set([...ids, ...selected])]);
+      const result = source.advanceToPresentationTimeWithSelectedOutputProjectionV1(target,
+        selected.length === 0 ? ids : [...new Set([...ids, ...selected])]);
       if (result.advance.status === "advanced" && result.projectedValues !== null)
         collect({ timeSec: result.advance.acceptedTimeSec, values: result.projectedValues });
       return result;
@@ -95,13 +124,8 @@ export function wrapMainWirePressureCrossingSessionV1(source: Session, dt: .002 
       };
       return Object.freeze({ left: forSide("left"), right: forSide("right") });
   };
-  return Object.freeze({ ...numerical,
-    pressureVolumeLandmarksForBeatV1: landmarksForBeat,
-    // Only the new Surface's structural advance sees the measured landmarks.
-    // Native observe/advance, exact frames and the admitted legacy executable
-    // stay unchanged; the family consumes this ephemeral calculation view.
-    advanceStructuralAnalysisToPresentationTimeV1(target) {
-      const result = numerical.advanceToPresentationTime(target);
+  const structuralAdvance = (session: StructuralSession, target: number) => {
+      const result = session.advanceToPresentationTime(target);
       if (result.status === "failed" || result.observation.completedBeatMetrics === null) return result;
       const native = result.observation.completedBeatMetrics;
       const landmarks = landmarksForBeat(native);
@@ -111,8 +135,18 @@ export function wrapMainWirePressureCrossingSessionV1(source: Session, dt: .002 
           rightVentricularPressureVolumeLandmarks: landmarks.right,
         }),
       }) });
-    },
-    forkAtFixedGlobalTotalBloodVolume: tbv => wrapMainWirePressureCrossingSessionV1(source.forkAtFixedGlobalTotalBloodVolume(tbv), dt),
-    forkResponsiveStarlingAtFixedGlobalTotalBloodVolume: tbv => wrapMainWirePressureCrossingSessionV1(source.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(tbv), dt),
+  };
+  const wrapped: StructuralSession = Object.freeze({ ...numerical,
+    pressureVolumeLandmarksForBeatV1: landmarksForBeat,
+    // Only analysis advances see measured landmarks; native metrics are intact.
+    advanceStructuralAnalysisToPresentationTimeV1: target => structuralAdvance(numerical, target),
+    // Same-load forks settle/measure an operating anchor and need the complete
+    // step for vascular-return construction. Changed-load forks only sample PV
+    // primitives and beats. Re-entering at the same load restores diagnostics,
+    // including when a caller starts a new protocol from an existing branch.
+    forkAtFixedGlobalTotalBloodVolume: tbv => wrapPressureCrossingSession(source.forkAtFixedGlobalTotalBloodVolume(tbv), dt, tbv === sourceTbv),
+    forkResponsiveStarlingAtFixedGlobalTotalBloodVolume: tbv => wrapPressureCrossingSession(source.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(tbv), dt, tbv === sourceTbv),
   });
+  owners.set(wrapped, source);
+  return wrapped;
 }

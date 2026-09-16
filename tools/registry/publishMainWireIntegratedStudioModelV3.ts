@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import clientDescriptor from
   "@/data/model-releases/CurrentModelReleaseV1";
 import surface from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
 import { prepareCurrentModelPublicationV1, CURRENT_MODEL_PUBLICATION_FILES_V1 } from "./CurrentModelRegistryAdmissionV1";
 import {
   assertStudioReleaseStageV1,

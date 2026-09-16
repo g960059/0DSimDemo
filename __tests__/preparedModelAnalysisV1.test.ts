@@ -17,11 +17,12 @@ import { buildPreparedModelAnalysisV1 as build, readPreparedModelAnalysisV1 as r
 import * as decoder from "@/components/workbench/presentation/GuytonStarlingOrientationCanvasV3";
 import * as registry from "@/analysis/registry/RegisteredAnalysisMethodsV1";
 import * as pva from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
-import high from "@/data/model-presets/standard73/as-high-gradient-v1.json";
+import currentBundle from "@/data/model-releases/standard74/bundle.json";
+const high = currentBundle.presets[1]!;
 import { validateScenarioPresetV2 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import { prepareMainWireSurfaceAnalysisV1 as prepare, PreparedSurfaceAnalysisErrorV1 } from "@/tools/registry/PrepareMainWireSurfaceAnalysisV1";
 import { CURRENT_MODEL_PRESETS_V1 } from "@/data/model-releases/CurrentModelReleaseV1";
-import lock from "@/data/model-releases/standard73/publication.json";
+import lock from "@/data/model-releases/standard74/publication.json";
 import { REGISTERED_ANALYSIS_EXECUTOR_V1 as executor } from "@/analysis/runtime/RegisteredAnalysisExecutorV1";
 import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 vi.mock("@/analysis/runtime/RegisteredAnalysisExecutorV1", () => ({ REGISTERED_ANALYSIS_EXECUTOR_V1: { execute: vi.fn() } }));

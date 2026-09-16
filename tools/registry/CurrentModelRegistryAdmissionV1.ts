@@ -4,20 +4,16 @@ import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { canonicalJsonStringify as canonical } from "@/engine/integrity";
 import { createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as release } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
-import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
+import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
 import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurface";
 import { resolveRegisteredAnalysisMethodsV1 } from "@/analysis/registry/RegisteredAnalysisMethodsV1";
-import type bundleShape from "@/data/model-releases/standard73/bundle.json";
-import type packageShape from "@/data/model-releases/standard73/package.json";
-import type lockShape from "@/data/model-releases/standard73/publication.json";
-import type baselineShape from "@/data/model-baselines/standard73-baseline-v1.json";
-import type baselineDoc from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.json";
-import type caseDoc from "@/studio/presentation/modelDocumentation/packages/standard73-hfref-document-v2.json";
+import type lockShape from "@/data/model-releases/standard74/publication.json";
 import { validateScenarioPresetV2 } from "@/studio/application/authoring/StudioExperimentDataV2";
+import { readPreparedModelAnalysisV1 } from "@/components/workbench/presentation/PreparedModelAnalysisV1";
 
 export const CURRENT_MODEL_PUBLICATION_FILES_V1 = {
-  artifact: "data/model-releases/standard73/artifact.mjs.txt",
-  lock: "data/model-releases/standard73/publication.json",
+  artifact: "data/model-releases/standard74/artifact.mjs.txt",
+  lock: "data/model-releases/standard74/publication.json",
 } as const;
 const sha = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
 const same = (a: unknown, b: unknown, label: string) => {
@@ -27,9 +23,9 @@ function requireProof(condition: unknown, issue: string): asserts condition {
   if (!condition) throw new Error(`Current model admission rejected: ${issue}`);
 }
 
-/** Publication reuses the content-fixed, independently reviewed two-case
- * qualification. It checks own captures and current bindings, not a fresh
- * scientific vote or a rerun of the archived cold-grid experiments. */
+/** A fixed reviewed package, not a hash-generated scientific approval. A new
+ * exact identity requalifies its own launches and inherits the current Surface.
+ * Registry publication/activation remain explicit, separate operations. */
 export async function prepareCurrentModelPublicationV1(root: string, input: Readonly<{
   artifact: Uint8Array; lockJson: string; expectedModelId: string;
 }>) {
@@ -37,34 +33,49 @@ export async function prepareCurrentModelPublicationV1(root: string, input: Read
   const read = (p: string) => readFileSync(resolve(root, p), "utf8");
   const lock = JSON.parse(read(CURRENT_MODEL_PUBLICATION_FILES_V1.lock)) as typeof lockShape;
   same(JSON.parse(lockJson), lock, "admission lock differs from complete qualification");
-  const rawPackage = read("data/model-releases/standard73/package.json");
-  // Both review decisions and complete numerical/Worker evidence are retained
-  // in this archive. A new case, state or artifact cannot self-approve a hash.
-  requireProof(sha(rawPackage) === "bedb4198cf4d15fc31993db5d59e7e8925866b36935484ec951788c2dddc5fc0"
+  const rawPackage = read("data/model-releases/standard74/package.json");
+  requireProof(sha(rawPackage) === "28dfc475c562cce5871934c465e142aa27c1209d04c2a4e54b015e6351213061"
     && sha(rawPackage) === lock.reviewedLocalPackageSha256, "reviewed local package changed");
-  const reviewed = JSON.parse(rawPackage) as typeof packageShape;
+  const reviewed = JSON.parse(rawPackage);
   const evidencePath = resolve(root, reviewed.workerEvidence.path);
-  requireProof(sha(readFileSync(evidencePath)) === "b1701c6f60988805b403ad68d70b1fcb442b0ddd94e9018d83ffbeddc9b34162"
-    && lock.reviewedEvidenceArchiveSha256 === "b1701c6f60988805b403ad68d70b1fcb442b0ddd94e9018d83ffbeddc9b34162", "reviewed evidence archive changed");
+  const evidenceSha = sha(readFileSync(evidencePath));
+  requireProof(evidenceSha === "013a304bdde48a0e6607cbab27bec07ad67a5defaa30d373035a731dee502406"
+    && evidenceSha === lock.reviewedEvidenceArchiveSha256, "reviewed evidence archive changed");
   const worker = execFileSync("tar", ["-xOzf", evidencePath, "./" + reviewed.workerEvidence.entry]);
   requireProof(sha(worker) === reviewed.workerEvidence.sha256, "Worker evidence binding");
-  const bundle = JSON.parse(read("data/model-releases/standard73/bundle.json")) as typeof bundleShape;
+  const workerReport = JSON.parse(worker.toString("utf8"));
+  requireProof(workerReport.modelId === lock.modelId && workerReport.artifactRevisionId === lock.artifactRevisionId
+    && workerReport.artifactSha256 === lock.artifactSha256, "Worker exact artifact identity");
+  same(workerReport.projects.map((p: { project: string }) => p.project).sort(),
+    ["desktop-chromium", "desktop-webkit"], "independent browser Worker coverage");
+  for (const project of workerReport.projects) {
+    requireProof(project.artifactSha256 === lock.artifactSha256 && project.artifactRevisionId === lock.artifactRevisionId,
+      "per-browser Worker artifact binding");
+    same(project.cases.map((c: { presetId: string }) => c.presetId).sort(), lock.cases.map(c => c.presetId).sort(), "Worker case coverage");
+    requireProof(project.cases.every((c: { status: string; comparedSteps: number }) => c.status === "passed" && c.comparedSteps >= 640),
+      "restored Worker continuation coverage");
+  }
+  const bundle = JSON.parse(read("data/model-releases/standard74/bundle.json"));
   const { recordSha256, ...body } = bundle;
   requireProof(sha(canonical(body)) === recordSha256 && recordSha256 === reviewed.bundleSha256
     && recordSha256 === lock.bundleSha256, "qualified bundle changed");
   const exact = release(), manifest = exact.manifest;
   requireProof(input.expectedModelId === manifest.modelId && manifest.modelId === lock.modelId
     && manifest.modelId === reviewed.modelId, "unsupported modelId");
-  same(manifest, bundle.manifest, "exact manifest changed"); same(surface, bundle.surface, "Surface/analysis pins changed");
+  same(manifest, bundle.manifest, "exact manifest changed");
+  same(surface, bundle.surface, "Surface/analysis pins changed");
   requireProof(surface.surfaceReleaseId === lock.surfaceReleaseId, "Surface identity");
-  const model = composeStandardModelContractV1(manifest, surface, resolveRegisteredAnalysisMethodsV1(surface).capabilities).contract;
+  const methods = resolveRegisteredAnalysisMethodsV1(surface);
+  const model = composeStandardModelContractV1(manifest, surface, methods.capabilities).contract;
   const artifactSha256 = sha(artifact);
   requireProof(artifactSha256 === reviewed.artifactSha256 && artifactSha256 === lock.artifactSha256, "artifact differs from qualification");
   const manifestBytes = Buffer.from(canonical(manifest)), lengths = Buffer.alloc(8);
   lengths.writeUInt32BE(manifestBytes.length, 0); lengths.writeUInt32BE(artifact.length, 4);
   requireProof(sha(Buffer.concat([lengths, manifestBytes, artifact])) === lock.artifactRevisionId
     && lock.artifactRevisionId === reviewed.artifactRevisionId, "artifact revision binding");
-  const baseline = JSON.parse(read("data/model-baselines/standard73-baseline-v1.json")) as typeof baselineShape;
+  // This is a new model, not a same-model bit-equivalent artifact replacement.
+  requireProof(lock.predecessorArtifactRevisionId === null && lock.equivalenceReportSha256 === null, "new exact identity admission");
+  const baseline = JSON.parse(read("data/model-baselines/standard74-baseline-v1.json"));
   const { recordSha256: baselineSha, ...baselineBody } = baseline;
   requireProof(sha(canonical(baselineBody)) === baselineSha && baselineSha === lock.baselineRecordSha256, "baseline record");
   same(baseline.capture, bundle.baseline.capture, "baseline launch capture");
@@ -76,29 +87,35 @@ export async function prepareCurrentModelPublicationV1(root: string, input: Read
   requireProof(baseline.modelId === lock.modelId && baseline.surfaceReleaseId === lock.surfaceReleaseId
     && baseline.artifactSha256 === artifactSha256 && baseline.artifactRevisionId === lock.artifactRevisionId, "baseline release identity");
   const presets = [bundle.baseline, ...bundle.presets].map(validateScenarioPresetV2);
-  requireProof(lock.cases.length === presets.length && presets.length === reviewed.cases.length, "case inventory");
-  // Snapshot every document before asynchronous exact-owner validation.
-  const docs = lock.cases.map(c => JSON.parse(read(`studio/presentation/modelDocumentation/packages/${c.documentId}.json`))) as [typeof baselineDoc, typeof caseDoc];
+  requireProof(lock.cases.length === presets.length && presets.length === reviewed.cases.length
+    && presets.length === 4, "case inventory");
   for (const [i, preset] of presets.entries()) {
-    const c = lock.cases[i]!, approved = reviewed.cases[i]!, doc = docs[i]!;
+    const c = lock.cases[i]!, approved = reviewed.cases[i]!;
+    same(c, approved, "reviewed case binding");
+    const doc = JSON.parse(read(`studio/presentation/modelDocumentation/packages/${c.documentId}.json`));
     const { contentSha256, ...documentBody } = doc;
     requireProof(sha(JSON.stringify(documentBody)) === contentSha256 && contentSha256 === c.documentSha256
       && doc.documentId === c.documentId && doc.identity.modelId === model.modelId
       && doc.identity.surfaceReleaseId === surface.surfaceReleaseId
-      && doc.identity.baselineId === preset.presetId && preset.presetId === c.presetId
-      && preset.presetId === approved.presetId, "case document identity/digest");
-    const payload = preset.capture.checkpoint.payload as unknown as typeof bundle.baseline.capture.checkpoint.payload;
-    requireProof(payload.checkpointSha256 === approved.checkpointSha256 && payload.checkpointSha256 === c.checkpointSha256, "case checkpoint");
-    same(doc.scientificRecord.measurements.construction, payload.construction, "document construction");
-    const prior = JSON.parse(read(`studio/presentation/modelDocumentation/packages/${approved.documentId}.json`));
-    same(doc.scientificRecord.measurements.observations, prior.scientificRecord.measurements.observations, "reviewed observations changed");
+      && doc.identity.baselineId === preset.presetId && preset.presetId === c.presetId, "case document identity/digest");
+    const m = doc.scientificRecord.measurements;
+    same(m.launch.preset, preset, "case document capture");
+    requireProof(preset.capture.checkpoint !== undefined
+      && (preset.capture.checkpoint.payload as { checkpointSha256?: string }).checkpointSha256 === c.checkpointSha256,
+    "case checkpoint");
+    requireProof(m.launch.binding.priorCheckpointImported === false
+      && m.launch.continuation.completeFramesAndTerminalCaptureEqual === true, "own cold launch continuation");
+    const receipt = m.formalReview;
+    requireProof(receipt.gate === "1-of-2" && receipt.status === "accepted"
+      && receipt.sourceDossierSha256 === c.sourceDossierSha256
+      && receipt.decisions.length === 2 && new Set(receipt.decisions.map((r: { reviewer: string }) => r.reviewer)).size === 2
+      && receipt.decisions.some((r: { vote: string }) => r.vote === "accept"), "scientific adoption reviews");
+    same(receipt.decisions, c.reviews, "document review decisions");
+    const prepared = JSON.parse(read(`data/model-analysis/prepared/${methods.periodicPvaDerivation!.sourceAnalysisId}/${methods.periodicPvaDerivation!.methodId}/${c.preparedAnalysis.file}`));
+    requireProof(prepared.recordSha256 === c.preparedAnalysis.recordSha256, "prepared analysis digest");
+    await readPreparedModelAnalysisV1(prepared, { modelId: model.modelId, artifactRevisionId: lock.artifactRevisionId, capture: preset.capture, surface });
+    if (i === 0) same(baseline.document, { documentId: c.documentId, contentSha256 }, "baseline document");
+    await exact.executables.captureAdapter.validateCapture({ model, capture: preset.capture });
   }
-  const m = docs[0].scientificRecord.measurements, o = m.observations[0]!;
-  same(baseline.document, { documentId: docs[0].documentId, contentSha256: docs[0].contentSha256 }, "baseline document");
-  same(baseline.assessment, { rest: o.rest, native: o.native,
-    tau: { weiss: { tauMs: o.tau.weiss.tauMs }, glantz: { tauMs: o.tau.glantz.tauMs } },
-    beat: bundle.baseline.capture.checkpoint.payload.base.completedBeatMetrics,
-    reserveVerified: m.admission.reserve.status === "passed" }, "baseline assessment readback");
-  for (const preset of presets) await exact.executables.captureAdapter.validateCapture({ model, capture: preset.capture });
   return { artifact, manifest, defaultFixture: bundle.baseline.capture.fixture, lock, artifactSha256 };
 }

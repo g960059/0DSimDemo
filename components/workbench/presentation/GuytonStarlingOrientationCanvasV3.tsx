@@ -1,7 +1,7 @@
 import React from "react";
+import { workbenchManualChartDomainV3 } from "./WorkbenchManualChartDomainV3";
 import { useAppTheme } from "@/appTheme";
 import { useTranslation } from "react-i18next";
-import { LoaderCircle } from "lucide-react";
 import { workbenchLoadRelationDescriptionV1 } from "./WorkbenchLoadRelationDescriptionV1";
 import { WorkbenchAnalysisErrorPopoverV3 } from "./WorkbenchAnalysisErrorPopoverV3";
 
@@ -300,13 +300,17 @@ export function GuytonStarlingOrientationCanvasV3({
 }
 
 export function GuytonStarlingComparisonCanvasV3({
+  axisRanges,
   traces,
   className,
+  legendActions,
   onRetryAnalysis,
   recalculatingLabel = "Recalculating Guyton / Starling",
 }: Readonly<{
   traces: readonly GuytonStarlingComparisonTraceV3[];
+  axisRanges?: import("@/studio/contracts/v2/content").ExperimentGraphAxisRangesV2;
   className?: string;
+  legendActions?: React.ReactNode;
   onRetryAnalysis?: () => boolean;
   recalculatingLabel?: string;
 }>) {
@@ -337,8 +341,15 @@ export function GuytonStarlingComparisonCanvasV3({
   const selection = visibleTraces.some((trace) =>
     workbenchLegendSelectionMatchesTraceV3(hoveredSelection, descriptor(trace))) ? hoveredSelection : null;
   const domain = React.useMemo(
-    () => guytonStarlingComparisonPlotDomainV3(visibleTraces.length === 0 ? traces : visibleTraces),
-    [traces, hiddenSelections],
+    () => {
+      const automatic = guytonStarlingComparisonPlotDomainV3(visibleTraces.length === 0 ? traces : visibleTraces);
+      const [pressureMinimumMmHg, pressureMaximumMmHg] = workbenchManualChartDomainV3(
+        [automatic.pressureMinimumMmHg, automatic.pressureMaximumMmHg], axisRanges?.x);
+      const [flowMinimumLPerMin, flowMaximumLPerMin] = workbenchManualChartDomainV3(
+        [automatic.flowMinimumLPerMin, automatic.flowMaximumLPerMin], axisRanges?.y);
+      return { ...automatic, pressureMinimumMmHg, pressureMaximumMmHg, flowMinimumLPerMin, flowMaximumLPerMin };
+    },
+    [traces, hiddenSelections, axisRanges],
   );
   const draw = React.useCallback(
     (context: CanvasRenderingContext2D, width: number, height: number) => {
@@ -425,7 +436,6 @@ export function GuytonStarlingComparisonCanvasV3({
   const singleProgress =
     traces.length === 1 ? starlingProgressV3(firstTrace.orientation) : null;
   const pendingTraces = traces.filter(({ pending }) => pending === true);
-  const hasPrevious = visibleTraces.some(trace => trace.stale || (trace.historyOrientations?.length ?? 0) > 0);
   const staleLabels = visibleTraces.filter(trace => trace.stale).map(trace => trace.scenarioLabel);
   const analysisError = visibleTraces.filter(trace => trace.error).map(trace => `${trace.scenarioLabel}: ${trace.error}`).join("\n");
   return (
@@ -454,17 +464,14 @@ export function GuytonStarlingComparisonCanvasV3({
       data-flow-minimum-l-per-min={domain.flowMinimumLPerMin}
       data-flow-maximum-l-per-min={domain.flowMaximumLPerMin}
     >
-      <WorkbenchChartLegendV3 model={legend} selection={selection} hiddenSelections={hiddenSelections}
+      <WorkbenchChartLegendV3 actions={legendActions} model={legend} selection={selection} hiddenSelections={hiddenSelections}
+        updatingLabel={pendingTraces.length > 0
+          ? `${recalculatingLabel} ${pendingTraces.map(trace => trace.scenarioLabel).join(", ")}` : undefined}
         onHoverSelection={setSelection} onToggleSelection={() => undefined}
         onToggleVisibility={(candidate) => setHiddenSelections((current) =>
           current.some((item) => JSON.stringify(item) === JSON.stringify(candidate))
             ? current.filter((item) => JSON.stringify(item) !== JSON.stringify(candidate))
             : [...current, candidate])} />
-      {hasPrevious && <div className="flex items-center gap-1.5 px-3 pb-0.5 text-[10px] text-wb-subtle" data-chart-history-key="true">
-        <span aria-hidden="true" className="w-4 border-t border-current opacity-40" />
-        <span>{i18n.language?.startsWith("ja") ? "薄い線：変更前" : "Faded: previous inputs"}</span>
-        {staleLabels.length > 0 && <span className="sr-only">{staleLabels.join(", ")}: {i18n.language?.startsWith("ja") ? "現在の条件の解析はまだありません。変更前の結果です。" : "No current analysis; showing previous input conditions."}</span>}
-      </div>}
       <div ref={containerRef} className="relative min-h-0 flex-1 overflow-hidden">
       <canvas
         ref={canvasRef}
@@ -475,54 +482,6 @@ export function GuytonStarlingComparisonCanvasV3({
       {analysisError && <WorkbenchAnalysisErrorPopoverV3 error={analysisError} onRetry={onRetryAnalysis}
         label={i18n.language?.startsWith("ja") ? "解析を更新できませんでした" : "Analysis update unavailable"}
         testId="workbench-structural-analysis-error" />}
-      {pendingTraces.length > 0 && traces.length > 1 && (
-        <div
-          className="pointer-events-none absolute right-2 top-2 flex gap-2 text-[10px] text-wb-muted"
-        >
-          {pendingTraces.map((trace) => (
-            <span
-              key={trace.scenarioId}
-              className="inline-flex items-center gap-1 whitespace-nowrap"
-            >
-              {trace.pending === true && (
-                <span
-                  className="pointer-events-auto inline-flex text-wb-accent"
-                  data-scenario-analysis-pending="true"
-                  role="status"
-                  title={recalculationAccessibleLabelV3(
-                    trace,
-                    recalculatingLabel,
-                  )}
-                >
-                  <LoaderCircle
-                    className="h-3 w-3 animate-spin motion-reduce:animate-none"
-                    aria-hidden="true"
-                  />
-                  <span className="sr-only">
-                    {recalculationAccessibleLabelV3(trace, recalculatingLabel)}
-                  </span>
-                </span>
-              )}
-            </span>
-          ))}
-        </div>
-      )}
-      {traces.length === 1 && firstTrace.pending === true && (
-        <span
-          className="pointer-events-auto absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center text-wb-accent"
-          data-scenario-analysis-pending="true"
-          role="status"
-          title={recalculationAccessibleLabelV3(firstTrace, recalculatingLabel)}
-        >
-          <LoaderCircle
-            className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none"
-            aria-hidden="true"
-          />
-          <span className="sr-only">
-            {recalculationAccessibleLabelV3(firstTrace, recalculatingLabel)}
-          </span>
-        </span>
-      )}
       <div className="sr-only">
         {traces.map((trace) => (
           <span
@@ -532,7 +491,7 @@ export function GuytonStarlingComparisonCanvasV3({
             data-starling-pending={trace.pending === true ? "true" : "false"}
             data-starling-stale={trace.stale ? "true" : "false"}
           >
-            {trace.scenarioLabel}: {starlingStatusTextV3(trace.orientation)}
+            {trace.scenarioLabel}: {starlingStatusTextV3(trace.orientation, i18n.language?.startsWith("ja") === true)}
           </span>
         ))}
       </div>
@@ -541,15 +500,6 @@ export function GuytonStarlingComparisonCanvasV3({
   );
 }
 
-function recalculationAccessibleLabelV3(
-  trace: GuytonStarlingComparisonTraceV3,
-  recalculatingLabel: string,
-): string {
-  const progress = starlingProgressV3(trace.orientation);
-  return progress.completed === undefined
-    ? `${recalculatingLabel}: ${trace.scenarioLabel}`
-    : `${recalculatingLabel}: ${trace.scenarioLabel}, ${progress.completed} points`;
-}
 
 function drawOrientationV3(
   context: CanvasRenderingContext2D,
@@ -676,19 +626,18 @@ function starlingProgressV3(
 
 function starlingStatusTextV3(
   orientation: MainWireIntegratedModelStructuralReturnOrientationV3,
+  japanese: boolean,
 ): string {
   const locus = orientation.starlingLocus;
   if (locus.status === "measured-fixed-tbv-protocol") {
-    const progress =
-      locus.completedPointCount === locus.totalPointCount
-        ? `${locus.completedPointCount} settled points`
-        : `${locus.completedPointCount} settled points; extending adaptively`;
-    return `Shared settled fixed-tone TBV family, ${progress}; reused by ESPVR, EDPVR, and PVA`;
+    return japanese
+      ? `Starling曲線：${locus.completedPointCount}条件の計算結果`
+      : `Starling curve: results from ${locus.completedPointCount} conditions`;
   }
   if (locus.status === "responsive-fixed-tbv-preview") {
-    return `Responsive fixed-TBV Starling preview, ${locus.completedPointCount}/${locus.totalPointCount} points; the center is locally period-1 settled and off-centre points remain preview data`;
+    return japanese ? "Starling曲線：概形を表示中" : "Starling curve: preliminary outline";
   }
-  return "Starling locus not shown; exact fixed-TBV fork protocol required";
+  return japanese ? "Starling曲線の計算結果はありません" : "Starling curve results are unavailable";
 }
 
 type PlotPointV3 = Readonly<{

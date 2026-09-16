@@ -109,9 +109,15 @@ jobs:
           CIRCLEHEART_FAST_TEST_BUDGET_MS: 300000
 
   browser:
-    name: Workbench browser smoke
+    name: Workbench browser smoke (${{ matrix.project }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Keep one numerical test Worker per machine, but do not make all three
+    # device/browser projects consume the same 15-minute job budget.
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [desktop-chromium, mobile-chromium, desktop-webkit]
 
     steps:
       - name: Checkout
@@ -137,13 +143,16 @@ jobs:
         run: npm run build -- --mode test
 
       - name: Run desktop and mobile Workbench smoke
-        run: npm run test:browser
+        run: npm run test:browser -- --project=${{ matrix.project }}
+        env:
+          # This build is deliberately browser-local, including save/reload tests.
+          CIRCLEHEART_E2E_DIST: dist
 
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.project }}
           path: playwright-report
           if-no-files-found: ignore
           retention-days: 7
@@ -188,6 +197,17 @@ jobs:
       - name: Start local Supabase
         run: supabase start
 
+      - name: Setup Node for authored-state succession regression
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Verify atomic authored-state migration and rollback
+        run: CIRCLEHEART_TEST_SUCCESSOR_SQL=1 npx vitest run __tests__/authoredModelSuccessorV1.test.ts
+
       - name: Run database tests
         run: supabase test db --local supabase/tests/database
 
@@ -229,6 +249,7 @@ jobs:
       - hygiene
       - build
       - browser
+      - public-content-browser
       - supabase
       - current-model
       - test
@@ -243,6 +264,7 @@ jobs:
           HYGIENE_RESULT: ${{ needs.hygiene.result }}
           BUILD_RESULT: ${{ needs.build.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
+          PUBLIC_CONTENT_BROWSER_RESULT: ${{ needs.public-content-browser.result }}
           SUPABASE_RESULT: ${{ needs.supabase.result }}
           CURRENT_MODEL_RESULT: ${{ needs.current-model.result }}
           TEST_RESULT: ${{ needs.test.result }}
@@ -253,6 +275,7 @@ jobs:
             "Repository hygiene:$HYGIENE_RESULT" \
             "Build:$BUILD_RESULT" \
             "Workbench browser smoke:$BROWSER_RESULT" \
+            "Public content browser smoke:$PUBLIC_CONTENT_BROWSER_RESULT" \
             "Supabase schema and policy tests:$SUPABASE_RESULT" \
             "Current model registry admission:$CURRENT_MODEL_RESULT" \
             "Test:$TEST_RESULT" \

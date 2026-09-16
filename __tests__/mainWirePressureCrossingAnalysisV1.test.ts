@@ -14,12 +14,12 @@ import type { AnalysisExecutorV1 } from "@/analysis/contracts/AnalysisExecutionV
 import current from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 import candidate from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV4";
 import { CURRENT_MODEL_PRESETS_V1 } from "@/data/model-releases/CurrentModelReleaseV1";
-import high from "@/data/model-presets/standard73/as-high-gradient-v1.json";
-import low from "@/data/model-presets/standard73/as-low-flow-v1.json";
-import lock from "@/data/model-releases/standard73/publication.json";
+import currentBundle from "@/data/model-releases/standard74/bundle.json";
+const high = currentBundle.presets[1]!, low = currentBundle.presets[2]!;
+import lock from "@/data/model-releases/standard74/publication.json";
 import type { MainWireIntegratedStudioSelectedAorticOutflowFixtureV1 as Fixture,
   createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as Factory } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
-import { importExactExecutableArtifactModuleV2 as importArtifact } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
+import { importExactExecutableArtifactModuleV2 as importArtifact } from "@/runtime/ExactExecutableArtifactModuleLoaderV2";
 import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurface";
 import { validateScenarioPresetV2 } from "@/studio/application/authoring/StudioExperimentDataV2";
 
@@ -27,6 +27,65 @@ const tier = hotPathIntegrityTierV1();
 afterEach(() => selectHotPathIntegrityTierV1(tier));
 
 describe("analysis-owned quasi-steady semilunar closure", () => {
+  it("serializes same-realm async tier ownership and releases it after failures", async () => {
+    selectHotPathIntegrityTierV1("full-invariant");
+    const rejections: ((error: Error) => void)[] = [];
+    const restore = vi.spyOn(Session, "restore").mockImplementation(async () => {
+      expect(hotPathIntegrityTierV1()).toBe("hot-path-lean");
+      return new Promise<Session>((_resolve, reject) => { rejections.push(reject); });
+    });
+    const input = { source: { acceptedFrame: { modelId: high.modelId, runtimeSessionId: "physical", scenarioId: "high",
+      inputEpoch: 1, acceptedRevision: high.capture.checkpoint.acceptedRevision, acceptedTimeSec: high.capture.checkpoint.acceptedTimeSec, outputs: {} },
+      surfaceRelease: candidate, capture: async () => ({ artifactRevisionId: supportedArtifact, scenario: high.capture }), legacyExact: null },
+      request: { runtimeSessionId: "physical", scenarioId: "high", analysisId, expectedInputEpoch: 1,
+        expectedAcceptedRevision: high.capture.checkpoint.acceptedRevision, expectedAcceptedTimeSec: high.capture.checkpoint.acceptedTimeSec },
+    } as Parameters<AnalysisExecutorV1["execute"]>[0];
+    try {
+      const first = execute(input).catch(error => error);
+      const second = execute(input).catch(error => error);
+      await vi.waitFor(() => expect(restore).toHaveBeenCalledTimes(1));
+      expect(hotPathIntegrityTierV1()).toBe("hot-path-lean");
+      rejections[0]!(new Error("first stopped"));
+      expect((await first).message).toBe("first stopped");
+      await vi.waitFor(() => expect(restore).toHaveBeenCalledTimes(2));
+      expect(hotPathIntegrityTierV1()).toBe("hot-path-lean");
+      rejections[1]!(new Error("second stopped"));
+      expect((await second).message).toBe("second stopped");
+      expect(hotPathIntegrityTierV1()).toBe("full-invariant");
+    } finally { restore.mockRestore(); }
+  });
+
+  it("opts into candidate sampling without dropping the anchor diagnostic readback", () => {
+    const { source } = syntheticClosureSource();
+    const ordinary = vi.spyOn(source, "advanceToPresentationTime");
+    const lean = vi.fn(source.advanceToPresentationTime.bind(source));
+    const candidate = Object.assign(source, { advancePressureCrossingPresentationV1: lean });
+    vi.spyOn(candidate, "forkResponsiveStarlingAtFixedGlobalTotalBloodVolume").mockReturnValue(candidate);
+    const wrapped = wrap(candidate);
+    wrapped.advanceStructuralAnalysisToPresentationTimeV1!(.01);
+    expect(ordinary).toHaveBeenCalledOnce(); expect(lean).not.toHaveBeenCalled();
+    wrapped.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(4000).advanceStructuralAnalysisToPresentationTimeV1!(.02);
+    expect(lean).toHaveBeenCalledOnce();
+  });
+
+  it("reads full observations only on presentation boundaries, not on every crossing sample", () => {
+    const { source } = syntheticClosureSource();
+    const times: number[] = [];
+    const observe = source.observe.bind(source);
+    vi.spyOn(source, "observe").mockImplementation(() => {
+      const result = observe(); times.push(result.acceptedState.acceptedTimeSec); return result;
+    });
+    const snapshot = vi.spyOn(source, "currentAcceptedState");
+    const session = wrap(source);
+    snapshot.mockClear();
+    session.advanceStructuralAnalysisToPresentationTimeV1!(.01);
+    expect(times.length).toBeGreaterThan(0);
+    expect(times.every(time => time === 0 || time === .01)).toBe(true);
+    expect(session.currentAcceptedState()).toBeDefined();
+    expect(snapshot).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
   it("rejects unpinned, stale and unsupported artifact requests before running a numerical family", async () => {
     const capture = vi.fn(async () => ({ artifactRevisionId: "wrong", scenario: high.capture }));
     const input = { source: { acceptedFrame: { modelId: high.modelId, runtimeSessionId: "physical", scenarioId: "high",
@@ -150,7 +209,7 @@ describe("analysis-owned quasi-steady semilunar closure", () => {
   it.each([...CURRENT_MODEL_PRESETS_V1, validateScenarioPresetV2(high), validateScenarioPresetV2(low)])(
     "matches the admitted artifact for a complete continuation: $title", async preset => {
       selectHotPathIntegrityTierV1("hot-path-lean");
-      const bytes = new Uint8Array(readFileSync("data/model-releases/standard73/artifact.mjs.txt"));
+      const bytes = new Uint8Array(readFileSync("data/model-releases/standard74/artifact.mjs.txt"));
       expect(createHash("sha256").update(bytes).digest("hex")).toBe(lock.artifactSha256);
       expect(supportedArtifact).toBe(lock.artifactRevisionId);
       const namespace = await importArtifact(bytes), release = await (namespace.createCircleHeartExactModelReleaseV1 as typeof Factory)();
@@ -186,7 +245,9 @@ function syntheticClosureSource({ crossing = true, missingId, origin = 0, closur
   const beat = { startTimeSec: 0, endTimeSec: .01, leftVentricularPressureVolumeLandmarks: landmarks,
     rightVentricularPressureVolumeLandmarks: landmarks, leftVentricularValveEventMetrics: { endSystolic: { timeSec: closureTime } },
     rightVentricularValveEventMetrics: { endSystolic: { timeSec: closureTime } } } as unknown as ObservedBeat;
-  const observe = () => ({ completedBeatMetrics: time >= .01 - 1e-12 ? beat : null });
+  const observe = () => ({ acceptedState: Object.freeze({ acceptedTimeSec: time, revision,
+    coronary: { fixedGlobalTotalBloodVolumeMl: 5600 } }),
+    completedBeatMetrics: time >= .01 - 1e-12 ? beat : null });
   const values = (ids: readonly string[]) => Object.fromEntries(ids.map(id => {
     if (id === missingId) return [id, { availability: "unavailable" }];
     const before = time < .004 - 1e-12;
@@ -201,7 +262,7 @@ function syntheticClosureSource({ crossing = true, missingId, origin = 0, closur
       internalAcceptedSubstepCount: 1, observation: observe() };
   };
   const fork = () => syntheticClosureSource({ crossing, missingId, origin: time, closureTime }).source;
-  return { beat, source: { currentAcceptedState: () => ({ acceptedTimeSec: time, revision }), observe,
+  return { beat, source: { currentAcceptedState: () => observe().acceptedState, observe,
     projectCurrentAcceptedValuesV1: values, advanceToPresentationTime: advance,
     advanceToPresentationTimeWithSelectedOutputProjectionV1: (target: number, ids: readonly string[]) =>
       ({ advance: advance(target), projectedValues: values(ids) }),

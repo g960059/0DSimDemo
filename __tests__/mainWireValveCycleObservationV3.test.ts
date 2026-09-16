@@ -4,7 +4,7 @@ import { observeMainWireBaselineV2 as legacy } from "@/analysis/methods/mainWire
 import { observeMainWireHfrefCaseV3 as hfref } from "@/analysis/methods/mainWire/MainWireHfrefCaseObservationV3";
 import { assessMainWireHfrefDilatedRestV1 as assess } from "@/analysis/policies/mainWire/MainWireHfrefDilatedReferenceV1";
 import { scoreMainWireCaseFittingResultV1 as score } from "@/analysis/methods/mainWire/MainWireCaseFittingSearchV1";
-import bundle from "@/data/model-releases/standard73/bundle.json";
+import bundle from "@/data/model-releases/standard74/bundle.json";
 import type { MainWireIntegratedModelCompletedBeatMetricsV3 as Beat } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 
 // Synthetic event/pressure traces, not a physiological simulation or validation.

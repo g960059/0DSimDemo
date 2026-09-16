@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(8);
+select plan(10);
 
 select ok(
   not studio.operation_request_fingerprint_v1(
@@ -82,6 +82,31 @@ select ok(
   ),
   'Anonymous immutable storage has a quota gate'
 );
+
+-- Exercise the deployed shape constraint without depending on auth/model
+-- fixtures or inserting durable content into the actual repository.
+create temporary table scenario_count_probe (model_id text, content jsonb);
+do $$
+declare shape_check text;
+begin
+  select pg_get_expr(conbin, conrelid) into strict shape_check
+  from pg_constraint
+  where conrelid = 'studio.experiment_contents'::regclass
+    and conname = 'experiment_contents_object';
+  execute 'alter table scenario_count_probe add constraint scenario_count_probe_shape check (' || shape_check || ')';
+end $$;
+
+select lives_ok($$
+  insert into scenario_count_probe values ('model/test', jsonb_build_object(
+    'modelId', 'model/test',
+    'scenarios', (select jsonb_agg(jsonb_build_object('scenarioId', 'baseline-' || n)) from generate_series(1, 5) as n),
+    'surface', '{}'::jsonb
+  ))
+$$, 'Five independent Scenarios are accepted by the content shape constraint');
+
+select throws_ok($$
+  insert into scenario_count_probe values ('model/test', '{"modelId":"model/test","scenarios":[],"surface":{}}'::jsonb)
+$$, '23514', null, 'At least one Scenario is still required');
 
 select * from finish();
 

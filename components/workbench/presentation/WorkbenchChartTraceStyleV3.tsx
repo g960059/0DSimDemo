@@ -1,8 +1,14 @@
 import React from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { SimulationUpdatingIndicatorV1 } from "@/components/simulation/SimulationPreparationV1";
 
 import {
   WorkbenchItemDescriptionPopoverV3,
 } from "./WorkbenchItemDescriptionPopoverV3";
+import {
+  mixOpaqueWorkbenchCanvasColorV3,
+} from "./WorkbenchCanvasRuntimeV3";
 
 export type WorkbenchScenarioTraceIdentityV3 = Readonly<{
   scenarioId: string;
@@ -63,6 +69,35 @@ export function drawWorkbenchMeasuredPointV3(
   context.lineWidth = 1.5;
   context.setLineDash([]);
   context.stroke();
+  context.restore();
+}
+
+/** Moving trace head: the Canvas-colored outer disc erases the line beneath,
+ * leaving a visible gap around a solid circle in the trace color. */
+export function drawWorkbenchLeadingCapV3(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  color: string,
+  canvasColor: string,
+  traceAlpha = 1,
+): void {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  context.save();
+  context.setLineDash([]);
+  context.globalAlpha = 1;
+  context.fillStyle = canvasColor;
+  context.beginPath();
+  context.arc(x, y, 5, 0, Math.PI * 2);
+  context.fill();
+  context.fillStyle = mixOpaqueWorkbenchCanvasColorV3(
+    color,
+    canvasColor,
+    traceAlpha,
+  );
+  context.beginPath();
+  context.arc(x, y, 3.25, 0, Math.PI * 2);
+  context.fill();
   context.restore();
 }
 
@@ -170,7 +205,70 @@ export function workbenchLegendTraceHiddenV3(
     workbenchLegendSelectionMatchesTraceV3(selection, trace));
 }
 
-export function WorkbenchChartLegendV3({
+export function WorkbenchChartLegendRowV3({ children, actions, updatingLabel }: Readonly<{
+  children?: React.ReactNode;
+  actions?: React.ReactNode;
+  updatingLabel?: string;
+}>) {
+  return (
+    <div className="flex shrink-0 items-start gap-2 px-3" data-chart-legend-row="true">
+      <div className="min-w-0 flex-1">{children}</div>
+      {(actions != null || updatingLabel !== undefined) && <div className="pointer-events-auto flex shrink-0 items-center" data-chart-legend-actions="true">
+        {actions}
+        {updatingLabel !== undefined && <SimulationUpdatingIndicatorV1 label={updatingLabel} />}
+      </div>}
+    </div>
+  );
+}
+
+export function WorkbenchChartLegendV3({ actions, updatingLabel, ...props }: React.ComponentProps<typeof WorkbenchChartLegendItemsV3> & Readonly<{
+  actions?: React.ReactNode;
+  updatingLabel?: string;
+}>) {
+  const { i18n } = useTranslation();
+  const japanese = (i18n.resolvedLanguage ?? i18n.language ?? "en").startsWith("ja");
+  const contentRef = React.useRef<HTMLDivElement>(null);
+  const [overflowing, setOverflowing] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(false);
+  const contentId = React.useId();
+  const hasContent = props.model.traces.length > 0 || actions != null || updatingLabel !== undefined;
+  React.useEffect(() => {
+    const content = contentRef.current;
+    if (!content) return;
+    const measure = () => {
+      const overflows = content.getBoundingClientRect().height > 56;
+      setOverflowing(overflows);
+      if (!overflows) setExpanded(false);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [hasContent]);
+  if (!hasContent) return null;
+  const toggleLabel = japanese
+    ? expanded ? "凡例を折りたたむ" : "凡例を展開"
+    : expanded ? "Collapse legend" : "Expand legend";
+  return (
+    <WorkbenchChartLegendRowV3 actions={!overflowing && actions == null ? undefined : <>
+      {overflowing && <button type="button" title={toggleLabel} aria-label={toggleLabel}
+        aria-expanded={expanded} aria-controls={contentId}
+        onClick={() => setExpanded(value => !value)}
+        className="flex h-7 w-7 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text focus-visible:outline-2 focus-visible:outline-wb-accent">
+        {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </button>}
+      {actions}
+    </>} updatingLabel={updatingLabel}>
+      <div id={contentId} role="group" aria-label={japanese ? "凡例" : "Legend"}
+        data-legend-expanded={expanded} className={`overflow-y-auto overscroll-contain ${expanded ? "max-h-40" : "max-h-14"}`}>
+        <div ref={contentRef}><WorkbenchChartLegendItemsV3 {...props} /></div>
+      </div>
+    </WorkbenchChartLegendRowV3>
+  );
+}
+
+function WorkbenchChartLegendItemsV3({
   model,
   hiddenSelections = [],
   selection,
@@ -214,20 +312,37 @@ export function WorkbenchChartLegendV3({
   });
   const descriptionPopover = (
     item: WorkbenchTraceLegendModelV3["items"][number],
-  ) => item.description === undefined
+  ) => !item.description
     ? null
     : (
         <WorkbenchItemDescriptionPopoverV3
           ariaLabel={item.descriptionLabel ?? item.label}
           description={item.description}
-        />
+        >{item.label}</WorkbenchItemDescriptionPopoverV3>
       );
+  const itemButton = (
+    item: WorkbenchTraceLegendModelV3["items"][number],
+    candidate: WorkbenchChartLegendSelectionV3,
+    color: string,
+    ariaLabel = item.label,
+  ) => {
+    const props = {
+      className: `${commonClassName} ${selectionClassName(candidate)} ${visibilityClassName(candidate)}`,
+      "aria-label": ariaLabel,
+      ...interactionProps(candidate),
+    };
+    const content = <><LegendLineV3 color={color} />{item.label}</>;
+    return item.description
+      ? <WorkbenchItemDescriptionPopoverV3 ariaLabel={item.descriptionLabel ?? item.label}
+          description={item.description} triggerProps={props}>{content}</WorkbenchItemDescriptionPopoverV3>
+      : <button type="button" {...props}>{content}</button>;
+  };
 
   if (model.mode === "items") {
     const scenario = model.scenarios[0];
     return (
       <div
-        className="pointer-events-none flex min-h-7 flex-none flex-wrap items-center gap-x-3 gap-y-0.5 px-3 pt-1.5"
+        className="pointer-events-none flex min-h-7 flex-wrap items-center gap-x-3 gap-y-0.5"
         data-chart-legend="items"
         onPointerLeave={() => onHoverSelection(null)}
       >
@@ -239,23 +354,15 @@ export function WorkbenchChartLegendV3({
               );
           if (trace === undefined) return null;
           const candidate = Object.freeze({
-            kind: "item" as const,
-            itemId: item.itemId,
+            kind: "trace" as const,
+            traceKey: trace.traceKey,
           });
           return (
             <span
               key={trace.traceKey}
               className="pointer-events-auto inline-flex items-center gap-0.5"
             >
-              <button
-                type="button"
-                className={`${commonClassName} ${selectionClassName(candidate)} ${visibilityClassName(candidate)}`}
-                {...interactionProps(candidate)}
-              >
-                <LegendLineV3 color={trace.color} />
-                {item.label}
-              </button>
-              {descriptionPopover(item)}
+              {itemButton(item, candidate, trace.color)}
             </span>
           );
         })}
@@ -267,7 +374,7 @@ export function WorkbenchChartLegendV3({
     const item = model.items[0];
     return (
       <div
-        className="pointer-events-none flex min-h-7 flex-none flex-wrap items-center gap-x-3 gap-y-0.5 px-3 pt-1.5"
+        className="pointer-events-none flex min-h-7 flex-wrap items-center gap-x-3 gap-y-0.5"
         data-chart-legend="scenarios"
         onPointerLeave={() => onHoverSelection(null)}
       >
@@ -291,11 +398,12 @@ export function WorkbenchChartLegendV3({
             <button
               key={scenario.scenarioId}
               type="button"
-              className={`${commonClassName} ${selectionClassName(candidate)} ${visibilityClassName(candidate)}`}
+              title={scenario.label}
+              className={`${commonClassName} min-w-0 max-w-36 ${selectionClassName(candidate)} ${visibilityClassName(candidate)}`}
               {...interactionProps(candidate)}
             >
               <LegendLineV3 color={trace.color} />
-              {scenario.label}
+              <span className="truncate">{scenario.label}</span>
             </button>
           );
         })}
@@ -305,7 +413,7 @@ export function WorkbenchChartLegendV3({
 
   return (
     <div
-      className="pointer-events-none flex flex-none flex-wrap items-center gap-x-5 gap-y-1 px-3 pt-1.5 text-[11px] leading-4 text-wb-muted"
+      className="pointer-events-none flex min-h-7 flex-wrap items-center gap-x-5 gap-y-1 text-[11px] leading-4 text-wb-muted"
       data-chart-legend="groups"
       onPointerLeave={() => onHoverSelection(null)}
     >
@@ -317,7 +425,7 @@ export function WorkbenchChartLegendV3({
         return (
           <div
             key={scenario.scenarioId}
-            className="pointer-events-auto inline-flex min-w-0 items-center gap-2"
+            className="pointer-events-auto inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5"
           >
             <button
               type="button"
@@ -338,27 +446,15 @@ export function WorkbenchChartLegendV3({
               );
               if (trace === undefined) return null;
               const traceSelection = Object.freeze({
-                kind: "item" as const,
-                itemId: item.itemId,
+                kind: "trace" as const,
+                traceKey: trace.traceKey,
               });
               return (
                 <span
                   key={trace.traceKey}
                   className="inline-flex items-center gap-0.5"
                 >
-                  <button
-                    type="button"
-                    aria-label={`${scenario.label}, ${item.label}`}
-                    title={`${scenario.label} · ${item.label}`}
-                    className={`${commonClassName} justify-center ${selectionClassName(traceSelection)} ${visibilityClassName(traceSelection)}`}
-                    {...interactionProps(traceSelection)}
-                  >
-                    <LegendLineV3 color={trace.color} />
-                    {item.label}
-                  </button>
-                  {scenario.scenarioId === model.scenarios[0]?.scenarioId
-                    ? descriptionPopover(item)
-                    : null}
+                  {itemButton(item, traceSelection, trace.color, `${scenario.label}, ${item.label}`)}
                 </span>
               );
             })}

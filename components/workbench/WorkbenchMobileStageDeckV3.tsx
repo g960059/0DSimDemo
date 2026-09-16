@@ -1,30 +1,20 @@
 import React from "react";
+import { WorkbenchPaneSettingsButtonV3 } from "./WorkbenchPaneSettingsButtonV3";
 import {
   ChevronRight,
   ChevronsDown,
   ChevronsUp,
   Plus,
-  Settings2,
-  X,
 } from "lucide-react";
-import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
 import type {
   WorkbenchAddPaneOptionV3,
+  WorkbenchPaneAddRequestV3,
   WorkbenchPaneDefinitionV3,
 } from "@/components/workbench/WorkbenchDockview";
 
 export type WorkbenchMobileTaskV3 = "control" | "output" | "scenarios";
-
-const FOCUSABLE_SELECTOR_V3 = [
-  "button:not([disabled])",
-  "[href]",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  '[tabindex]:not([tabindex="-1"])',
-].join(",");
 
 type WorkbenchMobileStageDeckPropsV3 = Readonly<{
   graphPanes: readonly WorkbenchPaneDefinitionV3[];
@@ -36,10 +26,10 @@ type WorkbenchMobileStageDeckPropsV3 = Readonly<{
   renderGraphPane: (pane: WorkbenchPaneDefinitionV3) => React.ReactNode;
   renderOutputPane: (pane: WorkbenchPaneDefinitionV3) => React.ReactNode;
   renderControlPane: (pane: WorkbenchPaneDefinitionV3) => React.ReactNode;
-  onOpenPaneSettings: (paneId: string) => void;
-  onAddGraphPane: (optionId: string) => string | undefined;
-  onAddOutputPane: () => string | undefined;
-  onAddControlPane: () => string | undefined;
+  onOpenPaneSettings: (paneId: string, section?: "items" | "binding", intent?: "add" | "manage", anchor?: HTMLElement) => void;
+  onAddGraphPane: WorkbenchPaneAddRequestV3;
+  onAddOutputPane: WorkbenchPaneAddRequestV3;
+  onAddControlPane: WorkbenchPaneAddRequestV3;
 }>;
 
 const firstPaneIdV3 = (
@@ -177,13 +167,12 @@ export function WorkbenchMobileStageDeckV3({
     setGraphFocused(false);
   };
 
-  const addPane = (area: "control" | "output") => {
-    const paneId = area === "control"
-      ? onAddControlPane()
-      : onAddOutputPane();
-    if (paneId === undefined) return;
-    if (area === "control") setExpandedControlPaneId(paneId);
-    else expandOutputPane(paneId);
+  const addPane = (area: "control" | "output", anchor: HTMLElement) => {
+    const request = area === "control" ? onAddControlPane : onAddOutputPane;
+    request(anchor, paneId => {
+      if (area === "control") setExpandedControlPaneId(paneId);
+      else expandOutputPane(paneId);
+    });
   };
 
   return (
@@ -220,10 +209,7 @@ export function WorkbenchMobileStageDeckV3({
           addOptions={graphAddOptions}
           onSelectPane={setGraphPaneId}
           onOpenPaneSettings={onOpenPaneSettings}
-          onAddOption={(optionId) => {
-            const paneId = onAddGraphPane(optionId);
-            if (paneId !== undefined) setGraphPaneId(paneId);
-          }}
+          onAddOption={anchor => onAddGraphPane(anchor, setGraphPaneId)}
           graphFocused={graphFocused}
           onToggleGraphFocus={() => setGraphFocused((current) => !current)}
         />
@@ -278,7 +264,7 @@ export function WorkbenchMobileStageDeckV3({
                     setExpandedControlPaneId((current) =>
                       current === paneId ? null : paneId)}
                   onOpenPaneSettings={onOpenPaneSettings}
-                  onAddPane={() => addPane("control")}
+                  onAddPane={anchor => addPane("control", anchor)}
                 />
               )
               : activeTask === "output"
@@ -290,7 +276,7 @@ export function WorkbenchMobileStageDeckV3({
                     renderPane={renderOutputPane}
                     onTogglePane={toggleOutputPane}
                     onOpenPaneSettings={onOpenPaneSettings}
-                    onAddPane={() => addPane("output")}
+                    onAddPane={anchor => addPane("output", anchor)}
                   />
                 )
                 : (
@@ -322,14 +308,12 @@ function MobileGraphViewRailV3({
   selectedPaneId: string | null;
   addOptions: readonly WorkbenchAddPaneOptionV3[];
   onSelectPane: (paneId: string) => void;
-  onOpenPaneSettings: (paneId: string) => void;
-  onAddOption: (optionId: string) => void;
+  onOpenPaneSettings: (paneId: string, section?: "items" | "binding", intent?: "add" | "manage", anchor?: HTMLElement) => void;
+  onAddOption: (anchor: HTMLElement) => void;
   graphFocused: boolean;
   onToggleGraphFocus: () => void;
 }>) {
   const { t } = useTranslation();
-  const [addSheetOpen, setAddSheetOpen] = React.useState(false);
-  const addRef = React.useRef<HTMLButtonElement | null>(null);
   const tabRefs = React.useRef(new Map<string, HTMLButtonElement>());
 
   React.useEffect(() => {
@@ -395,29 +379,14 @@ function MobileGraphViewRailV3({
           })}
         </div>
         <div className="workbench-mobile-graph-view-actions">
-          <button
-            type="button"
-            className="workbench-mobile-graph-view-action"
-            aria-label={t("workbench.live.mobileEditGraphView", {
-              title: panes.find(({ paneId }) => paneId === selectedPaneId)?.title
-                ?? "—",
-            })}
-            disabled={selectedPaneId === null}
-            onClick={() => {
-              if (selectedPaneId !== null) onOpenPaneSettings(selectedPaneId);
-            }}
-          >
-            <Settings2 className="h-4 w-4" aria-hidden="true" />
-          </button>
+          {selectedPaneId !== null && <WorkbenchPaneSettingsButtonV3 title={panes.find(p => p.paneId === selectedPaneId)!.title} onOpen={anchor => onOpenPaneSettings(selectedPaneId, "items", "manage", anchor)} />}
           {addOptions.length > 0 && (
             <button
-              ref={addRef}
               type="button"
               className="workbench-mobile-graph-view-action"
               aria-label={t("workbench.live.mobileAddGraphView")}
               aria-haspopup="dialog"
-              aria-expanded={addSheetOpen}
-              onClick={() => setAddSheetOpen(true)}
+              onClick={event => onAddOption(event.currentTarget)}
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -439,17 +408,7 @@ function MobileGraphViewRailV3({
           </button>
         </div>
       </div>
-      <MobileAddPaneSheetV3
-        open={addSheetOpen}
-        areaLabel={t("workbench.live.mobilePaneAreas.graph")}
-        addOptions={addOptions}
-        returnFocusRef={addRef}
-        onClose={() => setAddSheetOpen(false)}
-        onAddOption={(optionId) => {
-          onAddOption(optionId);
-          setAddSheetOpen(false);
-        }}
-      />
+
     </>
   );
 }
@@ -468,8 +427,8 @@ function MobilePaneGroupCollectionV3({
   expandedPaneIds: ReadonlySet<string>;
   renderPane: (pane: WorkbenchPaneDefinitionV3) => React.ReactNode;
   onTogglePane: (paneId: string) => void;
-  onOpenPaneSettings: (paneId: string) => void;
-  onAddPane: () => void;
+  onOpenPaneSettings: (paneId: string, section?: "items" | "binding", intent?: "add" | "manage", anchor?: HTMLElement) => void;
+  onAddPane: (anchor: HTMLElement) => void;
 }>) {
   const { t } = useTranslation();
   const collectionLabel = t(
@@ -517,16 +476,7 @@ function MobilePaneGroupCollectionV3({
                   {pane.title}
                 </span>
               </button>
-              <button
-                type="button"
-                className="workbench-mobile-pane-group-settings"
-                aria-label={t("workbench.live.mobileEditPaneGroup", {
-                  title: pane.title,
-                })}
-                onClick={() => onOpenPaneSettings(pane.paneId)}
-              >
-                <Settings2 className="h-4 w-4" aria-hidden="true" />
-              </button>
+              <WorkbenchPaneSettingsButtonV3 title={pane.title} onOpen={anchor => onOpenPaneSettings(pane.paneId, "items", "manage", anchor)} />
             </header>
             <div
               id={bodyId}
@@ -541,7 +491,8 @@ function MobilePaneGroupCollectionV3({
       <button
         type="button"
         className="workbench-mobile-pane-group-add"
-        onClick={onAddPane}
+        aria-haspopup="dialog"
+        onClick={event => onAddPane(event.currentTarget)}
       >
         <Plus className="h-4 w-4" aria-hidden="true" />
         <span>
@@ -553,160 +504,6 @@ function MobilePaneGroupCollectionV3({
         </span>
       </button>
     </div>
-  );
-}
-
-function MobileAddPaneSheetV3({
-  open,
-  areaLabel,
-  addOptions,
-  returnFocusRef,
-  onClose,
-  onAddOption,
-}: Readonly<{
-  open: boolean;
-  areaLabel: string;
-  addOptions: readonly WorkbenchAddPaneOptionV3[];
-  returnFocusRef: React.RefObject<HTMLButtonElement | null>;
-  onClose: () => void;
-  onAddOption: (optionId: string) => void;
-}>) {
-  const { t } = useTranslation();
-  const dialogRef = React.useRef<HTMLElement | null>(null);
-  const onCloseRef = React.useRef(onClose);
-  onCloseRef.current = onClose;
-  const [mounted, setMounted] = React.useState(open);
-  const [visible, setVisible] = React.useState(false);
-  const titleId = React.useId();
-
-  React.useEffect(() => {
-    if (open) {
-      setMounted(true);
-      const frame = window.requestAnimationFrame(() => setVisible(true));
-      return () => window.cancelAnimationFrame(frame);
-    }
-    setVisible(false);
-    const timer = window.setTimeout(() => setMounted(false), 180);
-    return () => window.clearTimeout(timer);
-  }, [open]);
-
-  React.useEffect(() => {
-    if (!open || typeof document === "undefined") return undefined;
-    const previousBodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onCloseRef.current();
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const dialog = dialogRef.current;
-      if (dialog === null) return;
-      const focusable = Array.from(
-        dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR_V3),
-      ).filter((element) => !element.hidden && element.tabIndex !== -1);
-      if (focusable.length === 0) {
-        event.preventDefault();
-        dialog.focus();
-        return;
-      }
-      const first = focusable[0]!;
-      const last = focusable[focusable.length - 1]!;
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKeyDown, true);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown, true);
-      document.body.style.overflow = previousBodyOverflow;
-      returnFocusRef.current?.focus();
-    };
-  }, [open, returnFocusRef]);
-
-  React.useLayoutEffect(() => {
-    if (!open || !mounted || typeof document === "undefined") return undefined;
-    const frame = window.requestAnimationFrame(() => {
-      const selected = dialogRef.current?.querySelector<HTMLElement>(
-        '[data-mobile-pane-selected="true"], .workbench-mobile-pane-choice',
-      );
-      (selected ?? dialogRef.current)?.focus();
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [mounted, open]);
-
-  if (!mounted || typeof document === "undefined") return null;
-
-  return createPortal(
-    <div
-      className="workbench-mobile-pane-sheet-backdrop"
-      data-open={visible && open ? "true" : "false"}
-      aria-hidden={!open}
-      onPointerDown={(event) => {
-        if (event.target === event.currentTarget) onCloseRef.current();
-      }}
-    >
-      <section
-        ref={dialogRef}
-        role="dialog"
-        aria-modal={open ? "true" : undefined}
-        aria-labelledby={titleId}
-        tabIndex={-1}
-        className="workbench-mobile-pane-sheet"
-        onPointerDown={(event) => event.stopPropagation()}
-      >
-        <div className="workbench-mobile-sheet-handle" aria-hidden="true" />
-        <header className="workbench-mobile-pane-sheet-header">
-          <div className="min-w-0 flex-1">
-            <p className="workbench-mobile-pane-sheet-kicker">
-              {areaLabel}
-            </p>
-            <h2 id={titleId} className="workbench-mobile-pane-sheet-title">
-              {t("workbench.live.mobileAddPaneTitle", { area: areaLabel })}
-            </h2>
-          </div>
-          <button
-            type="button"
-            className="workbench-mobile-sheet-close"
-            aria-label={t("workbench.live.mobileClosePanePicker")}
-            onClick={() => onCloseRef.current()}
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </header>
-        <div className="workbench-mobile-pane-choice-list">
-          {addOptions.map((choice) => {
-            const choiceId = choice.id;
-            return (
-              <button
-                key={choiceId}
-                type="button"
-                className="workbench-mobile-pane-choice"
-                onClick={() => onAddOption(choiceId)}
-              >
-                <span className="workbench-mobile-pane-choice-icon">
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                </span>
-                <span className="min-w-0 flex-1 text-start">
-                  <span className="block truncate">
-                    {choice.label}
-                  </span>
-                  <span className="mt-0.5 block text-[0.68rem] text-wb-subtle">
-                    {choice.description ?? t("workbench.live.mobileCreatePane")}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-    </div>,
-    document.body,
   );
 }
 

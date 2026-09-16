@@ -48,7 +48,7 @@ import previousSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 import originalSurfaceReleaseV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import currentRegistryAdmissionLockV1 from
-  "@/data/model-releases/standard73/publication.json";
+  "@/data/model-releases/standard74/publication.json";
 
 export const DEFAULT_STUDIO_MODEL_ID_V2:
 typeof MAIN_WIRE_STATIC_CASE_MODEL_ID_V1 = MAIN_WIRE_STATIC_CASE_MODEL_ID_V1;
@@ -183,12 +183,12 @@ function loadStudioLocalCurrentClientCompositionForSurfaceV1(
 function localCurrentArtifactUrlV1(): string {
   const loopbackBase = "http://127.0.0.1/";
   const resolved = new URL(
-    "../../data/model-releases/standard73/artifact.mjs.txt",
+    "../../data/model-releases/standard74/artifact.mjs.txt",
     import.meta.url,
   );
   return resolved.protocol === "file:"
     ? new URL(
-        "__circleheart_local_standard73_artifact__.mjs",
+        "__circleheart_local_standard74_artifact__.mjs",
         loopbackBase,
       ).href
     : localCurrentArtifactRevisionUrlV1(resolved).href;

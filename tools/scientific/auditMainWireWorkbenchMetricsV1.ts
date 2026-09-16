@@ -22,7 +22,7 @@ import { bindMainWireFiveWallCoupledExecutionPlanRuntimeV1, MAIN_WIRE_FIVE_WALL_
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
 import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurface";
 import { resolveMainWireAnalysisMethodsForSurfaceV1 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
-import bundle from "@/data/model-releases/standard73/bundle.json";
+import bundle from "@/data/model-releases/standard74/bundle.json";
 import { beginFittingSourceSnapshotV1 } from "./FittingSourceSnapshotV1";
 
 // Numerical replay tolerances, NOT physiological ranges. Splitting a boundary

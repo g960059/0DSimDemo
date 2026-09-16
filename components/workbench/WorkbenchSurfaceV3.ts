@@ -19,10 +19,9 @@ import type {
 } from "@/studio/contracts/v2/model";
 
 export const WORKBENCH_SCENARIO_ID_V3 = "workbench-live-default";
-// A six-second sweep is the Workbench teaching default: it keeps several
-// complete beats visible while PV and Guyton/Starling occupy the upper row.
+// A four-second sweep keeps several complete beats visible in the right column.
 // Portable Article authoring retains its own shorter Studio default.
-export const WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3 = 6;
+export const WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3 = 4;
 export const WORKBENCH_SWEEP_WINDOW_MIN_SEC_V3 = STUDIO_SWEEP_WINDOW_MIN_SEC_V2;
 export const WORKBENCH_SWEEP_WINDOW_MAX_SEC_V3 = STUDIO_SWEEP_WINDOW_MAX_SEC_V2;
 export const WORKBENCH_SWEEP_WINDOW_STEP_SEC_V3 =
@@ -39,13 +38,11 @@ export const WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3 = false;
 const WORKBENCH_LEGACY_AORTIC_PRESSURE_SUMMARY_OUTPUT_IDS_V3 = Object.freeze([
   "hemodynamics.pressure.systolic.Ao",
   "hemodynamics.pressure.diastolic.Ao",
-  "hemodynamics.pressure.mean.Ao",
 ]);
 const WORKBENCH_SYSTEMIC_ARTERIAL_PRESSURE_SUMMARY_OUTPUT_IDS_V3 =
   Object.freeze([
     "hemodynamics.pressure.systolic.SA",
     "hemodynamics.pressure.diastolic.SA",
-    "hemodynamics.pressure.mean.SA",
   ]);
 const WORKBENCH_PROXIMAL_AORTIC_PRESSURE_SIGNAL_OUTPUT_ID_V3 =
   "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port";
@@ -56,7 +53,6 @@ const WORKBENCH_PROXIMAL_AORTIC_PRESSURE_SIGNAL_OUTPUT_ID_V3 =
  * without asking the author to choose a left/right catalog fragment first.
  */
 export const WORKBENCH_GRAPH_PANE_OPTIONS_V3 = Object.freeze([
-  Object.freeze({ optionId: "hemodynamics.aortic-jet.cycle", graphId: "hemodynamics.aortic-jet.cycle", kind: "aortic-jet-cycle" as const }),
   Object.freeze({
     optionId: "hemodynamics.pressure-volume",
     graphId: "hemodynamics.pressure-volume",
@@ -488,7 +484,6 @@ export function createDefaultExperimentSurfaceV3(
     ...defaultAorticPressureSummaryOutputIds,
     "hemodynamics.pressure.systolic.PA",
     "hemodynamics.pressure.diastolic.PA",
-    "hemodynamics.pressure.mean.PA",
     "hemodynamics.pressure.mean.LA",
     "hemodynamics.pressure.mean.RA",
     "hemodynamics.volume.end-diastolic.LV-at-MV-closure",

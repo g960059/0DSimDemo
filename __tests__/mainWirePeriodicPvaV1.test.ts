@@ -134,10 +134,10 @@ describe("settled hot-start PVA V1", () => {
         const description = spy.mock.calls[0]![0][0]!.itemDescription;
         if (buildMethod === buildMainWirePeriodicPvaMethodV13) {
           expect(description).toContain("pressure envelope");
-          expect(description).toContain("maximum-volume measurements");
+          expect(description).toContain("at maximum volume in each condition");
         } else {
-          expect(description).toContain("common-time boundary");
-          expect(description).toContain("exponential fit");
+          expect(description).toContain("at the same point in the cardiac cycle");
+          expect(description).toContain("fitted to diastolic measurements");
           expect(description).not.toContain("pressure envelope");
           expect(description).not.toContain("SW and PE are separate illustrations");
         }
@@ -1161,7 +1161,7 @@ describe("settled hot-start PVA V1", () => {
     expect(envelopeHtml).toContain('data-pv-pressure-envelope-visible="true"');
   });
 
-  it("renders settled-point progress in the PV pane", () => {
+  it("shows pending PV analysis as a legend-row icon without progress text", () => {
     const periodicPva = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(settledPointsV1([1.16, 1, 0.92, 0.84, 0.76]), 21),
       "LV",
@@ -1172,7 +1172,8 @@ describe("settled hot-start PVA V1", () => {
           {
             scenarioId: "scenario/current",
             scenarioLabel: "Current",
-            samples: Object.freeze([]),
+            samples: [{ inputEpoch: 0, acceptedRevision: 1, acceptedTimeSec: 0.1, presentationTimeSec: 0.1,
+              values: { "LV.volume": 120, "LV.pressure": 15, "clock.phase": 0.1 } }],
             volumeOutputId: "LV.volume",
             pressureOutputId: "LV.pressure",
             pressureBasis: "transmural" as const,
@@ -1187,7 +1188,10 @@ describe("settled hot-start PVA V1", () => {
       }),
     );
 
-    expect(html).toContain("PVA ready · Starling extension 5 settled points");
+    expect(html).toContain('data-simulation-update="true"');
+    expect(html).toContain('data-chart-legend-actions="true"');
+    expect(html).not.toContain("settled points");
+    expect(html).not.toContain('data-simulation-chart-status="true"');
   });
 
   it.each(["queued", "pending", "failed", "ready"])("preserves old PV relations through %s without promoting them to a current result", state => {
@@ -1204,7 +1208,7 @@ describe("settled hot-start PVA V1", () => {
     expect(html).toContain(`data-pva-result-count="${state === "ready" ? 1 : 0}"`);
     expect(html).toContain('data-pva-retained-drawing-count="1"');
     expect(html).toContain('data-pva-history-input-epochs="0"');
-    expect(html).toContain('data-chart-history-key="true"');
+    expect(html).not.toContain('data-chart-history-key="true"');
     expect(html).toContain('data-volume-minimum-ml="0"');
     expect(html).toContain('data-pressure-minimum-mmhg="0"');
     if (state === "failed") expect(html).toContain("workbench-pva-analysis-error");
@@ -1275,14 +1279,14 @@ describe("settled hot-start PVA V1", () => {
     expect(items).toEqual([
       expect.objectContaining({
         itemId: "myocardium.energy.potential.LV-pressure-volume-area",
-        label: "LV potential energy (PE)",
+        label: "LV PE",
         value: periodicPva.potentialEnergy.joule * 1e3,
         unit: "mJ",
         availability: "available",
       }),
       expect.objectContaining({
         itemId: "myocardium.energy.pressure-volume-area.LV",
-        label: "LV pressure–volume area (PVA)",
+        label: "LV PVA",
         value: periodicPva.pva.joule * 1e3,
         unit: "mJ",
         availability: "available",

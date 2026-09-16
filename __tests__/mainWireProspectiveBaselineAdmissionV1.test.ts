@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import launch from "@/data/model-releases/standard73/bundle.json";
+import launch from "@/data/model-releases/standard74/bundle.json";
 import document from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.json";
 import { assessMainWireProspectiveRestV1 as rest, MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1 as policy } from "@/analysis/policies/mainWire/MainWireProspectiveBaselineAdmissionV1";
 import { qualifyMainWirePreloadReserveAdmissionV1 as reserve } from "@/analysis/policies/mainWire/MainWirePreloadReserveAdmissionV1";

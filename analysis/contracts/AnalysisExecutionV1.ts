@@ -4,6 +4,7 @@ import type {
 } from "@/studio/contracts/v2/simulation";
 import type { ScenarioCaptureV2 } from "@/studio/contracts/v2/content";
 import type { ModelSurfaceReleaseManifestV1 } from "@/studio/contracts/v2/modelSurface";
+import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 
 export type AnalysisExecutionRequestV1 = Readonly<{
   runtimeSessionId: string;
@@ -13,7 +14,9 @@ export type AnalysisExecutionRequestV1 = Readonly<{
   expectedAcceptedRevision: number;
   expectedAcceptedTimeSec: number;
   analysisPartition?: string;
-  onProgress?: (analysis: StudioSimulationAnalysisV2) => void;
+  sharePreparation?: boolean;
+  preparedAnalysis?: StudioJsonValueV2;
+  onProgress?: (analysis: StudioSimulationAnalysisV2, preparation?: StudioJsonValueV2) => void;
 }>;
 
 /**

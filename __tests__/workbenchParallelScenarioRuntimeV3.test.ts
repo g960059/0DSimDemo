@@ -9,6 +9,7 @@ import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
+import type { StudioSimulationWorkerRequestAnalysisClientInputV2 } from "@/studio/workers/StudioSimulationWorkerClientV2";
 import {
   WorkbenchGroupTimeConductorV3,
   type WorkbenchGroupPlaybackRateStateV3,
@@ -27,6 +28,266 @@ import {
 } from "./helpers/standardReleaseTicketV1";
 
 describe("WorkbenchParallelScenarioRuntimeV3", () => {
+  it("lets the changed lane publish before all group analysis waiters can capture", async () => {
+    const h = harnessV3();
+    await h.runtime.initialize({ scenarios: [seedV3("edited", "Edited", 0), seedV3("unchanged", "Other", 0)], activeScenarioId: "edited" });
+    await expect(h.runtime.waitForControlPresentation()).resolves.toBeUndefined();
+    h.clients.get("edited")!.applyControl.mockResolvedValue({
+      frame: { ...frameV3("edited", 0), inputEpoch: 1 }, fixture: { value: 1 },
+    });
+    await h.runtime.applyControl({ scenarioId: "edited", controlId: "test", value: 1, expectedInputEpoch: 0 });
+    h.runtime.playAll();
+    const released = vi.fn(() => expect(h.onFrames).toHaveBeenLastCalledWith([
+      expect.objectContaining({ scenarioId: "edited", inputEpoch: 1, acceptedRevision: 1 }),
+    ]));
+    const first = h.runtime.waitForControlPresentation().then(released);
+    const second = h.runtime.waitForControlPresentation().then(released);
+    h.conductor.emit([frameV3("unchanged", 1), frameV3("edited", 3)]);
+    h.conductor.emit([{ ...frameV3("edited", 0), inputEpoch: 1 }]);
+    await Promise.resolve();
+    expect(released).not.toHaveBeenCalled();
+    expect(h.conductor.pause).not.toHaveBeenCalled();
+    h.conductor.emit([{ ...frameV3("edited", 1), inputEpoch: 1 }]);
+    await Promise.all([first, second]);
+    expect(released).toHaveBeenCalledTimes(2);
+    await expect(h.runtime.waitForControlPresentation()).resolves.toBeUndefined();
+    h.runtime.terminate();
+  });
+
+  it.each(["pause", "terminate", "dispose", "failure"] as const)(
+    "releases pending post-control presentation waits on %s", async action => {
+      const h = harnessV3();
+      await h.runtime.initialize({ scenarios: [seedV3("edited", "Edited", 0)], activeScenarioId: "edited" });
+      h.clients.get("edited")!.applyControl.mockResolvedValue({
+        frame: { ...frameV3("edited", 0), inputEpoch: 1 }, fixture: { value: 1 },
+      });
+      await h.runtime.applyControl({ scenarioId: "edited", controlId: "test", value: 1, expectedInputEpoch: 0 });
+      // A deliberately paused view does not need a future frame to run analysis.
+      await expect(h.runtime.waitForControlPresentation()).resolves.toBeUndefined();
+      h.runtime.playAll();
+      const waiting = h.runtime.waitForControlPresentation();
+      const asserted = action === "pause" ? expect(waiting).resolves.toBeUndefined()
+        : expect(waiting).rejects.toThrow("not active");
+      if (action === "pause") await h.runtime.pauseAll();
+      else if (action === "terminate") h.runtime.terminate();
+      else if (action === "dispose") await h.runtime.dispose();
+      else h.conductor.fail(new Error("live failure"));
+      await asserted;
+      h.runtime.terminate();
+    },
+  );
+
+  it.each([1, 2])("shares preparation outside the %s-slot pool without holding the live lane", async slots => {
+    const requests: StudioSimulationWorkerRequestAnalysisClientInputV2[] = [];
+    const releases: (() => void)[] = [];
+    const clients: ReturnType<typeof clientV3>[] = [];
+    const pool = new WorkbenchBackgroundWorkerPoolV3({ warmSize: 0, maxSize: slots }, () => {
+      const client = clientV3("scenario/baseline"); clients.push(client);
+      client.requestAnalysis.mockImplementation((request: StudioSimulationWorkerRequestAnalysisClientInputV2) => {
+        requests.push(request);
+        return new Promise(resolve => releases.push(() => resolve(analysisV3(request.runtimeSessionId, request.scenarioId, request.analysisId))));
+      });
+      return client as never;
+    }, 8);
+    const h = harnessV3(vi.fn(), pool, { resolveAnalysisExecutionPlan: () => ({
+      partitions: ["hypovolemic", "hypervolemic"], sharedPreparation: true, merge: analyses => analyses[0]!,
+    }) });
+    await h.runtime.initialize({ scenarios: [seedV3("scenario/baseline", "Baseline", 0)], activeScenarioId: "scenario/baseline" });
+    h.conductor.setPlaybackRate(1);
+    h.runtime.playAll();
+    const pending = h.runtime.requestAnalysis({ scenarioId: "scenario/baseline", analysisId: "analysis/shared",
+      expectedInputEpoch: 0, expectedAcceptedRevision: 0, expectedAcceptedTimeSec: 0 });
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+    expect(h.conductor.running).toBe(true);
+    expect(requests[0]!.sharePreparation).toBe(true);
+    const preparation = { exactEndpoint: "detached", source: "same-capture" };
+    requests[0]!.onProgress!(analysisV3(requests[0]!.runtimeSessionId, "scenario/baseline", "analysis/shared"), preparation);
+    if (slots === 2) await vi.waitFor(() => expect(requests).toHaveLength(2));
+    else { await Promise.resolve(); await Promise.resolve(); expect(requests).toHaveLength(1); }
+    releases[0]!();
+    await vi.waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests[1]!.preparedAnalysis).toEqual(preparation);
+    expect(requests[1]!.sharePreparation).toBeUndefined();
+    expect(clients[0]!.initialize.mock.calls[0]![0].checkpoint).toBe(clients[1]!.initialize.mock.calls[0]![0].checkpoint);
+    releases[1]!();
+    await expect(pending).resolves.toMatchObject({ scenarioId: "scenario/baseline" });
+    expect(clients.every(c => c.terminate.mock.calls.length === 1)).toBe(true);
+    h.runtime.terminate(); pool.dispose();
+  });
+
+  it.each(["failure", "missing", "cancel"])("releases waiting partitions after preparation %s", async kind => {
+    let finish!: () => void;
+    const clients: ReturnType<typeof clientV3>[] = [];
+    const pool = new WorkbenchBackgroundWorkerPoolV3({ warmSize: 0, maxSize: 1 }, () => {
+      const client = clientV3("scenario/baseline"); clients.push(client);
+      client.requestAnalysis.mockImplementation((request: StudioSimulationWorkerRequestAnalysisClientInputV2) => new Promise((resolve, reject) => {
+        finish = () => kind === "failure" ? reject(new Error("anchor failed"))
+          : resolve(analysisV3(request.runtimeSessionId, request.scenarioId, request.analysisId));
+      }));
+      return client as never;
+    }, 8);
+    const h = harnessV3(vi.fn(), pool, { resolveAnalysisExecutionPlan: () => ({
+      partitions: ["low", "high"], sharedPreparation: true, merge: analyses => analyses[0]!,
+    }) });
+    await h.runtime.initialize({ scenarios: [seedV3("scenario/baseline", "Baseline", 0)], activeScenarioId: "scenario/baseline" });
+    const pending = h.runtime.requestAnalysis({ scenarioId: "scenario/baseline", analysisId: "analysis/shared",
+      expectedInputEpoch: 0, expectedAcceptedRevision: 0, expectedAcceptedTimeSec: 0 });
+    const rejected = expect(pending).rejects.toThrow(kind === "failure" ? /anchor failed/ : kind === "missing" ? /did not provide/ : /cancel/);
+    await vi.waitFor(() => expect(finish).toBeTypeOf("function"));
+    if (kind === "cancel") h.runtime.cancelAnalysisJobs();
+    finish();
+    await rejected;
+    expect(clients).toHaveLength(1);
+    h.runtime.terminate(); pool.dispose();
+  });
+
+  it("shares an exact post-control capture with analysis and preserves current labels", async () => {
+    const h = harnessV3();
+    const scenarioId = "scenario/baseline";
+    await h.runtime.initialize({ scenarios: [seedV3(scenarioId, "Baseline", 0)], activeScenarioId: scenarioId });
+    const live = h.clients.get(scenarioId)!;
+    live.applyControl.mockResolvedValue({ frame: { ...frameV3(scenarioId, 0), inputEpoch: 1 }, fixture: { value: 1 } });
+    await h.runtime.applyControl({ scenarioId, controlId: "test", value: 1, expectedInputEpoch: 0 });
+    const first = await h.runtime.captureScenario(scenarioId);
+    h.analysisClients.get(scenarioId)!.requestAnalysis.mockResolvedValue(
+      analysisV3("detached", scenarioId, "analysis/guyton-starling"));
+    h.runtime.playAll();
+    await h.runtime.requestAnalysis({ scenarioId, analysisId: "analysis/guyton-starling",
+      expectedInputEpoch: 1, expectedAcceptedRevision: 0, expectedAcceptedTimeSec: 0 });
+    expect(h.conductor.running).toBe(true);
+    h.runtime.renameScenario({ scenarioId, label: "Renamed" });
+    const second = (await h.runtime.captureScenarios()).scenarios[0]!;
+    expect(second.capture).toBe(first.capture);
+    expect(second.label).toBe("Renamed");
+    expect(live.readScenarios).toHaveBeenCalledOnce();
+    h.runtime.terminate();
+  });
+
+  it("invalidates captures before advancing and after same-clock input changes", async () => {
+    const h = harnessV3();
+    const scenarioId = "scenario/baseline";
+    await h.runtime.initialize({ scenarios: [seedV3(scenarioId, "Baseline", 0)], activeScenarioId: scenarioId });
+    const live = h.clients.get(scenarioId)!;
+    const first = await h.runtime.captureScenario(scenarioId);
+    live.applyControl.mockResolvedValue({ frame: { ...frameV3(scenarioId, 0), inputEpoch: 1 }, fixture: { value: 1 } });
+    await h.runtime.applyControl({ scenarioId, controlId: "test", value: 1, expectedInputEpoch: 0 });
+    const changed = await h.runtime.captureScenario(scenarioId);
+    expect(changed.capture).not.toBe(first.capture);
+    expect(live.readScenarios).toHaveBeenCalledTimes(2);
+    live.advancePresentation.mockResolvedValueOnce([{ ...frameV3(scenarioId, 1), inputEpoch: 1 }]);
+    live.readScenarios.mockResolvedValueOnce({ activeScenarioId: scenarioId,
+      scenarios: [scenarioV3(scenarioId, "Baseline", 1)] });
+    await h.conductor.dependencies.lanes()[0]!.advance(1);
+    const advanced = await h.runtime.captureScenario(scenarioId);
+    expect(advanced.capture.checkpoint.acceptedRevision).toBe(1);
+    expect(live.readScenarios).toHaveBeenCalledTimes(3);
+    h.runtime.terminate();
+  });
+
+  it("coalesces concurrent boundary reads and retries a failed capture", async () => {
+    const h = harnessV3();
+    const scenarioId = "scenario/baseline";
+    await h.runtime.initialize({ scenarios: [seedV3(scenarioId, "Baseline", 0)], activeScenarioId: scenarioId });
+    const live = h.clients.get(scenarioId)!;
+    live.readScenarios.mockRejectedValueOnce(new Error("capture failed"));
+    const failed = await Promise.allSettled([
+      h.runtime.captureScenario(scenarioId), h.runtime.captureScenario(scenarioId),
+    ]);
+    expect(failed.every(result => result.status === "rejected")).toBe(true);
+    expect(live.readScenarios).toHaveBeenCalledOnce();
+    await expect(h.runtime.captureScenario(scenarioId)).resolves.toMatchObject({ scenarioId });
+    expect(live.readScenarios).toHaveBeenCalledTimes(2);
+    h.runtime.terminate();
+  });
+
+  it.each(["advance", "control"] as const)("does not serve an earlier capture while %s is in flight", async operation => {
+    const h = harnessV3();
+    const scenarioId = "scenario/baseline";
+    await h.runtime.initialize({ scenarios: [seedV3(scenarioId, "Baseline", 0)], activeScenarioId: scenarioId });
+    const live = h.clients.get(scenarioId)!;
+    await h.runtime.captureScenario(scenarioId);
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    live.applyControl.mockImplementation(async () => {
+      await gate;
+      return { frame: { ...frameV3(scenarioId, 0), inputEpoch: 1 }, fixture: { value: 1 } };
+    });
+    live.advancePresentation.mockImplementation(async () => {
+      await gate;
+      return [frameV3(scenarioId, 1)];
+    });
+    // The actual Worker client rejects overlapping operations. A cache must
+    // not bypass that guard just because the response frame has not arrived.
+    live.readScenarios.mockRejectedValueOnce(new Error("operation in flight"));
+    const pending = operation === "advance"
+      ? h.conductor.dependencies.lanes()[0]!.advance(1)
+      : h.runtime.applyControl({ scenarioId, controlId: "test", value: 1, expectedInputEpoch: 0 });
+    await expect(h.runtime.captureScenario(scenarioId)).rejects.toThrow("operation in flight");
+    expect(live.readScenarios).toHaveBeenCalledTimes(2);
+    release();
+    await pending;
+    h.runtime.terminate();
+  });
+
+  it("does not cache a capture from another accepted clock", async () => {
+    const h = harnessV3();
+    const scenarioId = "scenario/baseline";
+    await h.runtime.initialize({ scenarios: [seedV3(scenarioId, "Baseline", 0)], activeScenarioId: scenarioId });
+    const live = h.clients.get(scenarioId)!;
+    live.readScenarios.mockResolvedValueOnce({ activeScenarioId: scenarioId,
+      scenarios: [scenarioV3(scenarioId, "Baseline", 1)] });
+    await expect(h.runtime.captureScenario(scenarioId)).rejects.toThrow("capture clocks differ");
+    const current = await h.runtime.captureScenario(scenarioId);
+    expect(current.capture.checkpoint.acceptedRevision).toBe(0);
+    expect(live.readScenarios).toHaveBeenCalledTimes(2);
+    h.runtime.terminate();
+  });
+  it("starts optional prepared-data loading alongside initialization without waiting or advancing the model", async () => {
+    let releaseFrame!: (frame: StudioSimulationFrameV2) => void;
+    let releaseAsset!: (analysis: StudioSimulationAnalysisV2 | null) => void;
+    const initialFrame = new Promise<StudioSimulationFrameV2>(resolve => { releaseFrame = resolve; });
+    const asset = new Promise<StudioSimulationAnalysisV2 | null>(resolve => { releaseAsset = resolve; });
+    const client = clientV3("scenario/baseline");
+    client.initialize.mockImplementation(() => initialFrame);
+    const load = vi.fn(() => asset);
+    const h = harnessV3(undefined, undefined, { createClient: () => client, loadPreparedAnalysis: load });
+    const seed = { ...seedV3("scenario/baseline", "Baseline", 0), checkpoint: checkpointV3(0) };
+    const starting = h.runtime.initialize({ scenarios: [seed], activeScenarioId: seed.scenarioId });
+    await vi.waitFor(() => expect(load).toHaveBeenCalledWith(seed));
+    expect(client.initialize).toHaveBeenCalledOnce();
+    releaseFrame(frameV3(seed.scenarioId, 0));
+    await starting;
+    expect(h.runtime.latestFrame(seed.scenarioId).acceptedRevision).toBe(0);
+    expect(client.advance).not.toHaveBeenCalled();
+    expect(client.advancePresentation).not.toHaveBeenCalled();
+    releaseAsset(null);
+    h.runtime.terminate();
+  });
+
+  it("contains an optional prepared-data rejection even if initialization also fails", async () => {
+    const client = clientV3("scenario/baseline");
+    client.initialize.mockRejectedValue(new Error("initialization failed"));
+    const h = harnessV3(undefined, undefined, {
+      createClient: () => client,
+      loadPreparedAnalysis: () => { throw new Error("optional asset failed"); },
+    });
+    await expect(h.runtime.initialize({ scenarios: [{ ...seedV3("scenario/baseline", "Baseline", 0), checkpoint: checkpointV3(0) }], activeScenarioId: "scenario/baseline" })).rejects.toThrow();
+    expect(client.terminate).toHaveBeenCalled();
+    h.runtime.terminate();
+  });
+
+  it("restores five lanes and adds another independent Scenario", async () => {
+    const harness = harnessV3();
+    const scenarios = Array.from({ length: 5 }, (_, index) => seedV3(`scenario/baseline-${index}`, `baseline ${index + 1}`, 0));
+    await harness.runtime.initialize({ scenarios, activeScenarioId: scenarios[0].scenarioId });
+    expect(harness.runtime.descriptors()).toHaveLength(5);
+    const added = await harness.runtime.addScenario(seedV3("scenario/extra", "baseline 6", 0));
+    expect(added.scenarios).toHaveLength(6);
+    const captures = await harness.runtime.captureScenarios();
+    expect(new Set(captures.scenarios.map(scenario => scenario.scenarioId)).size).toBe(6);
+    expect(captures.scenarios[0].capture).not.toBe(captures.scenarios[1].capture);
+    harness.runtime.terminate();
+  });
   it("reuses a prepared launch family without a numerical analysis Worker, preserving its original source clock", async () => {
     const saved = analysisV3("offline", "registered-preset", "analysis/guyton-starling");
     const load = vi.fn(async () => saved);
@@ -49,7 +310,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     const h = harnessV3(undefined, undefined, { loadPreparedAnalysis: async () => saved });
     await h.runtime.initialize({ scenarios: [{ ...seedV3("scenario/baseline", "Baseline", 0), checkpoint: checkpointV3(0) }], activeScenarioId: "scenario/baseline" });
     const changed = { ...frameV3("scenario/baseline", 0), inputEpoch: 1 };
-    h.clients.get("scenario/baseline")!.applyControl.mockResolvedValue(changed);
+    h.clients.get("scenario/baseline")!.applyControl.mockResolvedValue({ frame: changed, fixture: { value: 1 } });
     await h.runtime.applyControl({ scenarioId: "scenario/baseline", controlId: "test", value: 1,
       expectedInputEpoch: 0 });
     const worker = h.analysisClients.get("scenario/baseline")!;
@@ -70,7 +331,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     const pending = h.runtime.requestAnalysis({ scenarioId: "scenario/baseline", analysisId: saved.analysisId,
       expectedInputEpoch: 0, expectedAcceptedRevision: 0, expectedAcceptedTimeSec: 0, onLiveLaneReleased: released }).catch(error => error);
     await vi.waitFor(() => expect(released).toHaveBeenCalledOnce());
-    h.clients.get("scenario/baseline")!.applyControl.mockResolvedValue({ ...frameV3("scenario/baseline", 0), inputEpoch: 1 });
+    h.clients.get("scenario/baseline")!.applyControl.mockResolvedValue({ frame: { ...frameV3("scenario/baseline", 0), inputEpoch: 1 }, fixture: { value: 1 } });
     await h.runtime.applyControl({ scenarioId: "scenario/baseline", controlId: "test", value: 1, expectedInputEpoch: 0 });
     resolveAsset(saved);
     expect((await pending).message).toContain("Prepared analysis target changed");
@@ -263,6 +524,16 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     // A genuine global pause still gives idle capacity back to analysis.
     await harness.runtime.pauseAll();
     expect(liveScenarioCounts.at(-1)).toBe(0);
+    const releaseControl = harness.runtime.reserveForegroundCapacity();
+    const releaseNested = harness.runtime.reserveForegroundCapacity();
+    await harness.runtime.pauseAll();
+    expect(liveScenarioCounts.at(-1)).toBe(2);
+    releaseNested();
+    releaseNested(); // Idempotence must not release the outer transaction.
+    expect(liveScenarioCounts.at(-1)).toBe(2);
+    releaseControl();
+    expect(liveScenarioCounts.at(-1)).toBe(0);
+    expect(harness.conductor.running).toBe(false);
     harness.runtime.resumeScenario("scenario/comparison");
     expect(liveScenarioCounts.at(-1)).toBe(0);
     harness.runtime.playAll();
@@ -285,8 +556,12 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     expect(liveScenarioCounts.at(-1)).toBe(0);
     harness.runtime.playAll();
     expect(liveScenarioCounts.at(-1)).toBe(2);
+    const releaseRetiredControl = harness.runtime.reserveForegroundCapacity();
     harness.runtime.terminate();
     expect(liveScenarioCounts.at(-1)).toBe(0);
+    const countAfterTermination = liveScenarioCounts.length;
+    releaseRetiredControl();
+    expect(liveScenarioCounts).toHaveLength(countAfterTermination);
   });
 
   it("pauses the shared comparison clock for a short Scenario lease", async () => {
@@ -501,8 +776,8 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
 
     liveClient.applyControl
       .mockResolvedValueOnce(Object.freeze({
-        ...frameV3("scenario/baseline", 1),
-        inputEpoch: 1,
+        frame: { ...frameV3("scenario/baseline", 0), inputEpoch: 1 },
+        fixture: { value: 1.01 },
       }));
     const captureCountBeforeControl = liveClient.readScenarios.mock.calls.length;
 
@@ -511,12 +786,15 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       controlId: "control/systemic-resistance",
       value: 1.01,
       expectedInputEpoch: 0,
-    })).resolves.toMatchObject({ inputEpoch: 1 });
+    })).resolves.toMatchObject({ frame: { inputEpoch: 1 }, fixture: { value: 1.01 } });
     expect(cancelled).toHaveBeenCalledOnce();
-    // The UI already needs one authoritative capture to project the new input.
-    // A speculative warm start must reuse it, not add another blocking read.
+    // Accepted settings arrive without a checkpoint read. A later detached
+    // analysis/authoring capture can still seed a speculative warm start.
     expect(liveClient.readScenarios).toHaveBeenCalledTimes(captureCountBeforeControl);
-    await harness.runtime.captureScenario("scenario/baseline", { prewarm: true });
+    harness.runtime.selectBestAvailableScenarioCaptures({
+      activeScenarioId: "scenario/baseline",
+      scenarios: [await harness.runtime.captureScenario("scenario/baseline")],
+    });
     expect(liveClient.readScenarios).toHaveBeenCalledTimes(captureCountBeforeControl + 1);
     expect(scheduled).toHaveBeenCalledTimes(2);
     await expect(pendingAnalysis).rejects.toThrow(
@@ -698,6 +976,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
       scenarios: [seedV3("scenario/baseline", "Baseline", 3)],
       activeScenarioId: "scenario/baseline",
     });
+    await harness.conductor.dependencies.lanes()[0]!.advance(6);
     const sourceCapture = scenarioV3(
       "scenario/baseline",
       "stale worker label",
@@ -750,7 +1029,7 @@ describe("WorkbenchParallelScenarioRuntimeV3", () => {
     });
     const comparisonClient = harness.clients.get("scenario/comparison")!;
     comparisonClient.applyControl.mockResolvedValue(
-      frameV3("scenario/comparison", 7),
+      { frame: frameV3("scenario/comparison", 7), fixture: { value: 1.2 } },
     );
     await harness.runtime.applyControl({
       scenarioId: "scenario/comparison",

@@ -1,8 +1,11 @@
 import React from "react";
+import { workbenchManualChartDomainV3 } from "./WorkbenchManualChartDomainV3";
 import { useAppTheme } from "@/appTheme";
 import { useTranslation } from "react-i18next";
+import { SimulationChartStatusV1 } from "@/components/simulation/SimulationPreparationV1";
 import { WorkbenchAnalysisErrorPopoverV3 } from "./WorkbenchAnalysisErrorPopoverV3";
 import { workbenchLoadRelationDescriptionV1 } from "./WorkbenchLoadRelationDescriptionV1";
+import { studioPressureVolumeDescriptionV1 } from "@/studio/presentation/StudioItemPresentationCatalogV1";
 
 import type {
   PressureVolumePressureBasisV2,
@@ -26,7 +29,6 @@ import {
   positiveModuloV3,
 } from "./SweepingWaveformCanvasV3";
 import {
-  mixOpaqueWorkbenchCanvasColorV3,
   scaleLinearV3,
   readWorkbenchCanvasThemeVariablesV3,
   useResponsiveCanvasFrameV3,
@@ -34,6 +36,7 @@ import {
 import {
   WorkbenchChartLegendV3,
   buildWorkbenchTraceLegendModelV3,
+  drawWorkbenchLeadingCapV3,
   drawWorkbenchMeasuredPointV3,
   workbenchHistoryAlphaV3,
   workbenchLegendSelectionMatchesTraceV3,
@@ -81,25 +84,9 @@ export type WorkbenchPvPointV3 = Readonly<{
 export type WorkbenchLivePvTrajectoryV3 = Readonly<{
   /** Most recent full model-emitted cycle, retained as spatial context. */
   completedBeat: readonly WorkbenchPvPointV3[];
-  /** Current model-emitted cycle, including its moving leading point. */
+  /** Recorded startup segment, then the current cycle, including its leading point. */
   liveSegment: readonly WorkbenchPvPointV3[];
 }>;
-
-/**
- * Keeps an incomplete first orbit out of both the plot and its auto-domain.
- * Once one complete model-emitted cycle exists, the normal phase-aware live
- * replacement resumes and retains that completed beat as its back buffer.
- */
-export function revealPvTrajectoryAfterFirstCompleteCycleV3(
-  trajectory: WorkbenchLivePvTrajectoryV3,
-): WorkbenchLivePvTrajectoryV3 {
-  return trajectory.completedBeat.length === 0
-    ? Object.freeze({
-        completedBeat: Object.freeze([]),
-        liveSegment: Object.freeze([]),
-      })
-    : trajectory;
-}
 
 export type WorkbenchPvRelationPointV3 = Readonly<{
   volumeMl: number;
@@ -268,7 +255,7 @@ export function extractLivePvTrajectoryV3(
     ? completedCandidate
     : Object.freeze([]);
   const liveStartIndex = range?.endIndexInclusive
-    ?? latestPvCycleStartIndexV3(ordered, cyclePhaseOutputId);
+    ?? initialPvSegmentStartIndexV3(ordered, cyclePhaseOutputId);
   const liveSegment = liveStartIndex === null
     ? Object.freeze([])
     : extractPvPointsV3(
@@ -352,28 +339,21 @@ function unwrappedPvCycleProgressV3(
   }));
 }
 
-function latestPvCycleStartIndexV3(
+/** Keep the initial fragment through the first wrap until a full beat exists. */
+function initialPvSegmentStartIndexV3(
   samples: readonly WorkbenchScalarSampleV3[],
   cyclePhaseOutputId: string,
 ): number | null {
   let startIndex: number | null = null;
-  let previousPhase: number | null = null;
   for (let index = 0; index < samples.length; index += 1) {
     const phase = normalizedModelCyclePhaseV3(
       finiteWorkbenchScalarValueV3(samples[index]!, cyclePhaseOutputId),
     );
     if (phase === null) {
       startIndex = null;
-      previousPhase = null;
       continue;
     }
-    if (
-      previousPhase === null
-      || phase + CYCLE_PHASE_EPSILON_V3 < previousPhase
-    ) {
-      startIndex = index;
-    }
-    previousPhase = phase;
+    if (startIndex === null) startIndex = index;
   }
   return startIndex;
 }
@@ -417,7 +397,10 @@ function extractPvPointsV3(
 }
 
 type PressureVolumeLoopCanvasCommonPropsV3 = Readonly<{
+  axisRanges?: import("@/studio/contracts/v2/content").ExperimentGraphAxisRangesV2;
+  playbackRunning?: boolean;
   className?: string;
+  legendActions?: React.ReactNode;
   periodicPvaSupported?: boolean;
   showPressureEnvelope?: boolean;
   showPvaBoundary?: boolean;
@@ -508,23 +491,21 @@ export function PressureVolumeLoopCanvasV3(
       scenarioLabel: trace.scenarioLabel,
       itemId: trace.chamberId,
       itemLabel: trace.chamberLabel,
-      ...(periodicPvaSupported && (trace.periodicPva !== undefined || trace.periodicPvaHistory?.length) ? { itemDescription:
-        workbenchLoadRelationDescriptionV1(showPvaBoundary ? "pva"
+      itemDescription: [studioPressureVolumeDescriptionV1(trace.volumeOutputId, trace.pressureOutputId, language ?? "en"),
+        periodicPvaSupported && (trace.periodicPva !== undefined || trace.periodicPvaHistory?.length) ? workbenchLoadRelationDescriptionV1(showPvaBoundary ? "pva"
           : (trace.periodicPva ?? trace.periodicPvaHistory?.at(-1)?.value)?.loadRelations !== undefined ? "pv" : "pv-isochrone", language)
-          + workbenchPvHistoryDescriptionV3(trace, language?.startsWith("ja") === true) } : {}),
+          : ""].filter(Boolean).join("\n\n") + workbenchPvHistoryDescriptionV3(trace, language?.startsWith("ja") === true),
       color: trace.chamberColor,
     }))),
     [traces, periodicPvaSupported, showPvaBoundary, language],
   );
   const renderedTraces = React.useMemo(() => traces.map((trace) => {
     const historyEpochs = workbenchPvHistoryEpochsV3(trace);
-    const trajectory = revealPvTrajectoryAfterFirstCompleteCycleV3(
-      extractLivePvTrajectoryV3(
-        trace.samples,
-        trace.volumeOutputId,
-        trace.pressureOutputId,
-        trace.cyclePhaseOutputId,
-      ),
+    const trajectory = extractLivePvTrajectoryV3(
+      trace.samples,
+      trace.volumeOutputId,
+      trace.pressureOutputId,
+      trace.cyclePhaseOutputId,
     );
     const history = Object.freeze((trace.historySampleSets ?? []).map(
       (samples) => {
@@ -624,9 +605,11 @@ export function PressureVolumeLoopCanvasV3(
         commitKey: domainCommitKey,
       },
     );
-    const volumeDomain = volumeDomainStateRef.current.domain;
-    const pressureDomain = pressureDomainStateRef.current.domain;
+    const volumeDomain = workbenchManualChartDomainV3(volumeDomainStateRef.current.domain, props.axisRanges?.x);
+    const pressureDomain = workbenchManualChartDomainV3(pressureDomainStateRef.current.domain, props.axisRanges?.y);
     if (canvasRef.current !== null) {
+      canvasRef.current.dataset.volumeMinimumMl = String(volumeDomain[0]);
+      canvasRef.current.dataset.pressureMinimumMmhg = String(pressureDomain[0]);
       canvasRef.current.dataset.volumeMaximumMl = String(volumeDomain[1]);
       canvasRef.current.dataset.pressureMaximumMmhg = String(pressureDomain[1]);
     }
@@ -721,7 +704,7 @@ export function PressureVolumeLoopCanvasV3(
       });
       const head = liveSegment.at(-1);
       if (head !== undefined) {
-        drawPvLeadingCapV3(
+        drawWorkbenchLeadingCapV3(
           context,
           x(head.volumeMl),
           y(head.pressureMmHg),
@@ -733,26 +716,9 @@ export function PressureVolumeLoopCanvasV3(
     }
     context.restore();
 
-    if (visibleRenderedTraces.every(({ completedBeat, liveSegment, history, periodicPvaDrawing, periodicPvaHistoryDrawings }) =>
-      completedBeat.length === 0 && liveSegment.length === 0
-      && history.every(previous => previous.completedBeat.length === 0)
-      && periodicPvaDrawing === null && periodicPvaHistoryDrawings.length === 0)) {
-      context.save();
-      context.fillStyle = theme.text;
-      context.font = theme.messageFont;
-      context.textAlign = "center";
-      context.textBaseline = "middle";
-      context.fillText(
-        t("workbench.waitingForCycle"),
-        (plot.left + plot.right) / 2,
-        (plot.top + plot.bottom) / 2,
-        Math.max(1, plot.right - plot.left - 12),
-      );
-      context.restore();
-    }
   }, [
     appTheme,
-    t,
+    props.axisRanges,
     domainCommitKey,
     legendSelection,
     periodicPvaSupported,
@@ -790,31 +756,16 @@ export function PressureVolumeLoopCanvasV3(
   const envelopeVisible = drawablePva.some(({ periodicPvaDrawing }) =>
     periodicPvaDrawing.loadRelation !== null
       || (showPressureEnvelope && periodicPvaDrawing.pressureEnvelope !== null));
-  const relationStatusBase = !periodicPvaSupported
-    ? null
-    : drawablePva.length > 0
-      ? `${loadResponseDisplay
-        ? "ESPVR: pressure envelope of the settled TBV family, not maximum elastance. EDPVR: measured maximum-volume points connected in TBV order, not a passive constitutive law. No display extrapolation."
-        : "PVA boundary: a common-time curve selected for this operating state. Changing TBV alone can shift it without changing contractility."}${drawablePva.some(({ periodicPvaDrawing }) => periodicPvaDrawing.areaDisplay !== null) ? " SW (solid fill) and PE (hatched) are separate illustrations, not a single area union or measurements of stored elastic energy." : ""}${showPressureEnvelope && !loadResponseDisplay && envelopeVisible ? " Pressure envelope overlaid for comparison; not used for PVA." : ""}`
-      : "Settled-source preload-reduction analysis selected · relation not yet available";
-  const relationStatus = relationStatusBase !== null && retainedPvaDrawingCount > 0
-    ? `${relationStatusBase} · faded relations are previous input conditions, not current measurements`
-    : relationStatusBase;
   const chamberAriaLabel = legendModel.items.length === 0
     ? "Pressure-volume"
     : legendModel.items.map(({ label }) => label).join(", ");
   const pvaAnalysisPending = periodicPvaSupported && traces.some(
     ({ periodicPvaAnalysisPending }) => periodicPvaAnalysisPending === true,
   );
-  const collectingPvaCandidate = visibleRenderedTraces
-    .map(({ periodicPva }) => periodicPva)
-    .find((periodicPva) => periodicPva?.status === "collecting");
-  const collectingPva =
-    collectingPvaCandidate?.status === "collecting"
-      ? collectingPvaCandidate
-      : undefined;
-  const pvaProgress = collectingPva?.progress;
-  const familyProgress = availablePva[0]?.periodicPva.source.familyProgress;
+  const awaitingCycle = visibleRenderedTraces.some(({ completedBeat }) => completedBeat.length === 0);
+  const awaitingSamples = visibleRenderedTraces.some(({ completedBeat, liveSegment }) =>
+    completedBeat.length === 0 && liveSegment.length === 0);
+  const dataStatus = t(props.playbackRunning === false ? "workbench.pvDataPaused" : "workbench.waitingForPvData");
   const pvaAnalysisError = periodicPvaSupported
     ? visibleRenderedTraces
         .map(({ trace, periodicPva }) => trace.periodicPvaAnalysisError
@@ -849,6 +800,11 @@ export function PressureVolumeLoopCanvasV3(
           : undefined
       }
       data-pv-loop-trace-count={visibleRenderedTraces.length}
+      data-pv-cycle-pending={awaitingCycle ? "true" : "false"}
+      data-pv-drawn-trace-count={visibleRenderedTraces.filter(
+        ({ completedBeat, liveSegment }) => completedBeat.length > 0 || liveSegment.length > 0,
+      ).length}
+      data-pv-live-point-count={visibleRenderedTraces.reduce((sum, { liveSegment }) => sum + liveSegment.length, 0)}
       data-volume-minimum-ml="0"
       data-pressure-minimum-mmhg="0"
       data-pv-history-loop-count={visibleRenderedTraces.reduce((sum, { history }) => sum + history.filter(({ completedBeat }) => completedBeat.length > 0).length, 0)}
@@ -872,6 +828,9 @@ export function PressureVolumeLoopCanvasV3(
         periodicPva.espvr.selectedTimeSinceAtrialCaptureSec).join(",")}
     >
       <WorkbenchChartLegendV3
+        actions={props.legendActions}
+        updatingLabel={!awaitingSamples && pvaAnalysisPending && visibleRenderedTraces.length > 0
+          ? t(showPvaBoundary ? "workbench.live.preparingPva" : "workbench.live.preparingRelations") : undefined}
         hiddenSelections={hiddenLegendSelections}
         model={legendModel}
         selection={legendSelection}
@@ -887,49 +846,20 @@ export function PressureVolumeLoopCanvasV3(
                     pvLegendSelectionKeyV3(selection))
               : Object.freeze([...current, selection]))}
       />
-      {(retainedPvaDrawingCount > 0 || visibleRenderedTraces.some(({ history }) => history.some(({ completedBeat }) => completedBeat.length > 0))) && (
-        <div className="flex items-center gap-1.5 px-3 pb-0.5 text-[10px] text-wb-subtle" data-chart-history-key="true">
-          <span aria-hidden="true" className="w-4 border-t border-current opacity-40" />
-          <span>{language?.startsWith("ja") ? "薄い線：変更前" : "Faded: previous inputs"}</span>
-        </div>
-      )}
       <div ref={containerRef} className="relative min-h-0 flex-1 overflow-hidden">
         <canvas
           ref={canvasRef}
           className="block h-full w-full"
           role="img"
-          aria-label={`${chamberAriaLabel} live pressure-volume loops from model-emitted cycles${
-            relationStatus === null ? "" : `. ${relationStatus}`
-          }`}
+          aria-label={`${chamberAriaLabel} ${language?.startsWith("ja") ? "圧容積ループ" : "pressure-volume loop"}`}
         />
         {showPvaBoundary && drawablePva.some(({ periodicPvaDrawing }) => periodicPvaDrawing.areaDisplay !== null && !periodicPvaDrawing.retainedFromPriorUpdate) && (
-          <div className={`pointer-events-none absolute ${pvaAnalysisError ? "right-10" : "right-3"} ${pvaAnalysisPending ? "top-7" : "top-1"} flex items-center gap-2 text-[10px] text-wb-subtle`}
+          <div className={`pointer-events-none absolute ${pvaAnalysisError ? "right-10" : "right-3"} top-1 flex items-center gap-2 text-[10px] text-wb-subtle`}
             aria-label="PVA view: solid SW, hatched PE; separate illustrations">
             <span>PVA</span><span>■ SW</span><span>▧ PE</span>
           </div>
         )}
-        {pvaAnalysisPending && (
-          <div
-            className="pointer-events-none absolute right-2 top-2 inline-flex items-center gap-1.5 text-[10px] text-wb-subtle"
-            role="status"
-          >
-            <span
-              aria-hidden="true"
-              className="h-2.5 w-2.5 rounded-full border border-wb-subtle/35 border-t-wb-accent motion-safe:animate-spin"
-            />
-            <span className="sr-only">
-            {familyProgress !== undefined
-              ? `PVA ready · Starling extension ${familyProgress.completedPointCount} settled points`
-              : collectingPva?.preview?.stage === "pva"
-                ? `PVA preview · ${collectingPva.preview.pointCount} settled points · refining to ≥${collectingPva.progress.totalPointCount}`
-                : collectingPva?.preview?.stage === "relations"
-                  ? `ESPVR / EDPVR preview · ${collectingPva.preview.pointCount} settled points`
-                  : pvaProgress === undefined
-                    ? "Settling source…"
-                    : `PVA analysis ${pvaProgress.completedPointCount} settled points · minimum ${pvaProgress.totalPointCount}`}
-            </span>
-          </div>
-        )}
+        {awaitingSamples && <SimulationChartStatusV1>{dataStatus}</SimulationChartStatusV1>}
         {pvaAnalysisError !== undefined && (
           <WorkbenchAnalysisErrorPopoverV3 error={pvaAnalysisError} onRetry={props.onRetryAnalysis} />
         )}
@@ -1019,7 +949,7 @@ export function workbenchPvHistoryDescriptionV3(trace: WorkbenchPressureVolumeTr
       : japanese ? "以前の設定" : "Earlier inputs";
     return `${label}: ${[...(loop ? ["PV loop"] : []), ...(relation ? [japanese ? "解析曲線" : "analysis curves"] : [])].join(" / ")}`;
   });
-  return `\n\n${japanese ? "変更前の表示（解析が未完了の設定では曲線はありません）" : "Previous inputs (analysis curves exist only where a result was obtained)"}\n${records.join("\n")}`;
+  return `\n\n${japanese ? "変更前の表示（曲線は解析結果が得られた設定を表示）" : "Previous inputs (curves are shown for settings with completed analysis)"}\n${records.join("\n")}`;
 }
 
 /** Only visible loops own the viewport. Load relations and PVA geometry are
@@ -1092,7 +1022,8 @@ function pvStableDomainCommitKeyV3(
     return live === undefined
       ? []
       : [
-          `${trace.scenarioId}:${trace.chamberId}:time:${Math.floor(live.acceptedTimeSec / 0.75)}:history:${history.length}`,
+          // Partial acquisition can expand the axes, but cannot commit a contraction.
+          `${trace.scenarioId}:${trace.chamberId}:initial:${trace.samples.at(-1)?.inputEpoch}:history:${history.length}`,
         ];
   });
   return keys.length === 0 ? null : keys.join("\u001f");
@@ -1523,38 +1454,6 @@ function drawPvCurveV3<T extends Readonly<{
     if (index === 0) context.moveTo(x(point.volumeMl), y(point.pressureMmHg));
     else context.lineTo(x(point.volumeMl), y(point.pressureMmHg));
   });
-  context.stroke();
-  context.restore();
-}
-
-function drawPvLeadingCapV3(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  color: string,
-  canvasColor: string,
-  traceAlpha = 1,
-): void {
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-  context.save();
-  context.setLineDash([]);
-  context.globalAlpha = 1;
-  context.fillStyle = mixOpaqueWorkbenchCanvasColorV3(
-    color,
-    canvasColor,
-    0.34 * traceAlpha,
-  );
-  context.beginPath();
-  context.arc(x, y, 4.25, 0, Math.PI * 2);
-  context.fill();
-  context.strokeStyle = mixOpaqueWorkbenchCanvasColorV3(
-    color,
-    canvasColor,
-    0.88 * traceAlpha,
-  );
-  context.lineWidth = 1;
-  context.beginPath();
-  context.arc(x, y, 3.5, 0, Math.PI * 2);
   context.stroke();
   context.restore();
 }

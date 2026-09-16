@@ -32,6 +32,8 @@ type Continuation = Awaited<ReturnType<typeof verifyMainWireReviewContinuationV1
 export type RegistryCaseReviewReceiptV1 = Readonly<{
   sourceDossierSha256: string; recordUrl: string;
   decisions: readonly Readonly<{ reviewer: string; vote: "accept" | "hold" }>[];
+  /** Later review findings supplement, never rewrite, the sealed observations. */
+  notes?: Readonly<Record<Locale, readonly string[]>>;
 }>;
 const sha = (value: string | Uint8Array) => createHash("sha256").update(value).digest("hex");
 const details = (label: string, value: unknown) => <details className="my-5"><summary className="cursor-pointer text-sm font-medium">{label}</summary>
@@ -161,6 +163,7 @@ export async function compileRegistryCaseDocumentV1(input: {
         <MainWireReadingSettingsV1 document={content} locale={locale} />
       </section><section id="record" className="scroll-mt-24 border-t border-wb-line py-8">
         <h2 className="text-xl font-semibold">{t("測定記録・根拠・評価の範囲", "Records, evidence and assessment scope")}</h2>
+        {review?.notes?.[locale].map((note, i) => <p className="my-3 text-sm leading-7" key={i}>{note}</p>)}
         <p className="my-4 text-sm text-wb-muted">{t("各資料の対象集団と測定条件を、今回の測定と区別して読みます。下の原記録には出典の言語をそのまま残しています。", "Source populations and measurement conditions are distinct from this simulation. Raw records below retain their source language.")}</p>
         {sourcesFor(input.results[0]!.rest.referenceId, locale).map(source => <details className="my-4 text-sm" key={source.id}>
           <summary className="cursor-pointer">{source.title}</summary><p className="my-3 text-wb-muted">{source.description}</p>

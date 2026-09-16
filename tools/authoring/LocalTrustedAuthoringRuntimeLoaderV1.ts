@@ -11,7 +11,7 @@ import {
 } from "@/studio/infrastructure/model/DynamicExactModelRuntimeLoaderV2";
 
 const LOCAL_STANDARD_ARTIFACT_V1 = new URL(
-  "../../data/model-releases/standard73/artifact.mjs.txt",
+  "../../data/model-releases/standard74/artifact.mjs.txt",
   import.meta.url,
 );
 

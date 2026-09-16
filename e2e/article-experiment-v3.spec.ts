@@ -4,7 +4,7 @@ import type { StudioArticleDraftV2 } from "../studio/contracts/v2/article";
 import type { ExperimentSnapshotV2, ScenarioCaptureV2 } from "../studio/contracts/v2/content";
 
 const baseline = JSON.parse(readFileSync(new URL(
-  "../data/model-baselines/standard73-baseline-v1.json", import.meta.url,
+  "../data/model-baselines/standard74-baseline-v1.json", import.meta.url,
 ), "utf8")) as { modelId: string; surfaceReleaseId: string; capture: ScenarioCaptureV2 };
 
 async function openColdPeek(page: Page) {
@@ -14,7 +14,7 @@ async function openColdPeek(page: Page) {
     surfaceReleaseId: baseline.surfaceReleaseId,
     content: {
       modelId: baseline.modelId,
-      surfaceSeriesId: "circleheart.main-wire.surface.static-anatomy.workbench",
+      surfaceSeriesId: "circleheart.main-wire.surface.static-anatomy.bounded-pva-workbench",
       scenarios: [{ scenarioId: "baseline", label: "基準", capture: baseline.capture }],
       surface: {
         // Two equally important waveforms require Peek, with a real exact Worker.
@@ -22,6 +22,7 @@ async function openColdPeek(page: Page) {
           paneId: `wave-${seriesId}`, role: "graph", label: seriesId,
           order, priority: 1, graphId: "hemodynamics.pressure.waveform.comprehensive-v1",
           scenarioScope: { mode: "visible-scenarios" }, excludedTraces: [], windowSec: 2,
+          axisRanges: { y: { minimum: -5, maximum: 140 } },
           series: [{ seriesId, label: seriesId, order: 0 }],
         })),
         outputPanes: [], controlPanes: [], note: { text: "" },
@@ -64,6 +65,10 @@ async function openColdPeek(page: Page) {
   await expect(panel.locator("[data-reader-runtime-status]")).toHaveAttribute("data-reader-runtime-status", "playing");
   await expect(panel.getByTestId("v3-playback-rate-trigger")).toHaveText("1×");
   await expect(panel.locator('[data-chart-kind="sweeping-waveform-v3"]')).toHaveCount(2);
+  for (const canvas of await panel.locator('[data-chart-kind="sweeping-waveform-v3"] canvas').all()) {
+    await expect(canvas).toHaveAttribute("data-y-minimum", "-5");
+    await expect(canvas).toHaveAttribute("data-y-maximum", "140");
+  }
   return { placement, panel };
 }
 

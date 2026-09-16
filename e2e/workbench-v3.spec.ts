@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 
 const defaultRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
-  "../data/model-releases/standard73/publication.json",
+  "../data/model-releases/standard74/publication.json",
   import.meta.url,
 ), "utf8")) as Readonly<{ modelId: string }>;
 
@@ -21,14 +21,18 @@ async function expectFormalPvaProgressOrResult(
     if (Number(element.getAttribute("data-pva-result-count")) > 0) {
       return true;
     }
-    const status = element.querySelector('[role="status"]')?.textContent ?? "";
-    return /(?:PVA analysis|PVA preview ·|ESPVR \/ EDPVR preview ·|PVA ready · Starling extension) [1-9]\d* settled points/.test(
-      status,
-    );
+    // Actual current-input preview geometry, not a busy indicator or retained history.
+    return Number(element.getAttribute("data-pva-drawing-count"))
+      > Number(element.getAttribute("data-pva-retained-drawing-count"));
   }), { timeout: 90_000 }).toBe(true);
 }
 
 test.beforeEach(async ({ page }, testInfo) => {
+  if (testInfo.title.includes("@preset-picker") || testInfo.title.includes("@pv-history")) {
+    // This regression persists only to the isolated browser store. Do not
+    // write test experiments to a developer's configured remote repository.
+    await page.route("**/rest/v1/rpc/save_experiment_v1", route => route.abort("blockedbyclient"));
+  }
   if (testInfo.title.includes("selector stays")) {
     await page.goto("/ja/me/experiments");
     return;
@@ -101,7 +105,7 @@ test("@desktop selector stays ID-less until the first explicit Save", async ({
 
 test("@desktop current model inherits the complete analysis Surface", async ({
   page,
-}) => {
+}, testInfo) => {
   const root = page.getByTestId("v3-dockview-workbench");
   const graphArea = page.getByRole("region", { name: "グラフエリア" });
   const graphGroups = graphArea.locator(".dv-groupview");
@@ -121,21 +125,31 @@ test("@desktop current model inherits the complete analysis Surface", async ({
   await expect(pvTab).toHaveClass(/dv-active-tab/);
   await expect(guytonTab).toHaveClass(/dv-active-tab/);
   await expect(pressureTab).toHaveClass(/dv-active-tab/);
+  const groupFor = (title: string) => graphGroups.filter({ has: page.locator(".dv-tab").filter({ hasText: title }) });
+  const pvBox = await groupFor("PV loop").boundingBox();
+  const guytonBox = await groupFor("Systemic Guyton / Starling").boundingBox();
+  const pressureBox = await groupFor("Pressure waveforms").boundingBox();
+  expect(pvBox && guytonBox && pressureBox).toBeTruthy();
+  expect(Math.abs(pvBox!.y - guytonBox!.y)).toBeLessThan(3);
+  expect(guytonBox!.x).toBeGreaterThan(pvBox!.x + pvBox!.width - 3);
+  expect(Math.abs(pressureBox!.x - guytonBox!.x)).toBeLessThan(3);
+  expect(pressureBox!.y).toBeGreaterThan(guytonBox!.y + guytonBox!.height - 3);
+  expect(Math.abs(pvBox!.y + pvBox!.height - pressureBox!.y - pressureBox!.height)).toBeLessThan(3);
+  expect(pvBox!.width / (pvBox!.width + guytonBox!.width)).toBeCloseTo(0.58, 1);
   await expectDockTabAccent(pvTab.locator(".workbench-dock-tab"));
   await expectDockTabAccent(guytonTab.locator(".workbench-dock-tab"));
   await expectDockTabAccent(pressureTab.locator(".workbench-dock-tab"));
 
   await graphGroups.first().getByRole("button", { name: "Paneを追加" }).click();
-  const addGraphMenu = page.getByRole("menu", { name: "Paneを追加" });
-  await expect(addGraphMenu.getByRole("menuitem")).toHaveText([
-    "AV流速・駆出時間",
+  const addGraphMenu = page.getByRole("dialog", { name: "グラフを追加" });
+  await expect(addGraphMenu.locator("[data-graph-option-id]")).toHaveText([
     "PV loop",
     "圧波形",
     "流量波形",
     "体循環 Guyton / Starling（CVP）",
     "肺循環 Guyton / Starling（PCWP）",
   ]);
-  await page.getByRole("button", { name: "Close add pane menu" }).click();
+  await addGraphMenu.getByRole("button", { name: "閉じる", exact: true }).click();
   await expect(addGraphMenu).toBeHidden();
 
   const pvCanvas = page.locator(
@@ -155,13 +169,15 @@ test("@desktop current model inherits the complete analysis Surface", async ({
   // not a wall-clock completion SLA for the full family. Exact integration
   // tests own the complete relation and pressure-volume loops.
   await expectFormalPvaProgressOrResult(pvCanvas);
+  await page.screenshot({ path: testInfo.outputPath("clinical-workbench-layout.png") });
 
   await pressureTab.locator(".workbench-dock-tab").click();
   await expect(pressureTab).toHaveClass(/dv-active-tab/);
   await expectNonZeroCanvas(
     page.locator('[data-chart-kind="sweeping-waveform-v3"]'),
   );
-  const aorticDescription = page.getByRole("button", {
+  await expect(graphArea.getByRole("button", { name: "AoPの説明" })).toHaveCount(0);
+  const aorticDescription = page.locator('[data-output-id="presentation.pressure-summary.Ao"]').getByRole("button", {
     name: "AoPの説明",
   });
   await expect(aorticDescription).toBeVisible();
@@ -170,10 +186,7 @@ test("@desktop current model inherits the complete analysis Surface", async ({
   await aorticDescription.click();
   const aorticTooltip = page.getByRole("tooltip");
   await expect(aorticTooltip).toContainText(
-    "大動脈弁直後に置いた集中定数大動脈基部compliance node",
-  );
-  await expect(aorticTooltip).toContainText(
-    "局所的圧回復、圧波の伝播・反射はモデル化していない",
+    "大動脈圧。1心拍における大動脈基部圧の最大値／最小値",
   );
   await aorticDescription.click();
   await expect(aorticTooltip).toBeHidden();
@@ -181,13 +194,19 @@ test("@desktop current model inherits the complete analysis Surface", async ({
   await expect(aorticTooltip).toBeVisible();
   await page.keyboard.press("Escape");
 
+  await expect(page.locator('[data-output-id="presentation.pressure-summary.Ao"] .workbench-output-value'))
+    .toHaveText(/^\d+\.\d\/\d+\.\d\s*mmHg$/);
+  await expect(page.locator('[data-output-id="hemodynamics.pressure.mean.RA"] .workbench-output-value'))
+    .toHaveText(/^-?\d+\.\d\s*mmHg$/);
+  await expect(page.locator('[data-output-id="hemodynamics.pressure.mean.Ao"]')).toHaveCount(0);
+
   const controlArea = page.getByRole("region", { name: "コントロールエリア" });
-  const heartRate = controlArea.getByRole("slider", { name: "心拍数 (HR)" });
+  const heartRate = controlArea.getByRole("slider", { name: "HR" });
   await expect(heartRate).toBeVisible();
   await expect(heartRate).toHaveValue("70");
   await expect(controlArea.getByRole("slider")).toHaveCount(7);
   await expect(
-    controlArea.getByRole("slider", { name: "体血管抵抗 (SVR)" }),
+    controlArea.getByRole("slider", { name: "SVR" }),
   ).toBeVisible();
 
   await expect.poll(() => modelTime(root)).toBeGreaterThan(0.5);
@@ -231,7 +250,7 @@ test("@desktop @mobile previous outputs remain visibly stale across controls and
     .evaluate(element => getComputedStyle(element).color);
   const previousEpoch = await inputEpoch(page);
   if (mobile) await taskDeck.getByRole("tab", { name: "コントロール", exact: true }).click();
-  await page.getByRole("slider", { name: "心拍数 (HR)", exact: true }).press("ArrowRight");
+  await page.getByRole("slider", { name: "HR", exact: true }).press("ArrowRight");
   await expect.poll(() => inputEpoch(page)).toBeGreaterThan(previousEpoch);
   if (mobile) await taskDeck.getByRole("tab", { name: "出力", exact: true }).click();
   await expect(output).toHaveAttribute("data-output-stale", "true");
@@ -252,6 +271,83 @@ test("@desktop @mobile previous outputs remain visibly stale across controls and
   await expect(root).toHaveAttribute("data-playback", "playing");
 });
 
+test("@desktop item tooltips wait for deliberate hover and cancel when the pointer leaves", async ({ page }) => {
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
+  const aop = page.locator('[data-output-id="presentation.pressure-summary.Ao"]').getByRole("button");
+  const cvp = page.locator('[data-output-id="hemodynamics.pressure.mean.RA"]').getByRole("button");
+  const tooltip = page.getByRole("tooltip");
+
+  await aop.hover();
+  await page.clock.runFor(300);
+  await expect(tooltip).toBeHidden();
+  await page.mouse.move(0, 0);
+  await page.clock.runFor(600);
+  await expect(tooltip).toBeHidden();
+
+  for (const label of [aop, cvp]) {
+    await label.hover();
+    await page.clock.runFor(499);
+    await expect(tooltip).toBeHidden();
+    await page.clock.runFor(1);
+    await expect(tooltip).toBeVisible();
+    await page.mouse.move(0, 0);
+    await page.clock.runFor(130);
+    await expect(tooltip).toBeHidden();
+  }
+
+  await aop.hover();
+  await page.clock.runFor(100);
+  await aop.click();
+  await expect(tooltip).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.clock.runFor(600);
+  await expect(tooltip).toBeHidden();
+  await cvp.focus();
+  await expect(tooltip).toBeVisible();
+});
+
+test("@desktop @mobile clinical item labels disclose meaning without changing parameter values", async ({ page }, testInfo) => {
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768;
+  if (mobile) await page.getByTestId("workbench-mobile-task-deck").getByRole("tab", { name: "コントロール", exact: true }).click();
+  const heartRate = page.getByRole("slider", { name: "HR", exact: true });
+  const before = await heartRate.inputValue();
+  const explanation = page.locator(".workbench-control-row").filter({ has: heartRate }).getByRole("button", { name: "HRの説明", exact: true });
+  await explanation.click();
+  await expect(page.getByRole("tooltip")).toContainText("心拍数");
+  await expect(heartRate).toHaveValue(before);
+  await page.screenshot({ path: testInfo.outputPath("clinical-control-description.png") });
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("tooltip")).toBeHidden();
+
+  if (mobile) await page.getByTestId("workbench-mobile-graph-view-rail").getByRole("tab", { name: "Pressure waveforms", exact: true }).click();
+  {
+    const legend = page.locator('[data-chart-kind="sweeping-waveform-v3"]').getByRole("button", { name: "AoP", exact: true });
+    await legend.focus();
+    await expect(page.getByRole("tooltip")).toContainText("大動脈弁直後");
+    await expect(legend).toHaveAttribute("aria-pressed", "false");
+    await legend.press("Enter");
+    await expect(legend).toHaveAttribute("aria-pressed", "true");
+    await legend.press("Enter");
+    await expect(legend).toHaveAttribute("aria-pressed", "false");
+    await page.screenshot({ path: testInfo.outputPath("clinical-graph-description.png") });
+  }
+  if (!mobile) {
+    await page.keyboard.press("Escape");
+    await openPaneSettings(page, "Pressure waveforms");
+    const dialog = page.getByTestId("workbench-pane-picker-v3");
+    await dialog.getByRole("button", { name: "項目を追加", exact: true }).click();
+    await dialog.getByRole("searchbox").fill("肺静脈圧");
+    await dialog.getByRole("button", { name: "肺静脈圧の説明", exact: true }).focus();
+    await expect(page.getByRole("tooltip")).toContainText("肺から左房");
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("tooltip")).toBeHidden();
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  }
+});
+
 test("@desktop @mobile @beat-metrics selected beat outputs stay responsive and retain stale values", async ({ page }, testInfo) => {
   const root = page.getByTestId("v3-dockview-workbench");
   const mobile = (page.viewportSize()?.width ?? 1440) < 768;
@@ -260,18 +356,23 @@ test("@desktop @mobile @beat-metrics selected beat outputs stay responsive and r
   page.on("pageerror", error => errors.push(error.message));
   if (mobile) {
     await deck.getByRole("tab", { name: "出力", exact: true }).click();
-    await deck.locator(".workbench-mobile-pane-group-settings").first().click();
+    await deck.locator('[data-testid="pane-settings-button-v3"]').first().click();
   } else await openPaneSettings(page, "Outputs");
-  const settings = page.getByRole("dialog", { name: "Pane設定" });
-  await settings.locator(".workbench-pane-add-item").click();
-  const drawer = settings.getByTestId("pane-settings-context-drawer-v3");
-  const labels = ["LV ICT", "LV IRT", "LV Tei", "LV +dP/dt (10 ms)", "LV −dP/dt (10 ms)", "RV +dP/dt (10 ms)", "RV −dP/dt (10 ms)"];
+  const settings = page.getByTestId("workbench-pane-picker-v3");
+  await settings.getByRole("button", { name: "項目を追加", exact: true }).click();
+  const drawer = settings;
+  const labels = ["LV ICT", "LV IRT", "LV Tei", "LV +dP/dt", "LV −dP/dt", "RV +dP/dt", "RV −dP/dt"];
   for (const label of labels) {
     await drawer.getByRole("searchbox").fill(label);
-    await drawer.getByRole("button", { name: `項目を追加: ${label}`, exact: true }).click();
+    await drawer.getByRole("checkbox", { name: label, exact: true }).check();
   }
-  await drawer.getByRole("button", { name: "パネルを閉じる" }).click();
-  await settings.getByRole("button", { name: "完了", exact: true }).click();
+  await settings.getByRole("tab", { name: "項目", exact: true }).click();
+  for (const label of labels.slice(3)) {
+    await settings.getByRole("button", { name: label, exact: true }).click();
+    const kind = label.includes("+") ? "maximum" : "minimum";
+    await settings.getByRole("combobox", { name: "時間幅", exact: true }).selectOption(`hemodynamics.pressure-rate.${kind}-windowed-10ms.absolute.${label.slice(0, 2)}`);
+  }
+  await settings.getByRole("button", { name: "適用", exact: true }).click();
   const ids = ["hemodynamics.duration.isovolumic-contraction.flow-event.LV",
     "hemodynamics.duration.isovolumic-relaxation.flow-event.LV", "hemodynamics.index.myocardial-performance.flow-event.LV",
     "hemodynamics.pressure-rate.maximum-windowed-10ms.absolute.LV", "hemodynamics.pressure-rate.minimum-windowed-10ms.absolute.LV",
@@ -284,7 +385,7 @@ test("@desktop @mobile @beat-metrics selected beat outputs stay responsive and r
   const prior = await number();
   const epoch = await inputEpoch(page);
   if (mobile) await deck.getByRole("tab", { name: "コントロール", exact: true }).click();
-  await page.getByRole("slider", { name: "心拍数 (HR)", exact: true }).press("ArrowRight");
+  await page.getByRole("slider", { name: "HR", exact: true }).press("ArrowRight");
   await expect.poll(() => inputEpoch(page)).toBeGreaterThan(epoch);
   if (mobile) await deck.getByRole("tab", { name: "出力", exact: true }).click();
   await expect(ict).toHaveAttribute("data-output-stale", "true");
@@ -298,13 +399,13 @@ test("@desktop @mobile @beat-metrics selected beat outputs stay responsive and r
     await expect(output).toHaveAttribute("data-output-availability", "available");
   }
   await ict.getByRole("button").click();
-  await expect(page.getByRole("tooltip")).toContainText("モデルの血流");
+  await expect(page.getByRole("tooltip")).toContainText("左室等容性収縮時間");
   await page.keyboard.press("Escape");
   await page.screenshot({ path: testInfo.outputPath("beat-metrics-ready.png") });
   expect(errors).toEqual([]);
 });
 
-test("@desktop @mobile @model-lab @prepared-cycle prepared PV results and opt-in AV timing survive controls", async ({ page }, testInfo) => {
+test("@desktop @mobile @model-lab @prepared-cycle prepared PV results and saved AV timing survive controls", async ({ page }, testInfo) => {
   const mobile = (page.viewportSize()?.width ?? 1440) < 768, errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   const root = page.getByTestId("v3-dockview-workbench"), deck = page.getByTestId("workbench-mobile-task-deck");
@@ -315,13 +416,26 @@ test("@desktop @mobile @model-lab @prepared-cycle prepared PV results and opt-in
   await writeFile(readyPath, JSON.stringify({ waitAfterWorkbenchMs: Date.now() - started,
     navigationToReadyMs: await page.evaluate(() => performance.now()) }));
   await testInfo.attach("prepared-baseline-ready", { path: readyPath, contentType: "application/json" });
-  if (mobile) {
-    await page.getByRole("button", { name: "グラフビューを追加", exact: true }).click();
-    await page.getByRole("dialog", { name: "グラフを追加" }).getByRole("button", { name: /^AV流速・駆出時間 / }).click();
-  } else {
-    await page.getByRole("region", { name: "グラフエリア" }).getByRole("button", { name: "Paneを追加", exact: true }).first().click();
-    await page.getByRole("menu", { name: "Paneを追加" }).getByRole("menuitem", { name: "AV流速・駆出時間", exact: true }).click();
-  }
+  // The simplified add menu no longer offers a dedicated AV timing pane.
+  // The inherited current Surface still owns it in already-authored content.
+  const bundle = JSON.parse(readFileSync(new URL("../data/model-releases/standard74/bundle.json", import.meta.url), "utf8"));
+  const snapshot = {
+    schemaId: "circleheart-studio-experiment-snapshot-v2", snapshotId: "snapshot-saved-av-timing",
+    createdAt: "2026-09-16T00:00:00.000Z", surfaceReleaseId: bundle.surface.surfaceReleaseId,
+    content: { modelId: bundle.manifest.modelId, surfaceSeriesId: bundle.surface.surfaceSeriesId,
+      scenarios: [{ scenarioId: "baseline", label: "baseline", capture: bundle.baseline.capture }],
+      surface: {
+        graphPanes: [{ paneId: "av-timing", role: "graph", label: "AV timing", order: 0, priority: 0,
+          graphId: "hemodynamics.aortic-jet.cycle", scenarioScope: { mode: "visible-scenarios" }, excludedTraces: [], series: [] }],
+        controlPanes: [{ paneId: "hr", role: "control", label: "Parameters", order: 0, priority: 0,
+          binding: { mode: "active-slot" }, items: [{ controlId: "rhythm.heart-rate-bpm", label: "HR", order: 0, presentation: { kind: "slider" } }] }],
+        outputPanes: [], note: { text: "" },
+      } },
+  };
+  await page.addInitScript(snapshot => localStorage.setItem("circleheart.studio.browser-content.v9", JSON.stringify({
+    schemaId: "circleheart-studio-browser-content-v9", experiments: [], snapshots: [snapshot], articles: [],
+  })), snapshot);
+  await page.goto(`/ja/snapshots/${snapshot.snapshotId}`);
   const wave = page.locator('[data-ejection-waveform="true"]').first();
   await expect(wave).toBeVisible();
   await expect(wave.locator('[data-ejection-stale="false"]')).toHaveCount(1);
@@ -332,7 +446,7 @@ test("@desktop @mobile @model-lab @prepared-cycle prepared PV results and opt-in
   await playback.click(); await expect(root).toHaveAttribute("data-playback", "paused");
   const before = await wave.innerText(), epoch = await inputEpoch(page);
   if (mobile) await deck.getByRole("tab", { name: "コントロール", exact: true }).click();
-  await page.getByRole("slider", { name: "心拍数 (HR)", exact: true }).press("ArrowRight");
+  await page.getByRole("slider", { name: "HR", exact: true }).press("ArrowRight");
   await expect.poll(() => inputEpoch(page)).toBeGreaterThan(epoch);
   await expect(wave.locator('[data-ejection-stale="true"]')).toHaveCount(1);
   expect(await wave.innerText()).toContain(before);
@@ -342,7 +456,7 @@ test("@desktop @mobile @model-lab @prepared-cycle prepared PV results and opt-in
   expect(errors).toEqual([]);
 });
 
-test("@desktop @mobile @model-lab @pv-history loop-owned zero-based axes retain auxiliary history without rescaling", async ({ page }, testInfo) => {
+test("@desktop @mobile @pv-history loop-owned zero-based axes retain auxiliary history without rescaling", async ({ page }, testInfo) => {
   const mobile = (page.viewportSize()?.width ?? 1440) < 768;
   const root = page.getByTestId("v3-dockview-workbench");
   const pv = page.locator('[data-chart-kind="pressure-volume-loop-v3"]').first();
@@ -354,8 +468,11 @@ test("@desktop @mobile @model-lab @pv-history loop-owned zero-based axes retain 
     else await page.getByRole("region", { name: "グラフエリア" }).getByText(name, { exact: true }).click();
   };
   const editGraph = async (name: string) => {
-    if (mobile) await page.getByRole("button", { name: `グラフビュー「${name}」を編集`, exact: true }).click();
-    else await openPaneSettings(page, name);
+    if (mobile) {
+      await page.getByRole("button", { name: `Pane設定: ${name}`, exact: true }).click();
+    } else await openPaneSettings(page, name);
+    const display = page.getByTestId("workbench-pane-picker-v3").getByRole("tab", { name: "表示", exact: true });
+    if (await display.count()) await display.click();
   };
   await expect.poll(async () => Number(await pv.getAttribute("data-pva-result-count")), { timeout: 15_000 }).toBeGreaterThan(0);
   await expect.poll(async () => Number(await pv.getAttribute("data-pv-ready-trace-count"))).toBeGreaterThan(0);
@@ -370,38 +487,38 @@ test("@desktop @mobile @model-lab @pv-history loop-owned zero-based axes retain 
   // Changing the auxiliary construction must not enlarge the paused loop's axes.
   for (const view of ["pva", "envelope", "espvr"] as const) {
     await editGraph("PV loop");
-    const settings = page.getByRole("dialog", { name: "Pane設定" });
+    const settings = page.getByTestId("workbench-pane-picker-v3");
     await settings.getByRole("button", { name: view === "envelope" ? /^包絡線 / : /^PVA / }).click();
-    await settings.getByRole("button", { name: "完了", exact: true }).click();
+    await settings.getByRole("button", { name: "適用", exact: true }).click();
     await expect(pv).toHaveAttribute("data-pv-pva-boundary-visible", view === "espvr" ? "false" : "true");
     await expect(pv.locator("canvas")).toHaveAttribute("data-pressure-maximum-mmhg", String(pressureMaximum));
     await expect(pv.locator("canvas")).toHaveAttribute("data-volume-maximum-ml", String(volumeMaximum));
   }
   const epoch = await inputEpoch(page);
   if (mobile) await page.getByTestId("workbench-mobile-task-deck").getByRole("tab", { name: "コントロール", exact: true }).click();
-  await page.getByRole("slider", { name: "心拍数 (HR)", exact: true }).press("ArrowRight");
+  await page.getByRole("slider", { name: "HR", exact: true }).press("ArrowRight");
   await expect.poll(() => inputEpoch(page)).toBeGreaterThan(epoch);
   await expect(pv).toHaveAttribute("data-pva-result-count", "0");
   await expect(pv).toHaveAttribute("data-pva-retained-drawing-count", "1");
   await expect(pv).toHaveAttribute("data-pv-history-loop-count", "1");
-  await expect(pv.getByText("薄い線：変更前", { exact: true })).toBeVisible();
+  await expect(pv.getByText("薄い線：変更前", { exact: true })).toHaveCount(0);
   expect(Number(await pv.locator("canvas").getAttribute("data-pressure-maximum-mmhg"))).toBeGreaterThanOrEqual(pressureMaximum);
   expect(Number(await pv.locator("canvas").getAttribute("data-volume-maximum-ml"))).toBeGreaterThanOrEqual(volumeMaximum);
   await pv.screenshot({ path: testInfo.outputPath("pv-history-pending.png") });
   await selectGraph("Systemic Guyton / Starling");
   await expect(starling).toHaveAttribute("data-stale-scenario-count", "1");
   await expect(starling).toHaveAttribute("data-history-count", "1");
-  await expect(starling.getByText("薄い線：変更前", { exact: true })).toBeVisible();
+  await expect(starling.getByText("薄い線：変更前", { exact: true })).toHaveCount(0);
   await starling.screenshot({ path: testInfo.outputPath("starling-history-pending.png") });
   for (const name of ["Systemic Guyton / Starling", "PV loop"]) {
     await selectGraph(name);
     await editGraph(name);
-    const settings = page.getByRole("dialog", { name: "Pane設定" });
+    const settings = page.getByTestId("workbench-pane-picker-v3");
     const history = settings.getByRole("group", { name: "変更前の結果" });
     await expect(history.getByRole("radio", { name: "1", exact: true })).toBeChecked();
     await history.getByText("非表示", { exact: true }).click();
     await expect(history.getByRole("radio", { name: "非表示", exact: true })).toBeChecked();
-    await settings.getByRole("button", { name: "完了", exact: true }).click();
+    await settings.getByRole("button", { name: "適用", exact: true }).click();
     if (name === "PV loop") {
       await expect(pv).toHaveAttribute("data-pva-retained-drawing-count", "0");
       await expect(pv).toHaveAttribute("data-pv-history-loop-count", "0");
@@ -415,7 +532,7 @@ test("@desktop @mobile @model-lab @pv-history loop-owned zero-based axes retain 
     await choices.getByRole("radio", { name: "2", exact: true }).press("ArrowLeft");
     await expect(choices.getByRole("radio", { name: "1", exact: true })).toBeChecked();
     await settings.screenshot({ path: testInfo.outputPath(name === "PV loop" ? "pv-history-settings.png" : "starling-history-settings.png") });
-    await settings.getByRole("button", { name: "完了", exact: true }).click();
+    await settings.getByRole("button", { name: "適用", exact: true }).click();
   }
   await expect(pv).toHaveAttribute("data-pva-retained-drawing-count", "1");
   await playback.click();
@@ -430,13 +547,13 @@ test("@desktop @mobile @model-lab @pv-history loop-owned zero-based axes retain 
   expect(errors).toEqual([]);
 });
 
-test("@desktop @mobile @model-lab @as-jet opt-in jet outputs preserve live and stale behavior", async ({ page }, testInfo) => {
+test("@desktop @mobile @as-jet opt-in jet outputs preserve live and stale behavior", async ({ page }, testInfo) => {
   const root = page.getByTestId("v3-dockview-workbench");
   const mobile = (page.viewportSize()?.width ?? 1440) < 768;
   const deck = page.getByTestId("workbench-mobile-task-deck");
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  const labels = ["AV peak PG (4v²)", "AV AT", "AV AT/ET", "AV mean flow"];
+  const labels = ["AV 最大圧較差", "AV AT", "AV AT/ET", "AV駆出中平均流量"];
   const ids = ["hemodynamics.velocity.peak-quasi-steady-jet.AoV", "hemodynamics.pressure-gradient.mean-bernoulli-jet.AoV",
     "hemodynamics.pressure-gradient.peak-bernoulli-jet.AoV", "hemodynamics.duration.jet-acceleration.AoV",
     "hemodynamics.ratio.jet-AT-to-ET.AoV", "hemodynamics.area.forward-SV-over-jet-VTI.AoV", "hemodynamics.flow.mean-ejection.AoV",
@@ -445,37 +562,39 @@ test("@desktop @mobile @model-lab @as-jet opt-in jet outputs preserve live and s
   for (const id of ids) await expect(page.locator(`[data-output-id="${id}"]`)).toHaveCount(0);
   if (mobile) {
     await deck.getByRole("tab", { name: "出力", exact: true }).click();
-    await deck.locator(".workbench-mobile-pane-group-settings").first().click();
+    await deck.locator('[data-testid="pane-settings-button-v3"]').first().click();
   } else await openPaneSettings(page, "Outputs");
-  const settings = page.getByRole("dialog", { name: "Pane設定" });
+  const settings = page.getByTestId("workbench-pane-picker-v3");
+  await settings.getByRole("button", { name: "項目を追加", exact: true }).click();
   await settings.getByRole("button", { name: "AS関連の5項目を追加", exact: true }).click();
   await expect(settings.getByRole("button", { name: "AS関連の5項目を追加", exact: true })).toHaveCount(0);
-  await settings.locator(".workbench-pane-add-item").click();
-  const drawer = settings.getByTestId("pane-settings-context-drawer-v3");
+  const drawer = settings;
   for (const label of labels) {
     await drawer.getByRole("searchbox").fill(label);
-    await drawer.getByRole("button", { name: `項目を追加: ${label}`, exact: true }).click();
+    await drawer.getByRole("checkbox", { name: label, exact: true }).check();
   }
-  await drawer.getByRole("button", { name: "パネルを閉じる" }).click();
-  await settings.getByRole("button", { name: "完了", exact: true }).click();
+  await settings.getByRole("tab", { name: "項目", exact: true }).click();
+  await settings.getByRole("button", { name: "AV 最大圧較差", exact: true }).click();
+  await settings.getByRole("combobox", { name: "計算方法", exact: true }).selectOption("hemodynamics.pressure-gradient.peak-bernoulli-jet.AoV");
+  await settings.getByRole("button", { name: "適用", exact: true }).click();
   for (const id of ids) await expect(page.locator(`[data-output-id="${id}"]`)).toHaveAttribute("data-output-availability", "available");
   for (const id of ids) await expect(page.locator(`[data-output-id="${id}"]`)).toHaveCount(1);
   const svi = page.locator(`[data-output-id="${ids[7]}"]`);
   await svi.getByRole("button").click();
-  await expect(page.getByRole("tooltip")).toContainText("BSA 1.9 m²");
+  await expect(page.getByRole("tooltip")).toContainText("参照体表面積1.9 m²");
   await page.keyboard.press("Escape");
   const vmax = page.locator(`[data-output-id="${ids[0]}"]`), playback = page.getByTestId("v3-playback-toggle");
   const value = () => vmax.locator(".workbench-output-value").evaluate(element => element.firstChild?.textContent ?? "");
   expect(Number(await value())).toBeGreaterThan(0);
   await vmax.getByRole("button").click();
-  await expect(page.getByRole("tooltip")).toContainText("Dopplerの実測値ではなく");
+  await expect(page.getByRole("tooltip")).toContainText("推定した噴流速度");
   await page.keyboard.press("Escape");
   await vmax.scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath("jet-outputs-ready.png") });
   await playback.click(); await expect(root).toHaveAttribute("data-playback", "paused");
   const previous = await value(), epoch = await inputEpoch(page);
   if (mobile) await deck.getByRole("tab", { name: "コントロール", exact: true }).click();
-  await page.getByRole("slider", { name: "心拍数 (HR)", exact: true }).press("ArrowRight");
+  await page.getByRole("slider", { name: "HR", exact: true }).press("ArrowRight");
   await expect.poll(() => inputEpoch(page)).toBeGreaterThan(epoch);
   if (mobile) await deck.getByRole("tab", { name: "出力", exact: true }).click();
   await expect(vmax).toHaveAttribute("data-output-stale", "true");
@@ -491,24 +610,190 @@ test("@desktop @mobile @model-lab @as-jet opt-in jet outputs preserve live and s
   expect(errors).toEqual([]);
 });
 
+test("@desktop @mobile @axis-ranges graph ranges persist without changing numerical state", async ({ page }, testInfo) => {
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768;
+  const root = page.getByTestId("v3-dockview-workbench");
+  await page.getByTestId("v3-playback-toggle").click();
+  await expect(root).toHaveAttribute("data-playback", "paused");
+  const epoch = await inputEpoch(page);
+  const edit = async (name: string) => {
+    if (mobile) {
+      await page.getByTestId("workbench-mobile-graph-view-rail").getByRole("tab", { name, exact: true }).click();
+      await page.getByRole("button", { name: `Pane設定: ${name}`, exact: true }).click();
+    } else await openPaneSettings(page, name);
+    const settings = page.getByTestId("workbench-pane-picker-v3");
+    await expect(settings).toBeVisible();
+    if (name === "PV loop" || name === "Pressure waveforms") await settings.getByRole("tab", { name: "表示", exact: true }).click();
+    return settings;
+  };
+  const setRange = async (settings: Locator, axis: string, minimum: string, maximum: string) => {
+    const section = settings.locator(`[data-axis-range="${axis}"]`);
+    await section.getByRole("combobox").selectOption("manual");
+    const inputs = section.getByRole("textbox");
+    await inputs.nth(0).fill(minimum); await inputs.nth(1).fill(maximum); await inputs.nth(1).press("Tab");
+  };
+  let settings = await edit("PV loop");
+  await setRange(settings, "x", "20", "180");
+  await setRange(settings, "y", "-10", "130");
+  await settings.getByRole("button", { name: "適用", exact: true }).click();
+  const pv = page.locator('[data-chart-kind="pressure-volume-loop-v3"] canvas').first();
+  await expect(pv).toHaveAttribute("data-volume-minimum-ml", "20");
+  await expect(pv).toHaveAttribute("data-volume-maximum-ml", "180");
+  await expect(pv).toHaveAttribute("data-pressure-minimum-mmhg", "-10");
+  await expect(pv).toHaveAttribute("data-pressure-maximum-mmhg", "130");
+  settings = await edit("Pressure waveforms");
+  await expect(settings.locator('[data-axis-range="x"]')).toHaveCount(0);
+  await setRange(settings, "y", "0", "120");
+  await settings.getByRole("button", { name: "適用", exact: true }).click();
+  await expect(page.locator('[data-chart-kind="sweeping-waveform-v3"] canvas').first()).toHaveAttribute("data-y-maximum", "120");
+  settings = await edit("Systemic Guyton / Starling");
+  await setRange(settings, "x", "-5", "25"); await setRange(settings, "y", "0", "12");
+  await settings.getByRole("button", { name: "適用", exact: true }).click();
+  const gs = page.locator('[data-chart-kind="guyton-starling-structural-orientation-v3"]').first();
+  await expect(gs).toHaveAttribute("data-pressure-minimum-mmhg", "-5");
+  await expect(gs).toHaveAttribute("data-flow-maximum-l-per-min", "12");
+  expect(await inputEpoch(page)).toBe(epoch);
+  await page.keyboard.press("ControlOrMeta+s");
+  await expect(page.getByTestId("v3-save-experiment")).toContainText("保存済み");
+  await expect(page).toHaveURL(new RegExp(`/ja/experiments/${EXPERIMENT_RESOURCE_ID}$`));
+  await page.reload(); await expect(root).toBeVisible();
+  settings = await edit("PV loop");
+  await expect(settings.locator('[data-axis-range="x"]').getByRole("textbox").nth(0)).toHaveValue("20");
+  await settings.locator('[data-axis-range="x"]').getByRole("combobox").selectOption("auto");
+  await settings.locator('[data-axis-range="y"]').getByRole("combobox").selectOption("auto");
+  await settings.getByRole("button", { name: "適用", exact: true }).click();
+  await expect(pv).toHaveAttribute("data-volume-minimum-ml", "0");
+  await page.screenshot({ path: testInfo.outputPath("manual-axis-ranges.png") });
+});
+
+test("@desktop @mobile @legend-density long scenario names keep actions fixed and legends bounded", async ({ page }, testInfo) => {
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768;
+  const deck = page.getByTestId("workbench-mobile-task-deck");
+  if (mobile) await deck.getByRole("tab", { name: "Scenario", exact: true }).click();
+  const manager = mobile ? deck.getByTestId("workbench-scenario-manager-v3") : page.getByRole("region", { name: "Scenarios", exact: true });
+  await page.getByTestId("v3-playback-toggle").click();
+  const icons = manager.getByRole("button", { name: "Scenarioメニュー: baseline", exact: true });
+  const original = await icons.boundingBox();
+  const longName = "比較用シナリオと十分に長い病態の説明".repeat(6);
+  await openScenarioMenu(page, manager, "baseline");
+  await page.getByRole("menuitem", { name: "名前を変更", exact: true }).click();
+  const name = manager.getByRole("textbox", { name: "Scenario名", exact: true });
+  await name.fill(longName); await name.press("Enter");
+  const renamed = manager.getByRole("button", { name: `Scenarioメニュー: ${longName}`, exact: true });
+  const after = await renamed.boundingBox(), bounds = await manager.boundingBox();
+  expect(Math.abs(after!.x - original!.x)).toBeLessThan(2);
+  expect(after!.x + after!.width).toBeLessThanOrEqual(bounds!.x + bounds!.width);
+  await expect(manager.getByRole("button", { name: `グラフで非表示: ${longName}`, exact: true })).toBeInViewport();
+  expect(await manager.locator(".workbench-scenario-label").evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
+  for (let i = 0; i < 4; i++) {
+    await manager.getByRole("button", { name: "Presetから追加", exact: true }).click();
+    await page.getByRole("dialog", { name: "シナリオを追加" }).getByRole("button", { name: "baseline", exact: true }).click();
+  }
+  if (mobile) await page.getByTestId("workbench-mobile-graph-view-rail").getByRole("tab", { name: "Pressure waveforms", exact: true }).click();
+  const waveform = page.locator('[data-chart-kind="sweeping-waveform-v3"]');
+  const legend = waveform.locator('[data-legend-expanded]');
+  await expect(waveform.getByRole("button", { name: "凡例を展開", exact: true })).toBeVisible();
+  expect((await legend.boundingBox())!.height).toBeLessThanOrEqual(57);
+  await waveform.getByRole("button", { name: "凡例を展開", exact: true }).click();
+  await expect(legend).toHaveAttribute("data-legend-expanded", "true");
+  await waveform.getByRole("button", { name: "凡例を折りたたむ", exact: true }).click();
+  await waveform.getByRole("button", { name: "baseline 4, AoP", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(waveform.getByRole("button", { name: "baseline 4, AoP", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(waveform.getByRole("button", { name: `${longName}, AoP`, exact: true })).toHaveAttribute("aria-pressed", "false");
+  await page.screenshot({ path: testInfo.outputPath("compact-legends-long-label.png") });
+});
+
+test("@desktop @mobile @preset-picker browses without changing Scenarios and preserves five baseline copies", async ({ page }, testInfo) => {
+  const mobile = (page.viewportSize()?.width ?? 1440) < 768;
+  const deck = page.getByTestId("workbench-mobile-task-deck");
+  const root = page.getByTestId("v3-dockview-workbench");
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.getByTestId("v3-playback-toggle").click();
+  await expect(root).toHaveAttribute("data-playback", "paused");
+  if (mobile) await deck.getByRole("tab", { name: "Scenario", exact: true }).click();
+  const manager = mobile ? deck.getByTestId("workbench-scenario-manager-v3") : page.getByRole("region", { name: "Scenarios" });
+  const add = manager.getByRole("button", { name: "Presetから追加", exact: true });
+  const picker = page.getByRole("dialog", { name: "シナリオを追加", exact: true });
+  const rows = manager.locator(".workbench-scenario-row");
+  const search = picker.getByRole("searchbox", { name: "病態・略語で検索" });
+  await add.click();
+  await expect(picker).toBeVisible();
+  if (!mobile) await expect(search).toBeFocused();
+  await search.fill("大動脈弁狭窄");
+  await expect(picker.locator("[data-preset-id]")).toHaveCount(2);
+  await picker.getByRole("button", { name: "AS · 弁狭窄のみ・高勾配: 詳細", exact: true }).click();
+  await expect(rows).toHaveCount(1);
+  await expect(manager.getByRole("button", { name: "baseline workbench-live-default", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(picker.getByRole("link", { name: /設定と検証/ })).toHaveAttribute("href", /standard74-as-high-gradient-document/);
+  await expect(picker.getByRole("link", { name: /設定と検証/ })).toHaveAttribute("target", "_blank");
+  await expect(picker.getByRole("button", { name: "一覧に戻る" })).toBeFocused();
+  await picker.getByRole("button", { name: "一覧に戻る" }).click();
+  await expect(search).toHaveValue("大動脈弁狭窄");
+  await search.fill("AS low");
+  await expect(picker.locator("[data-preset-id]")).toHaveCount(1);
+  await search.fill("no-matching-preset");
+  await expect(picker.getByText("該当するプリセットがありません。")).toBeVisible();
+  await search.fill("");
+  await page.keyboard.press("Escape");
+  await expect(picker).toBeHidden();
+  await expect(add).toBeFocused();
+  for (let count = 2; count <= 5; count += 1) {
+    await add.click();
+    await picker.getByRole("button", { name: "baseline", exact: true }).click();
+    await expect(picker).toBeHidden();
+    await expect(rows).toHaveCount(count);
+  }
+  await expect(add).toBeEnabled();
+  await expect(manager.getByRole("heading", { name: "Scenarios (5)", exact: true })).toBeVisible();
+  await expect(manager).not.toContainText("/4");
+  await manager.getByRole("button", { name: "グラフで非表示: baseline 5", exact: true }).click();
+  await expect(manager.getByRole("button", { name: "グラフに表示: baseline 5", exact: true })).toBeVisible();
+  await manager.getByRole("button", { name: "グラフに表示: baseline 5", exact: true }).click();
+  await openScenarioMenu(page, manager, "baseline 5");
+  await page.getByRole("menuitem", { name: "名前を変更", exact: true }).click();
+  await manager.getByRole("textbox", { name: "Scenario名", exact: true }).fill("比較用baseline");
+  await manager.getByRole("textbox", { name: "Scenario名", exact: true }).press("Enter");
+  await expect(manager.getByRole("button", { name: "Scenarioメニュー: 比較用baseline", exact: true })).toHaveCount(1);
+  await openScenarioMenu(page, manager, "比較用baseline");
+  await page.getByRole("menuitem", { name: "複製", exact: true }).click();
+  await expect(rows).toHaveCount(6);
+  await openScenarioMenu(page, manager, "比較用baseline のコピー");
+  await page.getByRole("menuitem", { name: "削除", exact: true }).click();
+  await expect(rows).toHaveCount(5);
+  await page.keyboard.press("ControlOrMeta+s");
+  await expect(page).toHaveURL(new RegExp(`/ja/experiments/${EXPERIMENT_RESOURCE_ID}$`));
+  await page.reload();
+  await expect(root).toHaveAttribute("data-model-id", DEFAULT_EXACT_MODEL_ID);
+  if (mobile) await deck.getByRole("tab", { name: "Scenario", exact: true }).click();
+  await expect(rows).toHaveCount(5);
+  await expect(manager.getByRole("button", { name: "Scenarioメニュー: 比較用baseline", exact: true })).toHaveCount(1);
+  await add.click();
+  await expect(picker).not.toContainText("比較中");
+  await page.screenshot({ path: testInfo.outputPath("preset-picker.png") });
+  expect(errors).toEqual([]);
+});
+
 test("@desktop @mobile @as-presets public settled AS presets remain reachable beside their controls", async ({ page }, testInfo) => {
   const mobile = (page.viewportSize()?.width ?? 1440) < 768;
   const deck = page.getByTestId("workbench-mobile-task-deck"), root = page.getByTestId("v3-dockview-workbench");
   const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
   if (mobile) {
     await deck.getByRole("tab", { name: "出力", exact: true }).click();
-    await deck.locator(".workbench-mobile-pane-group-settings").first().click();
+    await deck.locator('[data-testid="pane-settings-button-v3"]').first().click();
   } else await openPaneSettings(page, "Outputs");
-  const settings = page.getByRole("dialog", { name: "Pane設定" });
+  const settings = page.getByTestId("workbench-pane-picker-v3");
+  await settings.getByRole("button", { name: "項目を追加", exact: true }).click();
   await settings.getByRole("button", { name: "AS関連の5項目を追加", exact: true }).click();
-  await settings.getByRole("button", { name: "完了", exact: true }).click();
+  await settings.getByRole("button", { name: "適用", exact: true }).click();
   const ids = ["hemodynamics.velocity.peak-quasi-steady-jet.AoV", "hemodynamics.pressure-gradient.mean-bernoulli-jet.AoV"];
   const manager = mobile ? deck.getByTestId("workbench-scenario-manager-v3") : page.getByRole("region", { name: "Scenarios" });
   for (const [title, min, max] of [["AS · 弁狭窄のみ・高勾配", 45, 52], ["HFrEF · 慢性左室拡大型", 1, 3], ["AS · 低EF・低流量・低勾配", 18, 23]] as const) {
     if (mobile) await deck.getByRole("tab", { name: "Scenario", exact: true }).click();
     await manager.getByRole("button", { name: "Presetから追加", exact: true }).click();
-    const menu = page.getByRole("menu", { name: "Presetから追加", exact: true });
-    const item = menu.getByRole("menuitem").filter({ hasText: title }).first();
+    const menu = page.getByRole("dialog", { name: "シナリオを追加", exact: true });
+    const item = menu.getByRole("button", { name: title, exact: true });
     await item.scrollIntoViewIfNeeded();
     expect(await menu.evaluate(e => e.getBoundingClientRect().bottom <= innerHeight)).toBe(true);
     await item.click();
@@ -534,8 +819,8 @@ for (const [key, title] of [["high-gradient AS", "AS · 弁狭窄のみ・高勾
 test(`@desktop @as-analysis public ${key} completes formal PV analysis without stopping live execution`, async ({ page }, testInfo) => {
   const manager = page.getByRole("region", { name: "Scenarios" });
   await manager.getByRole("button", { name: "Presetから追加", exact: true }).click();
-  await page.getByRole("menu", { name: "Presetから追加", exact: true })
-    .getByRole("menuitem").filter({ hasText: title }).click();
+  const picker = page.getByRole("dialog", { name: "シナリオを追加", exact: true });
+  await picker.getByRole("button", { name: title, exact: true }).click();
   await expect(manager.getByRole("button", { name: new RegExp(`^${title} scenario/`) })).toHaveAttribute("aria-pressed", "true");
   const canvas = page.locator("[data-pva-result-count]").first();
   const error = page.getByTestId("workbench-pva-analysis-error");
@@ -578,17 +863,17 @@ test("@desktop @mobile @beat-metrics filling outputs retain stale measurements w
   page.on("pageerror", error => errors.push(error.message));
   if (mobile) {
     await deck.getByRole("tab", { name: "出力", exact: true }).click();
-    await deck.locator(".workbench-mobile-pane-group-settings").first().click();
+    await deck.locator('[data-testid="pane-settings-button-v3"]').first().click();
   } else await openPaneSettings(page, "Outputs");
-  const settings = page.getByRole("dialog", { name: "Pane設定" });
-  await settings.locator(".workbench-pane-add-item").click();
-  const drawer = settings.getByTestId("pane-settings-context-drawer-v3");
-  for (const label of ["MV E/A", "MV DT", "MV A dur", "PV S", "PV D", "PV S/D", "PV Ar", "PV Ar dur", "PV Ar−A dur"]) {
-    await drawer.getByRole("searchbox").fill(label);
-    await drawer.getByRole("button", { name: `項目を追加: ${label}`, exact: true }).click();
+  const settings = page.getByTestId("workbench-pane-picker-v3");
+  await settings.getByRole("button", { name: "項目を追加", exact: true }).click();
+  const drawer = settings;
+  for (const [query, label] of [["MV E/A", "MV E/A（流量）"], ["MV DT", "MV DT（流量）"], ["MV A dur", "MV A波持続時間"], ["PV S", "肺静脈S波流量"], ["PV D", "肺静脈D波流量"], ["PV S/D", "肺静脈S/D（流量）"], ["PV Ar", "肺静脈Ar波流量"], ["PV Ar dur", "肺静脈Ar波持続時間"], ["PV Ar−A dur", "Ar−A時間差"]]) {
+    await drawer.getByRole("searchbox").fill(query);
+    await drawer.getByRole("checkbox", { name: label, exact: true }).check();
   }
-  await drawer.getByRole("button", { name: "パネルを閉じる" }).click();
-  await settings.getByRole("button", { name: "完了", exact: true }).click();
+  await settings.getByRole("tab", { name: "項目", exact: true }).click();
+  await settings.getByRole("button", { name: "適用", exact: true }).click();
   const measuredIds = ["hemodynamics.ratio.peak-E-to-A.volumetric.MV", "hemodynamics.duration.E-deceleration-80-40.volumetric.MV",
     "hemodynamics.flow.peak-systolic-ejection.PVein_LA", "hemodynamics.flow.peak-early-diastolic.PVein_LA", "hemodynamics.ratio.peak-S-to-D.volumetric.PVein_LA",
     "hemodynamics.flow.peak-atrial-reversal-magnitude.PVein_LA", "hemodynamics.duration.atrial-reversal-zero-crossing.PVein_LA"];
@@ -598,7 +883,7 @@ test("@desktop @mobile @beat-metrics filling outputs retain stale measurements w
   await expect(aDuration).toHaveAttribute("data-output-stale", "false"); // No invented initial measurement.
   await expect(aDuration.locator(".text-wb-warning")).toHaveCount(0);
   await aDuration.getByRole("button").click();
-  await expect(page.getByRole("tooltip")).toContainText("開始点を推定せず");
+  await expect(page.getByRole("tooltip")).toContainText("独立したA波の順行性血流");
   await expect(page.getByRole("tooltip")).toContainText("新しい測定値を得られていません");
   await expect(page.getByRole("tooltip")).toHaveCSS("white-space", "pre-line");
   await page.keyboard.press("Escape");
@@ -607,7 +892,7 @@ test("@desktop @mobile @beat-metrics filling outputs retain stale measurements w
   const number = () => ratio.locator(".workbench-output-value").evaluate(element => element.firstChild?.textContent ?? "");
   const prior = await number(), epoch = await inputEpoch(page);
   if (mobile) await deck.getByRole("tab", { name: "コントロール", exact: true }).click();
-  await page.getByRole("slider", { name: "心拍数 (HR)", exact: true }).press("ArrowRight");
+  await page.getByRole("slider", { name: "HR", exact: true }).press("ArrowRight");
   await expect.poll(() => inputEpoch(page)).toBeGreaterThan(epoch);
   if (mobile) await deck.getByRole("tab", { name: "出力", exact: true }).click();
   await expect(ratio).toHaveAttribute("data-output-stale", "true");
@@ -618,7 +903,7 @@ test("@desktop @mobile @beat-metrics filling outputs retain stale measurements w
   await expect(ratio).toHaveAttribute("data-output-stale", "false");
   await expect(ratio).toHaveAttribute("data-output-availability", "available");
   await ratio.getByRole("button").click();
-  await expect(page.getByRole("tooltip")).toContainText("Doppler流速比ではありません");
+  await expect(page.getByRole("tooltip")).toContainText("E波と心房収縮期A波のピーク流量比");
   await page.keyboard.press("Escape");
   await page.screenshot({ path: testInfo.outputPath("filling-ready.png") });
   expect(errors).toEqual([]);
@@ -746,24 +1031,24 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   expect(outputGridLayout.horizontalOverflowPx).toBeLessThanOrEqual(1);
 
   await openPaneSettings(page, "Pressure waveforms");
-  const waveformSettings = page.getByRole("dialog", { name: "Pane設定" });
+  const waveformSettings = page.getByTestId("workbench-pane-picker-v3");
   await expect(
     waveformSettings.getByRole("heading", { name: "Pressure waveforms" }),
   ).toBeVisible();
-  await expect(waveformSettings.getByText("Graph pane", { exact: true }))
-    .toBeVisible();
+  await waveformSettings.getByRole("tab", { name: "表示", exact: true }).click();
   const waveformWindow = waveformSettings.getByRole("slider", {
     name: "表示時間幅",
   });
-  await expect(waveformWindow).toHaveValue("6");
+  await expect(waveformWindow).toHaveValue("4");
   await waveformWindow.fill("3.5");
   await expect(waveformWindow).toHaveValue("3.5");
-  await waveformSettings.getByRole("button", { name: "完了" }).click();
+  await waveformSettings.getByRole("button", { name: "適用" }).click();
   await expect(waveformSettings).toBeHidden();
   await openPaneSettings(page, "Pressure waveforms");
+  await waveformSettings.getByRole("tab", { name: "表示", exact: true }).click();
   await expect(
     page
-      .getByRole("dialog", { name: "Pane設定" })
+      .getByTestId("workbench-pane-picker-v3")
       .getByRole("slider", { name: "表示時間幅" }),
   ).toHaveValue("3.5");
   await page.getByRole("button", { name: "キャンセル" }).click();
@@ -795,11 +1080,16 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
       return { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height };
     })
   );
-  const topGroups = [...groupBounds].sort((a, b) => a.y - b.y).slice(0, 2);
-  const lowerGroup = [...groupBounds].sort((a, b) => b.y - a.y)[0]!;
-  expect(Math.abs(topGroups[0]!.y - topGroups[1]!.y)).toBeLessThan(4);
-  expect(lowerGroup.y).toBeGreaterThan(topGroups[0]!.y + 20);
-  expect(lowerGroup.width).toBeGreaterThan(topGroups[0]!.width * 1.7);
+  // Default composition: a tall PV loop on the left, two stacked panes on the right.
+  const left = [...groupBounds].sort((a, b) => a.x - b.x)[0]!;
+  const right = groupBounds.filter(group => group.x > left.x + 20).sort((a, b) => a.y - b.y);
+  expect(right).toHaveLength(2);
+  expect(Math.abs(left.y - right[0]!.y)).toBeLessThan(4);
+  expect(Math.abs(right[0]!.x - right[1]!.x)).toBeLessThan(4);
+  expect(right[1]!.y).toBeGreaterThan(right[0]!.y + 20);
+  expect(left.width).toBeGreaterThan(right[0]!.width);
+  expect(left.height).toBeGreaterThan(right[0]!.height * 1.7);
+  expect(Math.abs(left.y + left.height - right[1]!.y - right[1]!.height)).toBeLessThan(4);
   const structuralTab = graphArea.getByText("Systemic Guyton / Starling", {
     exact: true,
   });
@@ -846,7 +1136,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   ).toBeLessThan(25);
 
   await openPaneSettings(page, "Systemic Guyton / Starling");
-  const structuralSettings = page.getByRole("dialog", { name: "Pane設定" });
+  const structuralSettings = page.getByTestId("workbench-pane-picker-v3");
   await expect(
     structuralSettings.getByRole("combobox", {
       name: "表示する循環",
@@ -856,9 +1146,8 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   await expect(structural).toHaveCount(1);
 
   await graphGroups.first().getByRole("button", { name: "Paneを追加" }).click();
-  const addGraphMenu = page.getByRole("menu", { name: "Paneを追加" });
-  await expect(addGraphMenu.getByRole("menuitem")).toHaveText([
-    "AV流速・駆出時間",
+  const addGraphMenu = page.getByRole("dialog", { name: "グラフを追加" });
+  await expect(addGraphMenu.locator("[data-graph-option-id]")).toHaveText([
     "PV loop",
     "圧波形",
     "流量波形",
@@ -866,7 +1155,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
     "肺循環 Guyton / Starling（PCWP）",
   ]);
   await addGraphMenu
-    .getByRole("menuitem", { name: "肺循環 Guyton / Starling（PCWP）" })
+    .getByRole("button", { name: "肺循環 Guyton / Starling（PCWP）" })
     .click();
   const pulmonaryTab = graphArea.getByText("Pulmonary Guyton / Starling", {
     exact: true,
@@ -893,7 +1182,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   await openPaneSettings(page, "Pulmonary Guyton / Starling");
   await expect(
     page
-      .getByRole("dialog", { name: "Pane設定" })
+      .getByTestId("workbench-pane-picker-v3")
       .getByRole("combobox", { name: "表示する循環" }),
   ).toHaveCount(0);
   await page.getByRole("button", { name: "閉じる" }).click();
@@ -912,13 +1201,13 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   const preControlTime = await modelTime(root);
   const preControlRevision = await acceptedRevision(page);
   const systemicResistance = page.getByRole("slider", {
-    name: "体血管抵抗 (SVR)",
+    name: "SVR",
   });
   await expect(systemicResistance).toBeEnabled({ timeout: 60_000 });
   await systemicResistance.press("ArrowRight");
   await expect(
     page.getByTestId("workbench-scenario-manager-v3").getByRole("status", {
-      name: "Guyton / Starlingを再計算中: baseline",
+      name: "Guyton / Starling曲線を更新しています…: baseline",
       exact: true,
     }),
   ).toBeVisible({ timeout: 20_000 });
@@ -935,39 +1224,21 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   await expect(structural).toHaveAttribute("data-history-count", "1");
 
   await openPaneSettings(page, "Outputs");
-  const settings = page.getByRole("dialog", { name: "Pane設定" });
+  const settings = page.getByTestId("workbench-pane-picker-v3");
   await expect(settings).toBeVisible();
   await expect(settings.locator('input[type="color"]')).toHaveCount(0);
   const selectedHeartRate = settings.getByRole("button", {
-    name: "心拍数 (HR)",
+    name: "HR (現在値)",
     exact: true,
   });
   await expect(selectedHeartRate).toBeVisible();
-  await settings.getByRole("button", {
-    name: "項目を編集: 心拍数 (HR)",
-  }).click();
-  await settings
-    .getByRole("menu", { name: "心拍数 (HR)" })
-    .getByRole("menuitem", { name: "Paneから外す" })
-    .click();
+  await settings.getByRole("button", { name: "Paneから外す: HR", exact: true }).click();
   await expect(selectedHeartRate).toHaveCount(0);
-  await settings.locator(".workbench-pane-add-item").click();
-  const catalogDrawer = settings.getByTestId(
-    "pane-settings-context-drawer-v3",
-  );
-  await expect(catalogDrawer).toHaveAttribute("data-open", "true");
-  await catalogDrawer.getByRole("searchbox").fill("心拍数");
-  await expect(
-    catalogDrawer.getByRole("button", { name: "項目を追加: 心拍数 (HR)" }),
-  ).toBeVisible();
-  await catalogDrawer
-    .getByRole("button", { name: "項目を追加: 心拍数 (HR)" })
-    .click();
-  await expect(catalogDrawer.getByRole("button", {
-    name: "項目を編集: 心拍数 (HR)",
-  })).toBeVisible();
-  await catalogDrawer.getByRole("button", { name: "パネルを閉じる" }).click();
-  await expect(catalogDrawer).toHaveAttribute("data-open", "false");
+  await settings.getByRole("button", { name: "項目を追加", exact: true }).click();
+  await settings.getByRole("searchbox").fill("心拍数");
+  await settings.getByRole("checkbox", { name: "HR", exact: true }).check();
+  await settings.getByRole("tab", { name: "項目", exact: true }).click();
+  await expect(selectedHeartRate).toBeVisible();
   await expect(
     settings.getByRole("button", { name: "Paneを削除" }),
   ).toHaveCount(0);
@@ -977,12 +1248,12 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   await openPaneSettings(page, "Outputs");
   await expect(
     page
-      .getByRole("dialog", { name: "Pane設定" })
-      .getByRole("button", { name: "心拍数 (HR)", exact: true }),
+      .getByTestId("workbench-pane-picker-v3")
+      .getByRole("button", { name: "HR (現在値)", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "キャンセル" }).click();
 
-  await page.getByRole("button", { name: "Pane設定: Outputs" }).click();
+  await page.getByRole("button", { name: "Paneメニュー: Outputs" }).click();
   const outputPaneMenu = page.getByRole("menu", { name: "Outputs" });
   await expect(
     outputPaneMenu.getByRole("menuitem", { name: "右に分割" }),
@@ -994,13 +1265,17 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
 
   await expect(controlArea.locator(".dv-groupview")).toHaveCount(1);
   await controlArea.getByRole("button", { name: "Paneを追加" }).click();
+  const addControlPicker = page.getByTestId("workbench-pane-picker-v3");
+  await addControlPicker.getByRole("searchbox").fill("HR");
+  await addControlPicker.getByRole("checkbox", { name: "HR", exact: true }).check();
+  await addControlPicker.getByRole("button", { name: "追加", exact: true }).click();
   const controllerSettingsButtons = controlArea.getByRole("button", {
-    name: /Pane設定: Parameters/,
+    name: /Paneメニュー: Parameters/,
   });
   await expect(controllerSettingsButtons).toHaveCount(2);
   const activeControllerSettings = controlArea
     .locator(".dv-tab.dv-active-tab")
-    .getByRole("button", { name: "Pane設定: Parameters" });
+    .getByRole("button", { name: "Paneメニュー: Parameters" });
   await expect(activeControllerSettings).toHaveCount(1);
   await expect(controlArea.locator(".dv-tab")).toHaveCount(2);
   await expect(controlArea.locator(".dv-groupview")).toHaveCount(1);
@@ -1038,7 +1313,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
 }) => {
   const root = page.getByTestId("v3-dockview-workbench");
   const scenarioRegion = page.getByRole("region", { name: "Scenarios" });
-  const heartRate = page.getByRole("slider", { name: "心拍数 (HR)" });
+  const heartRate = page.getByRole("slider", { name: "HR" });
   await expect(heartRate).toBeEnabled();
   const baselineHeartRate = await heartRate.inputValue();
   const heartRateStep = Number(await heartRate.getAttribute("step") ?? "1");
@@ -1093,43 +1368,22 @@ test("@desktop baseline duplication stays independent and requires explicit save
   const graphArea = page.getByRole("region", { name: "グラフエリア" });
   await graphArea.getByText("Pressure waveforms", { exact: true }).click();
   await openPaneSettings(page, "Pressure waveforms");
-  const colorSettings = page.getByRole("dialog", { name: "Pane設定" });
-  await colorSettings.getByRole("button", { name: "配色" }).click();
-  const automaticColors = colorSettings
-    .getByRole("heading", { name: "配色", exact: true })
-    .locator("..");
-  const scenarioColorSections = automaticColors.locator("section");
-  await expect(scenarioColorSections).toHaveCount(2);
-  const copyTraceColors = scenarioColorSections
-    .nth(1)
-    .locator('input[type="color"]');
-  await expect(copyTraceColors).toHaveCount(3);
-  const allocatedCopyLvp = await copyTraceColors.nth(1).inputValue();
+  const colorSettings = page.getByTestId("workbench-pane-picker-v3");
+  await colorSettings.getByRole("button", { name: "LVP", exact: true }).click();
+  const copyTraceColor = colorSettings.getByTestId("pane-trace-rows-v3").locator('[data-scenario-id]').nth(1).locator('input[type="color"]');
+  const allocatedCopyLvp = await copyTraceColor.inputValue();
   await page.getByRole("button", { name: "閉じる" }).click();
   await expect(colorSettings).toBeHidden();
-  const copyBaseColor = page.getByLabel(
-    "新しいtraceのbase色: baseline のコピー",
-  );
+  const copyBaseColor = page.getByLabel("新しいtraceのbase色: baseline のコピー");
   await copyBaseColor.fill("#8b76d1");
   await expect(copyBaseColor).toHaveValue("#8b76d1");
   await openPaneSettings(page, "Pressure waveforms");
-  await colorSettings.getByRole("button", { name: "配色" }).click();
-  const copyTraceColorsAfterBase = automaticColors
-    .locator("section")
-    .nth(1)
-    .locator('input[type="color"]');
-  await expect(copyTraceColorsAfterBase.nth(1)).toHaveValue(allocatedCopyLvp);
-  await copyTraceColorsAfterBase.nth(1).fill("#00a37a");
-  await expect(copyTraceColorsAfterBase.nth(1)).toHaveValue("#00a37a");
-  const resetCopyLvp = automaticColors
-    .locator("section")
-    .nth(1)
-    .getByRole("button", {
-      name: "自動配色に戻す: LVP",
-    });
-  await expect(resetCopyLvp).toBeVisible();
-  await resetCopyLvp.click();
-  await expect(copyTraceColorsAfterBase.nth(1)).toHaveValue(allocatedCopyLvp);
+  await colorSettings.getByRole("button", { name: "LVP", exact: true }).click();
+  await expect(copyTraceColor).toHaveValue(allocatedCopyLvp);
+  await copyTraceColor.fill("#00a37a");
+  await expect(copyTraceColor).toHaveValue("#00a37a");
+  await colorSettings.getByRole("button", { name: "自動配色に戻す: baseline のコピー", exact: true }).click();
+  await expect(copyTraceColor).toHaveValue(allocatedCopyLvp);
   await page.getByRole("button", { name: "閉じる" }).click();
   await expect(colorSettings).toBeHidden();
 
@@ -1461,10 +1715,10 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
   const graphAddSheet = page.getByRole("dialog", { name: "グラフを追加" });
   await expect(graphAddSheet).toBeVisible();
   await expect(
-    graphAddSheet.locator(".workbench-mobile-pane-choice"),
-  ).toHaveCount(6);
-  await expect(graphAddSheet.getByText("AV流速・駆出時間", { exact: true })).toBeVisible();
-  await graphAddSheet.getByRole("button", { name: "追加メニューを閉じる" })
+    graphAddSheet.locator("[data-graph-option-id]"),
+  ).toHaveCount(5);
+  await expect(graphAddSheet.getByText("PV loop", { exact: true })).toBeVisible();
+  await graphAddSheet.getByRole("button", { name: "閉じる", exact: true })
     .click();
   await expect(graphAddSheet).toBeHidden();
   await expect(addGraphView).toBeFocused();
@@ -1479,12 +1733,12 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
   );
   await expect(controlGroupToggle).toHaveAttribute("aria-expanded", "true");
   await expect(
-    page.getByRole("slider", { name: "心拍数 (HR)" }),
+    page.getByRole("slider", { name: "HR" }),
   ).toBeVisible();
   await controlGroupToggle.click();
   await expect(controlGroupToggle).toHaveAttribute("aria-expanded", "false");
   await expect(
-    page.getByRole("slider", { name: "心拍数 (HR)" }),
+    page.getByRole("slider", { name: "HR" }),
   ).toBeHidden();
   await controlGroupToggle.click();
   await graphRail.getByRole("button", { name: "グラフを拡大" }).click();
@@ -1499,10 +1753,10 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
     ".workbench-mobile-pane-group-toggle",
   );
   await expect(outputGroupToggle).toHaveAttribute("aria-expanded", "true");
-  await expect(page.getByText("大動脈圧 (AoP)", { exact: true }))
+  await expect(outputGroup.getByText("AoP", { exact: true }))
     .toBeVisible();
   await outputGroupToggle.click();
-  await expect(page.getByText("大動脈圧 (AoP)", { exact: true }))
+  await expect(outputGroup.getByText("AoP", { exact: true }))
     .toBeHidden();
   await outputGroupToggle.click();
   await taskDeck.getByRole("tab", { name: "Scenario" }).click();
@@ -1510,70 +1764,26 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
     taskDeck.getByTestId("workbench-scenario-manager-v3"),
   ).toHaveAttribute("data-scenario-manager-variant", "embedded-mobile");
   await taskDeck.getByRole("tab", { name: "コントロール" }).click();
-  await taskDeck.locator(".workbench-mobile-pane-group-settings").first()
+  await taskDeck.locator('[data-testid="pane-settings-button-v3"]').first()
     .click();
-  const settings = page.getByRole("dialog", { name: "Pane設定" });
+  const settings = page.getByTestId("workbench-pane-picker-v3");
   await expect(settings).toBeVisible();
-  await expect(
-    settings.getByRole("heading", { name: "このPaneの項目" }),
-  ).toBeVisible();
-  await expect(
-    settings.getByRole("button", { name: /項目を並べ替え:/ }),
-  ).toHaveCount(7);
-  await expect(
-    settings.getByRole("button", { name: /Paneから外す:/ }),
-  ).toHaveCount(0);
-  await settings.locator(".workbench-pane-add-item").click();
-  const catalogDrawer = settings.getByTestId(
-    "pane-settings-context-drawer-v3",
-  );
-  const catalogDrawerHost = settings.getByTestId(
-    "pane-settings-drawer-host-v3",
-  );
-  const settingsContent = settings.locator(
-    ".workbench-pane-editor-content",
-  );
-  await expect(catalogDrawer).toHaveAttribute("data-open", "true");
-  await expect(catalogDrawerHost).toHaveAttribute("data-open", "true");
-  await expect.poll(async () =>
-    (await catalogDrawerHost.boundingBox())?.width ?? 0
-  ).toBeGreaterThan(300);
-  // The inspector pushes the settings content while sliding in. Assert its
-  // final adjacency after the transition, not an intermediate animation
-  // frame whose exact x coordinate depends on shared-runner paint timing.
-  await expect.poll(async () => {
-    const contentBoxWithDrawer = await settingsContent.boundingBox();
-    const drawerBox = await catalogDrawer.boundingBox();
-    if (contentBoxWithDrawer === null || drawerBox === null) return -Infinity;
-    return drawerBox.x -
-      (contentBoxWithDrawer.x + contentBoxWithDrawer.width);
-  }, { timeout: 5_000 }).toBeGreaterThanOrEqual(-1);
-  await expect(catalogDrawer.locator("details")).toHaveCount(7);
-  await catalogDrawer.getByRole("button", { name: "パネルを閉じる" }).click();
-  await expect(catalogDrawerHost).toHaveAttribute("data-open", "false");
-  await expect.poll(async () =>
-    (await catalogDrawerHost.boundingBox())?.width ?? 0
-  ).toBeLessThan(1);
-  await settings.getByRole("button", {
-    name: "心拍数 (HR)",
-    exact: true,
-  }).click();
-  await expect(catalogDrawer).toHaveAttribute("data-open", "true");
-  await expect(
-    catalogDrawer.getByRole("radio", { name: "スライダー" }),
-  ).toHaveAttribute("aria-checked", "true");
-  await expect(
-    catalogDrawer.getByRole("heading", { name: "プレビュー" }),
-  ).toBeVisible();
-  await catalogDrawer.getByRole("radio", { name: "カスタムボタン" }).click();
-  await expect(
-    catalogDrawer.getByRole("radio", { name: "カスタムボタン" }),
-  ).toHaveAttribute("aria-checked", "true");
-  await catalogDrawer.getByRole("button", { name: "パネルを閉じる" }).click();
-  await expect(
-    settings.getByRole("button", { name: "キャンセル" }),
-  ).toBeVisible();
-  await expect(settings.getByRole("button", { name: "完了" })).toBeVisible();
+  await expect(settings.locator("[data-selected-item-id]")).toHaveCount(7);
+  await expect(settings.getByRole("button", { name: /Paneから外す:/ })).toHaveCount(7);
+  await settings.getByRole("button", { name: "項目を追加", exact: true }).click();
+  await expect(settings.getByRole("searchbox")).toBeVisible();
+  await expect(settings.getByTestId("pane-catalog-sections-v3")).toBeVisible();
+  await expect(settings.getByTestId("pane-catalog-sections-v3").getByRole("button", { expanded: false })).toHaveCount(8);
+  const box = (await settings.boundingBox())!;
+  expect(box.width).toBeGreaterThan(300);
+  expect(box.x + box.width).toBeLessThanOrEqual(390);
+  await settings.getByRole("tab", { name: "項目", exact: true }).click();
+  await settings.getByRole("button", { name: "HR", exact: true }).click();
+  await expect(settings.getByRole("radio", { name: "スライダー" })).toHaveAttribute("aria-checked", "true");
+  await expect(settings.getByText("プレビュー", { exact: true })).toBeVisible();
+  await settings.getByRole("radio", { name: "カスタムボタン" }).click();
+  await expect(settings.getByRole("radio", { name: "カスタムボタン" })).toHaveAttribute("aria-checked", "true");
+  await expect(settings.getByRole("button", { name: "適用", exact: true })).toBeVisible();
   await settings.getByRole("button", { name: "キャンセル" }).click();
 });
 
@@ -1624,7 +1834,7 @@ async function expectDockTabAccent(tab: Locator): Promise<void> {
 async function openPaneSettings(page: Page, paneTitle: string): Promise<void> {
   await page
     .getByRole("button", {
-      name: `Pane設定: ${paneTitle}`,
+      name: `Paneメニュー: ${paneTitle}`,
     })
     .click();
   await page

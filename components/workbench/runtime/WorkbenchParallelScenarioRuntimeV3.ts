@@ -1,7 +1,6 @@
-import {
-  STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
-  type ExperimentScenarioV2,
-  type ScenarioCheckpointV2,
+import type {
+  ExperimentScenarioV2,
+  ScenarioCheckpointV2,
 } from "@/studio/contracts/v2/content";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import type {
@@ -19,6 +18,7 @@ import { StudioSimulationWorkerClientV2 } from
   "@/studio/workers/StudioSimulationWorkerClientV2";
 import type {
   StudioSimulationWorkerApplyControlInputV2,
+  StudioSimulationWorkerControlResultV2,
   StudioSimulationWorkerInitializationTimingV2,
   StudioSimulationWorkerRequestAnalysisInputV2,
   StudioSimulationWorkerScenarioCapturesV2,
@@ -32,6 +32,7 @@ import {
   type WorkbenchGroupTimeConductorDependenciesV3,
 } from "./WorkbenchGroupTimeConductorV3";
 import {
+  incrementWorkbenchPerformanceCounterV3,
   recordWorkbenchPerformanceDurationV3,
   recordWorkbenchPerformanceEventIntervalV3,
   recordWorkbenchPerformanceValueV3,
@@ -96,6 +97,10 @@ type WorkbenchParallelScenarioLaneV3 = {
   completeOutputIds: ReadonlySet<string>;
   preparedAnalysis: Promise<StudioSimulationAnalysisV2 | null>;
   initialInputEpoch: number;
+  capturedBoundary?: Readonly<{
+    frame: StudioSimulationFrameV2;
+    promise: Promise<ExperimentScenarioV2["capture"]>;
+  }>;
 };
 
 export type WorkbenchParallelScenarioRuntimeDependenciesV3 = Readonly<{
@@ -175,9 +180,12 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   >();
   readonly #pendingScenarioIds = new Set<string>();
   readonly #scenarioPauseLeaseCounts = new Map<string, number>();
+  readonly #pendingControlPresentation = new Map<string, StudioSimulationFrameV2>();
+  readonly #controlPresentationWaiters = new Set<() => void>();
   #state: ParallelRuntimeStateV3 = "new";
   #activeScenarioId: string | null = null;
   #playing = false;
+  #foregroundCapacityLeases = 0;
   #failed = false;
 
   constructor(dependencies: WorkbenchParallelScenarioRuntimeDependenciesV3) {
@@ -348,14 +356,6 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     ) {
       throw new Error(`parallel Scenario already exists: ${seed.scenarioId}`);
     }
-    if (
-      this.#lanes.size + this.#pendingScenarioIds.size
-        >= STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2
-    ) {
-      throw new Error(
-        `parallel Scenario limit is ${STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2}`,
-      );
-    }
     this.#pendingScenarioIds.add(seed.scenarioId);
     this.#syncBackgroundWorkerBudget();
     let lane: WorkbenchParallelScenarioLaneV3 | undefined;
@@ -433,6 +433,8 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     if (shouldResume) await this.#timeConductor.pause();
     this.#cancelScenarioAnalysisJobs(scenarioId);
     this.#lanes.delete(scenarioId);
+    this.#pendingControlPresentation.delete(scenarioId);
+    if (this.#pendingControlPresentation.size === 0) this.#releaseControlPresentationWaiters();
     this.#scenarioPauseLeaseCounts.delete(scenarioId);
     this.#timeConductor.lanesChanged();
     this.#syncBackgroundWorkerBudget();
@@ -448,11 +450,16 @@ export class WorkbenchParallelScenarioRuntimeV3 {
 
   async applyControl(
     input: Omit<StudioSimulationWorkerApplyControlInputV2, "runtimeSessionId">,
-  ): Promise<StudioSimulationFrameV2> {
+  ): Promise<StudioSimulationWorkerControlResultV2> {
     this.#requireActive();
     const lane = this.#requiredLane(input.scenarioId);
+    // A control is foreground numerical work even while playback is paused.
+    // Yield only speculative settlement; a rejected edit must leave explicit
+    // analysis/Save/Snapshot work and the accepted live authority intact.
+    this.#steadyCandidates?.yieldPrewarm(input.scenarioId);
+    lane.capturedBoundary = undefined;
     const controlStartedAtMs = workbenchPerformanceNowV3();
-    const frame = await lane.client.applyControl({
+    const result = await lane.client.applyControl({
       ...input,
       runtimeSessionId: lane.runtimeSessionId,
     });
@@ -460,7 +467,8 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       "runtime.control.worker-round-trip",
       workbenchPerformanceNowV3() - controlStartedAtMs,
     );
-    lane.latestFrame = frame;
+    lane.latestFrame = result.frame;
+    this.#pendingControlPresentation.set(input.scenarioId, result.frame);
     // Every queued/running analysis was forked from the old input epoch. Letting
     // it finish cannot produce an admissible result and, on a one-slot device,
     // can keep the current PV/Starling request behind minutes of stale work.
@@ -469,7 +477,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     // Save/Snapshot jobs retain their normal QoS contract.
     this.#cancelScenarioAnalysisJobs(input.scenarioId);
     this.#steadyCandidates?.invalidateScenario(input.scenarioId);
-    return frame;
+    return result;
   }
 
   /**
@@ -579,13 +587,26 @@ export class WorkbenchParallelScenarioRuntimeV3 {
             : executionPlan.merge([...latestByPartition.values()]),
         );
       };
-      const analyses = await Promise.all(partitions.map((analysisPartition) =>
-        this.#withAnalysisClient(
+      const sharePreparation = executionPlan?.sharedPreparation === true && partitions.length > 1;
+      let preparationSent = false;
+      let resolvePreparation!: (value: StudioJsonValueV2) => void;
+      let rejectPreparation!: (error: unknown) => void;
+      const preparation = new Promise<StudioJsonValueV2>((resolve, reject) => {
+        resolvePreparation = resolve; rejectPreparation = reject;
+      });
+      // A failed/cancelled first Worker must release all waiting partitions.
+      void preparation.catch(() => undefined);
+      const analyses = await Promise.all(partitions.map(async (analysisPartition, index) => {
+        const preparedAnalysis = sharePreparation && index > 0 ? await preparation : undefined;
+        // Wait outside the pool: a one-slot device must never hold a lease
+        // waiting for the first partition to produce its shared anchor.
+        return this.#withAnalysisClient(
           input.scenarioId,
           analysisPartition,
           async (client) => {
-            if (this.#state === "terminated") {
-              throw new Error("parallel Scenario runtime was terminated");
+            if (this.#state !== "active" || this.#lanes.get(input.scenarioId) !== lane
+              || lane.latestFrame.inputEpoch !== input.expectedInputEpoch) {
+              throw new Error("parallel Scenario analysis target changed");
             }
             this.#analysisClients.add(client);
             try {
@@ -610,21 +631,34 @@ export class WorkbenchParallelScenarioRuntimeV3 {
                 ...(analysisPartition === undefined
                   ? {}
                   : { analysisPartition }),
-                ...(input.onProgress === undefined
+                ...(sharePreparation && index === 0 ? { sharePreparation: true } : {}),
+                ...(preparedAnalysis === undefined ? {} : { preparedAnalysis }),
+                ...(input.onProgress === undefined && !sharePreparation
                   ? {}
                   : {
-                      onProgress: (progress) => publishProgress(
-                        analysisPartition,
-                        progress,
-                      ),
+                      onProgress: (progress, shared) => {
+                        if (shared !== undefined) {
+                          if (!sharePreparation || index !== 0 || preparationSent)
+                            throw new Error("Unexpected shared analysis preparation");
+                          preparationSent = true;
+                          resolvePreparation(shared);
+                        }
+                        publishProgress(analysisPartition, progress);
+                      },
                     }),
               });
+              if (sharePreparation && index === 0 && !preparationSent)
+                throw new Error("Analysis did not provide its shared preparation");
               return remap(analysis);
             } finally {
               this.#analysisClients.delete(client);
             }
           },
-        )));
+        ).catch(error => {
+          if (sharePreparation && index === 0) rejectPreparation(error);
+          throw error;
+        });
+      }));
       return executionPlan === null
         ? analyses[0]!
         : executionPlan.merge(analyses);
@@ -657,25 +691,9 @@ export class WorkbenchParallelScenarioRuntimeV3 {
 
   async captureScenarios(): Promise<StudioSimulationWorkerScenarioCapturesV2> {
     this.#requireActive();
-    const scenarios = await Promise.all([...this.#lanes.values()].map(async (
-      lane,
-    ) => {
-      const capture = await lane.client.readScenarios({
-        runtimeSessionId: lane.runtimeSessionId,
-      });
-      const scenario = capture.scenarios.find(({ scenarioId }) =>
-        scenarioId === lane.descriptor.scenarioId);
-      if (capture.scenarios.length !== 1 || scenario === undefined) {
-        throw new Error(
-          "parallel Scenario lane returned another Scenario membership",
-        );
-      }
-      return Object.freeze({
-        scenarioId: lane.descriptor.scenarioId,
-        label: lane.descriptor.label,
-        capture: scenario.capture,
-      });
-    }));
+    const scenarios = await Promise.all([...this.#lanes.keys()].map(
+      scenarioId => this.captureScenario(scenarioId),
+    ));
     return Object.freeze({
       activeScenarioId: this.#requiredActiveScenarioId(),
       scenarios: Object.freeze(scenarios),
@@ -742,16 +760,49 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     }
   }
 
+  /** Reserve live-lane capacity across a short, paused foreground transaction. */
+  reserveForegroundCapacity(): () => void {
+    this.#requireActive();
+    this.#foregroundCapacityLeases += 1;
+    this.#syncBackgroundWorkerBudget();
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.#foregroundCapacityLeases -= 1;
+      // A retired runtime must never change the shared pool's new owner budget.
+      if (this.#state === "active") this.#syncBackgroundWorkerBudget();
+    };
+  }
+
+  /**
+   * Let changed live data reach the display before an automatic analysis takes
+   * its source capture. Call once for the whole group, before any pause lease:
+   * waiting per target would let an unchanged sibling freeze the changed lane.
+   * A user pause releases the wait; a retired runtime rejects the continuation.
+   */
+  async waitForControlPresentation(): Promise<void> {
+    this.#requireActive();
+    if (!this.#playing || this.#pendingControlPresentation.size === 0) return;
+    await new Promise<void>(resolve => this.#controlPresentationWaiters.add(resolve));
+    this.#requireActive();
+  }
+
+  #releaseControlPresentationWaiters(): void {
+    for (const resolve of this.#controlPresentationWaiters) resolve();
+    this.#controlPresentationWaiters.clear();
+  }
+
   async pauseAll(): Promise<void> {
     if (this.#state === "terminated") return;
     this.#requireActive();
     this.#playing = false;
+    this.#releaseControlPresentationWaiters();
     try {
       await this.#timeConductor.pause();
     } finally {
-      // A paused Workbench has no foreground numerical lanes. Give its idle
-      // cores back to explicit analysis/prewarm instead of charging Scenario
-      // membership as if every Scenario were still running.
+      // A genuine user pause releases idle cores. Short control transactions
+      // retain their reservation while capturing and applying accepted state.
       this.#syncBackgroundWorkerBudget();
     }
   }
@@ -816,6 +867,8 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     if (this.#state === "terminated") return;
     this.#state = "terminated";
     this.#playing = false;
+    this.#releaseControlPresentationWaiters();
+    this.#pendingControlPresentation.clear();
     this.#timeConductor.terminate();
     this.#steadyCandidates?.dispose();
     this.#cancelAllAnalysisJobs();
@@ -833,6 +886,8 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     if (this.#state === "terminated") return;
     this.#state = "terminated";
     this.#playing = false;
+    this.#releaseControlPresentationWaiters();
+    this.#pendingControlPresentation.clear();
     this.#steadyCandidates?.dispose();
     this.#cancelAllAnalysisJobs();
     for (const client of this.#analysisClients) client.terminate();
@@ -856,6 +911,11 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     const initializeStartedAtMs = diagnosticsEnabled
       ? workbenchPerformanceNowV3()
       : 0;
+    // Optional presentation analysis can load alongside initialization. Its
+    // capture/epoch validation still runs before use; never advance the live model.
+    const preparedAnalysis = seed.checkpoint === undefined || this.#loadPreparedAnalysis === undefined
+      ? Promise.resolve(null)
+      : Promise.resolve().then(() => this.#loadPreparedAnalysis!(seed)).catch(() => null);
     try {
       const initialFrame = await client.initialize({
         expectedModelId: this.#expectedModelId,
@@ -888,8 +948,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
         latestFrame: initialFrame,
         completeOutputIds: new Set(Object.keys(initialFrame.outputs)),
         initialInputEpoch: initialFrame.inputEpoch,
-        preparedAnalysis: seed.checkpoint === undefined || this.#loadPreparedAnalysis === undefined
-          ? Promise.resolve(null) : this.#loadPreparedAnalysis(seed).catch(() => null),
+        preparedAnalysis,
       };
       return lane;
     } catch (error) {
@@ -900,33 +959,48 @@ export class WorkbenchParallelScenarioRuntimeV3 {
 
   async captureScenario(
     scenarioId: string,
-    options: Readonly<{ prewarm?: boolean }> = {},
   ): Promise<ExperimentScenarioV2> {
     this.#requireActive();
     const lane = this.#requiredLane(scenarioId);
     const startedAtMs = workbenchPerformanceNowV3();
-    const captures = await lane.client.readScenarios({
-      runtimeSessionId: lane.runtimeSessionId,
-    });
-    const scenario = captures.scenarios.find((candidate) =>
-      candidate.scenarioId === scenarioId);
-    if (captures.scenarios.length !== 1 || scenario === undefined) {
-      throw new Error("parallel Scenario lane returned another capture");
+    // Recovery, analysis forks, and authoring can ask for the same accepted
+    // boundary back-to-back. Share the fully validated exact capture,
+    // never a capture from merely the same parameter epoch or an earlier tick.
+    if (lane.capturedBoundary?.frame !== lane.latestFrame) {
+      const frame = lane.latestFrame;
+      const promise = (async () => {
+        const captures = await lane.client.readScenarios({
+          runtimeSessionId: lane.runtimeSessionId,
+        });
+        const scenario = captures.scenarios.find(candidate =>
+          candidate.scenarioId === scenarioId);
+        if (captures.scenarios.length !== 1 || scenario === undefined) {
+          throw new Error("parallel Scenario lane returned another capture");
+        }
+        if (scenario.capture.checkpoint.acceptedRevision !== frame.acceptedRevision
+          || scenario.capture.checkpoint.acceptedTimeSec !== frame.acceptedTimeSec) {
+          throw new Error("parallel Scenario capture clocks differ from its accepted boundary");
+        }
+        return scenario.capture;
+      })();
+      const boundary = { frame, promise };
+      lane.capturedBoundary = boundary;
+      void promise.catch(() => {
+        if (lane.capturedBoundary === boundary) lane.capturedBoundary = undefined;
+      });
+    } else {
+      incrementWorkbenchPerformanceCounterV3("runtime.capture.accepted-boundary-reuse");
     }
+    const capture = await lane.capturedBoundary.promise;
     const captured = Object.freeze({
       scenarioId,
       label: lane.descriptor.label,
-      capture: scenario.capture,
+      capture,
     });
-    if (options.prewarm) {
-      // Reuse the post-control capture required by the UI. No extra live Worker
-      // read, no wait for speculative convergence, and no checkpoint relabeling.
-      this.#steadyCandidates?.prewarm(this.#steadyCandidateSource(lane, captured));
-      recordWorkbenchPerformanceDurationV3(
-        "runtime.control.capture-and-prewarm",
-        workbenchPerformanceNowV3() - startedAtMs,
-      );
-    }
+    recordWorkbenchPerformanceDurationV3(
+      "runtime.capture.scenario",
+      workbenchPerformanceNowV3() - startedAtMs,
+    );
     return captured;
   }
 
@@ -973,6 +1047,9 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     lane: WorkbenchParallelScenarioLaneV3,
     stepCount: number,
   ): Promise<readonly StudioSimulationFrameV2[]> {
+    // Invalidate before dispatch, not just after the reply: a concurrent read
+    // must not receive the cached previous tick while a new tick is in flight.
+    lane.capturedBoundary = undefined;
     const presentationOutputIds = Object.freeze([
       ...new Set(this.#presentationOutputIds()),
     ]);
@@ -1043,6 +1120,11 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   #publishFrames(frames: readonly StudioSimulationFrameV2[]): void {
     if (frames.length === 0 || this.#state !== "active") return;
     for (const frame of frames) {
+      const controlFrame = this.#pendingControlPresentation.get(frame.scenarioId);
+      if (controlFrame !== undefined && frame.inputEpoch >= controlFrame.inputEpoch
+        && frame.acceptedTimeSec > controlFrame.acceptedTimeSec) {
+        this.#pendingControlPresentation.delete(frame.scenarioId);
+      }
       const lane = this.#lanes.get(frame.scenarioId);
       if (
         lane !== undefined
@@ -1081,6 +1163,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
       }
     }
     this.#onFrames(Object.freeze([...frames]));
+    if (this.#pendingControlPresentation.size === 0) this.#releaseControlPresentationWaiters();
     recordWorkbenchPerformanceEventIntervalV3(
       "runtime.presentation-commit-interval",
     );
@@ -1089,8 +1172,9 @@ export class WorkbenchParallelScenarioRuntimeV3 {
   #syncBackgroundWorkerBudget(
     // A short Scenario lease is not a global pause. Keep capacity reserved
     // across capture/control boundaries so analysis cannot start through that
-    // gap and prevent initial foreground calibration. pauseAll still releases it.
-    liveScenarioCount = (this.#playing ? this.#lanes.size : 0)
+    // gap and prevent initial foreground calibration. Foreground transactions
+    // also reserve capacity even while global playback is paused.
+    liveScenarioCount = (this.#playing || this.#foregroundCapacityLeases > 0 ? this.#lanes.size : 0)
       + this.#pendingScenarioIds.size,
   ): void {
     this.#backgroundWorkerPool?.setLiveScenarioCount(liveScenarioCount);
@@ -1181,12 +1265,9 @@ function validateScenarioSeedsV3(
   scenarios: readonly WorkbenchParallelScenarioSeedV3[],
   activeScenarioId: string,
 ): void {
-  if (
-    scenarios.length < 1
-    || scenarios.length > STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2
-  ) {
+  if (scenarios.length < 1) {
     throw new Error(
-      `parallel Scenario runtime requires 1-${STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2} Scenarios`,
+      "parallel Scenario runtime requires at least one Scenario",
     );
   }
   const ids = new Set<string>();

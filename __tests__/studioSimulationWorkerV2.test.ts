@@ -7,7 +7,6 @@ import type {
 
 import {
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
-  STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
   STUDIO_EXPERIMENT_V2_SCHEMA_ID,
   STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
   type ExperimentContentV2,
@@ -78,6 +77,23 @@ afterEach(() => {
 });
 
 describe("Studio simulation worker V2 protocol", () => {
+  it("transports detached shared preparation only with analysis progress and validates both directions", () => {
+    const input = { runtimeSessionId: "runtime/session-1", scenarioId: "scenario/baseline", analysisId: "analysis/shared",
+      analysisPartition: "low", expectedInputEpoch: 0, expectedAcceptedRevision: 0, expectedAcceptedTimeSec: 0 };
+    const preparation = { checkpoint: { digest: "test" }, curve: [1, 2] };
+    const request = createStudioSimulationRequestAnalysisRequestV2(1, { ...input, preparedAnalysis: preparation });
+    preparation.curve[0] = 9;
+    expect(request.preparedAnalysis).toEqual({ checkpoint: { digest: "test" }, curve: [1, 2] });
+    expect(() => createStudioSimulationRequestAnalysisRequestV2(1, { ...input, sharePreparation: "yes" })).toThrow(/boolean/);
+    expect(() => createStudioSimulationRequestAnalysisRequestV2(1, { ...input, sharePreparation: true, preparedAnalysis: {} })).toThrow(/together/);
+    const progress = { ...analysisProgressResponseV2(1, analysisV2()), preparation };
+    for (const validate of [validateStudioSimulationWorkerResponseV2, validateStudioSimulationWorkerResponseFromTrustedRuntimeV2]) {
+      expect(validate(progress)).toMatchObject({ preparation });
+      expect(() => validate({ ...progress, preparation: { value: NaN } })).toThrow(/finite/);
+      expect(() => validate({ ...progress, kind: "analysis-result" })).toThrow();
+    }
+  });
+
   it("bounds and validates optional beat-analysis requests and summaries", () => {
     const input = { runtimeSessionId: "runtime/session-1", scenarioId: "scenario/baseline", stepCount: 2,
       presentationOutputIds: [], presentationAnalysisIds: ["analysis/beat"] };
@@ -524,19 +540,30 @@ describe("Studio simulation worker V2 protocol", () => {
   });
 
   it("validates the exact control-applied response variant", () => {
+    const sourceFixture = { value: 72, coupled: { value: 9 } };
     const response = validateStudioSimulationWorkerResponseV2(
-      controlAppliedResponseV2(4, frameV2({ inputEpoch: 1 })),
+      { ...controlAppliedResponseV2(4, frameV2({ inputEpoch: 1 })), fixture: sourceFixture },
     );
+    sourceFixture.coupled.value = -1;
     expect(response).toMatchObject({
       requestId: 4,
       status: "ok",
       kind: "control-applied",
       frame: { inputEpoch: 1 },
+      fixture: { value: 72, coupled: { value: 9 } },
     });
     expect(() => validateStudioSimulationWorkerResponseV2({
       ...controlAppliedResponseV2(4, frameV2({ inputEpoch: 1 })),
-      fixture: {},
+      unexpected: {},
     })).toThrow(/fields must match exactly/);
+    expect(() => validateStudioSimulationWorkerResponseV2({
+      ...controlAppliedResponseV2(4, frameV2({ inputEpoch: 1 })),
+      fixture: undefined,
+    })).toThrow();
+    expect(() => validateStudioSimulationWorkerResponseV2({
+      ...controlAppliedResponseV2(4, frameV2({ inputEpoch: 1 })),
+      fixture: { value: NaN },
+    })).toThrow();
   });
 
   it("trusts only the already-validated output body on advanced responses", () => {
@@ -1476,6 +1503,22 @@ describe("Studio simulation worker V2 runtime", () => {
     expect(harness.runtime.state).toBe("active");
   });
 
+  it("returns the reducer's complete accepted fixture without capturing a checkpoint", async () => {
+    const capture = vi.fn();
+    const harness = runtimeHarnessV2({ captureAcceptedCandidate: capture });
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+    harness.runtime.enqueue(createStudioSimulationApplyControlRequestV2(2, {
+      runtimeSessionId: "runtime/session-1", scenarioId: "scenario/baseline",
+      controlId: "control/heart-rate", value: 72, expectedInputEpoch: 0,
+    }));
+    await harness.runtime.whenIdle();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      kind: "control-applied", frame: { inputEpoch: 1 }, fixture: { value: 72 },
+    });
+    expect(capture).not.toHaveBeenCalled();
+  });
+
   it("allows an accepted clock reset when a control starts a new input epoch", async () => {
     const harness = runtimeHarnessV2();
     harness.runtime.enqueue(initializeRequestV2(1));
@@ -2000,7 +2043,7 @@ describe("Studio simulation worker V2 runtime", () => {
     expect(harness.runtime.state).toBe("active");
   });
 
-  it("can execute analysis outside the admitted exact adapter", async () => {
+  it.each([false, true])("can execute analysis outside the admitted exact adapter (shared: %s)", async shared => {
     const embeddedRequestAnalysis = vi.fn(() => Promise.reject(
       new Error("embedded analysis must not run"),
     ));
@@ -2017,6 +2060,10 @@ describe("Studio simulation worker V2 runtime", () => {
           acceptedRevision: request.expectedAcceptedRevision, acceptedTimeSec: request.expectedAcceptedTimeSec,
         });
         expect(source.surfaceRelease).toBeDefined();
+        if (shared) {
+          expect(request.sharePreparation).toBe(true);
+          request.onProgress?.(analysisV2({ analysisId: request.analysisId }), { sourceBinding: "test", endpoint: [1, 2] });
+        }
         return analysisV2({
           analysisId: request.analysisId,
           inputEpoch: request.expectedInputEpoch,
@@ -2037,6 +2084,7 @@ describe("Studio simulation worker V2 runtime", () => {
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
       analysisId: "analysis/external-v1",
+      ...(shared ? { sharePreparation: true } : {}),
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 0,
       expectedAcceptedTimeSec: 0,
@@ -2045,6 +2093,8 @@ describe("Studio simulation worker V2 runtime", () => {
 
     expect(execute).toHaveBeenCalledTimes(1);
     expect(embeddedRequestAnalysis).not.toHaveBeenCalled();
+    if (shared) expect(harness.port.messages.at(-2)).toMatchObject({ kind: "analysis-progress",
+      preparation: { sourceBinding: "test", endpoint: [1, 2] } });
     expect(harness.port.messages.at(-1)).toMatchObject({
       requestId: 2,
       status: "ok",
@@ -2725,13 +2775,13 @@ describe("Studio simulation worker V2 multi-Scenario authoring", () => {
     });
   });
 
-  it("rejects add and duplicate commands once the four-Scenario limit is reached", async () => {
+  it("adds and duplicates beyond four Scenarios while keeping each independent", async () => {
     const harness = multiScenarioRuntimeHarnessV2();
     harness.runtime.enqueue(initializeRequestV2(1));
     await harness.runtime.whenIdle();
 
     let activeScenarioId = "scenario/baseline";
-    for (let index = 1; index < STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2; index += 1) {
+    for (let index = 1; index < 4; index += 1) {
       const scenarioId = `scenario/copy-${index}`;
       harness.runtime.enqueue(createStudioSimulationDuplicateScenarioRequestV2(
         index + 1,
@@ -2758,8 +2808,8 @@ describe("Studio simulation worker V2 multi-Scenario authoring", () => {
     harness.runtime.enqueue(createStudioSimulationDuplicateScenarioRequestV2(5, {
       runtimeSessionId: "runtime/session-1",
       sourceScenarioId: "scenario/baseline",
-      scenarioId: "scenario/overflow-copy",
-      label: "Overflow copy",
+      scenarioId: "scenario/fifth-copy",
+      label: "Fifth copy",
       expectedActiveScenarioId: activeScenarioId,
       expectedInputEpoch: 0,
       expectedAcceptedRevision: 0,
@@ -2767,23 +2817,24 @@ describe("Studio simulation worker V2 multi-Scenario authoring", () => {
     }));
     await harness.runtime.whenIdle();
     expect(harness.port.messages.at(-1)).toMatchObject({
-      status: "error",
-      fatal: false,
-      message: expect.stringMatching(/at most 4 Scenarios/),
+      status: "ok",
+      kind: "scenario-state",
+      state: { activeScenarioId: "scenario/fifth-copy" },
     });
+    activeScenarioId = "scenario/fifth-copy";
 
     harness.runtime.enqueue(createStudioSimulationAddScenarioFromPresetRequestV2(
       6,
       {
         runtimeSessionId: "runtime/session-1",
-        scenarioId: "scenario/overflow-preset",
-        label: "Overflow preset",
+        scenarioId: "scenario/sixth-preset",
+        label: "Sixth preset",
         preset: {
           schemaId: STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
-          presetId: "preset/overflow",
+          presetId: "preset/additional",
           modelId: "model/main-wire-v3-r1",
-          title: "Overflow",
-          description: "Must be rejected before rebuild",
+          title: "Additional preset",
+          description: "Independent additional scenario",
           capture: {
             fixture: { value: 2 },
             checkpoint: {
@@ -2801,11 +2852,12 @@ describe("Studio simulation worker V2 multi-Scenario authoring", () => {
     ));
     await harness.runtime.whenIdle();
     expect(harness.port.messages.at(-1)).toMatchObject({
-      status: "error",
-      fatal: false,
-      message: expect.stringMatching(/at most 4 Scenarios/),
+      status: "ok",
+      kind: "scenario-state",
+      state: { activeScenarioId: "scenario/sixth-preset" },
     });
-    expect(harness.adapter.createSession).toHaveBeenCalledTimes(4);
+    activeScenarioId = "scenario/sixth-preset";
+    expect(harness.adapter.createSession).toHaveBeenCalledTimes(6);
 
     harness.runtime.enqueue(createStudioSimulationAdvanceRequestV2(7, {
       runtimeSessionId: "runtime/session-1",
@@ -3480,7 +3532,7 @@ describe("Studio simulation worker V2 client", () => {
         acceptedTimeSec: 0,
       }),
     ));
-    await expect(applied).resolves.toMatchObject({ inputEpoch: 1 });
+    await expect(applied).resolves.toMatchObject({ frame: { inputEpoch: 1 }, fixture: { value: 72 } });
 
     const advanced = client.advance({
       runtimeSessionId: "runtime/session-1",
@@ -3537,7 +3589,7 @@ describe("Studio simulation worker V2 client", () => {
       3,
       frameV2({ inputEpoch: 1 }),
     ));
-    await expect(retried).resolves.toMatchObject({ inputEpoch: 1 });
+    await expect(retried).resolves.toMatchObject({ frame: { inputEpoch: 1 }, fixture: { value: 72 } });
     expect(transport.terminate).not.toHaveBeenCalled();
   });
 
@@ -3598,6 +3650,11 @@ describe("Studio simulation worker V2 client", () => {
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({
       payload: { points: [1] },
     }));
+    transport.emitMessage({ ...analysisProgressResponseV2(3, analysisV2({
+      sourceAcceptedRevision: 4, sourceAcceptedTimeSec: .4, payload: { points: [1] },
+    })), preparation: { sourceBinding: "prepared-source" } });
+    expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ payload: { points: [1] } }),
+      { sourceBinding: "prepared-source" });
     await expect(client.advance({
       runtimeSessionId: "runtime/session-1",
       scenarioId: "scenario/baseline",
@@ -4446,6 +4503,7 @@ function controlAppliedResponseV2(
     status: "ok" as const,
     kind: "control-applied" as const,
     frame,
+    fixture: { value: 72 },
   };
 }
 

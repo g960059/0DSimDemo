@@ -23,11 +23,6 @@ export const STUDIO_SWEEP_WINDOW_STEP_SEC_V2 = 0.5;
 export const STUDIO_GRAPH_HISTORY_DEFAULT_DEPTH_V2 = 1;
 export const STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2 = 0;
 export const STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2 = 3;
-/**
- * Pre-release comparison limit. Automatic graph color assignment admits four
- * stable Scenario identities without recycling the default palette.
- */
-export const STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2 = 4;
 
 export type SurfacePaneIdV2 = string;
 export type ScenarioPresetIdV2 = string;
@@ -124,6 +119,13 @@ export type ExperimentSurfaceGraphTraceRefV2 = Readonly<{
 export type ExperimentSurfacePressureVolumeAnalysisModeV2 =
   "raw-exact-orbit" | "responsive-preview" | "formal-periodic";
 
+/** Display bounds only; omitting an axis retains automatic scaling. */
+export type ExperimentGraphAxisRangeV2 = Readonly<{ minimum: number; maximum: number }>;
+export type ExperimentGraphAxisRangesV2 = Readonly<{
+  x?: ExperimentGraphAxisRangeV2;
+  y?: ExperimentGraphAxisRangeV2;
+}>;
+
 export type ExperimentSurfaceGraphPaneV2 = Readonly<{
   paneId: SurfacePaneIdV2;
   role: "graph";
@@ -141,6 +143,8 @@ export type ExperimentSurfaceGraphPaneV2 = Readonly<{
    * it because they do not own a time window.
    */
   windowSec?: number;
+  /** Waveform x extent is owned by windowSec; only y may be fixed there. */
+  axisRanges?: ExperimentGraphAxisRangesV2;
   /**
    * Number of completed input epochs shown behind the current graph. Required
    * for PV and structural renderers; sweep renderers carry prior epochs out in

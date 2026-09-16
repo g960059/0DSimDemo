@@ -1,4 +1,5 @@
 import React from "react";
+import { workbenchManualChartDomainV3 } from "./WorkbenchManualChartDomainV3";
 
 import {
   isWorkbenchPresentationSampleV3,
@@ -10,7 +11,6 @@ import {
   type WorkbenchScalarSampleV3,
 } from "./WorkbenchScalarSampleV3";
 import {
-  mixOpaqueWorkbenchCanvasColorV3,
   scaleLinearV3,
   readWorkbenchCanvasThemeVariablesV3,
   useResponsiveCanvasFrameV3,
@@ -18,6 +18,7 @@ import {
 import {
   WorkbenchChartLegendV3,
   buildWorkbenchTraceLegendModelV3,
+  drawWorkbenchLeadingCapV3,
   workbenchLegendTraceAlphaV3,
   workbenchLegendTraceHiddenV3,
   workbenchTraceLegendKeyV3,
@@ -61,6 +62,53 @@ type WaveformSourcePointV3 = Readonly<{
   presentationTimeSec: number;
   value: number;
 }>;
+
+type ProjectedWaveformSourcePointV3 = Readonly<{
+  presentationTimeSec: number;
+  point: SweepingWaveformPointV3;
+}>;
+
+// Completed presentation buckets retain their identity between paints. Keep
+// their exact extrema/order and modulo projection, not a second sampled curve.
+// Weak keys release evicted history; one window per signal bounds each entry.
+const waveformProjectionCacheV3 = new WeakMap<
+  WorkbenchScalarSampleV3,
+  Map<string, Readonly<{
+    windowSec: number;
+    points: readonly ProjectedWaveformSourcePointV3[];
+  }>>
+>();
+
+function projectedWaveformSourcePointsV3(
+  sample: WorkbenchScalarSampleV3,
+  outputId: string,
+  windowSec: number,
+): readonly ProjectedWaveformSourcePointV3[] {
+  let signals = waveformProjectionCacheV3.get(sample);
+  const cached = signals?.get(outputId);
+  if (cached?.windowSec === windowSec) return cached.points;
+  const points = Object.freeze(waveformSourcePointsV3(sample, outputId)
+    .map((point) => Object.freeze({
+      presentationTimeSec: point.presentationTimeSec,
+      point: Object.freeze({
+        phaseSec: positiveModuloV3(point.presentationTimeSec, windowSec),
+        value: point.value,
+      }),
+    })));
+  const immutable = Object.isFrozen(sample) && Object.isFrozen(sample.values)
+    && (!isWorkbenchPresentationSampleV3(sample)
+      || (Object.isFrozen(sample.presentationEnvelope)
+        && Object.values(sample.presentationEnvelope).every((value) =>
+          typeof value !== "object" || value === null || Object.isFrozen(value))));
+  if (immutable) {
+    if (signals === undefined) {
+      signals = new Map();
+      waveformProjectionCacheV3.set(sample, signals);
+    }
+    signals.set(outputId, { windowSec, points });
+  }
+  return points;
+}
 
 type SweepingWaveformOptionsV3 = Readonly<{
   windowSec: number;
@@ -203,12 +251,9 @@ function buildSweepingWaveformSegmentsFromOrderedV3(
   const firstIndex = firstSampleAtOrAfterV3(ordered, oldestTimeSec);
   for (let index = firstIndex; index < ordered.length; index += 1) {
     const sample = ordered[index]!;
-    for (const sourcePoint of waveformSourcePointsV3(sample, outputId)) {
+    for (const sourcePoint of projectedWaveformSourcePointsV3(sample, outputId, windowSec)) {
       if (sourcePoint.presentationTimeSec < oldestTimeSec) continue;
-      const phaseSec = positiveModuloV3(
-        sourcePoint.presentationTimeSec,
-        windowSec,
-      );
+      const { phaseSec, value } = sourcePoint.point;
       if (
         previousPhaseSec !== null
         && phaseSec + WAVEFORM_EPSILON_V3 < previousPhaseSec
@@ -231,13 +276,10 @@ function buildSweepingWaveformSegmentsFromOrderedV3(
         previousPoint !== undefined
         && Math.abs(previousPoint.phaseSec - phaseSec)
           <= WAVEFORM_EPSILON_V3
-        && Math.abs(previousPoint.value - sourcePoint.value)
+        && Math.abs(previousPoint.value - value)
           <= WAVEFORM_EPSILON_V3
       ) continue;
-      active.push(Object.freeze({
-        phaseSec,
-        value: sourcePoint.value,
-      }));
+      active.push(sourcePoint.point);
     }
   }
   flush();
@@ -279,6 +321,8 @@ function latestSweepingWaveformPointFromOrderedV3(
 }
 
 type SweepingWaveformCanvasCommonPropsV3 = Readonly<{
+  axisRanges?: import("@/studio/contracts/v2/content").ExperimentGraphAxisRangesV2;
+  legendActions?: React.ReactNode;
   windowSec?: number;
   unitLabel?: string;
   axisLabel?: string;
@@ -428,7 +472,11 @@ export function SweepingWaveformCanvasV3(
         commitKey: domainCommitKey,
       },
     );
-    const domain = domainStateRef.current.domain;
+    const domain = workbenchManualChartDomainV3(domainStateRef.current.domain, props.axisRanges?.y);
+    if (canvasRef.current) {
+      canvasRef.current.dataset.yMinimum = String(domain[0]);
+      canvasRef.current.dataset.yMaximum = String(domain[1]);
+    }
     drawWaveformAxesV3(
       context,
       plot,
@@ -480,7 +528,7 @@ export function SweepingWaveformCanvasV3(
       }
       context.restore();
       if (head !== null) {
-        drawWaveformLeadingCapV3(
+        drawWorkbenchLeadingCapV3(
           context,
           x(head.phaseSec),
           y(head.value),
@@ -492,6 +540,7 @@ export function SweepingWaveformCanvasV3(
     }
   }, [
     domainCommitKey,
+    props.axisRanges,
     hiddenLegendSelections,
     includeZero,
     legendSelection,
@@ -516,6 +565,7 @@ export function SweepingWaveformCanvasV3(
       data-time-window-sec={windowSec}
     >
       <WorkbenchChartLegendV3
+        actions={props.legendActions}
         hiddenSelections={hiddenLegendSelections}
         model={legendModel}
         selection={legendSelection}
@@ -775,38 +825,6 @@ function readCanvasThemeV3(element: HTMLElement | null): CanvasThemeV3 {
     text: text!,
     font: font!,
   });
-}
-
-function drawWaveformLeadingCapV3(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  color: string,
-  canvasColor: string,
-  traceAlpha = 1,
-): void {
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-  context.save();
-  context.setLineDash([]);
-  context.globalAlpha = 1;
-  context.fillStyle = mixOpaqueWorkbenchCanvasColorV3(
-    color,
-    canvasColor,
-    0.34 * traceAlpha,
-  );
-  context.beginPath();
-  context.arc(x, y, 4, 0, Math.PI * 2);
-  context.fill();
-  context.strokeStyle = mixOpaqueWorkbenchCanvasColorV3(
-    color,
-    canvasColor,
-    0.88 * traceAlpha,
-  );
-  context.lineWidth = 1;
-  context.beginPath();
-  context.arc(x, y, 3.25, 0, Math.PI * 2);
-  context.stroke();
-  context.restore();
 }
 
 function formatAxisNumberV3(value: number): string {

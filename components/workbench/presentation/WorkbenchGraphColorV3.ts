@@ -6,10 +6,12 @@ import type {
 import type { AppThemeId } from "@/appTheme";
 
 export const WORKBENCH_SCENARIO_COLOR_PALETTE_V3 = Object.freeze([
-  "#d9822b",
-  "#2f9e7d",
+  "#ff5f73",
+  "#39c2ff",
   "#8b76d1",
-  "#b8555f",
+  "#2f9e7d",
+  "#e0a645",
+  "#ce6ca8",
 ] as const);
 
 export type WorkbenchGraphRendererV3 =
@@ -25,21 +27,21 @@ export type WorkbenchResolvedGraphTraceStyleV3 = Readonly<{
 const WORKBENCH_SINGLE_SCENARIO_ITEM_PALETTE_V3: Readonly<
   Record<string, Readonly<Record<AppThemeId, string>>>
 > = Object.freeze({
-  LVP: Object.freeze({ light: "#c22347", dark: "#ff5f73" }),
-  LV: Object.freeze({ light: "#c22347", dark: "#ff5f73" }),
-  LAP: Object.freeze({ light: "#a12bc7", dark: "#e07ce8" }),
-  LA: Object.freeze({ light: "#a12bc7", dark: "#e07ce8" }),
-  AoP: Object.freeze({ light: "#0068a3", dark: "#39c2ff" }),
-  ABP: Object.freeze({ light: "#2d70ac", dark: "#76aaff" }),
-  SAP: Object.freeze({ light: "#2d70ac", dark: "#76aaff" }),
-  AoV: Object.freeze({ light: "#0068a3", dark: "#39c2ff" }),
+  LVP: Object.freeze({ light: "#a12bc7", dark: "#e07ce8" }),
+  LV: Object.freeze({ light: "#a12bc7", dark: "#e07ce8" }),
+  LAP: Object.freeze({ light: "#0068a3", dark: "#39c2ff" }),
+  LA: Object.freeze({ light: "#0068a3", dark: "#39c2ff" }),
+  AoP: Object.freeze({ light: "#c22347", dark: "#ff5f73" }),
+  ABP: Object.freeze({ light: "#8f5b00", dark: "#f6bd3f" }),
+  SAP: Object.freeze({ light: "#8f5b00", dark: "#f6bd3f" }),
+  AoV: Object.freeze({ light: "#c22347", dark: "#ff5f73" }),
   RAP: Object.freeze({ light: "#00786f", dark: "#2fd0b2" }),
   RA: Object.freeze({ light: "#00786f", dark: "#2fd0b2" }),
   RVP: Object.freeze({ light: "#4740c6", dark: "#8f9bff" }),
   RV: Object.freeze({ light: "#4740c6", dark: "#8f9bff" }),
-  PAP: Object.freeze({ light: "#8f5b00", dark: "#f6bd3f" }),
+  PAP: Object.freeze({ light: "#a2431d", dark: "#ff8a5c" }),
   PV: Object.freeze({ light: "#4740c6", dark: "#8f9bff" }),
-  MV: Object.freeze({ light: "#c22347", dark: "#ff5f73" }),
+  MV: Object.freeze({ light: "#a12bc7", dark: "#e07ce8" }),
   TV: Object.freeze({ light: "#00786f", dark: "#2fd0b2" }),
 });
 
@@ -331,7 +333,7 @@ function allocateAdaptiveWorkbenchTraceColorV3(input: Readonly<{
   const goldenAngleDeg = 137.50776405003785;
   const lightnessTiers = Object.freeze([0.74, 0.82, 0.67]);
   for (const lightness of lightnessTiers) {
-    for (let index = 0; index < 24; index += 1) {
+    for (let index = 0; index < 48; index += 1) {
       const hue = (
         baseHue +
         (input.preferredIndex + index) * goldenAngleDeg
@@ -381,7 +383,7 @@ function traceColorKeyV3(scenarioId: string, seriesId: string | null): string {
 
 function canonicalColorHexV3(value: string): string {
   const candidate = value.toLowerCase();
-  return /^#[0-9a-f]{6}$/.test(candidate) ? candidate : "#d9822b";
+  return /^#[0-9a-f]{6}$/.test(candidate) ? candidate : "#ff5f73";
 }
 
 type RgbV3 = readonly [number, number, number];

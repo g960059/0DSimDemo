@@ -1,0 +1,166 @@
+{
+  "schemaId": "circleheart-model-publication-admission-v1",
+  "modelId": "circleheart.main-wire-integrated-transaction-v3.static-anatomy.standard-74",
+  "artifactRevisionId": "53aa4536ad570101ab24f834c3cf78597a76b062e03149f9ffc391a907c520a2",
+  "artifactSha256": "e3fc6cc93d0114e422501eb40122e3d3ea603d22846b56ba2a0919a147a42053",
+  "predecessorArtifactRevisionId": null,
+  "predecessorModelArtifactRevisionId": "38e31e94e7b25e71d0bb99c1a7e9a27dc094985c3920d12c2fdf22afa34abce4",
+  "equivalenceReportSha256": null,
+  "candidateContinuationReportSha256": "5a1c54d6812471da0e2a8bed680cf04e17e7222b8f016edcfd47a56826249025",
+  "reviewedLocalPackageSha256": "28dfc475c562cce5871934c465e142aa27c1209d04c2a4e54b015e6351213061",
+  "reviewedEvidenceArchiveSha256": "013a304bdde48a0e6607cbab27bec07ad67a5defaa30d373035a731dee502406",
+  "bundleSha256": "b4e5d459418e1d6af1c7d2cc71e84902ba0121a14bce3b5b8730d3571e1ab1aa",
+  "surfaceReleaseId": "circleheart.main-wire.surface.static-anatomy.standard-73.bounded-pva-v1",
+  "baselineRecordSha256": "a44b3d1f7ccc642375a1ce3ffef0cb17512acc7ff2ad6a1e58c9e1bf4fe03ef9",
+  "cases": [
+    {
+      "referenceId": "baseline",
+      "presetId": "standard74-baseline-v1",
+      "checkpointSha256": "4b881697899904e7a66fa5095db92208270942ef5734d0cbd2d9b964717ea4bf",
+      "documentId": "standard74-document-v1",
+      "documentSha256": "8295bcf6511cabbae3f5bc9b13f4d531845afb1487c283844d312a2acba64f38",
+      "sourceDossierSha256": "df44bbac6d1cf735e18ece057f875037220a8e79efd9265bc2c29b96ed9f5071",
+      "qualificationReportSha256": "348c5f8f181cc83ec9bdd9d3c0c59565713fd6b7cb5aaa24ffd522b2628179c8",
+      "preparedAnalysis": {
+        "file": "a9ee1588c150c4763125954236fb2fc4c2d0a0a2467ec344307a5740e75a21c3.json",
+        "recordSha256": "0f44dc9de1beaae39646c2b0079a33cbcb54827e5c1b267856a21031a29d01c7"
+      },
+      "launchBinding": {
+        "sourceResultSha256": "d01746c0373a761176db0da0243ba1711102ef55d6ab311649b0fae49b7d5a07",
+        "qualifiedCheckpointSha256": "816ca45e592525aca9501a70a88ac20186f7fc1ee559166b4b325c8a02ea6f79",
+        "launchCheckpointSha256": "4b881697899904e7a66fa5095db92208270942ef5734d0cbd2d9b964717ea4bf",
+        "sourceAcceptedTimeSec": 46.285714285714285,
+        "launchAcceptedTimeSec": 46.286,
+        "completedBeatUnchanged": true,
+        "priorCheckpointImported": false
+      },
+      "continuation": {
+        "presetId": "research/baseline/d01746c0373a",
+        "steps": 1000,
+        "completeFramesAndTerminalCaptureEqual": true
+      },
+      "reviews": [
+        {
+          "reviewer": "gpt-6-astra/max",
+          "vote": "accept"
+        },
+        {
+          "reviewer": "claude-opus-5/max",
+          "vote": "accept"
+        }
+      ]
+    },
+    {
+      "referenceId": "hfref-chronic-dilated-v1",
+      "presetId": "standard74-hfref-chronic-dilated-v1",
+      "checkpointSha256": "c97b528ac709354762a2c19f5cf4f52b32b22aa746542146cc8c99e39f102cf3",
+      "documentId": "standard74-hfref-document-v1",
+      "documentSha256": "ff088bc807c963b04f9a9a383cc405a858cb5af391804cb1d8a2e5c59a896726",
+      "sourceDossierSha256": "7f2be55904eb9375f967b3077edb902f26e38545db703516858311286782870b",
+      "qualificationReportSha256": "2a116fc717bb045b9f1f09cfd228a725ad2be73732fbc008662edc79563fa299",
+      "preparedAnalysis": {
+        "file": "9fd3c7f2d411c9ab34a579f86c365c55c3cbcefde214a02a2f60552462e977b0.json",
+        "recordSha256": "40bf4e1815e31ba33ea8fe1ff3615f82710ab01942fc40eb1334677d68bea4a4"
+      },
+      "launchBinding": {
+        "sourceResultSha256": "a84f6efc982f8cbbbef04c759230b6a492c2e5a99ff37a80bf1c2f2df5631047",
+        "qualifiedCheckpointSha256": "567dd8b5cc4142ff020e1396449802d9d73606e1d8dde8ac3b2b606bb37a953a",
+        "launchCheckpointSha256": "c97b528ac709354762a2c19f5cf4f52b32b22aa746542146cc8c99e39f102cf3",
+        "sourceAcceptedTimeSec": 133.7142857142857,
+        "launchAcceptedTimeSec": 133.716,
+        "completedBeatUnchanged": true,
+        "priorCheckpointImported": false
+      },
+      "continuation": {
+        "presetId": "research/hfref-chronic-dilated-v1/a84f6efc982f",
+        "steps": 1000,
+        "completeFramesAndTerminalCaptureEqual": true
+      },
+      "reviews": [
+        {
+          "reviewer": "gpt-6-astra/max",
+          "vote": "accept"
+        },
+        {
+          "reviewer": "claude-opus-5/max",
+          "vote": "accept"
+        }
+      ]
+    },
+    {
+      "referenceId": "as-high-gradient-valve-only-v1",
+      "presetId": "standard74-as-high-gradient-valve-only-v1",
+      "checkpointSha256": "f520d1aed1c19838af986ee082eec3bd2cb0b96b475f754d8be471ecfad4a1d0",
+      "documentId": "standard74-as-high-gradient-document-v1",
+      "documentSha256": "77b2593a06060892d3c1475331ebdf6b8f200eb72138c50f38363b8d1d0f1247",
+      "sourceDossierSha256": "2daf7001852b89ec2717f01e76e13e07527c3783608bb3f02466a404aa04a97a",
+      "qualificationReportSha256": "9120f29e5b34ac0e99a2a73fcb7c84f1cf40c46c5ce3ff2e38e29f998f90db0b",
+      "preparedAnalysis": {
+        "file": "0e83275279b5bef870462d40a84e10a6fe59d1efc8d19701a4b4e9253e9bdd84.json",
+        "recordSha256": "4eeaa659b713548b13d846bab119a6b964d4ca4726717e0a87fdf60ba3ea0b9c"
+      },
+      "launchBinding": {
+        "sourceResultSha256": "3074a918952368d70feaeb3a3048f02efac45dab3e33f3dedccc5d0c1635a7b1",
+        "qualifiedCheckpointSha256": "0a5cff2b1e1c6f6d8d541687526290a06726da6771cffe692e033749ef0d4d01",
+        "launchCheckpointSha256": "f520d1aed1c19838af986ee082eec3bd2cb0b96b475f754d8be471ecfad4a1d0",
+        "sourceAcceptedTimeSec": 46.285714285714285,
+        "launchAcceptedTimeSec": 46.286,
+        "completedBeatUnchanged": true,
+        "priorCheckpointImported": false
+      },
+      "continuation": {
+        "presetId": "research/as-high-gradient-valve-only-v1/3074a9189523",
+        "steps": 1000,
+        "completeFramesAndTerminalCaptureEqual": true
+      },
+      "reviews": [
+        {
+          "reviewer": "gpt-6-astra/max",
+          "vote": "accept"
+        },
+        {
+          "reviewer": "claude-opus-5/max",
+          "vote": "accept"
+        }
+      ]
+    },
+    {
+      "referenceId": "as-low-flow-reduced-ef-v1",
+      "presetId": "standard74-as-low-flow-reduced-ef-v1",
+      "checkpointSha256": "8afed77d2f489b75b968e1104193e8a9f72066ab35e99bd513d0f394a7716a16",
+      "documentId": "standard74-as-low-flow-document-v1",
+      "documentSha256": "0f4b4ef2d6c95e1c162cd557e2ab72534c821324ad3d1fc08dddf564f3d83bff",
+      "sourceDossierSha256": "19b2bb679f52cf3f0a5e6697fb537c9ed8d8f386dd891e5d118c45921f5fd772",
+      "qualificationReportSha256": "035357c762645bd8670cd3223ad0c4b96c225e4ed3d2b55947bbe5bd4d3d107b",
+      "preparedAnalysis": {
+        "file": "f444b7cafdc66121f11774852f9353c68b0f7a31b10838d23134b4d164d7a9b4.json",
+        "recordSha256": "4190076335350a072441ef4cd2f72329fc7fc81b2d328e66a38e648dd7c3d9a1"
+      },
+      "launchBinding": {
+        "sourceResultSha256": "5af9ae3fa0edd288e5d195879ed07b3546a04cdd8f906a90e81d381dccaaa45b",
+        "qualifiedCheckpointSha256": "1c38934698c0c8edc944efce2a6dfd31917876b5459fc01632a5179aada22f0e",
+        "launchCheckpointSha256": "8afed77d2f489b75b968e1104193e8a9f72066ab35e99bd513d0f394a7716a16",
+        "sourceAcceptedTimeSec": 180.85714285714286,
+        "launchAcceptedTimeSec": 180.858,
+        "completedBeatUnchanged": true,
+        "priorCheckpointImported": false
+      },
+      "continuation": {
+        "presetId": "research/as-low-flow-reduced-ef-v1/5af9ae3fa0ed",
+        "steps": 1000,
+        "completeFramesAndTerminalCaptureEqual": true
+      },
+      "reviews": [
+        {
+          "reviewer": "gpt-6-astra/max",
+          "vote": "accept"
+        },
+        {
+          "reviewer": "claude-opus-5/max",
+          "vote": "accept"
+        }
+      ]
+    }
+  ],
+  "scope": "Local adoption; registry publication and active-default change not performed."
+}

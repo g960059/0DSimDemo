@@ -43,6 +43,7 @@
     "benchmark:kernel:coupled-trajectory": "vite-node --script tools/performance/benchmarkMainWireFlatCoupledTrajectoryV1.ts",
     "benchmark:kernel:land-output": "vite-node --script tools/performance/benchmarkLandContinuousOutputV1.ts",
     "benchmark:kernel:vascular-pv-inverse": "vite-node --script tools/performance/benchmarkVascularPvInverseV1.ts",
+    "benchmark:analysis:tbv-sweep": "vite-node --script tools/performance/benchmarkMainWireTbvSweepV1.ts",
     "profile:kernel:flat-authority": "vite-node --script tools/performance/profileMainWireFlatAuthorityV1.ts",
     "inspect:kernel:flat-state-shape": "vite-node --script tools/performance/inspectMainWireFlatStateShapeV1.ts",
     "inspect:kernel:accepted-state-identity": "vite-node --script tools/performance/inspectMainWireAcceptedStateIdentityV1.ts",

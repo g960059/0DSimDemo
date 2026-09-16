@@ -5,12 +5,36 @@ import standard73 from "./packages/standard73-document-v2.index.json";
 import standard73Hfref from "./packages/standard73-hfref-document-v2.index.json";
 import standard73AsHigh from "./packages/standard73-as-high-gradient-document-v1.index.json";
 import standard73AsLow from "./packages/standard73-as-low-flow-document-v1.index.json";
+import standard74 from "./packages/standard74-document-v1.index.json";
+import standard74Hfref from "./packages/standard74-hfref-document-v1.index.json";
+import standard74AsHigh from "./packages/standard74-as-high-gradient-document-v1.index.json";
+import standard74AsLow from "./packages/standard74-as-low-flow-document-v1.index.json";
 import selection from "@/data/model-baselines/current-baseline-selection-v1.json";
 import { savedDocumentMatchesV1, type SavedModelDocumentV1 } from "./SavedModelDocumentV1";
 
 // This local document catalog says nothing about executable-model admission.
 // Adding a successor adds data; it does not relabel an earlier document.
 export const SAVED_MODEL_DOCUMENT_CATALOG_V1 = [{
+  document: standard74 as Pick<SavedModelDocumentV1, "schemaId" | "documentId" | "identity" | "contentSha256">,
+  label: "Standard 74", badgeLabel: "MW 74",
+  limitationsTranslationKey: "modelLimitations.staticAnatomyItems" as const,
+}, {
+  document: standard74Hfref as Pick<SavedModelDocumentV1, "schemaId" | "documentId" | "identity" | "contentSha256">,
+  label: "Standard 74 · HFrEF", badgeLabel: "MW 74", modelLabel: "Standard 74",
+  limitationsTranslationKey: "modelLimitations.staticAnatomyItems" as const, caseOnly: true as const,
+}, {
+  document: standard74AsHigh as Pick<SavedModelDocumentV1, "schemaId" | "documentId" | "identity" | "contentSha256">,
+  label: "Standard 74 · AS high gradient", badgeLabel: "MW 74", modelLabel: "Standard 74",
+  limitationsTranslationKey: "modelLimitations.staticAnatomyItems" as const, caseOnly: true as const, activeCase: true as const,
+  presetLabel: { ja: "AS · 弁狭窄のみ・高勾配", en: "AS · valve-only high gradient" },
+  summary: { ja: "baselineから弁口面積だけを小さくした、圧負荷の比較例。", en: "A pressure-load comparison changing only the baseline valve area." },
+}, {
+  document: standard74AsLow as Pick<SavedModelDocumentV1, "schemaId" | "documentId" | "identity" | "contentSha256">,
+  label: "Standard 74 · AS low flow", badgeLabel: "MW 74", modelLabel: "Standard 74",
+  limitationsTranslationKey: "modelLimitations.staticAnatomyItems" as const, caseOnly: true as const, activeCase: true as const,
+  presetLabel: { ja: "AS · 低EF・低流量・低勾配", en: "AS · low EF, low flow, low gradient" },
+  summary: { ja: "左室拡大・収縮能低下の背景に狭い弁を加え、低い勾配と狭窄が両立することを示す例。", en: "A narrow valve on a dilated, low-contractility LV background illustrates low gradient despite stenosis." },
+}, {
   document: standard73 as Pick<SavedModelDocumentV1, "schemaId" | "documentId" | "identity" | "contentSha256">,
   label: "Standard 73", badgeLabel: "MW 73",
   limitationsTranslationKey: "modelLimitations.staticAnatomyItems" as const,
@@ -21,13 +45,13 @@ export const SAVED_MODEL_DOCUMENT_CATALOG_V1 = [{
 }, {
   document: standard73AsHigh as Pick<SavedModelDocumentV1, "schemaId" | "documentId" | "identity" | "contentSha256">,
   label: "Standard 73 · AS high gradient", badgeLabel: "MW 73", modelLabel: "Standard 73",
-  limitationsTranslationKey: "modelLimitations.staticAnatomyItems" as const, caseOnly: true as const, activeCase: true as const,
+  limitationsTranslationKey: "modelLimitations.staticAnatomyItems" as const, caseOnly: true as const,
   presetLabel: { ja: "AS · 弁狭窄のみ・高勾配", en: "AS · valve-only high gradient" },
   summary: { ja: "baselineから弁口面積だけを小さくした、圧負荷の比較例。", en: "A pressure-load comparison changing only the baseline valve area." },
 }, {
   document: standard73AsLow as Pick<SavedModelDocumentV1, "schemaId" | "documentId" | "identity" | "contentSha256">,
   label: "Standard 73 · AS low flow", badgeLabel: "MW 73", modelLabel: "Standard 73",
-  limitationsTranslationKey: "modelLimitations.staticAnatomyItems" as const, caseOnly: true as const, activeCase: true as const,
+  limitationsTranslationKey: "modelLimitations.staticAnatomyItems" as const, caseOnly: true as const,
   presetLabel: { ja: "AS · 低EF・低流量・低勾配", en: "AS · low EF, low flow, low gradient" },
   summary: { ja: "左室拡大・収縮能低下の背景に狭い弁を加え、低い勾配と狭窄が両立することを示す例。", en: "A narrow valve on a dilated, low-contractility LV background illustrates low gradient despite stenosis." },
 }, {

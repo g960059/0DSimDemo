@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { auditMainWireWorkbenchMetricsV1 as audit } from "@/tools/scientific/auditMainWireWorkbenchMetricsV1";
 import { hotPathIntegrityTierV1, selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
-import bundle from "@/data/model-releases/standard73/bundle.json";
+import bundle from "@/data/model-releases/standard74/bundle.json";
 const originalTier = hotPathIntegrityTierV1();
 beforeEach(() => selectHotPathIntegrityTierV1("hot-path-lean"));
 afterEach(() => selectHotPathIntegrityTierV1(originalTier));

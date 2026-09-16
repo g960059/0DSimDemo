@@ -220,7 +220,7 @@ describe("saved model documentation, independent of retired source", () => {
       bundle: true, write: false, metafile: true, platform: "browser", alias: { "@": process.cwd() }, logLevel: "silent" });
     expect(Object.keys(result.metafile!.inputs).some(p => /standard7[12]-document-v1\.json$/.test(p))).toBe(false);
     // Budget the fixed reader plus small per-case indexes, not a fixed case count.
-    expect(result.outputFiles[0].contents.byteLength).toBeLessThan(10_000 + 2 * 1_500);
+    expect(result.outputFiles[0].contents.byteLength).toBeLessThan(10_000 + 6 * 1_500);
   });
   it("keeps delivery size independent of the number of full archived documents", async () => {
     const result = await build({ entryPoints: ["studio/presentation/modelDocumentation/ModelDocumentPageLoaderV1.ts"],

@@ -1,6 +1,6 @@
 import { it, expect } from "vitest";
-import high from "@/data/model-presets/standard73/as-high-gradient-v1.json";
-import low from "@/data/model-presets/standard73/as-low-flow-v1.json";
+import bundle from "@/data/model-releases/standard74/bundle.json";
+const [high, low] = bundle.presets.slice(1);
 import { createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as release } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
 import { MainWireCardiacCycleCollectorV1 as Collector } from "@/analysis/methods/mainWire/MainWireCardiacCycleCollectorV1";
 import { buildMainWireAorticJetPresentationV1 as build, MAIN_WIRE_AORTIC_JET_PRESENTATION_INPUTS_V1 as inputs,

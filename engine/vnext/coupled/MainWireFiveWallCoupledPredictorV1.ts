@@ -1,6 +1,7 @@
 import type {
   MainWireFiveWallCoupledResidualContextV1,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
+import { validationStampReuseEligibleV1 } from "@/engine/validationStampModeV1";
 
 export const MAIN_WIRE_FIVE_WALL_COUPLED_PREDICTOR_V1_ID =
   "main-wire-five-wall-coupled-accepted-history-predictor-v1" as const;
@@ -79,6 +80,8 @@ const STORAGE = new WeakMap<
   MainWireFiveWallCoupledPredictorWorkspaceV1,
   PredictorStorage
 >();
+
+const PROVED_EMPTY_CHECKPOINTS = new WeakSet<object>();
 
 export function createMainWireFiveWallCoupledPredictorWorkspaceV1():
 MainWireFiveWallCoupledPredictorWorkspaceV1 {
@@ -304,6 +307,28 @@ export function restoreMainWireFiveWallCoupledPredictorV1(
   storage.expectedBaseRevision = checkpoint.expectedBaseRevision;
   storage.expectedBaseAcceptedTimeSec =
     checkpoint.expectedBaseAcceptedTimeSec;
+}
+
+/** An empty history has no accepted root to compare. Validate it completely,
+ * then reset only algorithmic scratch; never materialize a physiological state.
+ * Only deeply immutable, validated empty histories may reuse this proof. */
+export function tryRestoreEmptyMainWireFiveWallCoupledPredictorV1(
+  input: unknown,
+  workspace: MainWireFiveWallCoupledPredictorWorkspaceV1,
+): boolean {
+  if (input === null || typeof input !== "object"
+    || Object.getOwnPropertyDescriptor(input, "historyDepth")?.value !== 0) return false;
+  const reuse = validationStampReuseEligibleV1();
+  if (!reuse || !PROVED_EMPTY_CHECKPOINTS.has(input)) {
+    validateAndOwnMainWireFiveWallCoupledPredictorCheckpointV2(input);
+    if (reuse && Object.isFrozen(input) && [
+      "oldestAcceptedMl", "olderAcceptedMl", "previousAcceptedMl", "currentAcceptedMl",
+    ].every(key => Object.isFrozen(ownDataValue(input, key)))) {
+      PROVED_EMPTY_CHECKPOINTS.add(input);
+    }
+  }
+  resetStorage(requireStorage(workspace));
+  return true;
 }
 
 function matchesSequentialAcceptedState<TWallState>(

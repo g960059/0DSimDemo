@@ -12,7 +12,7 @@ import type { ExactModelKernelManifestV3 } from "@/studio/contracts/v2/modelSurf
 import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurface";
 import type { StudioSimulationScenarioInputV2 } from "@/studio/contracts/v2/simulation";
 import { studioCanonicalJsonStringify } from "@/domain/json/CanonicalJson";
-import { importExactExecutableArtifactModuleV2 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
+import { importExactExecutableArtifactModuleV2 } from "@/runtime/ExactExecutableArtifactModuleLoaderV2";
 import { resolveMainWireAnalysisMethodsForSurfaceV1 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,

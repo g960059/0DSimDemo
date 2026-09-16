@@ -9,6 +9,8 @@ import {
   WorkbenchItemDescriptionPopoverV3,
 } from "./presentation/WorkbenchItemDescriptionPopoverV3";
 import { incrementWorkbenchPerformanceCounterV3 } from "./runtime/WorkbenchPerformanceDiagnosticsV3";
+import { studioOutputReadingV1 } from "@/studio/presentation/StudioItemPresentationCatalogV1";
+import { studioOutputComparisonMethodLabelsV1 } from "@/studio/presentation/StudioOutputMeasurementMethodsV1";
 
 export type ExperimentOutputPresentationItemV3 = Readonly<{
   itemId: string;
@@ -88,16 +90,15 @@ export function ExperimentOutputGridV3({
   scrollMode?: "contained" | "parent";
   variant: "pane" | "article";
 }>) {
+  const { i18n } = useTranslation();
+  const japanese = i18n.language?.startsWith("ja");
+  const methodLabels = studioOutputComparisonMethodLabelsV1(items.map(item => item.outputId), japanese ? "ja" : "en");
   const layoutClassName =
     variant === "pane"
-      ? `min-h-0 flex-1 content-start grid-cols-[repeat(auto-fit,minmax(11.5rem,1fr))] px-2 pb-2 ${
+      ? `min-h-0 flex-1 px-2 pb-2 ${
           scrollMode === "contained" ? "overflow-auto" : "overflow-visible"
         }`
-      : "article-output-grid gap-x-2 gap-y-2";
-  const itemClassName =
-    variant === "article"
-      ? "rounded-lg bg-wb-floating/55 px-2 py-2"
-      : "px-2.5 py-2";
+      : "article-output-grid";
   return (
     <div
       className={`workbench-output-grid grid ${layoutClassName}`}
@@ -113,12 +114,15 @@ export function ExperimentOutputGridV3({
         return (
           <ExperimentOutputTileV3
             key={item.itemId}
-            itemId={item.itemId} className={itemClassName} label={item.label}
+            itemId={item.itemId} label={item.label}
             value={display.value} unit={display.unit}
             availability={item.availability ?? "unavailable"}
             quality={item.quality ?? "not-assessed"}
             description={item.description} descriptionAriaLabel={item.descriptionAriaLabel}
             qualityNotice={item.qualityNotice} staleNotice={item.staleNotice}
+            methodLabel={item.outputId ? methodLabels.get(item.outputId) : undefined}
+            contextLabel={item.staleNotice ? (japanese ? "前回値" : "Previous")
+              : item.outputId && studioOutputReadingV1(item.outputId) === "waveform" ? (japanese ? "現在値" : "Current") : undefined}
           />
         );
       })}
@@ -136,30 +140,34 @@ export function ExperimentOutputGridV3({
 
 /** Compare displayed primitives, not high-rate frame objects or unrounded values. */
 const ExperimentOutputTileV3 = React.memo(function ExperimentOutputTileV3({
-  itemId, className, label, value, unit, availability, quality,
-  description, descriptionAriaLabel, qualityNotice, staleNotice,
+  itemId, label, value, unit, availability, quality,
+  description, descriptionAriaLabel, qualityNotice, staleNotice, contextLabel, methodLabel,
 }: Readonly<{
-  itemId: string; className: string; label: string; value: string; unit: string;
+  itemId: string; label: string; value: string; unit: string;
   availability: string; quality: string; description?: string;
   descriptionAriaLabel?: string; qualityNotice?: string; staleNotice?: string;
+  contextLabel?: string;
+  methodLabel?: string;
 }>) {
   incrementWorkbenchPerformanceCounterV3("react.output-tile.render");
-  const disclosure = [staleNotice, description].filter(Boolean).join("\n\n");
-  return <div className={`workbench-output-item min-w-0 ${className}`}
+  const disclosure = [staleNotice ?? qualityNotice, description].filter(Boolean).join("\n\n");
+  return <div className="workbench-output-item min-w-0"
     data-output-id={itemId} data-output-availability={availability}
     data-output-quality={quality} data-output-stale={staleNotice !== undefined ? "true" : "false"}>
     <div className="flex min-w-0 items-center gap-1">
-      <p className="workbench-output-label min-w-0 truncate">{label}</p>
-      {disclosure && <WorkbenchItemDescriptionPopoverV3
-        ariaLabel={descriptionAriaLabel ?? label} description={disclosure} />}
+      {disclosure ? <WorkbenchItemDescriptionPopoverV3
+        ariaLabel={descriptionAriaLabel ?? label} description={disclosure}>
+        <span className="workbench-output-label block truncate">{label}</span>
+      </WorkbenchItemDescriptionPopoverV3>
+        : <p className="workbench-output-label min-w-0 truncate">{label}</p>}
+      {contextLabel && <span data-testid="output-value-context-v3" className="shrink-0 text-[10px] text-wb-subtle">{contextLabel}</span>}
     </div>
-    <p className="workbench-output-value mt-0.5 whitespace-nowrap tabular-nums"
+    {methodLabel && <p data-testid="output-method-context-v3" className="text-[10px] leading-tight text-wb-subtle">{methodLabel}</p>}
+    <p className="workbench-output-value mt-0.5 tabular-nums"
       title={staleNotice}>
-      {value}<span className="workbench-output-unit ml-1">{unit}</span>
+      {value}{unit && <span className="workbench-output-unit">{unit}</span>}
       {staleNotice && <span className="sr-only">{staleNotice}</span>}
     </p>
-    {qualityNotice !== undefined && staleNotice === undefined &&
-      <p className="mt-1 text-[11px] text-wb-warning">{qualityNotice}</p>}
   </div>;
 });
 
@@ -186,9 +194,9 @@ export function ExperimentPaneAddItemButtonV3({
     >
       <button
         type="button"
-        className={`workbench-pane-add-item inline-flex w-full items-center justify-center gap-1.5 rounded-md text-[10px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${
+        className={`workbench-pane-add-item inline-flex w-full items-center justify-start gap-1.5 rounded-md text-left text-[11px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${
           layout === "output-tile"
-            ? "min-h-[3.35rem] px-2.5 py-2"
+            ? "min-h-12 px-2 py-1.5"
             : "min-h-9 px-3"
         }`}
         onClick={onClick}
@@ -206,27 +214,42 @@ const EXPERIMENT_CLINICAL_PERCENT_OUTPUT_PREFIXES_V3 = Object.freeze([
   "oxygen.saturation.",
 ] as const);
 
+const EXPERIMENT_OUTPUT_DECIMALS_BY_UNIT_V3: Readonly<Record<string, number>> = Object.freeze({
+  mmHg: 1, "mmHg/s": 0, bpm: 0, mL: 0, "mL/m²": 0,
+  "L/min": 2, "mL/s": 1, "m/s": 2, "cm²": 2,
+  ms: 0, s: 3, "1": 2, mJ: 0,
+  "mL O2/beat/100g": 3, "mL O2/min/100g": 2,
+});
+
+/** Clinical display units shared by live values and the item catalog. */
+export function resolveExperimentOutputDisplayUnitV3(outputId: string | undefined, unit: string): string {
+  if (unit === "1") {
+    return EXPERIMENT_CLINICAL_PERCENT_OUTPUT_PREFIXES_V3.some(prefix => outputId?.startsWith(prefix)) || outputId === "oxygen.extraction-ratio.required" ? "%" : "";
+  }
+  return unit === "s" && outputId?.startsWith("hemodynamics.duration.") ? "ms" : unit;
+}
+
 export function resolveExperimentOutputDisplayV3(
   item: ExperimentOutputPresentationItemV3,
 ): Readonly<{ value: string; unit: string }> {
   if (item.displayValue !== undefined) {
     return Object.freeze({ value: item.displayValue, unit: item.unit });
   }
-  const clinicalPercent =
-    item.unit === "1" &&
-    (EXPERIMENT_CLINICAL_PERCENT_OUTPUT_PREFIXES_V3.some((prefix) =>
-      item.outputId?.startsWith(prefix),
-    ) || item.outputId === "oxygen.extraction-ratio.required");
+  const displayUnit = resolveExperimentOutputDisplayUnitV3(item.outputId, item.unit);
+  const clinicalPercent = item.unit === "1" && displayUnit === "%";
+  const clinicalMilliseconds = item.unit === "s" && displayUnit === "ms";
   const value =
     item.value === null
       ? "—"
       : formatExperimentOutputValueV3(
-          clinicalPercent ? item.value * 100 : item.value,
+          item.value * (clinicalPercent ? 100 : clinicalMilliseconds ? 1000 : 1),
           item.significantDigits,
+          clinicalPercent ? item.outputId?.startsWith("oxygen.") ? 1 : 0
+            : EXPERIMENT_OUTPUT_DECIMALS_BY_UNIT_V3[displayUnit || item.unit],
         );
   return Object.freeze({
     value,
-    unit: clinicalPercent ? "%" : item.unit === "1" ? "" : item.unit,
+    unit: displayUnit,
   });
 }
 
@@ -296,13 +319,12 @@ export function ExperimentNumericControlV3({
     >
       <div className="workbench-control-label">
         <span className="flex min-w-0 items-center gap-1">
-          <span className="min-w-0 truncate" title={label}>{label}</span>
-          {description !== undefined && (
+          {description ? (
             <WorkbenchItemDescriptionPopoverV3
               ariaLabel={descriptionAriaLabel ?? label}
               description={description}
-            />
-          )}
+            ><span className="block truncate">{label}</span></WorkbenchItemDescriptionPopoverV3>
+          ) : <span className="min-w-0 truncate" title={label}>{label}</span>}
         </span>
         {contextLabel !== undefined && (
           <span className="workbench-control-context block truncate">
@@ -508,8 +530,13 @@ export async function resolveControlDraftCommitV3({
 export function formatExperimentOutputValueV3(
   value: number,
   significantDigits?: number,
+  decimalPlaces?: number,
 ): string {
   if (!Number.isFinite(value)) return "—";
+  if (decimalPlaces !== undefined) {
+    const rounded = value.toFixed(decimalPlaces);
+    return Number(rounded) === 0 ? (0).toFixed(decimalPlaces) : rounded;
+  }
   if (significantDigits !== undefined) {
     const absolute = Math.abs(value);
     const decimalPlaces =
@@ -533,15 +560,13 @@ export function formatExperimentPressureSummaryV3(
   values: Readonly<{
     maximum: number | null;
     minimum: number | null;
-    mean: number | null;
-    significantDigits?: number;
   }>,
 ): string {
   const format = (value: number | null) =>
     value === null
       ? "—"
-      : formatExperimentOutputValueV3(value, values.significantDigits);
-  return `${format(values.maximum)}/${format(values.minimum)}(${format(values.mean)})`;
+      : formatExperimentOutputValueV3(value, undefined, 1);
+  return `${format(values.maximum)}/${format(values.minimum)}`;
 }
 
 function workbenchControlDisplayUnitV3(unit: string): string {

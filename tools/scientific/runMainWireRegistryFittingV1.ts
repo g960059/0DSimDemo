@@ -29,7 +29,7 @@ import { readFittingWorkerStdinV1 as stdin } from "./runFittingJsonWorkersV1";
 import { openFittingRunJournalV1, runJournaledFittingBatchV1 as batch } from "./FittingRunJournalV1";
 import { readSealedFittingRunV1 } from "./SealedFittingRunV1";
 import { resolveMainWireRegistryCaseProtocolV1 as protocol, prepareRegistryCaseAssessmentV1 as assess } from "./MainWireRegistryCaseProtocolsV1";
-import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
+import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
 import { resolveMainWireAnalysisMethodsForSurfaceV1 as methods } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 
 type Job = { kind: "qualification-grid" | "rest-screen"; referenceId: Reference; startId?: string; nominalDtSec: .002 | .001;

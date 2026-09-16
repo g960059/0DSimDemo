@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 import { gzipSync } from "node:zlib";
 import { compileModelDocumentPageV1 } from "@/tools/modelDocumentation/compileModelDocumentPageV1";
 import { buildModelDocumentPagesV1, renderModelDocumentFragmentV1 } from "@/tools/modelDocumentation/buildModelDocumentPagesV1";
@@ -33,19 +34,30 @@ import pressureSurface from "@/studio/integrations/mainWireIntegratedV3/MainWire
 import asHigh from "@/studio/presentation/modelDocumentation/packages/standard73-as-high-gradient-document-v1.json";
 import asLow from "@/studio/presentation/modelDocumentation/packages/standard73-as-low-flow-document-v1.json";
 import { assertAdditiveModelSurfaceUpgradeV1 } from "@/studio/contracts/v2/modelSurface";
-import client from "@/data/model-releases/CurrentModelReleaseV1";
+import currentClient from "@/data/model-releases/CurrentModelReleaseV1";
 import { resolveRegisteredModelLaunchCheckpointV1 } from "@/studio/registry/RegisteredModelLaunchBaselineV1";
 import { resolveSavedModelDocumentIndexV1 } from "@/studio/presentation/modelDocumentation/SavedModelDocumentCatalogV1";
 import { resolvedMainWireEquationDataV1 } from "@/tools/modelDocumentation/authoring/ResolvedMainWireEquationDataV1";
 import { createMainWireIntegratedModelStaticCaseFixtureV1 as fixtureFor } from "@/engine/myocardium/experiments/MainWireIntegratedModelStaticCaseFixtureV1";
 import { mainWireIntegratedStudioFixtureProjectionV3 as projection } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
 import type { MainWireStaticCaseCheckpointV1 } from "@/engine/myocardium/MainWireStaticCaseCheckpointV1";
-import bundle from "@/data/model-releases/standard73/bundle.json";
+import type currentBundle from "@/data/model-releases/standard74/bundle.json";
 import { mainWireStaticCaseFittingSeedV1 } from "@/tools/scientific/MainWireStaticCaseFittingSeedV1";
 import { MAIN_WIRE_PERIODIC_PVA_METHOD_V14_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import hfref from "@/studio/presentation/modelDocumentation/packages/hfref-static-case-document-v4.index.json";
 import baseline73 from "@/studio/presentation/modelDocumentation/packages/standard73-document-v2.index.json";
 import hfref73 from "@/studio/presentation/modelDocumentation/packages/standard73-hfref-document-v2.index.json";
+import baseline74 from "@/studio/presentation/modelDocumentation/packages/standard74-document-v1.index.json";
+import hfref74 from "@/studio/presentation/modelDocumentation/packages/standard74-hfref-document-v1.index.json";
+import asHigh74 from "@/studio/presentation/modelDocumentation/packages/standard74-as-high-gradient-document-v1.index.json";
+import asLow74 from "@/studio/presentation/modelDocumentation/packages/standard74-as-low-flow-document-v1.index.json";
+
+// Historical qualification uses its independently sealed release evidence;
+// retaining executable legacy releases is not required to read old documents.
+const bundle = JSON.parse(execFileSync("tar", ["-xOzf",
+  "research-history/standard73-release-v1/evidence.tar.gz", "./prepared-002/bundle.json"],
+{ encoding: "utf8", maxBuffer: 16_000_000 })) as typeof currentBundle;
+const client = { manifest: bundle.manifest, defaultFixture: bundle.baseline.capture.fixture };
 
 vi.mock("@/studio/presentation/modelDocumentation/ModelDocumentPageLoaderV1", () => {
   const cache = new Map();
@@ -153,7 +165,7 @@ describe("current and historical model documentation", () => {
     expect(saved.views.en.records[1].label).toContain("independent cold");
     expect(historical.identity.releaseStatus).toBe("local-candidate-not-registered");
     expect(resolveRegisteredModelLaunchCheckpointV1(historical.identity.modelId, historical.scientificRecord.measurements.fixtureIdentity)).toBeUndefined();
-    expect(REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1.map(o => o.label)).toEqual(["Standard 73", "Standard 73 · HFrEF", "Standard 73 · AS high gradient", "Standard 73 · AS low flow", "Standard 72", "Standard 71", "HFrEF · 慢性左室拡大型"]);
+    expect(REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1.map(o => o.label)).toEqual(["Standard 74", "Standard 74 · HFrEF", "Standard 74 · AS high gradient", "Standard 74 · AS low flow", "Standard 73", "Standard 73 · HFrEF", "Standard 73 · AS high gradient", "Standard 73 · AS low flow", "Standard 72", "Standard 71", "HFrEF · 慢性左室拡大型"]);
   });
 
   it.each(["ja", "en"] as const)("renders current and historical documents in %s without substituting identities", async locale => {
@@ -251,7 +263,7 @@ describe("separate model and preset reader, bound to preserved records", () => {
   });
   it("groups by exact model while retaining each document's measurement-time Surface", () => {
     const current = currentModelReadingEntryV1()!;
-    expect(current.identity.modelId).toBe(baseline73.identity.modelId);
+    expect(current.identity.modelId).toBe(baseline74.identity.modelId);
     expect(current.state).toBe("current");
     expect(saved.identity.releaseStatus).toBe("reviewed-release-package");
     expect(compatibleReadingEntriesV1(current).map(e => e.presetLabel.ja)).toEqual(["baseline", "HFrEF · 慢性左室拡大型",
@@ -281,13 +293,13 @@ describe("separate model and preset reader, bound to preserved records", () => {
     expect(workbenchReferencePresetsV1({ modelId: baseline.modelId, startup: baseline.capture, supplied: [baseline], loadedLabel: "loaded", loadedDescription: "" })).toEqual([baseline]);
   });
   it("groups the public baseline and HFrEF under the current model", () => {
-    expect(currentModelReadingEntryV1()?.identity.modelId).toBe(baseline73.identity.modelId);
-    const baseline = MODEL_READING_ENTRIES_V1.find(e => e.documentId === baseline73.documentId)!;
-    const disease = MODEL_READING_ENTRIES_V1.find(e => e.documentId === hfref73.documentId)!;
+    expect(currentModelReadingEntryV1()?.identity.modelId).toBe(currentClient.manifest.modelId);
+    const baseline = MODEL_READING_ENTRIES_V1.find(e => e.documentId === baseline74.documentId)!;
+    const disease = MODEL_READING_ENTRIES_V1.find(e => e.documentId === hfref74.documentId)!;
     expect(baseline.presetKind).toBe("baseline"); expect(disease.presetKind).toBe("case");
     expect(baseline.state).toBe("current"); expect(disease.state).toBe("current");
     expect(baseline.modelLabel).toEqual(disease.modelLabel);
-    expect(compatibleReadingEntriesV1(disease).map(e => e.documentId)).toEqual([baseline73.documentId, hfref73.documentId, asHigh.documentId, asLow.documentId]);
+    expect(compatibleReadingEntriesV1(disease).map(e => e.documentId)).toEqual([baseline74.documentId, hfref74.documentId, asHigh74.documentId, asLow74.documentId]);
     expect(resolveSavedModelDocumentIndexV1(baseline.identity.modelId, baseline.identity.surfaceReleaseId)?.documentId).toBe(baseline.documentId);
     expect(resolveSavedModelDocumentIndexV1(baseline.identity.modelId, baseline.identity.surfaceReleaseId, disease.documentId)?.documentId).toBe(disease.documentId);
   });
@@ -302,7 +314,7 @@ describe("separate model and preset reader, bound to preserved records", () => {
     for (const doc of [asHigh, asLow]) {
       expect(doc.scientificRecord.measurements.formalReview.status).toBe("accepted");
       expect(doc.scientificRecord.measurements.qualification.status).toBe("review-pending");
-      expect(MODEL_READING_ENTRIES_V1.find(e => e.documentId === doc.documentId)?.state).toBe("current");
+      expect(MODEL_READING_ENTRIES_V1.find(e => e.documentId === doc.documentId)?.state).toBe("archived");
     }
     expect(resolveRegisteredPresetDocumentationV1(client.manifest.modelId, "unrelated-surface", asHigh.identity.baselineId)).toBeNull();
   });
@@ -381,7 +393,7 @@ describe("model documentation delivery", () => {
     expect(cached.status).toBe(304);
     for (const suffix of ["&record=missing", "&document=missing"]) expect((await handleModelDocumentRequestV1(new Request(url + suffix), dependencies))!.status).toBe(404);
     const redirect = (await handleModelDocumentRequestV1(new Request("https://example.test/ja/models"), dependencies))!;
-    expect(redirect.status).toBe(302); expect(redirect.headers.get("location")).toContain(archive.documentId);
+    expect(redirect.status).toBe(302); expect(redirect.headers.get("location")).toContain(baseline74.documentId);
     const research = MODEL_READING_ENTRIES_V1.find(e => e.state === "research")!;
     expect((await handleModelDocumentRequestV1(new Request("https://example.test" + modelDocumentationHref({ locale: "ja", ...research.identity, documentId: research.documentId })), dependencies))!.status).toBe(404);
   });

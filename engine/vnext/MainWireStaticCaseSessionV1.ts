@@ -9,6 +9,11 @@ import { forkMainWireIntegratedModelAtFixedTbvV3 as fixedTbv,
   forkMainWireIntegratedModelResponsiveStarlingV3 as responsiveStarling } from "@/engine/myocardium/MainWireIntegratedModelFixedTbvForkV3";
 import { warmStartMainWireIntegratedModelV3 as warm } from "@/engine/myocardium/MainWireIntegratedModelWarmStartV3";
 import type { MainWireIntegratedModelRuntimeV3 } from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
+import { advanceMainWireProjectionWithRecoveryV1 } from "./MainWireProjectionStepRecoveryV1";
+import { createMainWireFiveWallCoupledPredictorWorkspaceV1, checkpointMainWireFiveWallCoupledPredictorV1 }
+  from "./coupled/MainWireFiveWallCoupledPredictorV1";
+
+const emptyPredictor = checkpointMainWireFiveWallCoupledPredictorV1(createMainWireFiveWallCoupledPredictorWorkspaceV1());
 
 type Restored = Awaited<ReturnType<typeof restoreMainWireStaticCaseV1>>;
 type State = ReturnType<BaseOwner["currentAcceptedState"]>;
@@ -35,6 +40,7 @@ class ExactOwner extends BaseOwner {
     const base = super.checkpointStandardExact();
     return checkpointMainWireStaticCaseV1(fixture, await base, predictor);
   }
+  resetPredictor() { this.restoreCoupledPredictorContinuationV1(emptyPredictor); }
 }
 
 /** Anatomy-bearing exact session. Numerical stepping remains in the shared
@@ -76,8 +82,22 @@ export class MainWireStaticCaseSessionV1 {
   advanceToPresentationTime(...args: Parameters<BaseOwner["advanceToPresentationTime"]>) {
     return this.#owner.advanceToPresentationTime(...args);
   }
+  /** Pressure-crossing analysis uses projected primitives, not the public
+   * step diagnostic tree. Match the ordinary presentation step's unpredicted
+   * solve and reset boundary while retaining only a detached observation. */
+  advancePressureCrossingPresentationV1(targetTimeSec: number): ReturnType<BaseOwner["advanceToPresentationTime"]> {
+    this.#owner.resetPredictor();
+    try {
+      const { advance } = this.#owner.advanceToPresentationTimeWithSelectedOutputProjectionV1(targetTimeSec, []);
+      return Object.freeze({ ...advance, observation: this.#owner.observe() });
+    } finally {
+      this.#owner.resetPredictor();
+    }
+  }
   advanceToPresentationTimeWithSelectedOutputProjectionV1(...args: Parameters<BaseOwner["advanceToPresentationTimeWithSelectedOutputProjectionV1"]>) {
-    return this.#owner.advanceToPresentationTimeWithSelectedOutputProjectionV1(...args);
+    return advanceMainWireProjectionWithRecoveryV1(
+      target => this.#owner.advanceToPresentationTimeWithSelectedOutputProjectionV1(target, args[1]),
+      () => this.#owner.currentAcceptedState(), args[0], () => this.#owner.resetPredictor());
   }
 
   warmStart(inputs: NonNullable<Inputs[1]>, mechanism: NonNullable<Inputs[3]> = this.#fixture.mechanismResearchInputs, plan?: Plan) {
@@ -105,7 +125,7 @@ export class MainWireStaticCaseSessionV1 {
   }
   advanceToPresentationTimeWithStandard70SelectedOutputProjectionV1(targetTimeSec: number, outputIds: readonly OutputId[]) {
     const p70 = partition70(outputIds), p68 = partition68(p70.standard68OutputIds);
-    const projected = this.#owner.advanceToPresentationTimeWithSelectedOutputProjectionV1(targetTimeSec, p68.baseOutputIds);
+    const projected = this.advanceToPresentationTimeWithSelectedOutputProjectionV1(targetTimeSec, p68.baseOutputIds);
     const started = performance.now();
     return Object.freeze({ ...projected,
       projectedValues: projected.projectedValues === null ? null : this.#mergeOutputs(outputIds, projected.projectedValues),

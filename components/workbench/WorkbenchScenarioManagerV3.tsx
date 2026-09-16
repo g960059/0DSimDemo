@@ -13,11 +13,10 @@ import {
   X,
 } from "lucide-react";
 
-import {
-  STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
-  type ScenarioPresetV2,
-} from "@/studio/contracts/v2/content";
+import type { ScenarioPresetV2 } from "@/studio/contracts/v2/content";
 import { workbenchDefaultScenarioColorV3 } from "./presentation/WorkbenchGraphColorV3";
+import { WorkbenchPresetPickerV3, type WorkbenchPresetDocumentationLinksV3 } from "./WorkbenchPresetPickerV3";
+import { workbenchPopoverAnchorV3 } from "./WorkbenchAnchoredDialogV3";
 
 export type WorkbenchScenarioDescriptorV3 = Readonly<{
   scenarioId: string;
@@ -57,10 +56,7 @@ export type WorkbenchScenarioManagerStringsV3 = Readonly<{
   duplicate: string;
   emptyScenarios: string;
   hideScenario: string;
-  incompatiblePreset: string;
-  noPresets: string;
   rename: string;
-  scenarioLimitReached: string;
   scenarioMenu: string;
   scenarioName: string;
   scenarios: string;
@@ -80,10 +76,7 @@ export const DEFAULT_WORKBENCH_SCENARIO_MANAGER_STRINGS_V3: WorkbenchScenarioMan
     duplicate: "Duplicate",
     emptyScenarios: "No Scenarios are available.",
     hideScenario: "Hide Scenario",
-    incompatiblePreset: "This Preset belongs to a different registered model.",
-    noPresets: "No compatible Presets are available.",
     rename: "Rename",
-    scenarioLimitReached: "At most 4 Scenarios can be compared.",
     scenarioMenu: "Scenario menu",
     scenarioName: "Scenario name",
     scenarios: "Scenarios",
@@ -109,7 +102,7 @@ type WorkbenchScenarioManagerSharedPropsV3 = Readonly<{
     colorHex: string;
   }>[];
   presets: readonly ScenarioPresetV2[];
-  presetDocumentationLinks?: Readonly<Record<string, { href: string; label: string }>>;
+  presetDocumentationLinks?: WorkbenchPresetDocumentationLinksV3;
   strings: WorkbenchScenarioManagerStringsV3;
   actionDisabledReasons?: WorkbenchScenarioActionDisabledReasonsV3;
   onSelectScenario: (scenarioId: string) => void;
@@ -202,8 +195,8 @@ export function WorkbenchScenarioManagerV3(
     string | null
   >(null);
   const [draftLabel, setDraftLabel] = React.useState("");
-  const [presetMenuPosition, setPresetMenuPosition] =
-    React.useState<MenuPositionV3 | null>(null);
+  const [presetPickerOpen, setPresetPickerOpen] = React.useState(false);
+  const presetAnchorRef = React.useRef(workbenchPopoverAnchorV3(null));
   const [scenarioMenu, setScenarioMenu] = React.useState<Readonly<{
     scenarioId: string;
     position: MenuPositionV3;
@@ -227,13 +220,8 @@ export function WorkbenchScenarioManagerV3(
     scenarios.map(({ scenarioId }) => scenarioId),
   );
   const existingLabels = new Set(scenarios.map(({ label }) => label));
-  const scenarioLimitReason =
-    scenarios.length >= STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2
-      ? strings.scenarioLimitReached
-      : undefined;
-  const addDisabledReason = actionDisabledReasons?.add ?? scenarioLimitReason;
-  const duplicateDisabledReason =
-    actionDisabledReasons?.duplicate ?? scenarioLimitReason;
+  const addDisabledReason = actionDisabledReasons?.add;
+  const duplicateDisabledReason = actionDisabledReasons?.duplicate;
 
   React.useEffect(() => {
     onCloseRef.current = onClose;
@@ -273,7 +261,7 @@ export function WorkbenchScenarioManagerV3(
     };
   }, [sheetOpen]);
 
-  const menuOpen = presetMenuPosition !== null || scenarioMenu !== null;
+  const menuOpen = scenarioMenu !== null;
   React.useLayoutEffect(() => {
     if (!menuOpen || typeof document === "undefined") return undefined;
     const menu = openMenuRef.current;
@@ -289,7 +277,7 @@ export function WorkbenchScenarioManagerV3(
   }, [menuOpen]);
 
   React.useEffect(() => {
-    if ((!sheetOpen && !menuOpen) || typeof document === "undefined") {
+    if (presetPickerOpen || (!sheetOpen && !menuOpen) || typeof document === "undefined") {
       return undefined;
     }
     const onKeyDown = (event: KeyboardEvent) => {
@@ -297,7 +285,6 @@ export function WorkbenchScenarioManagerV3(
       event.preventDefault();
       event.stopPropagation();
       if (menuOpen) {
-        setPresetMenuPosition(null);
         setScenarioMenu(null);
         return;
       }
@@ -305,7 +292,7 @@ export function WorkbenchScenarioManagerV3(
     };
     document.addEventListener("keydown", onKeyDown, true);
     return () => document.removeEventListener("keydown", onKeyDown, true);
-  }, [menuOpen, sheetOpen]);
+  }, [menuOpen, sheetOpen, presetPickerOpen]);
 
   if (variant === "sheet" && (!sheetOpen || typeof document === "undefined")) {
     return null;
@@ -330,7 +317,7 @@ export function WorkbenchScenarioManagerV3(
   };
   const addPreset = (preset: ScenarioPresetV2) => {
     if (addDisabledReason !== undefined) return;
-    setPresetMenuPosition(null);
+    setPresetPickerOpen(false);
     onAddFromPreset({
       scenarioId: suggestWorkbenchScenarioIdV3(
         preset.presetId,
@@ -413,24 +400,10 @@ export function WorkbenchScenarioManagerV3(
               type="button"
               className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-wb-subtle hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent disabled:cursor-not-allowed disabled:opacity-35"
               aria-label={strings.addFromPreset}
-              aria-haspopup="menu"
-              aria-expanded={presetMenuPosition !== null}
-              disabled={addDisabledReason !== undefined}
-              title={addDisabledReason ?? strings.addFromPreset}
-              onClick={(event) => {
-                menuReturnFocusRef.current = event.currentTarget;
-                const rect = event.currentTarget.getBoundingClientRect();
-                setPresetMenuPosition((current) =>
-                  current === null
-                    ? boundedMenuPositionV3(
-                        rect.right - 248,
-                        rect.bottom + 4,
-                        256,
-                        Math.min(400, compatiblePresets.length * 90 + 12),
-                      )
-                    : null,
-                );
-              }}
+              aria-haspopup="dialog"
+              aria-expanded={presetPickerOpen}
+              title={strings.addFromPreset}
+              onClick={event => { presetAnchorRef.current = workbenchPopoverAnchorV3(event.currentTarget); setScenarioMenu(null); setPresetPickerOpen(true); }}
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -441,7 +414,7 @@ export function WorkbenchScenarioManagerV3(
               {strings.emptyScenarios}
             </p>
           ) : (
-            <div className="mt-1 grid gap-0.5">
+            <div className="mt-1 grid min-w-0 grid-cols-1 gap-0.5">
               {scenarios.map((scenario, index) => {
                 const active = scenario.scenarioId === activeScenarioId;
                 const editing = scenario.scenarioId === editingScenarioId;
@@ -454,7 +427,7 @@ export function WorkbenchScenarioManagerV3(
                 return (
                   <div
                     key={scenario.scenarioId}
-                    className={`workbench-scenario-row group flex min-h-11 items-center gap-1 rounded-lg px-2 transition-colors ${
+                    className={`workbench-scenario-row group flex min-h-11 min-w-0 items-center gap-1 rounded-lg px-2 transition-colors ${
                       active ? "bg-wb-selected" : "hover:bg-wb-hover"
                     }`}
                     onContextMenu={(event) => {
@@ -529,12 +502,12 @@ export function WorkbenchScenarioManagerV3(
                         className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                         aria-label={`${scenario.label} ${scenario.scenarioId}`}
                         aria-pressed={active}
-                        title={scenario.scenarioId}
+                        title={scenario.label}
                         onClick={() => onSelectScenario(scenario.scenarioId)}
                         onDoubleClick={() => beginRename(scenario)}
                       >
                         <span
-                          className={`workbench-scenario-label truncate ${
+                          className={`workbench-scenario-label min-w-0 flex-1 truncate ${
                             scenarioVisible ? "text-wb-text" : "text-wb-subtle"
                           }`}
                         >
@@ -621,67 +594,24 @@ export function WorkbenchScenarioManagerV3(
       ? null
       : createPortal(
           <>
-            {(presetMenuPosition !== null || scenarioMenu !== null) && (
+            {scenarioMenu !== null && (
               <button
                 type="button"
                 className="fixed inset-0 z-[89] cursor-default"
                 aria-label={strings.close}
                 onClick={() => {
-                  setPresetMenuPosition(null);
                   setScenarioMenu(null);
                 }}
               />
             )}
-            {presetMenuPosition !== null && (
-              <div
-                ref={openMenuRef}
-                role="menu"
-                tabIndex={-1}
-                aria-label={strings.addFromPreset}
-                className="fixed z-[90] w-64 overflow-y-auto overscroll-contain rounded-xl bg-wb-panel p-1.5 text-xs shadow-2xl ring-1 ring-wb-line"
-                style={{
-                  left: presetMenuPosition.x,
-                  top: presetMenuPosition.y,
-                  maxHeight: Math.max(44, Math.min(400, window.innerHeight - presetMenuPosition.y - 8)),
-                }}
-              >
-                {compatiblePresets.length === 0 ? (
-                  <p className="px-3 py-4 text-wb-muted">
-                    {presets.length === 0
-                      ? strings.noPresets
-                      : strings.incompatiblePreset}
-                  </p>
-                ) : (
-                  compatiblePresets.map((preset, index) => (
-                    <div key={preset.presetId} className="flex items-start gap-1" role="none">
-                    <button
-                      type="button"
-                      role="menuitem"
-                      autoFocus={index === 0}
-                      title={preset.description}
-                      className="block min-h-11 min-w-0 flex-1 rounded-lg px-3 py-2 text-left text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-                      onClick={() => addPreset(preset)}
-                    >
-                      <span className="block font-semibold">
-                        {preset.title}
-                      </span>
-                      {preset.description.trim().length > 0 && (
-                        <span className="mt-0.5 line-clamp-2 block text-[10px] leading-4 text-wb-subtle">
-                          {preset.description}
-                        </span>
-                      )}
-                    </button>
-                    {props.presetDocumentationLinks?.[preset.presetId] && <a
-                      href={props.presetDocumentationLinks[preset.presetId].href} target="_blank" rel="noreferrer" role="menuitem"
-                      aria-label={`${preset.title}: ${props.presetDocumentationLinks[preset.presetId].label}`}
-                      className="inline-flex min-h-11 shrink-0 items-center rounded px-2 text-xs text-wb-accent hover:bg-wb-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent">
-                      {props.presetDocumentationLinks[preset.presetId].label}
-                    </a>}
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
+            {presetPickerOpen && <WorkbenchPresetPickerV3
+              anchor={presetAnchorRef.current}
+              presets={compatiblePresets}
+              documentationLinks={props.presetDocumentationLinks}
+              disabledReason={addDisabledReason}
+              onAdd={addPreset}
+              onClose={() => setPresetPickerOpen(false)}
+            />}
             {scenarioMenu !== null &&
               (() => {
                 const scenario = scenarios.find(

@@ -39,12 +39,12 @@ type ExactArtifactModuleV1 = Readonly<{
 }>;
 
 const artifactPath = new URL(
-  "../data/model-releases/standard73/artifact.mjs.txt",
+  "../data/model-releases/standard74/artifact.mjs.txt",
   import.meta.url,
 );
 const artifactSource = readFileSync(artifactPath, "utf8");
 const bundle = JSON.parse(readFileSync(new URL(
-  "../data/model-releases/standard73/bundle.json",
+  "../data/model-releases/standard74/bundle.json",
   import.meta.url,
 ), "utf8")) as Readonly<{
   baseline: Readonly<{ capture: Readonly<{ fixture: Record<string, unknown>; checkpoint: unknown }> }>;

@@ -163,6 +163,7 @@ import {
   reportMainWireFiveWallCoupledPredictorV1,
   resetMainWireFiveWallCoupledPredictorV1,
   restoreMainWireFiveWallCoupledPredictorV1,
+  tryRestoreEmptyMainWireFiveWallCoupledPredictorV1,
   type MainWireFiveWallCoupledPredictorCheckpointV2,
   type MainWireFiveWallCoupledPredictorReportV1,
   type MainWireFiveWallCoupledPredictorWorkspaceV1,
@@ -1937,6 +1938,9 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   /** Subclasses bind this history to their own versioned exact checkpoint. */
   protected restoreCoupledPredictorContinuationV1(checkpoint: unknown): void {
     this.assertSessionUsableV1();
+    if (tryRestoreEmptyMainWireFiveWallCoupledPredictorV1(
+        checkpoint, this.#coupledPredictorWorkspace,
+      )) return;
     const acceptedState = this.#authority.current();
     restoreMainWireFiveWallCoupledPredictorV1(
       checkpoint,

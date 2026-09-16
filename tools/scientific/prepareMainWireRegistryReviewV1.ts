@@ -15,7 +15,7 @@ import { readMainWireStaticCaseFittingResultV1 as readResult, type MainWireStati
 import { compareMainWireCaseEvidenceV1 as compare } from "@/analysis/methods/mainWire/MainWireCaseComparisonV1";
 import { assessMainWireCaseInitializationAgreementV1 as initializationAgreement,
   withMainWireInitializationAssessmentV1 as withInitialization } from "@/analysis/methods/mainWire/MainWireCaseInitializationAgreementV1";
-import fittingSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV2";
+import fittingSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
 import { prepareMainWireSurfaceAnalysisV1 as prepareAnalysis, PreparedSurfaceAnalysisErrorV1 } from "../registry/PrepareMainWireSurfaceAnalysisV1";
 import { readPreparedModelAnalysisV1, type PreparedModelAnalysisV1 } from "@/components/workbench/presentation/PreparedModelAnalysisV1";
@@ -26,7 +26,7 @@ import { ownMainWireRegistryProposalsV1 as ownProposals, mainWireInitialCandidat
 import { readSealedFittingRunV1 as sealedRun } from "./SealedFittingRunV1";
 import { beginFittingSourceSnapshotV1 } from "./FittingSourceSnapshotV1";
 import { writeFittingRunJsonV1 as writeJson, writeFittingRunTextV1 as writeText } from "./FittingRunFilesV1";
-import { loadRegisteredMainWireReviewArtifactV1 as buildArtifact, assertMainWireReviewNumericalSourceV1 as assertSource,
+import { loadRegisteredMainWireReviewArtifactV1, buildMainWireRegistryReviewArtifactV1, assertMainWireReviewNumericalSourceV1 as assertSource,
   mainWireReviewPresetV1 as presetFor, verifyMainWireReviewContinuationV1 as continuation } from "../registry/MainWireRegistryReviewArtifactV1";
 import { composeRegistryCaseReviewDocumentV1 as documentFor, registryCaseReviewHtmlV1 as htmlFor,
   registryCaseReviewIndexV1 as indexFor } from "../modelDocumentation/authoring/RegistryCaseReviewDocumentV1";
@@ -35,6 +35,13 @@ import { savedDocumentOfflineHtmlV1 } from "@/studio/presentation/modelDocumenta
 
 const same = (a: unknown, b: unknown, label: string) => { if (canonical(a) !== canonical(b)) throw new Error(`Case review binding differs: ${label}`); };
 const message = (e: unknown) => e instanceof Error ? e.message : String(e);
+// Successor qualification must use its newly compiled numerical owner, never
+// relabel the registered predecessor's executable as a new exact identity.
+async function buildArtifact() {
+  if (!process.argv.includes("--build-current")) return loadRegisteredMainWireReviewArtifactV1();
+  const artifact = await buildMainWireRegistryReviewArtifactV1();
+  return { ...artifact, sourceBuildArtifactRevisionId: artifact.artifactRevisionId, usesAdmittedArtifact: false };
+}
 // A sealed job includes its execution receipt. That transport metadata is not
 // a grid observation, including when the job failed before producing a grid.
 const gridEvidence = (saved: unknown) => {
@@ -225,11 +232,12 @@ export async function readRegistryReviewCandidateV1(raw: unknown, run: ReviewRun
 async function main() {
   selectHotPathIntegrityTierV1("hot-path-lean");
   const { values } = parseArgs({ options: { input: { type: "string" }, output: { type: "string" },
-    cases: { type: "string" }, "prepared-cache": { type: "string" }, help: { type: "boolean" } } });
+    cases: { type: "string" }, "prepared-cache": { type: "string" }, "build-current": { type: "boolean" }, help: { type: "boolean" } } });
   if (values.help) {
     process.stdout.write("Usage: npm run fit:registry:prepare -- --input SEALED_RUN --output NEW_DIRECTORY [--cases baseline,hfref-chronic-dilated-v1]\n"
       + "Rechecks each case independently; writes held/review-pending dossiers, same-method comparisons and validated local ScenarioPreset captures.\n"
       + "Finalists get source/artifact continuation and Surface-pinned settled TBV/PV/Starling/PVA completion. --prepared-cache DIRECTORY reuses exact-capture/method-matched JSON by capture hash.\n"
+      + "--build-current builds a successor from qualified current sources instead of using already registered bytes. It does not admit or publish that artifact.\n"
       + "No refitting, mint, publication or automatic review approval. Held cases remain in the report without a registration proposal.\n"); return;
   }
   if (!values.input || !values.output) throw new Error("Require --input SEALED_RUN --output NEW_DIRECTORY");

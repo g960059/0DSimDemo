@@ -16,7 +16,6 @@ import {
   validateExperimentSnapshotV2,
 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import {
-  STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
   type ExperimentContentV2,
   type ExperimentSnapshotV2,
@@ -723,11 +722,6 @@ function applyScenarioOperationsV1(
   }
   if (scenarios.length === 0) {
     throw new Error("Experiment must retain at least one Scenario");
-  }
-  if (scenarios.length > STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2) {
-    throw new Error(
-      `Experiment supports at most ${STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2} Scenarios`,
-    );
   }
   return Object.freeze({
     scenarios: Object.freeze(scenarios),

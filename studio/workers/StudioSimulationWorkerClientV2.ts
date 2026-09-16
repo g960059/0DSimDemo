@@ -7,10 +7,12 @@ import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
+import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import {
   type StudioSimulationWorkerAddScenarioFromPresetInputV2,
   type StudioSimulationWorkerAdvancePresentationInputV2,
   type StudioSimulationWorkerApplyControlInputV2,
+  type StudioSimulationWorkerControlResultV2,
   type StudioSimulationWorkerCreateSnapshotInputV2,
   type StudioSimulationWorkerDeleteScenarioInputV2,
   type StudioSimulationWorkerDuplicateScenarioInputV2,
@@ -251,12 +253,12 @@ type PendingRequestV2 = {
   timeout: ReturnType<typeof setTimeout>;
   timeoutMs: number;
   expected: ExpectedResponseV2;
-  onAnalysisProgress?: (analysis: StudioSimulationAnalysisV2) => void;
+  onAnalysisProgress?: (analysis: StudioSimulationAnalysisV2, preparation?: StudioJsonValueV2) => void;
 };
 
 export type StudioSimulationWorkerRequestAnalysisClientInputV2 =
   StudioSimulationWorkerRequestAnalysisInputV2 & Readonly<{
-    onProgress?: (analysis: StudioSimulationAnalysisV2) => void;
+    onProgress?: (analysis: StudioSimulationAnalysisV2, preparation?: StudioJsonValueV2) => void;
   }>;
 
 type ClientStateV2 =
@@ -575,7 +577,7 @@ export class StudioSimulationWorkerClientV2 {
 
   async applyControl(
     input: StudioSimulationWorkerApplyControlInputV2,
-  ): Promise<StudioSimulationFrameV2> {
+  ): Promise<StudioSimulationWorkerControlResultV2> {
     if (
       this.#state !== "active"
       || this.#runtimeSessionId === undefined
@@ -619,7 +621,7 @@ export class StudioSimulationWorkerClientV2 {
       this.#inputEpoch = response.frame.inputEpoch;
       this.#acceptedRevision = response.frame.acceptedRevision;
       this.#acceptedTimeSec = response.frame.acceptedTimeSec;
-      return response.frame;
+      return Object.freeze({ frame: response.frame, fixture: response.fixture });
     } finally {
       this.#operationInFlight = undefined;
     }
@@ -1030,7 +1032,7 @@ export class StudioSimulationWorkerClientV2 {
     request: StudioSimulationWorkerRequestV2,
     expected: ExpectedResponseV2,
     timeoutMs = this.#responseTimeoutMs,
-    onAnalysisProgress?: (analysis: StudioSimulationAnalysisV2) => void,
+    onAnalysisProgress?: (analysis: StudioSimulationAnalysisV2, preparation?: StudioJsonValueV2) => void,
   ): Promise<StudioSimulationWorkerResponseV2> {
     if (this.#state === "terminated") {
       return Promise.reject(new Error("simulation worker client is terminated"));
@@ -1089,7 +1091,8 @@ export class StudioSimulationWorkerClientV2 {
         }
         assertExpectedAnalysisV2(response.analysis, pending.expected);
         this.#refreshPendingTimeout(response.requestId, pending);
-        pending.onAnalysisProgress?.(response.analysis);
+        if (response.preparation === undefined) pending.onAnalysisProgress?.(response.analysis);
+        else pending.onAnalysisProgress?.(response.analysis, response.preparation);
       } catch (error) {
         this.#terminateWith(errorAsErrorV2(error));
       }

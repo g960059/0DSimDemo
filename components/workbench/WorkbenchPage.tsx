@@ -1,7 +1,7 @@
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
 
 import { homeHref, myExperimentsHref, modelDocumentationHref } from "@/homeLinks";
-import hfrefDocument from "@/studio/presentation/modelDocumentation/packages/standard73-hfref-document-v2.index.json";
+import hfrefDocument from "@/studio/presentation/modelDocumentation/packages/standard74-hfref-document-v1.index.json";
 import { isLocale } from "@/localeRouting";
 import { isOpaqueExperimentIdV3 } from "@/studio/infrastructure/browser/StudioExperimentIdentityV3";
 import { WorkbenchSession } from "@/components/workbench/WorkbenchSession";

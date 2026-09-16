@@ -1,0 +1,13 @@
+{
+  "schemaId": "circleheart.saved-model-document.v1",
+  "documentId": "standard74-as-high-gradient-document-v1",
+  "identity": {
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.static-anatomy.standard-74",
+    "surfaceReleaseId": "circleheart.main-wire.surface.static-anatomy.standard-73.bounded-pva-v1",
+    "surfaceSeriesId": "circleheart.main-wire.surface.static-anatomy.bounded-pva-workbench",
+    "baselineId": "standard74-as-high-gradient-valve-only-v1",
+    "title": "AS · 弁狭窄のみ・高勾配",
+    "releaseStatus": "adopted-case"
+  },
+  "contentSha256": "77b2593a06060892d3c1475331ebdf6b8f200eb72138c50f38363b8d1d0f1247"
+}
