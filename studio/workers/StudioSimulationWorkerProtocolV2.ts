@@ -37,6 +37,7 @@ import {
   validateStudioSimulationFrameV2,
   validateStudioSimulationPortableIdV2,
   validateStudioSimulationScenarioInputV2,
+  validateAndOwnStudioSimulationPortableJsonV2,
 } from "@/studio/contracts/v2/simulation";
 import type {
   StudioSimulationPresentationBatchV2,
@@ -97,6 +98,12 @@ export type StudioSimulationWorkerApplyControlInputV2 = Readonly<{
   expectedInputEpoch: number;
 }>;
 
+/** The exact reducer's accepted fixture, correlated with the committed frame. */
+export type StudioSimulationWorkerControlResultV2 = Readonly<{
+  frame: StudioSimulationFrameV2;
+  fixture: StudioJsonValueV2;
+}>;
+
 export type StudioSimulationWorkerRequestAnalysisInputV2 = Readonly<{
   runtimeSessionId: string;
   scenarioId: string;
@@ -105,6 +112,8 @@ export type StudioSimulationWorkerRequestAnalysisInputV2 = Readonly<{
   expectedAcceptedRevision: number;
   expectedAcceptedTimeSec: number;
   analysisPartition?: string;
+  sharePreparation?: boolean;
+  preparedAnalysis?: StudioJsonValueV2;
 }>;
 
 export type StudioSimulationWorkerSaveExperimentInputV2 = Readonly<{
@@ -233,6 +242,8 @@ export type StudioSimulationWorkerRequestV2 =
       expectedAcceptedRevision: number;
       expectedAcceptedTimeSec: number;
       analysisPartition?: string;
+      sharePreparation?: boolean;
+      preparedAnalysis?: StudioJsonValueV2;
     }>
   | Readonly<{
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
@@ -369,6 +380,7 @@ export type StudioSimulationWorkerResponseV2 =
       status: "ok";
       kind: "control-applied";
       frame: StudioSimulationFrameV2;
+      fixture: StudioJsonValueV2;
     }>
   | Readonly<{
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
@@ -376,6 +388,7 @@ export type StudioSimulationWorkerResponseV2 =
       status: "ok";
       kind: "analysis-progress";
       analysis: StudioSimulationAnalysisV2;
+      preparation?: StudioJsonValueV2;
     }>
   | Readonly<{
       protocol: typeof STUDIO_SIMULATION_WORKER_PROTOCOL_V2;
@@ -545,7 +558,7 @@ export function createStudioSimulationRequestAnalysisRequestV2(
     "expectedInputEpoch",
     "runtimeSessionId",
     "scenarioId",
-  ], ["analysisPartition"], "$.requestAnalysis");
+  ], ["analysisPartition", "sharePreparation", "preparedAnalysis"], "$.requestAnalysis");
   return validateStudioSimulationWorkerRequestV2({
     protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
     requestId,
@@ -559,6 +572,8 @@ export function createStudioSimulationRequestAnalysisRequestV2(
     ...(input.analysisPartition === undefined
       ? {}
       : { analysisPartition: input.analysisPartition }),
+    ...(input.sharePreparation === undefined ? {} : { sharePreparation: input.sharePreparation }),
+    ...(input.preparedAnalysis === undefined ? {} : { preparedAnalysis: input.preparedAnalysis }),
   }) as Extract<
     StudioSimulationWorkerRequestV2,
     { kind: "request-analysis" }
@@ -987,7 +1002,11 @@ export function validateStudioSimulationWorkerRequestV2(
       "requestId",
       "runtimeSessionId",
       "scenarioId",
-    ], ["analysisPartition"], "$.request");
+    ], ["analysisPartition", "sharePreparation", "preparedAnalysis"], "$.request");
+    if (request.sharePreparation !== undefined && typeof request.sharePreparation !== "boolean")
+      throw protocolErrorV2("$.request.sharePreparation", "must be a boolean");
+    if (request.sharePreparation === true && request.preparedAnalysis !== undefined)
+      throw protocolErrorV2("$.request", "cannot prepare and consume preparation together");
     return Object.freeze({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId,
@@ -1004,6 +1023,10 @@ export function validateStudioSimulationWorkerRequestV2(
         request.analysisId,
         "$.request.analysisId",
       ),
+      ...(request.sharePreparation === undefined ? {} : { sharePreparation: request.sharePreparation as boolean }),
+      ...(request.preparedAnalysis === undefined ? {} : {
+        preparedAnalysis: validateAndOwnStudioSimulationPortableJsonV2(request.preparedAnalysis, "$.request.preparedAnalysis"),
+      }),
       ...(request.analysisPartition === undefined
         ? {}
         : {
@@ -1486,6 +1509,7 @@ export function validateStudioSimulationWorkerResponseV2(
   if (envelope.kind === "control-applied") {
     const response = exactDataRecordV2(envelope, [
       "frame",
+      "fixture",
       "kind",
       "protocol",
       "requestId",
@@ -1497,6 +1521,7 @@ export function validateStudioSimulationWorkerResponseV2(
       status: "ok",
       kind: "control-applied",
       frame: validateStudioSimulationFrameV2(response.frame),
+      fixture: validateAndOwnStudioSimulationPortableJsonV2(response.fixture, "$.response.fixture"),
     });
   }
   if (
@@ -1509,13 +1534,15 @@ export function validateStudioSimulationWorkerResponseV2(
       "protocol",
       "requestId",
       "status",
-    ], [], "$.response");
+    ], envelope.kind === "analysis-progress" ? ["preparation"] : [], "$.response");
     return Object.freeze({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId,
       status: "ok",
       kind: envelope.kind,
       analysis: validateStudioSimulationAnalysisV2(response.analysis),
+      ...(response.preparation === undefined ? {} : { preparation:
+        validateAndOwnStudioSimulationPortableJsonV2(response.preparation, "$.response.preparation") }),
     });
   }
   if (envelope.kind === "scenario-state") {
@@ -1628,7 +1655,7 @@ export function validateStudioSimulationWorkerResponseFromTrustedRuntimeV2(
       "protocol",
       "requestId",
       "status",
-    ], [], "$.response");
+    ], ["preparation"], "$.response");
     assertProtocolV2(response.protocol, "$.response.protocol");
     return Object.freeze({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
@@ -1642,6 +1669,8 @@ export function validateStudioSimulationWorkerResponseFromTrustedRuntimeV2(
         response.analysis,
         "$.response.analysis",
       ),
+      ...(response.preparation === undefined ? {} : { preparation:
+        validateAndOwnStudioSimulationPortableJsonV2(response.preparation, "$.response.preparation") }),
     });
   }
   if (

@@ -985,7 +985,10 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).toContain('data-pending-scenario-count="1"');
     expect(html).toContain('data-starling-pending="true"');
     expect(html).toContain('data-stale-scenario-count="1"');
-    expect(html).toContain("再計算中");
+    expect(html).toContain("曲線を更新しています");
+    expect(html).toContain('data-simulation-update="true"');
+    expect(html).not.toContain('data-simulation-chart-status="true"');
+    expect(html).not.toContain('data-chart-history-key="true"');
   });
 
   it("formats clinical fractions using output identity even when Reader row keys include a pane and Scenario", () => {
@@ -1000,7 +1003,7 @@ describe("Article Reader V3 experiment anchor", () => {
       outputId, kind: "metric", unit: "1", shape: "scalar", scope: "instant", dependencies: [], significantDigits: 3,
     })) };
     const html = renderToStaticMarkup(<ArticleReaderOutputsV3 briefing={briefing} contract={contract} sampleStore={store} />);
-    expect(html).toContain("55.7");
+    expect(html).toContain("56<span");
     expect(html).toContain("25.0");
     expect(html.match(/%<\/span>/g)).toHaveLength(2);
     expect(html).toContain("4.25");
@@ -1026,8 +1029,8 @@ describe("Article Reader V3 experiment anchor", () => {
       scenarioLabels={{ baseline: "基準条件", higher: "張力増加" }} />);
     expect(html).toMatch(/<h3[^>]*>基準条件<\/h3>/);
     expect(html).toMatch(/<h3[^>]*>張力増加<\/h3>/);
-    expect(html).toContain("55.0");
-    expect(html).toContain("65.0");
+    expect(html).toContain("55<span");
+    expect(html).toContain("65<span");
   });
 
   it("keeps Reader outputs vertical on the mobile base breakpoint", () => {
@@ -1068,7 +1071,6 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).toContain("grid article-output-grid");
     expect(html).toContain('data-experiment-output-presentation="article"');
     expect(html).toContain("workbench-output-item");
-    expect(html).toContain("gap-x-2 gap-y-2");
   });
 
   it("shares AoP progressive disclosure with Article output cards", () => {
@@ -1107,8 +1109,9 @@ describe("Article Reader V3 experiment anchor", () => {
       />,
     );
 
-    expect(html).toContain(">AoP<");
-    expect(html).toContain('aria-label="AoPの説明"');
+    expect(html).toContain(">AoP（近位）<");
+    expect(html).toContain('aria-label="AoP（近位）の説明"');
+    expect(html).toContain('data-testid="output-value-context-v3"');
     expect(html).toContain('data-testid="workbench-item-description-trigger-v3"');
   });
 
@@ -1232,7 +1235,7 @@ describe("Article Reader V3 experiment anchor", () => {
       />,
     );
 
-    expect(html).toContain('aria-label="心拍数 (HR)の説明"');
+    expect(html).toContain('aria-label="HRの説明"');
     expect(html).toContain('data-testid="workbench-item-description-trigger-v3"');
   });
 

@@ -6,7 +6,7 @@ export class ExactExecutableArtifactModuleLoadErrorV2 extends Error {
 }
 
 /**
- * Evaluates one self-contained ESM artifact from the exact supplied bytes.
+ * Host-neutral evaluation of one self-contained ESM artifact from exact bytes.
  *
  * Browser realms use a short-lived Blob URL. Node-based trusted verification
  * uses a data URL because Node's ESM loader does not support Blob URLs. A

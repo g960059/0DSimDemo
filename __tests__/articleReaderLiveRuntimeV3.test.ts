@@ -651,9 +651,10 @@ describe("ArticleReaderLiveRuntimeV3", () => {
     });
     expect(harness.playAll).toHaveBeenCalledTimes(1);
     expect(harness.terminate).toHaveBeenCalledTimes(1);
+    expect(harness.releaseForegroundCapacity).toHaveBeenCalledOnce();
   });
 
-  it("fails closed when exact fixture capture fails after control acceptance", async () => {
+  it("publishes the committed fixture without an extra checkpoint capture", async () => {
     const snapshot = snapshotV3();
     const harness = runtimeHarnessV3(snapshot, {
       captureScenarioError: new Error("capture failed"),
@@ -668,15 +669,22 @@ describe("ArticleReaderLiveRuntimeV3", () => {
       controlId: "control/svr",
       scenarioIds: ["scenario/one"],
       value: 44,
-    })).rejects.toThrow("capture failed");
+    })).resolves.toBeUndefined();
 
     expect(harness.applyControl).toHaveBeenCalledTimes(1);
     expect(controller.getSnapshot()).toMatchObject({
-      status: "failed",
+      status: "playing",
       pendingControlInstanceId: null,
+      fixtureByScenario: { "scenario/one": { "control/svr": 44 } },
     });
-    expect(harness.terminate).toHaveBeenCalledTimes(1);
-    expect(harness.playAll).toHaveBeenCalledTimes(1);
+    expect(harness.captureScenario).not.toHaveBeenCalled();
+    expect(harness.releaseForegroundCapacity).toHaveBeenCalledOnce();
+    expect(harness.terminate).not.toHaveBeenCalled();
+    expect(harness.playAll).toHaveBeenCalledTimes(2);
+    // Explicit persistence still requires an exact capture and reports its
+    // failure; the fixture response is not a substitute checkpoint.
+    await expect(controller.captureContinuation()).rejects.toThrow("capture failed");
+    await controller.dispose();
   });
 
   it("fails closed when a multi-Scenario control can partially commit", async () => {
@@ -976,6 +984,8 @@ function runtimeHarnessV3(
     ]),
   );
   const playAll = vi.fn();
+  const releaseForegroundCapacity = vi.fn();
+  const reserveForegroundCapacity = vi.fn(() => releaseForegroundCapacity);
   const applyControl = vi.fn(async (input: Readonly<{
     scenarioId: string;
     controlId: string;
@@ -1001,7 +1011,7 @@ function runtimeHarnessV3(
       ...(fixtures.get(input.scenarioId) ?? {}),
       [input.controlId]: input.value,
     }));
-    return next;
+    return { frame: next, fixture: fixtures.get(input.scenarioId)! };
   });
   const captureScenario = vi.fn(async (scenarioId: string) => {
     await gates.captureGate?.promise;
@@ -1084,6 +1094,8 @@ function runtimeHarnessV3(
           ?? workerStateV3(snapshot, activeScenarioId);
       },
       applyControl,
+      reserveForegroundCapacity,
+      waitForControlPresentation: async () => undefined,
       captureScenario,
       requestAnalysis,
       latestFrame(scenarioId) {
@@ -1116,6 +1128,8 @@ function runtimeHarnessV3(
       return initializeInput;
     },
     playAll,
+    reserveForegroundCapacity,
+    releaseForegroundCapacity,
     applyControl,
     captureScenario,
     requestAnalysis,

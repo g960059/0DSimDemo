@@ -1135,11 +1135,14 @@ function scaledPassiveEvaluatorV1(
   scale: number,
   wallId: MainWireFiveWallIdV1,
 ): PassiveEvaluatorV1 {
+  const identity = import.meta.env.VITE_CIRCLEHEART_CANDIDATE_COMPUTE === "1"
+    ? createScaledPassiveIdentityV1(scale, wallId) : null;
   return (fiberLogStrain) => {
     const evaluated = base(fiberLogStrain);
     return Object.freeze({
       modelId: evaluated.modelId,
-      parameterIdentityHash: stableHash(
+      parameterIdentityHash: import.meta.env.VITE_CIRCLEHEART_CANDIDATE_COMPUTE === "1"
+        ? identity!(evaluated.parameterIdentityHash) : stableHash(
         sanitizeForStableHash({
           sourceParameterIdentityHash: evaluated.parameterIdentityHash,
           wallId,
@@ -1153,6 +1156,22 @@ function scaledPassiveEvaluatorV1(
           evaluated.input.storedEnergyDensityJPerM3 * scale,
       }),
     });
+  };
+}
+
+/** Scaling changes the constitutive identity, not with each trial strain.
+ * Keep one entry per evaluator, keyed by the complete source identity. */
+export function createScaledPassiveIdentityV1(scale: number, wallId: MainWireFiveWallIdV1) {
+  let source: string | undefined;
+  let identity: string;
+  return (sourceParameterIdentityHash: string): string => {
+    if (sourceParameterIdentityHash !== source) {
+      identity = stableHash(sanitizeForStableHash({
+        sourceParameterIdentityHash, wallId, equilibriumPassiveScale: scale,
+      }));
+      source = sourceParameterIdentityHash;
+    }
+    return identity;
   };
 }
 

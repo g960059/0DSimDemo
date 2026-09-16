@@ -23,11 +23,6 @@ export const STUDIO_SWEEP_WINDOW_STEP_SEC_V2 = 0.5;
 export const STUDIO_GRAPH_HISTORY_DEFAULT_DEPTH_V2 = 1;
 export const STUDIO_GRAPH_HISTORY_MIN_DEPTH_V2 = 0;
 export const STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2 = 3;
-/**
- * Pre-release comparison limit. Automatic graph color assignment admits four
- * stable Scenario identities without recycling the default palette.
- */
-export const STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2 = 4;
 
 export type SurfacePaneIdV2 = string;
 export type ScenarioPresetIdV2 = string;

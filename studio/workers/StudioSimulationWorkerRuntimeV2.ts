@@ -27,13 +27,12 @@ import type {
   ExperimentSnapshotIdFactoryPortV2,
   StudioClockPortV2,
 } from "@/studio/contracts/v2/authoring";
-import {
-  STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
-  type ExperimentContentV2,
-  type ExperimentScenarioV2,
-  type ExperimentSnapshotV2,
-  type ExperimentSurfaceV2,
-  type ExperimentV2,
+import type {
+  ExperimentContentV2,
+  ExperimentScenarioV2,
+  ExperimentSnapshotV2,
+  ExperimentSurfaceV2,
+  ExperimentV2,
 } from "@/studio/contracts/v2/content";
 import type {
   ExactModelRuntimeLoadTimingV2,
@@ -817,6 +816,7 @@ export class StudioSimulationWorkerRuntimeV2 {
       status: "ok",
       kind: "control-applied",
       frame,
+      fixture: nextFixture,
     });
   }
 
@@ -914,7 +914,11 @@ export class StudioSimulationWorkerRuntimeV2 {
         ...(request.analysisPartition === undefined
           ? {}
           : { analysisPartition: request.analysisPartition }),
-        onProgress: (proposedProgress) => {
+        ...(request.sharePreparation === undefined ? {} : { sharePreparation: request.sharePreparation }),
+        ...(request.preparedAnalysis === undefined ? {} : { preparedAnalysis: request.preparedAnalysis }),
+        onProgress: (proposedProgress, preparation) => {
+          if (preparation !== undefined && request.sharePreparation !== true)
+            throw new Error("Unexpected shared analysis preparation");
           const analysis = validateProposedAnalysis(proposedProgress);
           this.#postResponse({
             protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
@@ -922,6 +926,7 @@ export class StudioSimulationWorkerRuntimeV2 {
             status: "ok",
             kind: "analysis-progress",
             analysis,
+            ...(preparation === undefined ? {} : { preparation }),
           });
         },
       });
@@ -1021,14 +1026,6 @@ export class StudioSimulationWorkerRuntimeV2 {
     this.#postScenarioState(request.requestId);
   }
 
-  #assertScenarioCapacity(): void {
-    if (this.#scenarioOrder.length >= STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2) {
-      throw new Error(
-        `simulation worker supports at most ${STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2} Scenarios`,
-      );
-    }
-  }
-
   async #addScenarioFromPreset(
     request: Extract<
       StudioSimulationWorkerRequestV2,
@@ -1040,7 +1037,6 @@ export class StudioSimulationWorkerRuntimeV2 {
     if (this.#scenarioLabels.has(request.scenarioId)) {
       throw new Error(`simulation worker Scenario already exists: ${request.scenarioId}`);
     }
-    this.#assertScenarioCapacity();
     const runtime = this.#requiredExactRuntime();
     const capture = await createScenarioPresetCaptureClonerV2(
       exactRuntimeResolverV2(runtime),
@@ -1075,7 +1071,6 @@ export class StudioSimulationWorkerRuntimeV2 {
     if (this.#scenarioLabels.has(request.scenarioId)) {
       throw new Error(`simulation worker Scenario already exists: ${request.scenarioId}`);
     }
-    this.#assertScenarioCapacity();
     const current = await this.#captureAllScenarios(
       "experiment/worker-scenario-rebuild",
       EMPTY_WORKER_CAPTURE_SURFACE_V2,

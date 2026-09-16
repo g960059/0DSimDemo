@@ -61,6 +61,7 @@ export function addWorkbenchSurfacePaneV3(
   structuralSide?: "left" | "right",
   options: Readonly<{
     periodicPvaSupported?: boolean;
+    emptyItems?: boolean;
   }> = Object.freeze({}),
 ): Readonly<{
   surface: ExperimentSurfaceV2;
@@ -112,7 +113,7 @@ export function addWorkbenchSurfacePaneV3(
               : {}),
           }),
       traceColors: [],
-      series: graph.renderer === "structural-return" || graph.renderer === "cycle-waveform"
+      series: options.emptyItems || graph.renderer === "structural-return" || graph.renderer === "cycle-waveform"
         ? []
         : graph.defaultSeriesIds.map((seriesId, seriesOrder) => ({
             seriesId,
@@ -134,7 +135,7 @@ export function addWorkbenchSurfacePaneV3(
       order,
       priority,
       binding: { mode: "active-slot" },
-      items: contract.outputCatalog.slice(0, 1).map((output) => ({
+      items: contract.outputCatalog.slice(0, options.emptyItems ? 0 : 1).map((output) => ({
         outputId: output.outputId,
         label: outputLabelV3(output.outputId),
         order: 0,
@@ -153,7 +154,7 @@ export function addWorkbenchSurfacePaneV3(
     order,
     priority,
     binding: { mode: "active-slot" },
-    items: contract.controlCatalog.slice(0, 1).map((control) => ({
+    items: contract.controlCatalog.slice(0, options.emptyItems ? 0 : 1).map((control) => ({
       controlId: control.controlId,
       label: controlLabelV3(control.controlId),
       order: 0,

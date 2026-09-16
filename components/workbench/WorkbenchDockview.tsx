@@ -1,4 +1,6 @@
 import React from "react";
+import { WorkbenchPaneSettingsButtonV3 } from "./WorkbenchPaneSettingsButtonV3";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import {
   DockviewReact,
@@ -35,6 +37,8 @@ export type WorkbenchAddPaneOptionV3 = Readonly<{
   description?: string;
 }>;
 
+export type WorkbenchPaneAddRequestV3 = (anchor: HTMLElement, onCreated: (paneId: string) => void) => void;
+
 export type WorkbenchPaneSplitDirectionV3 = "right" | "below";
 export type WorkbenchDockDropPositionV3 =
   "top" | "bottom" | "left" | "right" | "center";
@@ -56,7 +60,7 @@ export type WorkbenchDockviewPropsV3 = Readonly<{
   panes: readonly WorkbenchPaneDefinitionV3[];
   role: WorkbenchPaneRoleV3;
   renderPane: (pane: WorkbenchPaneDefinitionV3) => React.ReactNode;
-  onOpenPaneSettings?: (paneId: string) => void;
+  onOpenPaneSettings?: (paneId: string, section?: "items" | "binding", intent?: "add" | "manage", anchor?: HTMLElement) => void;
   paneSettingsLabel?: string;
   onRenamePane?: (paneId: string, title: string) => void;
   renamePaneLabel?: string;
@@ -70,18 +74,16 @@ export type WorkbenchDockviewPropsV3 = Readonly<{
   splitDownLabel?: string;
   onComparePane?: (paneId: string) => string | undefined;
   comparePaneLabel?: string;
-  onAddPane?: (optionId?: string) => string | undefined;
-  addPaneOptions?: readonly WorkbenchAddPaneOptionV3[];
+  onAddPane?: WorkbenchPaneAddRequestV3;
   addPaneLabel?: string;
   emptyPaneLabel?: string;
 }>;
 
 type WorkbenchDockviewContextV3 = Readonly<{
-  onOpenPaneSettings?: (paneId: string) => void;
+  onOpenPaneSettings?: (paneId: string, section?: "items" | "binding", intent?: "add" | "manage", anchor?: HTMLElement) => void;
   paneSettingsLabel?: string;
   addPaneLabel?: string;
-  addPaneOptions?: readonly WorkbenchAddPaneOptionV3[];
-  requestAddPane?: (anchorPaneId: string, optionId?: string) => void;
+  requestAddPane?: (anchorPaneId: string, anchor: HTMLElement) => void;
   onRenamePane?: (paneId: string, title: string) => void;
   renamePaneLabel?: string;
   onDeletePane?: (paneId: string) => void;
@@ -142,6 +144,8 @@ export function shouldRenderWorkbenchDockPanelV3(
 function WorkbenchDockTabV3(
   props: IDockviewPanelHeaderProps<WorkbenchDockPanelParametersV3>,
 ) {
+  const { i18n } = useTranslation();
+  const menuLabel = i18n.language.startsWith("ja") ? "Paneメニュー" : "Pane menu";
   const context = React.useContext(WorkbenchDockContextV3);
   const pane = context?.paneById.get(props.params.paneId);
   const title = pane?.title ?? props.params.paneId;
@@ -240,11 +244,11 @@ function WorkbenchDockTabV3(
         <button
           type="button"
           className="workbench-dock-tab-settings relative z-10 inline-flex h-7 w-7 shrink-0 touch-manipulation items-center justify-center rounded-md text-wb-subtle transition-colors duration-150 hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-          aria-label={`${context?.paneSettingsLabel ?? "Pane menu"}: ${title}`}
+          aria-label={`${menuLabel}: ${title}`}
           aria-haspopup="menu"
           aria-expanded={menuPosition !== null}
           tabIndex={isActive ? 0 : -1}
-          title={context?.paneSettingsLabel ?? "Pane menu"}
+          title={menuLabel}
           draggable={false}
           onClick={(event) => {
             event.stopPropagation();
@@ -376,6 +380,13 @@ function PaneMenuButtonV3({
   );
 }
 
+function WorkbenchDockItemActionV3(props: IDockviewHeaderActionsProps) {
+  const context = React.useContext(WorkbenchDockContextV3);
+  const pane = context?.paneById.get(props.activePanel?.id ?? "");
+  if (!pane || pane.role === "note" || !context?.onOpenPaneSettings) return null;
+  return <WorkbenchPaneSettingsButtonV3 title={pane.title} onOpen={anchor => context.onOpenPaneSettings?.(pane.paneId, "items", "manage", anchor)} />;
+}
+
 function WorkbenchDockAddPaneActionV3(props: IDockviewHeaderActionsProps) {
   const context = React.useContext(WorkbenchDockContextV3);
   const anchorPaneId = workbenchAddPaneAnchorForGroupV3(
@@ -387,105 +398,23 @@ function WorkbenchDockAddPaneActionV3(props: IDockviewHeaderActionsProps) {
   return (
     <WorkbenchAddPaneButtonV3
       label={context.addPaneLabel ?? "Add pane"}
-      onAddPane={(optionId) => context.requestAddPane?.(anchorPaneId, optionId)}
-      options={context.addPaneOptions ?? []}
+      onAddPane={(anchor) => context.requestAddPane?.(anchorPaneId, anchor)}
       className="workbench-dock-add-pane inline-flex h-full min-w-9 touch-manipulation items-center justify-center text-wb-subtle transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-wb-accent"
     />
   );
 }
 
-function WorkbenchAddPaneButtonV3({
-  className,
-  label,
-  onAddPane,
-  options,
-  showLabel = false,
-}: Readonly<{
+function WorkbenchAddPaneButtonV3({ className, label, onAddPane, showLabel = false }: Readonly<{
   className: string;
   label: string;
-  onAddPane: (optionId?: string) => void;
-  options: readonly WorkbenchAddPaneOptionV3[];
+  onAddPane: (anchor: HTMLElement) => void;
   showLabel?: boolean;
 }>) {
-  const [menuPosition, setMenuPosition] = React.useState<Readonly<{
-    x: number;
-    y: number;
-  }> | null>(null);
-  return (
-    <>
-      <button
-        type="button"
-        className={className}
-        aria-label={label}
-        aria-haspopup={options.length > 0 ? "menu" : undefined}
-        aria-expanded={options.length > 0 ? menuPosition !== null : undefined}
-        title={label}
-        onClick={(event) => {
-          if (options.length === 0) {
-            onAddPane();
-            return;
-          }
-          const rect = event.currentTarget.getBoundingClientRect();
-          setMenuPosition((current) =>
-            current === null
-              ? {
-                  x: Math.max(
-                    8,
-                    Math.min(rect.right - 224, window.innerWidth - 232),
-                  ),
-                  y: Math.max(
-                    8,
-                    Math.min(rect.bottom + 4, window.innerHeight - 260),
-                  ),
-                }
-              : null,
-          );
-        }}
-      >
-        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-        {showLabel && <span>{label}</span>}
-      </button>
-      {menuPosition !== null && typeof document !== "undefined"
-        ? createPortal(
-            <>
-              <button
-                type="button"
-                className="fixed inset-0 z-[79] cursor-default"
-                aria-label="Close add pane menu"
-                onClick={() => setMenuPosition(null)}
-              />
-              <div
-                role="menu"
-                aria-label={label}
-                className="fixed z-[80] w-56 overflow-hidden rounded-xl bg-wb-panel p-1.5 text-xs shadow-2xl ring-1 ring-wb-line"
-                style={{ left: menuPosition.x, top: menuPosition.y }}
-              >
-                {options.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    role="menuitem"
-                    className="block min-h-10 w-full rounded-lg px-3 py-2 text-left text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-                    onClick={() => {
-                      setMenuPosition(null);
-                      onAddPane(option.id);
-                    }}
-                  >
-                    <span className="block font-semibold">{option.label}</span>
-                    {option.description !== undefined && (
-                      <span className="mt-0.5 block text-[10px] leading-4 text-wb-subtle">
-                        {option.description}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </>,
-            document.body,
-          )
-        : null}
-    </>
-  );
+  return <button type="button" className={className} aria-label={label} aria-haspopup="dialog"
+    onClick={event => onAddPane(event.currentTarget)}>
+    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+    {showLabel && <span>{label}</span>}
+  </button>;
 }
 
 function addPaneV3(
@@ -534,9 +463,8 @@ function addPaneRelativeToPanelV3(
 }
 
 /**
- * The desktop teaching default keeps two analytic views above one full-width
- * time-domain view. Adding the lower pane before splitting the upper group is
- * what makes the lower row span both columns in Dockview's split tree.
+ * Keep PV full-height on the left, with structural and time-domain views
+ * stacked on the right. Split the right group only after adding that column.
  */
 function addWorkbenchDashboardPanesV3(
   api: DockviewApi,
@@ -550,11 +478,14 @@ function addWorkbenchDashboardPanesV3(
     addPaneRelativeToPanelV3(api, upperRight, upperLeft.paneId, "right");
     return;
   }
-  if (!addPaneRelativeToPanelV3(api, lower, upperLeft.paneId, "below")) {
-    addPaneV3(api, lower, "within");
-  }
   if (!addPaneRelativeToPanelV3(api, upperRight, upperLeft.paneId, "right")) {
     addPaneV3(api, upperRight, "right");
+  }
+  if (!addPaneRelativeToPanelV3(api, lower, upperRight.paneId, "below")) {
+    addPaneV3(api, lower, "within");
+  }
+  if (api.width > 0) {
+    api.getPanel(upperLeft.paneId)?.group.api.setSize({ width: Math.round(api.width * 0.58) });
   }
   for (const pane of additional) {
     if (!addPaneRelativeToPanelV3(api, pane, upperRight.paneId, "within")) {
@@ -944,7 +875,6 @@ export function WorkbenchDockview({
   onComparePane,
   comparePaneLabel,
   onAddPane,
-  addPaneOptions = [],
   addPaneLabel = "Add pane",
   emptyPaneLabel = "No panes selected",
 }: WorkbenchDockviewPropsV3) {
@@ -990,14 +920,11 @@ export function WorkbenchDockview({
   const context = React.useMemo<WorkbenchDockviewContextV3>(
     () => ({
       addPaneLabel,
-      addPaneOptions,
       requestAddPane:
         onAddPane === undefined
           ? undefined
-          : (anchorPaneId, optionId) => {
-              const paneId = onAddPane(optionId);
-              if (paneId === undefined) return;
-              pendingAddRef.current = { paneId, anchorPaneId };
+          : (anchorPaneId, anchor) => {
+              onAddPane(anchor, paneId => { pendingAddRef.current = { paneId, anchorPaneId }; });
             },
       onDeletePane,
       deletePaneLabel,
@@ -1035,7 +962,6 @@ export function WorkbenchDockview({
     }),
     [
       addPaneLabel,
-      addPaneOptions,
       deletePaneLabel,
       onAddPane,
       onDeletePane,
@@ -1131,8 +1057,7 @@ export function WorkbenchDockview({
               showLabel
               className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
               label={addPaneLabel}
-              onAddPane={onAddPane}
-              options={addPaneOptions}
+              onAddPane={anchor => onAddPane(anchor, () => {})}
             />
           )}
         </div>
@@ -1168,6 +1093,7 @@ export function WorkbenchDockview({
           components={components}
           defaultTabComponent={WorkbenchDockTabV3}
           leftHeaderActionsComponent={WorkbenchDockAddPaneActionV3}
+          rightHeaderActionsComponent={WorkbenchDockItemActionV3}
           defaultRenderer="onlyWhenVisible"
           disableFloatingGroups
           getTabContextMenuItems={() => []}

@@ -90,6 +90,8 @@ export type StudioSimulationAnalysisV2 = Readonly<{
  */
 export type StudioSimulationAnalysisExecutionPlanV2 = Readonly<{
   partitions: readonly string[];
+  /** The first partition emits one ephemeral preparation for the others. */
+  sharedPreparation?: boolean;
   merge(
     analyses: readonly StudioSimulationAnalysisV2[],
   ): StudioSimulationAnalysisV2;

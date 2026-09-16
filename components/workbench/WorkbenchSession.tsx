@@ -60,12 +60,12 @@ import {
   WorkbenchUnavailableModelV3,
 } from "@/components/workbench/WorkbenchSessionFeedbackV3";
 import {
-  WorkbenchPaneEditorV3,
   type WorkbenchPaneEditorItemIntentV3,
   type WorkbenchPaneEditorSectionV3,
 } from "@/components/workbench/WorkbenchPaneEditorV3";
+import { WorkbenchPanePickerV3, type WorkbenchPanePickerRequestV3 } from "./WorkbenchPanePickerV3";
+import { workbenchPopoverAnchorV3 } from "./WorkbenchAnchoredDialogV3";
 import {
-  addWorkbenchSurfacePaneV3,
   compareWorkbenchOutputPaneByScenarioV3,
   deleteWorkbenchSurfacePaneV3,
   duplicateWorkbenchSurfacePaneV3,
@@ -115,6 +115,7 @@ import {
 import { StudioExactModelUnavailableErrorV1 } from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import type { StudioModelWorkerReleaseTicketV2 } from "@/studio/contracts/v2/release";
 import type {
+  ExperimentContentV2,
   ExperimentSurfaceControlPaneV2,
   ExperimentSurfaceGraphPaneV2,
   ExperimentSurfaceOutputPaneV2,
@@ -388,7 +389,7 @@ export const WorkbenchSession = ({
     setBriefingCaptureSurfaceMutationRevision,
   ] = React.useState<number | null>(null);
   const [paneSettings, setPaneSettings] =
-    React.useState<WorkbenchPaneSettingsV3 | null>(null);
+    React.useState<WorkbenchPanePickerRequestV3 | null>(null);
   const [isPlaying, setIsPlaying] = React.useState(true);
   const [playbackRate, setPlaybackRate] = React.useState(
     INITIAL_WORKBENCH_PLAYBACK_RATE_STATE_V3,
@@ -463,6 +464,16 @@ export const WorkbenchSession = ({
   const experimentRef = React.useRef<ExperimentV2 | null>(null);
   const experimentTitleRef = React.useRef("");
   const latestFrameRef = React.useRef<StudioSimulationFrameV2 | null>(null);
+  const retainedPresentationRef = React.useRef(new Map<string, {
+    frame: StudioSimulationFrameV2;
+    analyses: readonly StudioSimulationAnalysisV2[];
+  }>());
+  const controlRecoveryRef = React.useRef<{
+    content: ExperimentContentV2;
+    beforeControl: boolean;
+  } | null>(null);
+  const pendingRecoveryRef = React.useRef<ExperimentContentV2 | null>(null);
+  const stopRuntimeRef = React.useRef<(error: unknown) => void>(() => undefined);
   const lastRootFrameTimeSecRef = React.useRef(Number.NEGATIVE_INFINITY);
   const activeScenarioIdRef = React.useRef<string | null>(null);
   const controlValuesByScenarioRef = React.useRef<
@@ -685,11 +696,13 @@ export const WorkbenchSession = ({
       analysisCaptureReleaseRef.current?.resolve();
       analysisCaptureReleaseRef.current = null;
       setAnalysisCapturePending(false);
-      setStatus({
-        kind: "error",
-        message: error instanceof Error ? error.message : String(error),
-      });
+      setPendingAnalysisKeys([]);
+      const message = error instanceof Error ? error.message : String(error);
+      setStatus(current => current.kind === "live"
+        ? { ...current, halted: message }
+        : { kind: "error", message });
     };
+    stopRuntimeRef.current = failRuntime;
 
     const start = async () => {
       const contentStore =
@@ -743,7 +756,8 @@ export const WorkbenchSession = ({
         || continuation.surfaceReleaseId !== sourceSnapshot!.surfaceReleaseId)) {
         throw new Error("Reader continuation does not match the saved model and Surface");
       }
-      const initialContent = storedExperiment?.content ?? continuation?.content ?? sourceSnapshot?.content;
+      const recoveryContent = pendingRecoveryRef.current;
+      const initialContent = recoveryContent ?? storedExperiment?.content ?? continuation?.content ?? sourceSnapshot?.content;
       const initializeReaderPlayback = continuation !== undefined
         && experimentSessionContext?.sessionToken !== appliedReaderPlaybackTokenRef.current;
       if (initializeReaderPlayback) playingIntentRef.current = continuation.playing;
@@ -762,7 +776,9 @@ export const WorkbenchSession = ({
                   sourceSnapshot.surfaceReleaseId,
                 )
               : modelLab
-                ? await loadStudioLocalCurrentClientCompositionV1()
+                ? new URLSearchParams(location.search).get("candidate") === "control-admission"
+                  ? await (await import("@/studio/composition/StudioControlAdmissionCandidateV1")).loadStudioControlAdmissionCandidateV1()
+                  : await loadStudioLocalCurrentClientCompositionV1()
                 : await loadStudioDefaultClientCompositionV2();
       } catch (error) {
         if (
@@ -780,6 +796,10 @@ export const WorkbenchSession = ({
         throw error;
       }
       if (cancelled) return;
+      if (recoveryContent && (recoveryContent.modelId !== composition.exactModel.modelId
+        || recoveryContent.surfaceSeriesId !== composition.modelSurface.identity.surfaceSeriesId)) {
+        throw new Error("Recovery requires the same exact model and Surface");
+      }
       setReleaseStage(composition.exactModel.stage);
       workerReleaseTicketRef.current = composition.exactModel.workerReleaseTicket;
       fixtureProjectionRef.current = composition.exactModel.fixtureProjection;
@@ -800,7 +820,7 @@ export const WorkbenchSession = ({
             : remoteExperimentRecordV3(remoteExperimentResource);
       setExperimentRecord(record);
       const initialTitle =
-        record?.title ??
+        (recoveryContent ? experimentTitleRef.current : null) ?? record?.title ??
         snapshotTitle ??
         sourceBriefing?.defaultTitle ??
         sourceSnapshot?.content.scenarios[0]?.label ??
@@ -934,6 +954,7 @@ export const WorkbenchSession = ({
       analysisCaptureReleaseRef.current?.resolve();
       analysisCaptureReleaseRef.current = null;
       presentationSampleStore.reset();
+      retainedPresentationRef.current.clear();
 
       const runtimeSeeds: readonly WorkbenchParallelScenarioSeedV3[] =
         initialContent === undefined
@@ -976,6 +997,15 @@ export const WorkbenchSession = ({
               ),
         onFrames: (frames) => {
           if (cancelled) return;
+          for (const frame of frames) {
+            const previous = retainedPresentationRef.current.get(frame.scenarioId);
+            // Only retain complete frames actually released to the display.
+            if (!previous || Object.keys(frame.outputs).length >= Object.keys(previous.frame.outputs).length) {
+              retainedPresentationRef.current.set(frame.scenarioId, {
+                frame, analyses: runtime?.presentationAnalyses(frame.scenarioId) ?? [],
+              });
+            }
+          }
           appendFramesV3(
             frames,
             presentationSampleStore,
@@ -1022,6 +1052,12 @@ export const WorkbenchSession = ({
         runtime.terminate();
         return;
       }
+      controlRecoveryRef.current = {
+        content: { modelId: composition.exactModel.modelId,
+          surfaceSeriesId: composition.modelSurface.identity.surfaceSeriesId,
+          scenarios: capturedScenarios.scenarios, surface: nextSurface },
+        beforeControl: false,
+      };
       const descriptors = Object.freeze(
         capturedScenarios.scenarios.map(({ scenarioId, label }) =>
           Object.freeze({ scenarioId, label }),
@@ -1070,6 +1106,7 @@ export const WorkbenchSession = ({
       const initialFrames = runtimeSeeds.map(({ scenarioId }) =>
         runtime!.latestFrame(scenarioId),
       );
+      for (const frame of initialFrames) retainedPresentationRef.current.set(frame.scenarioId, { frame, analyses: [] });
       latestFrameRef.current = initial;
       lastRootFrameTimeSecRef.current = initial.acceptedTimeSec;
       appendFramesV3(initialFrames, presentationSampleStore);
@@ -1096,6 +1133,7 @@ export const WorkbenchSession = ({
       // scheduler lane has been reconstructed successfully.
       pendingSurfaceAfterRuntimeRestartRef.current = null;
       pendingFeedbackAfterRuntimeRestartRef.current = null;
+      pendingRecoveryRef.current = null;
     };
 
     void start().catch(failRuntime);
@@ -1209,56 +1247,25 @@ export const WorkbenchSession = ({
       paneId: string,
       section?: WorkbenchPaneEditorSectionV3,
       itemIntent?: WorkbenchPaneEditorItemIntentV3,
+      anchor?: HTMLElement,
     ) => {
-      if (graphPanes.some((pane) => pane.paneId === paneId)) {
-        setPaneSettings({ kind: "graph", paneId });
-        return;
-      }
-      if (outputPanes.some((pane) => pane.paneId === paneId)) {
-        setPaneSettings({ kind: "output", paneId, section, itemIntent });
-        return;
-      }
-      if (controlPanes.some((pane) => pane.paneId === paneId)) {
-        setPaneSettings({ kind: "control", paneId, section, itemIntent });
-      }
+      const current = surfaceRef.current;
+      const identity = current && workbenchPaneIdentityForIdV3(current, paneId);
+      if (identity) setPaneSettings({ kind: identity.kind, paneId, initialSection: section, initialItemIntent: itemIntent, anchor: workbenchPopoverAnchorV3(anchor) });
     },
-    [controlPanes, graphPanes, outputPanes],
+    [],
   );
 
   const addPaneToRoleArea = React.useCallback(
     (
       kind: WorkbenchPaneSettingsV3["kind"],
-      graphOptionId?: string,
-    ): string | undefined => {
-      const currentSurface = surfaceRef.current;
-      if (currentSurface === null || contract === null) return undefined;
-      const graphOption =
-        kind === "graph"
-          ? workbenchGraphPaneOptionsForContractV3(contract).find(
-              ({ optionId }) => optionId === graphOptionId,
-            )
-          : undefined;
-      const result = addWorkbenchSurfacePaneV3(
-        currentSurface,
-        kind,
-        contract,
-        graphOption?.graphId ?? graphOptionId,
-        graphOption !== undefined && "structuralSide" in graphOption
-          ? graphOption.structuralSide
-          : undefined,
-        {
-          periodicPvaSupported: periodicPvaDerivationRef.current !== null,
-        },
-      );
-      if (result.selectedPane === null || result.surface === surface) {
-        return undefined;
-      }
-      updateSurface(() =>
-        reconcileWorkbenchGraphColorsV3(result.surface, scenarios),
-      );
-      return result.selectedPane.paneId;
+      anchor: HTMLElement,
+      onCreated: (paneId: string) => void,
+    ): void => {
+      if (surfaceRef.current === null || contract === null) return;
+      setPaneSettings({ kind, anchor: workbenchPopoverAnchorV3(anchor), onCreated });
     },
-    [contract, scenarios, updateSurface],
+    [contract],
   );
 
   const renamePaneV3 = React.useCallback(
@@ -1369,6 +1376,25 @@ export const WorkbenchSession = ({
     setRuntimeGeneration((generation) => generation + 1);
   }, []);
 
+  const restoreControlRecovery = React.useCallback(() => {
+    const point = controlRecoveryRef.current;
+    const currentSurface = surfaceRef.current;
+    if (!point || !currentSurface) return;
+    const captured = new Map(point.content.scenarios.map(scenario => [scenario.scenarioId, scenario]));
+    const descriptors = scenarioDescriptorsRef.current;
+    // Never resurrect deleted scenarios or drop newly added, uncaptured ones.
+    if (!descriptors.every(descriptor => captured.has(descriptor.scenarioId))) return;
+    pendingRecoveryRef.current = { ...point.content, surface: currentSurface,
+      scenarios: descriptors.map(descriptor => ({ ...captured.get(descriptor.scenarioId)!, label: descriptor.label })) };
+    pendingSurfaceAfterRuntimeRestartRef.current = currentSurface;
+    pendingFeedbackAfterRuntimeRestartRef.current = {
+      saveState: "dirty", saveError: null, snapshotState: "idle", snapshotError: null,
+    };
+    // A deliberate new runtime/clock. Never silently decrement an epoch or
+    // splice a restored past into the already-published waveform history.
+    restartRuntime(false);
+  }, [restartRuntime]);
+
   const startLatestWorkbenchV3 = React.useCallback(() => {
     setRecoveryError(null);
     navigate(newExperimentHref(isLocale(locale) ? locale : undefined));
@@ -1395,6 +1421,14 @@ export const WorkbenchSession = ({
       let ownsControlOperation = false;
       let mutationDispatched = false;
       let rejectedControlCanResumeRuntime = false;
+      let releaseForegroundCapacity: (() => void) | undefined;
+      const controlStartedAtMs = workbenchPerformanceNowV3();
+      let phaseStartedAtMs = controlStartedAtMs;
+      const recordControlPhase = (phase: string): void => {
+        const now = workbenchPerformanceNowV3();
+        recordWorkbenchPerformanceDurationV3(`runtime.control.${phase}`, now - phaseStartedAtMs);
+        phaseStartedAtMs = now;
+      };
       try {
         if (operation === "analysis") {
           // A user edit outranks an automatically requested structural
@@ -1413,7 +1447,10 @@ export const WorkbenchSession = ({
         }
         exclusiveOperationRef.current = "control";
         ownsControlOperation = true;
+        releaseForegroundCapacity = runtime.reserveForegroundCapacity();
+        recordControlPhase("acquire-operation");
         await runtime.pauseAll();
+        recordControlPhase("pause-group");
         const uniqueScenarioIds = [...new Set(scenarioIds)];
         const changeSemantics =
           contract.controlCatalog.find(
@@ -1422,6 +1459,13 @@ export const WorkbenchSession = ({
         const acceptedFrames = uniqueScenarioIds.map((scenarioId) =>
           runtime.latestFrame(scenarioId),
         );
+        const recoveryCaptures = await runtime.captureScenarios();
+        recordControlPhase("capture-recovery-group");
+        controlRecoveryRef.current = {
+          content: { modelId: contract.modelId, surfaceSeriesId: surfaceSeriesIdRef.current!,
+            scenarios: recoveryCaptures.scenarios, surface: surfaceRef.current! },
+          beforeControl: true,
+        };
         const structuralAnalysisIds = new Set(
           workbenchStructuralHistoryAnalysisIdsV3(surfaceRef.current, contract, mainWireFormalPvAnalysisIdV1(periodicPvaDerivationRef.current)),
         );
@@ -1456,9 +1500,11 @@ export const WorkbenchSession = ({
             }),
           ),
         );
-        const nextFrames = controlResults.flatMap((result) =>
+        recordControlPhase("apply-group");
+        const acceptedControls = controlResults.flatMap((result) =>
           result.status === "fulfilled" ? [result.value] : []
         );
+        const nextFrames = acceptedControls.map(({ frame }) => frame);
         const rejectedControls = controlResults.flatMap((result) =>
           result.status === "rejected" ? [result.reason] : []
         );
@@ -1479,20 +1525,20 @@ export const WorkbenchSession = ({
         const projection = requiredWorkbenchFixtureProjectionV1(
           fixtureProjectionRef.current,
         );
-        const acceptedScenarios = await Promise.all(
-          uniqueScenarioIds.map((scenarioId) =>
-            runtime.captureScenario(scenarioId, { prewarm: true })),
-        );
+        // Read settings from the exact reducer's committed result. A numerical
+        // checkpoint is needed for recovery/analysis/authoring, not to display
+        // the already accepted settings. Keep the pre-edit group capture above.
         const projectedControlValues = Object.fromEntries(
-          acceptedScenarios.map((scenario) => [
-            scenario.scenarioId,
+          acceptedControls.map(({ frame, fixture }) => [
+            frame.scenarioId,
             materializeExactModelControlValuesV1(
               contract,
-              scenario.capture.fixture,
+              fixture,
               projection,
             ),
           ]),
         );
+        recordControlPhase("project-controls");
         latestFrameRef.current = nextRootFrame;
         lastRootFrameTimeSecRef.current = nextRootFrame.acceptedTimeSec;
         if (analysesToArchive.length > 0) {
@@ -1541,6 +1587,7 @@ export const WorkbenchSession = ({
           }
         }
         appendFramesV3(nextFrames, presentationSampleStore);
+        for (const frame of nextFrames) retainedPresentationRef.current.set(frame.scenarioId, { frame, analyses: [] });
         setStatus((current) =>
           current.kind === "live"
             ? { ...current, frame: nextRootFrame }
@@ -1562,6 +1609,7 @@ export const WorkbenchSession = ({
         if (playingIntentRef.current && !document.hidden) {
           runtime.playAll();
         }
+        recordControlPhase("publish-and-resume");
         return true;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -1571,21 +1619,9 @@ export const WorkbenchSession = ({
           && !rejectedControlCanResumeRuntime
           && runtimeRef.current === runtime
         ) {
-          // A fatal rejection, one partially accepted multi-Scenario edit, or
-          // a later capture failure can leave exact/UI authorities divergent.
-          // The UI has no rollback authority, so discard the entire runtime.
-          playingIntentRef.current = false;
-          setIsPlaying(false);
-          runtimeRef.current = null;
-          try {
-            runtime.terminate();
-          } catch {
-            // Authority is already revoked; preserve the causal control error.
-          }
-          setStatus({
-            kind: "error",
-            message: `${message} The exact runtime was stopped; restart is required.`,
-          });
+          // Do not publish a partially accepted group edit. Retain the visible
+          // state and the pre-edit group capture for an explicit recovery.
+          stopRuntimeRef.current(error);
           return false;
         }
         const latest = latestFrameRef.current;
@@ -1599,6 +1635,11 @@ export const WorkbenchSession = ({
         }
         return false;
       } finally {
+        releaseForegroundCapacity?.();
+        recordWorkbenchPerformanceDurationV3(
+          "runtime.control.total-operation",
+          workbenchPerformanceNowV3() - controlStartedAtMs,
+        );
         if (
           ownsControlOperation &&
           exclusiveOperationRef.current === "control"
@@ -1698,6 +1739,7 @@ export const WorkbenchSession = ({
           }
         };
         try {
+          await runtime.waitForControlPresentation();
           const acceptedFrames = await Promise.all(
             scenarioIds.map((scenarioId) => runtime.pauseScenario(scenarioId)),
           );
@@ -1840,6 +1882,9 @@ export const WorkbenchSession = ({
       const retainedScenarioIds = new Set(
         next.scenarios.map(({ scenarioId }) => scenarioId),
       );
+      for (const scenarioId of retainedPresentationRef.current.keys()) {
+        if (!retainedScenarioIds.has(scenarioId)) retainedPresentationRef.current.delete(scenarioId);
+      }
       for (const [
         targetScenarioId,
         sourceScenarioId,
@@ -1923,6 +1968,17 @@ export const WorkbenchSession = ({
         const next = await operation(runtime);
         beforeAdopt?.(next);
         adoptScenarioStateV3(next);
+        if ((kind === "add" || kind === "duplicate" || kind === "delete") && contract !== null && surfaceRef.current !== null) {
+          const captured = await runtime.captureScenarios();
+          controlRecoveryRef.current = {
+            content: { modelId: contract.modelId, surfaceSeriesId: surfaceSeriesIdRef.current!,
+              scenarios: captured.scenarios, surface: surfaceRef.current },
+            beforeControl: false,
+          };
+          for (const scenario of captured.scenarios) retainedPresentationRef.current.set(scenario.scenarioId, {
+            frame: runtime.latestFrame(scenario.scenarioId), analyses: runtime.presentationAnalyses(scenario.scenarioId),
+          });
+        }
         return true;
       } catch (error) {
         setScenarioError(
@@ -1938,7 +1994,7 @@ export const WorkbenchSession = ({
         }
       }
     },
-    [adoptScenarioStateV3],
+    [adoptScenarioStateV3, contract],
   );
 
   const selectScenarioV3 = React.useCallback(
@@ -2643,6 +2699,7 @@ export const WorkbenchSession = ({
         }
       : {};
   const runtimeOperationPending =
+    (status.kind === "live" && status.halted !== undefined) ||
     pendingControlId !== null ||
     analysisCapturePending ||
     scenarioOperation !== null ||
@@ -2899,7 +2956,7 @@ export const WorkbenchSession = ({
         scenarios={scenarios}
         surface={surface}
         visibleScenarioIds={visibleScenarioIds}
-        readPresentation={id => ({ analyses: runtimeRef.current?.presentationAnalyses(id) ?? [], frame: runtimeRef.current?.maybeLatestFrame(id) })}
+        readPresentation={id => ({ analyses: runtimeRef.current?.presentationAnalyses(id) ?? retainedPresentationRef.current.get(id)?.analyses ?? [], frame: runtimeRef.current?.maybeLatestFrame(id) ?? retainedPresentationRef.current.get(id)?.frame })}
       />
     );
   };
@@ -2910,7 +2967,7 @@ export const WorkbenchSession = ({
     const pane = outputPanes.find(
       ({ paneId }) => paneId === paneDefinition.paneId,
     );
-    if (pane === undefined || contract === null) return <PaneLoadingV3 />;
+    if (pane === undefined || contract === null) return <PaneLoadingV3 kind="output" itemCount={pane?.items.length} />;
     const scenarioId = resolveWorkbenchOutputPaneScenarioIdV3(
       pane,
       activeScenarioId,
@@ -2926,6 +2983,7 @@ export const WorkbenchSession = ({
       scenarioId === null
         ? null
         : (runtimeRef.current?.maybeLatestFrame(scenarioId) ??
+          retainedPresentationRef.current.get(scenarioId)?.frame ??
           (latestFrame?.scenarioId === scenarioId ? latestFrame : null));
     const periodicPvaAnalysisKey =
       scenarioId === null
@@ -2946,7 +3004,7 @@ export const WorkbenchSession = ({
       <OutputPaneBodyV3
         contract={contract}
         lastMeasurements={scope.memory}
-        presentationAnalyses={scenarioId === null ? undefined : runtimeRef.current?.presentationAnalyses(scenarioId)}
+        presentationAnalyses={scenarioId === null ? undefined : runtimeRef.current?.presentationAnalyses(scenarioId) ?? retainedPresentationRef.current.get(scenarioId)?.analyses}
         frame={frame}
         locale={resolvedLocale}
         onAddItem={() => openPaneSettings(pane.paneId, "items", "add")}
@@ -2975,14 +3033,14 @@ export const WorkbenchSession = ({
       ({ paneId }) => paneId === paneDefinition.paneId,
     );
     return pane === undefined || contract === null ? (
-      <PaneLoadingV3 />
+      <PaneLoadingV3 kind="control" itemCount={pane?.items.length} />
     ) : (
       <ControlPaneBodyV3
         activeScenarioId={activeScenarioId}
         contract={contract}
         controlError={controlError}
         controlValuesByScenario={controlValuesByScenarioRef.current}
-        disabledByAnalysis={scenarioOperation !== null}
+        disabledByAnalysis={scenarioOperation !== null || (status.kind === "live" && status.halted !== undefined)}
         locale={resolvedLocale}
         onApplyControl={applyControl}
         onOpenSettings={openPaneSettings}
@@ -3027,7 +3085,7 @@ export const WorkbenchSession = ({
             ...entry, view: "presets" }), label: resolvedLocale === "ja" ? "設定と検証" : "Settings & checks" }]] : [];
         }))}
         actionDisabledReasons={
-          scenarioOperation === null
+          scenarioOperation === null && !(status.kind === "live" && status.halted !== undefined)
             ? undefined
             : {
                 add: t("workbench.editor.scenarioManager.busy"),
@@ -3060,14 +3118,7 @@ export const WorkbenchSession = ({
           duplicate: t("workbench.editor.scenarioManager.duplicate"),
           emptyScenarios: t("workbench.editor.scenarioManager.emptyScenarios"),
           hideScenario: t("workbench.editor.scenarioManager.hideScenario"),
-          incompatiblePreset: t(
-            "workbench.editor.scenarioManager.incompatiblePreset",
-          ),
-          noPresets: t("workbench.editor.scenarioManager.noPresets"),
           rename: t("workbench.editor.scenarioManager.rename"),
-          scenarioLimitReached: t(
-            "workbench.editor.scenarioManager.scenarioLimitReached",
-          ),
           scenarioMenu: t("workbench.editor.scenarioManager.scenarioMenu"),
           scenarioName: t("workbench.editor.scenarioManager.scenarioName"),
           scenarios: t("workbench.editor.scenarioManager.scenarios"),
@@ -3088,11 +3139,12 @@ export const WorkbenchSession = ({
 
   return (
     <div
-      className={`workbench-root flex h-full min-h-0 w-full flex-col overflow-hidden bg-wb-app text-wb-text transition-[padding-right] duration-200 ease-out motion-reduce:transition-none ${
+      className={`workbench-root relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-wb-app text-wb-text transition-[padding-right] duration-200 ease-out motion-reduce:transition-none ${
         briefingOpen ? "lg:pr-[min(42rem,45vw)]" : ""
       }`}
       data-testid="v3-dockview-workbench"
       data-playback={isPlaying ? "playing" : "paused"}
+      data-calculation-stopped={status.kind === "live" && status.halted !== undefined ? "true" : undefined}
       data-model-lab={modelLab ? "true" : undefined}
       {...rootRuntimeData}
     >
@@ -3169,7 +3221,6 @@ export const WorkbenchSession = ({
             {sourceSnapshotId && <span className="[&_.public-author]:text-[10px] [&_.public-author-badge]:text-[9px]"><ResourceAuthorV1 kind="snapshot" resourceId={sourceSnapshotId} locale={resolvedLocale} /></span>}
           </div>
         </div>
-        <RuntimeStatusV3 status={status} />
         <div className="flex shrink-0 items-center gap-0.5">
           {modelLab && (
             <span
@@ -3280,6 +3331,7 @@ export const WorkbenchSession = ({
               className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5 disabled:cursor-wait disabled:opacity-40"
               disabled={status.kind !== "live" || runtimeOperationPending}
               onClick={() => void saveExperimentV3()}
+              aria-label={t(saveState === "saving" ? "workbench.editor.saving" : saveState === "clean" ? "workbench.editor.saved" : "workbench.editor.save")}
               title={saveError ?? undefined}
               data-testid="v3-save-experiment"
             >
@@ -3334,6 +3386,19 @@ export const WorkbenchSession = ({
           )}
         </div>
       </header>
+      <RuntimeStatusV3 key={runtimeGeneration} status={status} onRetry={() => restartRuntime(playingIntentRef.current)} />
+      {status.kind === "live" && status.halted !== undefined && (
+        <section role="alert" data-testid="workbench-calculation-stopped"
+          className="flex flex-wrap items-center gap-3 border-b border-wb-line bg-wb-panel px-4 py-2 text-sm text-wb-text">
+          <span>{t("workbench.live.calculationStopped")}</span>
+          {controlRecoveryRef.current && scenarios.every(scenario => controlRecoveryRef.current!.content.scenarios.some(saved => saved.scenarioId === scenario.scenarioId)) && (
+            <button type="button" className="rounded border border-wb-line px-3 py-1 hover:bg-wb-hover"
+              onClick={restoreControlRecovery}>{t(controlRecoveryRef.current.beforeControl
+                ? "workbench.live.restoreBeforeControl" : "workbench.live.restoreLaunch")}</button>
+          )}
+          <details className="text-xs text-wb-subtle"><summary>{t("workbench.live.failureDetails")}</summary>{status.halted}</details>
+        </section>
+      )}
 
       {saveError !== null && (
         <WorkbenchSaveErrorBannerV3
@@ -3378,6 +3443,16 @@ export const WorkbenchSession = ({
           restartLabel={t("workbench.live.restart")}
           title={t("workbench.live.errorTitle")}
         />
+      ) : status.kind === "loading" && surface === null ? (
+        <WorkbenchAreaLayoutV3
+          className="min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(240px,1fr)_160px] overflow-hidden"
+          inspectorResizeLabel={t("workbench.live.resizeInspectorArea")}
+          outputResizeLabel={t("workbench.live.resizeOutputArea")}
+        >
+          <div className="min-h-0 border-b border-wb-line bg-wb-canvas lg:col-start-1 lg:row-start-1"><PaneLoadingV3 /></div>
+          <div className="min-h-0 bg-wb-aux lg:col-start-1 lg:row-start-2"><PaneLoadingV3 kind="output" /></div>
+          <div className="hidden min-h-0 border-l border-wb-line bg-wb-aux lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:block"><PaneLoadingV3 kind="control" /></div>
+        </WorkbenchAreaLayoutV3>
       ) : (
         <WorkbenchPerformanceProfilerV3>
           {mobileWorkbenchShell ? (
@@ -3392,11 +3467,11 @@ export const WorkbenchSession = ({
               renderOutputPane={(pane) => renderOutputPaneV3(pane, "section")}
               renderControlPane={(pane) => renderControlPaneV3(pane, "section")}
               onOpenPaneSettings={openPaneSettings}
-              onAddGraphPane={(optionId) =>
-                addPaneToRoleArea("graph", optionId)
+              onAddGraphPane={(anchor, onCreated) =>
+                addPaneToRoleArea("graph", anchor, onCreated)
               }
-              onAddOutputPane={() => addPaneToRoleArea("output")}
-              onAddControlPane={() => addPaneToRoleArea("control")}
+              onAddOutputPane={(anchor, onCreated) => addPaneToRoleArea("output", anchor, onCreated)}
+              onAddControlPane={(anchor, onCreated) => addPaneToRoleArea("control", anchor, onCreated)}
             />
           ) : (
             <WorkbenchAreaLayoutV3
@@ -3413,10 +3488,9 @@ export const WorkbenchSession = ({
                 onRenamePane={renamePaneV3}
                 onDeletePane={deletePaneV3}
                 onSplitPane={splitPaneV3}
-                onAddPane={(graphOptionId) =>
-                  addPaneToRoleArea("graph", graphOptionId)
+                onAddPane={(anchor, onCreated) =>
+                  addPaneToRoleArea("graph", anchor, onCreated)
                 }
-                addPaneOptions={graphAddOptions}
                 addPaneLabel={t("workbench.editor.addPane")}
                 renamePaneLabel={t("workbench.editor.renamePane")}
                 deletePaneLabel={t("workbench.editor.deletePane")}
@@ -3440,7 +3514,7 @@ export const WorkbenchSession = ({
                     ? compareOutputPaneByScenarioV3
                     : undefined
                 }
-                onAddPane={() => addPaneToRoleArea("output")}
+                onAddPane={(anchor, onCreated) => addPaneToRoleArea("output", anchor, onCreated)}
                 addPaneLabel={t("workbench.editor.addPane")}
                 renamePaneLabel={t("workbench.editor.renamePane")}
                 deletePaneLabel={t("workbench.editor.deletePane")}
@@ -3466,7 +3540,7 @@ export const WorkbenchSession = ({
                   onRenamePane={renamePaneV3}
                   onDeletePane={deletePaneV3}
                   onSplitPane={splitPaneV3}
-                  onAddPane={() => addPaneToRoleArea("control")}
+                  onAddPane={(anchor, onCreated) => addPaneToRoleArea("control", anchor, onCreated)}
                   addPaneLabel={t("workbench.editor.addPane")}
                   renamePaneLabel={t("workbench.editor.renamePane")}
                   deletePaneLabel={t("workbench.editor.deletePane")}
@@ -3482,30 +3556,24 @@ export const WorkbenchSession = ({
       )}
 
       {contract !== null && surface !== null && paneSettings !== null && (
-        <WorkbenchPaneEditorV3
-          key={`${paneSettings.kind}:${paneSettings.paneId}:${
-            paneSettings.kind === "graph"
-              ? "general"
-              : `${paneSettings.section ?? "general"}:${
-                  paneSettings.itemIntent ?? "none"
-                }`
-          }`}
-          open
-          initialItemIntent={
-            paneSettings.kind !== "graph" ? paneSettings.itemIntent : undefined
-          }
-          initialSection={
-            paneSettings.kind !== "graph" ? paneSettings.section : undefined
-          }
+        <WorkbenchPanePickerV3
+          key={`${paneSettings.kind}:${paneSettings.paneId ?? "new"}`}
+          request={paneSettings}
           locale={resolvedLocale}
           periodicPvaSupported={periodicPvaDerivationRef.current !== null}
-          selectedPane={paneSettings}
           contract={contract}
           surface={surface}
-          scenarios={scenarios}
+          scenarios={scenarios.map(scenario => ({ ...scenario, visible: visibleScenarioIds.includes(scenario.scenarioId) }))}
           onClose={() => setPaneSettings(null)}
-          onChange={(nextSurface) => {
-            updateSurface(() => nextSurface);
+          onCommit={(pane, creating) => {
+            updateSurface(current => {
+              const next = creating
+                ? pane.role === "graph" ? { ...current, graphPanes: [...current.graphPanes, pane] }
+                  : pane.role === "output" ? { ...current, outputPanes: [...current.outputPanes, pane] }
+                    : { ...current, controlPanes: [...current.controlPanes, pane] }
+                : updateWorkbenchSurfacePaneV3(current, { kind: pane.role, paneId: pane.paneId }, () => pane);
+              return reconcileWorkbenchGraphColorsV3(next, scenarios);
+            });
           }}
           strings={{
             addCatalogItem: t("workbench.editor.addCatalogItem"),

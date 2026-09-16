@@ -78,10 +78,12 @@ export type ArticleReaderParallelRuntimeV3 = Pick<
   | "pauseScenario"
   | "playAll"
   | "requestAnalysis"
+  | "reserveForegroundCapacity"
   | "resumeScenario"
   | "selectScenario"
   | "setPlaybackRate"
   | "terminate"
+  | "waitForControlPresentation"
 > & Partial<Pick<WorkbenchParallelScenarioRuntimeV3, "presentationAnalyses">>;
 
 export type ArticleReaderParallelRuntimeFactoryInputV3 = Readonly<{
@@ -488,6 +490,7 @@ export class ArticleReaderLiveRuntimeV3 {
     });
     const operation = (async () => {
       try {
+        await runtime.waitForControlPresentation();
         const results = await Promise.all(input.scenarioIds.map(async (
           scenarioId,
         ) => {
@@ -639,7 +642,9 @@ export class ArticleReaderLiveRuntimeV3 {
       error: null,
     });
     let mutationDispatched = false;
+    let releaseForegroundCapacity: (() => void) | undefined;
     try {
+      releaseForegroundCapacity = runtime.reserveForegroundCapacity();
       await runtime.pauseAll();
       if (this.#runtime !== runtime) return;
       const boundaryFrames = input.scenarioIds.map((scenarioId) =>
@@ -654,7 +659,7 @@ export class ArticleReaderLiveRuntimeV3 {
             analysis !== undefined
             && analysis.inputEpoch === frame.inputEpoch));
       mutationDispatched = true;
-      const frames = await Promise.all(input.scenarioIds.map((scenarioId) => {
+      const controlResults = await Promise.all(input.scenarioIds.map((scenarioId) => {
         const current = runtime.latestFrame(scenarioId);
         return runtime.applyControl({
           scenarioId,
@@ -664,20 +669,17 @@ export class ArticleReaderLiveRuntimeV3 {
         });
       }));
       if (this.#runtime !== runtime) return;
+      const frames = controlResults.map(({ frame }) => frame);
       appendArticleReaderFramesV3(
         frames,
         this.sampleStore,
         this.#presentationOutputIds,
       );
-      const acceptedScenarios = await Promise.all(
-        input.scenarioIds.map((scenarioId) =>
-          runtime.captureScenario(scenarioId, { prewarm: true })),
-      );
       const fixtureByScenario = Object.freeze({
         ...this.#state.fixtureByScenario,
-        ...Object.fromEntries(acceptedScenarios.map((scenario) => [
-          scenario.scenarioId,
-          scenario.capture.fixture,
+        ...Object.fromEntries(controlResults.map(({ frame, fixture }) => [
+          frame.scenarioId,
+          fixture,
         ])),
       });
       const analysisHistoryByKey = archiveArticleReaderAnalysesV3(
@@ -714,8 +716,8 @@ export class ArticleReaderLiveRuntimeV3 {
       const normalized = errorAsErrorV3(error);
       if (this.#runtime === runtime) {
         if (mutationDispatched) {
-          // Dispatch is the mutation boundary. An apply or the following exact
-          // fixture capture may fail after accepted state has already changed,
+          // Dispatch is the mutation boundary. Applying or receiving a control
+          // result may fail after accepted state has already changed,
           // even for one lane. Without rollback, the controller must discard
           // the numerical authority rather than resume stale projected state.
           this.#fail(normalized, runtime);
@@ -731,6 +733,8 @@ export class ArticleReaderLiveRuntimeV3 {
         }
       }
       throw normalized;
+    } finally {
+      releaseForegroundCapacity?.();
     }
   }
 

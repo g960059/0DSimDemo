@@ -1,5 +1,10 @@
 import { defineConfig } from "@playwright/test";
 
+// A separate build/port can verify browser-local persistence without touching a configured remote database.
+const previewPort = process.env.CIRCLEHEART_E2E_PORT ?? "4173";
+const previewBaseUrl = `http://127.0.0.1:${previewPort}`;
+const previewOutputDirectory = process.env.CIRCLEHEART_E2E_DIST;
+
 export default defineConfig({
   testDir: "./e2e",
   // Public-content fixtures require a configured repository; the local numerical suite does not.
@@ -18,13 +23,13 @@ export default defineConfig({
   timeout: 120_000,
   expect: { timeout: 30_000 },
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL: previewBaseUrl,
     headless: true,
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "npm run preview -- --host 127.0.0.1 --port 4173",
-    url: "http://127.0.0.1:4173/ja/experiments",
+    command: `npm run preview -- --host 127.0.0.1 --port ${previewPort}${previewOutputDirectory ? ` --outDir ${JSON.stringify(previewOutputDirectory)}` : ""}`,
+    url: `${previewBaseUrl}/ja/experiments`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

@@ -19,7 +19,7 @@ import low from "@/data/model-presets/standard73/as-low-flow-v1.json";
 import lock from "@/data/model-releases/standard73/publication.json";
 import type { MainWireIntegratedStudioSelectedAorticOutflowFixtureV1 as Fixture,
   createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as Factory } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
-import { importExactExecutableArtifactModuleV2 as importArtifact } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
+import { importExactExecutableArtifactModuleV2 as importArtifact } from "@/runtime/ExactExecutableArtifactModuleLoaderV2";
 import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurface";
 import { validateScenarioPresetV2 } from "@/studio/application/authoring/StudioExperimentDataV2";
 
@@ -27,6 +27,37 @@ const tier = hotPathIntegrityTierV1();
 afterEach(() => selectHotPathIntegrityTierV1(tier));
 
 describe("analysis-owned quasi-steady semilunar closure", () => {
+  it("opts into candidate sampling without dropping the anchor diagnostic readback", () => {
+    const { source } = syntheticClosureSource();
+    const ordinary = vi.spyOn(source, "advanceToPresentationTime");
+    const lean = vi.fn(source.advanceToPresentationTime.bind(source));
+    const candidate = Object.assign(source, { advancePressureCrossingPresentationV1: lean });
+    vi.spyOn(candidate, "forkResponsiveStarlingAtFixedGlobalTotalBloodVolume").mockReturnValue(candidate);
+    const wrapped = wrap(candidate);
+    wrapped.advanceStructuralAnalysisToPresentationTimeV1!(.01);
+    expect(ordinary).toHaveBeenCalledOnce(); expect(lean).not.toHaveBeenCalled();
+    wrapped.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(4000).advanceStructuralAnalysisToPresentationTimeV1!(.02);
+    expect(lean).toHaveBeenCalledOnce();
+  });
+
+  it("reads full observations only on presentation boundaries, not on every crossing sample", () => {
+    const { source } = syntheticClosureSource();
+    const times: number[] = [];
+    const observe = source.observe.bind(source);
+    vi.spyOn(source, "observe").mockImplementation(() => {
+      const result = observe(); times.push(result.acceptedState.acceptedTimeSec); return result;
+    });
+    const snapshot = vi.spyOn(source, "currentAcceptedState");
+    const session = wrap(source);
+    snapshot.mockClear();
+    session.advanceStructuralAnalysisToPresentationTimeV1!(.01);
+    expect(times.length).toBeGreaterThan(0);
+    expect(times.every(time => time === 0 || time === .01)).toBe(true);
+    expect(session.currentAcceptedState()).toBeDefined();
+    expect(snapshot).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
   it("rejects unpinned, stale and unsupported artifact requests before running a numerical family", async () => {
     const capture = vi.fn(async () => ({ artifactRevisionId: "wrong", scenario: high.capture }));
     const input = { source: { acceptedFrame: { modelId: high.modelId, runtimeSessionId: "physical", scenarioId: "high",
@@ -186,7 +217,9 @@ function syntheticClosureSource({ crossing = true, missingId, origin = 0, closur
   const beat = { startTimeSec: 0, endTimeSec: .01, leftVentricularPressureVolumeLandmarks: landmarks,
     rightVentricularPressureVolumeLandmarks: landmarks, leftVentricularValveEventMetrics: { endSystolic: { timeSec: closureTime } },
     rightVentricularValveEventMetrics: { endSystolic: { timeSec: closureTime } } } as unknown as ObservedBeat;
-  const observe = () => ({ completedBeatMetrics: time >= .01 - 1e-12 ? beat : null });
+  const observe = () => ({ acceptedState: Object.freeze({ acceptedTimeSec: time, revision,
+    coronary: { fixedGlobalTotalBloodVolumeMl: 5600 } }),
+    completedBeatMetrics: time >= .01 - 1e-12 ? beat : null });
   const values = (ids: readonly string[]) => Object.fromEntries(ids.map(id => {
     if (id === missingId) return [id, { availability: "unavailable" }];
     const before = time < .004 - 1e-12;
@@ -201,7 +234,7 @@ function syntheticClosureSource({ crossing = true, missingId, origin = 0, closur
       internalAcceptedSubstepCount: 1, observation: observe() };
   };
   const fork = () => syntheticClosureSource({ crossing, missingId, origin: time, closureTime }).source;
-  return { beat, source: { currentAcceptedState: () => ({ acceptedTimeSec: time, revision }), observe,
+  return { beat, source: { currentAcceptedState: () => observe().acceptedState, observe,
     projectCurrentAcceptedValuesV1: values, advanceToPresentationTime: advance,
     advanceToPresentationTimeWithSelectedOutputProjectionV1: (target: number, ids: readonly string[]) =>
       ({ advance: advance(target), projectedValues: values(ids) }),

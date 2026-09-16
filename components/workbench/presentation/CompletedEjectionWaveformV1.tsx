@@ -24,7 +24,7 @@ const scope = (t: CompletedEjectionTraceV1) => `${t.scenarioId}/${t.frame?.runti
 
 /** One unsmoothed completed beat. No animation loop and no extra simulation;
  * new frames with unchanged observer/epoch do not redraw this graph. */
-export const CompletedEjectionWaveformV1 = React.memo(function CompletedEjectionWaveformV1({ traces }: { traces: readonly CompletedEjectionTraceV1[] }) {
+export const CompletedEjectionWaveformV1 = React.memo(function CompletedEjectionWaveformV1({ traces, legendActions }: { traces: readonly CompletedEjectionTraceV1[]; legendActions?: React.ReactNode }) {
   const { i18n } = useTranslation(), ja = i18n.language.startsWith("ja");
   useAppTheme(); // Redraw a paused completed beat when the palette changes.
   const previous = React.useRef(new Map<string, { waveform: Waveform; epoch: number }>());
@@ -72,10 +72,11 @@ export const CompletedEjectionWaveformV1 = React.memo(function CompletedEjection
     ctx.globalAlpha = 1;
   }, "completed-ejection-waveform");
   return <div className="flex h-full min-h-0 flex-col gap-2 p-3 text-wb-text-secondary" data-ejection-waveform="true">
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+    <div className="flex items-start gap-2" data-chart-legend-row="true">
+    <div className="flex min-h-7 min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1 text-xs">
       <WorkbenchItemDescriptionPopoverV3 ariaLabel={ja ? "AV流速・駆出時間の説明" : "About AV velocity and ejection timing"} description={ja
-      ? "直近の完了拍。モデル内のAV噴流速度であり、ドプラ計測ではありません。LVOT速度補正・圧回復は含みません。ATは駆出開始から最大流速まで、ETは順行流が続く時間です。"
-      : "Latest completed beat; modeled AV jet, not Doppler acquisition. No LVOT velocity correction or pressure recovery. AT: onset to peak velocity; ET: forward-flow duration."} />
+      ? "直近の1心拍における大動脈弁通過流速の推定波形です。順行流量を有効弁口面積で割って求めます。AT（加速時間）は駆出開始から最大流速まで、ET（駆出時間）は順行流が続く時間です。"
+      : "Estimated aortic-valve velocity during the latest completed heartbeat, calculated as forward flow divided by effective orifice area. AT (acceleration time) runs from ejection onset to peak velocity; ET (ejection time) is the duration of forward flow."} />
       {displayed.map(trace => <span key={trace.scenarioId} style={{ color: trace.stale ? undefined : trace.color, opacity: trace.stale ? .45 : 1 }}
         data-ejection-stale={trace.stale ? "true" : "false"}>
         {trace.label} · AT {trace.waveform.peakTimeMs.toFixed(0)} / ET {trace.waveform.durationMs.toFixed(0)} ms
@@ -83,9 +84,11 @@ export const CompletedEjectionWaveformV1 = React.memo(function CompletedEjection
       </span>)}
       {!displayed.length && <span>{ja ? "完了した駆出波形を待っています" : "Waiting for a completed ejection"}</span>}
     </div>
+    {legendActions != null && <div className="shrink-0" data-chart-legend-actions="true">{legendActions}</div>}
+    </div>
     <div ref={container} className="relative min-h-0 flex-1"><canvas ref={canvas} className="absolute inset-0 h-full w-full" aria-label={ja ? "AV流速とAT・ET" : "AV velocity, AT and ET"} /></div>
   </div>;
-}, (a, b) => a.traces.length === b.traces.length && a.traces.every((t, i) => {
+}, (a, b) => a.legendActions === b.legendActions && a.traces.length === b.traces.length && a.traces.every((t, i) => {
   const next = b.traces[i]!;
   return scope(t) === scope(next) && t.label === next.label && t.color === next.color && t.analysis === next.analysis
     && t.frame?.inputEpoch === next.frame?.inputEpoch;

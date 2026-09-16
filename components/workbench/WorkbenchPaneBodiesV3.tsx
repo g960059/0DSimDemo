@@ -1,5 +1,5 @@
 import React from "react";
-import { Activity } from "lucide-react";
+import { SimulationPanePlaceholderV1, SimulationPreparationV1 } from "@/components/simulation/SimulationPreparationV1";
 import { WorkbenchLastMeasuredOutputsV1 } from "./presentation/WorkbenchLastMeasuredOutputsV1";
 import { incrementWorkbenchPerformanceCounterV3 } from "./runtime/WorkbenchPerformanceDiagnosticsV3";
 import { useTranslation } from "react-i18next";
@@ -34,6 +34,8 @@ export type WorkbenchStatusV3 =
       kind: "live";
       contract: ModelContractV2;
       frame: StudioSimulationFrameV2;
+      /** Frozen presentation remains visible; this is not a live authority. */
+      halted?: string;
     }>
   | Readonly<{
       kind: "unavailable-model";
@@ -43,12 +45,14 @@ export type WorkbenchStatusV3 =
 
 export function RuntimeStatusV3({
   status,
-}: Readonly<{ status: WorkbenchStatusV3 }>) {
-  const { t } = useTranslation();
+  onRetry,
+}: Readonly<{ status: WorkbenchStatusV3; onRetry?: () => void }>) {
   if (status.kind === "loading") {
     return (
-      <div className="text-xs text-wb-muted" role="status">
-        {t("workbench.live.loading")}
+      <div className="pointer-events-none absolute inset-x-3 top-1/2 z-20 flex -translate-y-1/2 justify-center">
+        <div className="pointer-events-auto overflow-hidden rounded-lg border border-wb-line">
+          <SimulationPreparationV1 onRetry={onRetry} />
+        </div>
       </div>
     );
   }
@@ -259,8 +263,6 @@ export const ControlPaneBodyV3 = React.memo(function ControlPaneBodyV3({
                   storedLabel: item.label,
                   locale,
                 });
-                const discloseRestart =
-                  control.changeSemantics === "cold-restart";
                 return (
                   <ExperimentNumericControlV3
                     key={control.controlId}
@@ -271,7 +273,7 @@ export const ControlPaneBodyV3 = React.memo(function ControlPaneBodyV3({
                       disabledByAnalysis
                     }
                     label={presentation.label}
-                    {...(discloseRestart
+                    {...(presentation.description
                       ? {
                           description: presentation.description,
                           descriptionAriaLabel:
@@ -315,15 +317,6 @@ export const ControlPaneBodyV3 = React.memo(function ControlPaneBodyV3({
   );
 });
 
-export function PaneLoadingV3() {
-  const { t } = useTranslation();
-  return (
-    <div
-      className="flex h-full items-center justify-center text-xs text-wb-muted"
-      role="status"
-    >
-      <Activity className="mr-2 h-3.5 w-3.5 animate-pulse" />
-      {t("workbench.live.loadingPane")}
-    </div>
-  );
+export function PaneLoadingV3(props: React.ComponentProps<typeof SimulationPanePlaceholderV1>) {
+  return <SimulationPanePlaceholderV1 {...props} />;
 }

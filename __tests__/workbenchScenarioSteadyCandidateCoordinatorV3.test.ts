@@ -14,6 +14,73 @@ import { STANDARD_TEST_RELEASE_TICKET_V1 } from
   "./helpers/standardReleaseTicketV1";
 
 describe("WorkbenchScenarioSteadyCandidateCoordinatorV3", () => {
+  it("terminates a running speculative Worker without changing its source", async () => {
+    const client = steadyClientV3();
+    let rejectInitialization!: (error: Error) => void;
+    client.initialize.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectInitialization = reject; }));
+    client.terminate.mockImplementation(() => rejectInitialization(new Error("Worker terminated")));
+    const pool = new WorkbenchBackgroundWorkerPoolV3({ warmSize: 0, maxSize: 1 },
+      () => client as unknown as StudioSimulationWorkerClientV2);
+    const coordinator = new WorkbenchScenarioSteadyCandidateCoordinatorV3(pool);
+    const source = sourceV3(1);
+    const original = JSON.stringify(source);
+    coordinator.prewarm(source);
+    await vi.waitFor(() => expect(client.initialize).toHaveBeenCalledOnce());
+    coordinator.yieldPrewarm(source.scenario.scenarioId);
+    expect(client.terminate).toHaveBeenCalled();
+    expect(coordinator.bestAvailable(source)).toBeNull();
+    expect(JSON.stringify(source)).toBe(original);
+    await Promise.resolve();
+    coordinator.dispose();
+    pool.dispose();
+  });
+
+  it("yields queued speculative work for an edit and permits a later retry", async () => {
+    const clients: ReturnType<typeof steadyClientV3>[] = [];
+    const pool = new WorkbenchBackgroundWorkerPoolV3({ warmSize: 0, maxSize: 1 }, () => {
+      const client = steadyClientV3();
+      clients.push(client);
+      return client as unknown as StudioSimulationWorkerClientV2;
+    }, 2);
+    let release!: () => void;
+    const blocker = pool.run("analysis", () => new Promise<void>(resolve => { release = resolve; }));
+    await Promise.resolve();
+    const coordinator = new WorkbenchScenarioSteadyCandidateCoordinatorV3(pool);
+    const source = sourceV3(1);
+    coordinator.prewarm(source);
+    coordinator.yieldPrewarm(source.scenario.scenarioId);
+    release();
+    await blocker;
+    expect(clients.every(client => client.initialize.mock.calls.length === 0)).toBe(true);
+    const retry = await coordinator.resolve(source, "analysis");
+    expect(retry.inputEpoch).toBe(1);
+    coordinator.dispose();
+    pool.dispose();
+  });
+
+  it.each(["analysis", "snapshot"] as const)("preserves a prewarm promoted to an explicit %s request", async priority => {
+    const clients: ReturnType<typeof steadyClientV3>[] = [];
+    const pool = new WorkbenchBackgroundWorkerPoolV3({ warmSize: 0, maxSize: 1 }, () => {
+      const client = steadyClientV3();
+      clients.push(client);
+      return client as unknown as StudioSimulationWorkerClientV2;
+    }, 2);
+    let release!: () => void;
+    const blocker = pool.run("analysis", () => new Promise<void>(resolve => { release = resolve; }));
+    await Promise.resolve();
+    const coordinator = new WorkbenchScenarioSteadyCandidateCoordinatorV3(pool);
+    const source = sourceV3(1);
+    coordinator.prewarm(source);
+    const requested = coordinator.resolve(source, priority);
+    coordinator.yieldPrewarm(source.scenario.scenarioId);
+    release();
+    await blocker;
+    await expect(requested).resolves.toMatchObject({ inputEpoch: 1 });
+    expect(clients.filter(client => client.initialize.mock.calls.length > 0)).toHaveLength(1);
+    coordinator.dispose();
+    pool.dispose();
+  });
+
   it("promotes one queued prewarm into a foreground Snapshot burst and reuses it", async () => {
     const clients: ReturnType<typeof steadyClientV3>[] = [];
     const pool = new WorkbenchBackgroundWorkerPoolV3(

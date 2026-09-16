@@ -1077,7 +1077,7 @@ export function describeStudioAuthoringProtocolV1(selectedAction?: string): Read
     Object.freeze({ action: "snapshot.analyze", mutation: false,
       inputSchema: object(["snapshotId", "scenarioIds", "includeAnalysis"], {
         snapshotId: id,
-        scenarioIds: { type: "array", minItems: 1, maxItems: 4, uniqueItems: true, items: id },
+        scenarioIds: { type: "array", minItems: 1, uniqueItems: true, items: id },
         includeAnalysis: { type: "boolean", description: "Include the portable measured analysis payload (including partial progress on failure). False returns only source bindings and completeness assessments. Always ephemeral; never writes the Snapshot." },
       }),
       resultSchema: object(["source", "analysisId", "allComplete", "scenarios"], {
@@ -1122,7 +1122,7 @@ export function describeStudioAuthoringProtocolV1(selectedAction?: string): Read
     Object.freeze({ action: "experiment.trace", mutation: false,
       inputSchema: object(["experimentId", "expectedVersion", "exactModel", "scenarioIds", "outputIds", "stepCount", "sampleStride", "wallClockTimeoutMs"], {
         experimentId: id, expectedVersion: version, exactModel,
-        scenarioIds: { type: "array", minItems: 1, maxItems: 4, uniqueItems: true, items: id },
+        scenarioIds: { type: "array", minItems: 1, uniqueItems: true, items: id },
         outputIds: { type: "array", minItems: 1, maxItems: 32, uniqueItems: true, items: id },
         stepCount: { type: "integer", minimum: 1, maximum: 20_000 },
         sampleStride: { type: "integer", minimum: 1, maximum: 1_000 },
@@ -1360,8 +1360,8 @@ export function validateStudioAuthoringCommandV1(
     case "snapshot.analyze": {
       exactKeysV1(input, ["snapshotId", "scenarioIds", "includeAnalysis"], "$.command.input");
       const scenarioIds = stringArrayV1(input.scenarioIds, "$.command.input.scenarioIds");
-      if (scenarioIds.length < 1 || scenarioIds.length > 4)
-        throw new Error("$.command.input.scenarioIds must select 1–4 distinct scenarios");
+      if (scenarioIds.length < 1)
+        throw new Error("$.command.input.scenarioIds must select at least one scenario");
       if (typeof input.includeAnalysis !== "boolean")
         throw new Error("$.command.input.includeAnalysis must be a boolean");
       return deepFreezeV1({ ...base, action: command.action, input: {

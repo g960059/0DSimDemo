@@ -30,16 +30,17 @@ import {
 describe("Studio authoring command V1", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("discovers bounded read-only Snapshot analysis and rejects invalid selections before authority access", async () => {
+  it("discovers read-only Snapshot analysis for any nonempty distinct Scenario selection", async () => {
     const command = snapshotAnalysisCommandV1(["baseline"], false);
     const repository = repositoryV1();
     const authorize = vi.fn();
     const schema = describeStudioAuthoringProtocolV1("snapshot.analyze").actions[0]!;
     expect(schema.mutation).toBe(false);
     expect(schema.inputSchema).toMatchObject({ required: ["snapshotId", "scenarioIds", "includeAnalysis"],
-      properties: { scenarioIds: { minItems: 1, maxItems: 4, uniqueItems: true }, includeAnalysis: { type: "boolean" } } });
+      properties: { scenarioIds: { minItems: 1, uniqueItems: true }, includeAnalysis: { type: "boolean" } } });
+    expect(validateStudioAuthoringCommandV1(snapshotAnalysisCommandV1(["1", "2", "3", "4", "5"], false)).action).toBe("snapshot.analyze");
     for (const patch of [{ scenarioIds: [] }, { scenarioIds: ["baseline", "baseline"] },
-      { scenarioIds: ["1", "2", "3", "4", "5"] }, { includeAnalysis: "true" }, { analysisId: "unreviewed-method" }]) {
+      { includeAnalysis: "true" }, { analysisId: "unreviewed-method" }]) {
       await expect(executeStudioAuthoringCommandV1(repository, modelsV1(), {
         ...command, input: { ...command.input, ...patch },
       }, { authorize })).rejects.toThrow();

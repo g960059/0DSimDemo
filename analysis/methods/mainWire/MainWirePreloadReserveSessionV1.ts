@@ -27,7 +27,10 @@ function wrapSession(
 ): MainWireIntegratedModelStructuralAnalysisSessionV3 {
   const advance = (targetTimeSec: number): MainWireIntegratedModelPresentationAdvanceV3 => {
     assertNotAborted(abortSignal);
-    const initial = source.currentAcceptedState();
+    // The preceding presentation boundary already owns a detached, read-only
+    // observation. Reading its clock must not clone/validate the exact state
+    // again for each 10-ms analysis sample.
+    const initial = source.observe().acceptedState;
     if (!Number.isFinite(targetTimeSec) || targetTimeSec < initial.acceptedTimeSec) {
       return source.advanceToPresentationTime(targetTimeSec);
     }
@@ -84,7 +87,7 @@ function wrapSession(
     return wrapSession(branch, nominalDtSec, abortSignal, retainPresentationReadback);
   };
   return Object.freeze({
-    currentAcceptedState: () => source.currentAcceptedState(),
+    currentAcceptedState: () => source.observe().acceptedState,
     observe: () => source.observe(),
     projectCurrentAcceptedValuesV1: outputIds => source.projectCurrentAcceptedValuesV1(outputIds),
     advanceToPresentationTime: advance,

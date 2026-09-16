@@ -1,5 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { SimulationLegendPlaceholderV1, SimulationPanePlaceholderV1 } from "@/components/simulation/SimulationPreparationV1";
 
 import { useAppTheme } from "@/appTheme";
 import { ExperimentGraphPresentationV3 } from "@/components/workbench/ExperimentPanePresentationV3";
@@ -33,6 +34,7 @@ import { workbenchScenarioRuntimeStatusV3 } from "@/components/workbench/Workben
 import { mainWireFormalPvAnalysisIdV1 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import type { MainWirePeriodicPvaV1 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import { CompletedEjectionWaveformV1 } from "./presentation/CompletedEjectionWaveformV1";
+import { WorkbenchChartLegendRowV3 } from "./presentation/WorkbenchChartTraceStyleV3";
 import type { MainWirePeriodicPvaDerivationV1 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import type {
   ExperimentSurfaceGraphPaneV2,
@@ -87,6 +89,7 @@ export function GraphPaneBodyV3({
   surface,
   visibleScenarioIds,
   readPresentation,
+  legendActions,
 }: Readonly<{
   activeScenarioId: string | null;
   playbackRunning: boolean;
@@ -110,6 +113,7 @@ export function GraphPaneBodyV3({
   surface: ExperimentSurfaceV2;
   visibleScenarioIds: readonly string[];
   readPresentation?: (scenarioId: string) => { analyses: readonly StudioSimulationAnalysisV2[]; frame?: StudioSimulationFrameV2 };
+  legendActions?: React.ReactNode;
 }>) {
   const { t } = useTranslation();
   const { appTheme } = useAppTheme();
@@ -127,7 +131,7 @@ export function GraphPaneBodyV3({
     pane,
     visibleScenarioIds,
   );
-  if (graph.renderer === "cycle-waveform") return <CompletedEjectionWaveformV1 traces={scenarios.flatMap((scenario, index) => {
+  if (graph.renderer === "cycle-waveform") return <CompletedEjectionWaveformV1 legendActions={legendActions} traces={scenarios.flatMap((scenario, index) => {
     if (!scopedVisibleScenarioIds.includes(scenario.scenarioId) || isWorkbenchGraphTraceExcludedV3(pane, scenario.scenarioId, null)) return [];
     const source = readPresentation?.(scenario.scenarioId);
     return [{ scenarioId: scenario.scenarioId, label: scenario.label, frame: source?.frame,
@@ -180,6 +184,7 @@ export function GraphPaneBodyV3({
     );
     return (
       <StructuralReturnGraphPaneV3
+        legendActions={legendActions}
         acceptedStepAvailable={(frame?.acceptedRevision ?? 0) > 0}
         analysisId={structuralAnalysisId}
         structuralSide={
@@ -193,6 +198,7 @@ export function GraphPaneBodyV3({
   }
   return (
     <SampledGraphPaneBodyV3
+      legendActions={legendActions}
       activeScenarioId={activeScenarioId}
       analysisByKey={analysisByKey}
       analysisHistoryByKey={analysisHistoryByKey}
@@ -215,6 +221,7 @@ export function GraphPaneBodyV3({
 }
 
 function SampledGraphPaneBodyV3({
+  legendActions,
   activeScenarioId,
   analysisByKey,
   analysisHistoryByKey,
@@ -243,6 +250,7 @@ function SampledGraphPaneBodyV3({
     ModelContractV2["graphCatalog"][number],
     StructuralReturnGraphDefinitionV2 | { renderer: "cycle-waveform" }
   >;
+  legendActions?: React.ReactNode;
   analysisHistoryByKey: Readonly<Record<string, readonly StudioSimulationAnalysisV2[]>>;
   onRequestAnalysis: (
     analysisId: string,
@@ -439,6 +447,8 @@ function SampledGraphPaneBodyV3({
         canvasClassName="h-full min-h-0"
       >
         <PressureVolumeLoopCanvasV3
+          playbackRunning={playbackRunning}
+          legendActions={legendActions}
           periodicPvaSupported={periodicPvaEnabled}
           traces={traces}
           onRetryAnalysis={retryScenarioIds.length === 0 || operationPending
@@ -533,7 +543,7 @@ function SampledGraphPaneBodyV3({
             samples,
             outputId: binding.outputId,
             signalLabel,
-            ...(presentation?.inlineDisclosure !== true
+            ...(!presentation?.description
               ? {}
               : {
                   signalDescription: presentation.description,
@@ -555,6 +565,7 @@ function SampledGraphPaneBodyV3({
       canvasClassName="h-full min-h-0"
     >
       <SweepingWaveformCanvasV3
+        legendActions={legendActions}
         activeScenarioId={activeScenarioId}
         includeZero={outputs.every(
           ({ outputId }) =>
@@ -622,6 +633,7 @@ type StructuralReturnScenarioTraceV3 = Readonly<{
 }>;
 
 function StructuralReturnGraphPaneV3({
+  legendActions,
   acceptedStepAvailable,
   analysisId,
   onRequestAnalysis,
@@ -638,6 +650,7 @@ function StructuralReturnGraphPaneV3({
   operationPending: boolean;
   structuralSide: "left" | "right";
   traces: readonly StructuralReturnScenarioTraceV3[];
+  legendActions?: React.ReactNode;
 }>) {
   const { t } = useTranslation();
   const lastAutoRequestedKeyRef = React.useRef<string | null>(null);
@@ -731,26 +744,34 @@ function StructuralReturnGraphPaneV3({
   return (
     <ExperimentGraphPresentationV3
       variant="pane"
-      canvasClassName="relative h-full min-h-0 overflow-auto"
+      canvasClassName="relative flex h-full min-h-0 flex-col overflow-auto"
       data-analysis-error={error ?? undefined}
       data-analysis-pending={pending ? "true" : "false"}
     >
       <>
+        {comparisonTraces.length === 0 && <WorkbenchChartLegendRowV3 actions={legendActions}
+          updatingLabel={traces.length > 0 && (pending || error === null) ? t("workbench.live.analysisRunning") : undefined}>
+          {traces.length > 0 && <SimulationLegendPlaceholderV1 />}
+        </WorkbenchChartLegendRowV3>}
         {traces.length === 0 ? (
-          <div className="flex h-full min-h-52 items-center justify-center text-xs text-wb-subtle">
+          <div className="flex min-h-52 flex-1 items-center justify-center text-xs text-wb-subtle">
             {t("workbench.live.scenarioHidden")}
           </div>
         ) : comparisonTraces.length === 0 ? (
-          <div className="flex h-full min-h-52 items-center justify-center px-5 text-center text-xs text-wb-muted">
-            {pending
-              ? t("workbench.live.analysisRunning")
-              : (error ??
-                (acceptedStepAvailable
-                  ? t("workbench.live.analysisUnavailable")
-                  : t("workbench.live.firstAcceptedStep")))}
+          <div className="relative min-h-52 flex-1">
+            <SimulationPanePlaceholderV1 showLegend={false} />
+            {error !== null && !pending ? <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-5 text-center text-xs text-wb-muted">
+              <span role="status">{t("workbench.live.analysisUnavailable")}</span>
+              <button type="button" className="rounded px-2 py-1 text-wb-accent hover:bg-wb-accent/10"
+                disabled={operationPending || !acceptedStepAvailable}
+                onClick={() => onRequestAnalysis(analysisId, traces.filter(trace => trace.error).map(trace => trace.scenarioId))}>
+                {t("workbench.live.refreshAnalysis")}
+              </button>
+            </div> : null}
           </div>
         ) : (
           <GuytonStarlingComparisonCanvasV3
+            legendActions={legendActions}
             onRetryAnalysis={operationPending || !traces.some(trace => trace.error && !trace.pending)
               ? undefined : () => onRequestAnalysis(analysisId, traces.filter(trace => trace.error && !trace.pending).map(trace => trace.scenarioId))}
             recalculatingLabel={t("workbench.live.analysisRecalculating")}

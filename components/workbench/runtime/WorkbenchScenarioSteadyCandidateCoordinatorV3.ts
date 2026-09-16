@@ -47,6 +47,7 @@ export type WorkbenchSteadyCandidateV3 = Readonly<{
 
 type CandidateRecordV3 = {
   key: string;
+  priority: Extract<WorkbenchBackgroundJobPriorityV3, "prewarm" | "analysis" | "snapshot">;
   handle: WorkbenchBackgroundJobHandleV3<WorkbenchSteadyCandidateV3>;
   promise: Promise<WorkbenchSteadyCandidateV3>;
   latest: WorkbenchSteadyCandidateV3 | null;
@@ -110,6 +111,13 @@ export class WorkbenchScenarioSteadyCandidateCoordinatorV3 {
     previous.handle.cancel();
   }
 
+  /** Yield CPU for an interactive edit without cancelling explicit requests. */
+  yieldPrewarm(scenarioId: string): void {
+    const record = this.#records.get(scenarioId);
+    if (record?.priority !== "prewarm") return;
+    if (record.handle.cancel()) this.#records.delete(scenarioId);
+  }
+
   dispose(): void {
     if (this.#disposed) return;
     this.#disposed = true;
@@ -127,6 +135,9 @@ export class WorkbenchScenarioSteadyCandidateCoordinatorV3 {
     const key = candidateKeyV3(source);
     const previous = this.#records.get(source.scenario.scenarioId);
     if (previous !== undefined && previous.key === key) {
+      if (priority === "snapshot" || previous.priority === "prewarm") {
+        previous.priority = priority;
+      }
       previous.handle.promote(priority);
       return await previous.promise;
     }
@@ -144,6 +155,7 @@ export class WorkbenchScenarioSteadyCandidateCoordinatorV3 {
       }));
     record = {
       key,
+      priority,
       handle,
       promise: Promise.resolve(undefined as never),
       latest: null,

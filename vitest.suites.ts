@@ -184,6 +184,11 @@ export const prSmokeTests = [
 ] as const;
 
 export const regressionTests = [
+  "__tests__/immutableCanonicalJsonV1.test.ts",
+  "__tests__/immutableValidationProofV1.test.ts",
+  "__tests__/mainWireSweepComputeV1.test.ts",
+  "__tests__/vascularPvConvergentV1.test.ts",
+  "__tests__/mainWireControlAdmissionCandidateV1.test.ts",
   "__tests__/mainWireCardiacCycleFigureV1.test.ts",
   "__tests__/fittingRunJournalV1.test.ts",
   "__tests__/mainWireRegistryCasePreparationV1.test.ts",
@@ -192,6 +197,7 @@ export const regressionTests = [
   "__tests__/mainWireAsPresentationV1.test.ts",
   "__tests__/preparedModelAnalysisV1.test.ts",
   "__tests__/mainWirePressureCrossingAnalysisV1.test.ts",
+  "__tests__/mainWireSharedPressureVolumeAnchorV1.test.ts",
   "__tests__/registryCaseDocumentationV1.test.ts",
   "__tests__/mainWireIntegratedStudioStructuralAnalysisV3.test.ts",
   "__tests__/studioNumericalAuthoringV1.test.ts",

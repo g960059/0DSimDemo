@@ -1,5 +1,4 @@
 import {
-  STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_V2_SCHEMA_ID,
@@ -89,13 +88,10 @@ export function validateExperimentSurfaceV2(
   scenarioIdValues: readonly string[],
 ): ExperimentSurfaceV2 {
   const surface = clonePortableJsonV2(value, "$.surface") as ExperimentSurfaceV2;
-  if (
-    scenarioIdValues.length === 0
-    || scenarioIdValues.length > STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2
-  ) {
+  if (scenarioIdValues.length === 0) {
     throw validationErrorV2(
       "$.scenarioIds",
-      `must contain 1-${STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2} Scenario IDs`,
+      "must contain at least one Scenario ID",
     );
   }
   const scenarioIds = new Set<string>();
@@ -1072,12 +1068,6 @@ function assertExperimentContentV2(
   if (!Array.isArray(content.scenarios) || content.scenarios.length === 0) {
     throw validationErrorV2(`${path}.scenarios`, "must be a nonempty array");
   }
-  if (content.scenarios.length > STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2) {
-    throw validationErrorV2(
-      `${path}.scenarios`,
-      `must contain at most ${STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2} Scenarios`,
-    );
-  }
   const scenarioIds = new Set<string>();
   content.scenarios.forEach((scenario, index) =>
     assertExperimentScenarioV2(
@@ -1109,12 +1099,6 @@ function assertExperimentDesiredContentV2(
     desiredContent.scenarios.length === 0
   ) {
     throw validationErrorV2(`${path}.scenarios`, "must be a nonempty array");
-  }
-  if (desiredContent.scenarios.length > STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2) {
-    throw validationErrorV2(
-      `${path}.scenarios`,
-      `must contain at most ${STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2} Scenarios`,
-    );
   }
   const scenarioIds = new Set<string>();
   desiredContent.scenarios.forEach((scenario, index) =>

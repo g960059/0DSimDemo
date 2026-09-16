@@ -8,6 +8,7 @@ import './i18n';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { SiteAccountSessionProviderV3 } from './components/site/SiteAccountSessionV3';
 import { detectPreferredLocale, isLocale, prefixPath, stripLocaleFromPathname } from './localeRouting';
+import { SimulationPreparationV1 } from './components/simulation/SimulationPreparationV1';
 
 const Home = React.lazy(
   () => import('./components/Home').then((module) => ({ default: module.Home })),
@@ -121,7 +122,7 @@ const appRoutes = () => (
     <Route
       path="experiments/:experimentId"
       element={(
-        <React.Suspense fallback={<ProductPageLoading label="Loading Workbench…" />}>
+        <React.Suspense fallback={<SimulationPreparationV1 standalone />}>
           <WorkbenchPage />
         </React.Suspense>
       )}

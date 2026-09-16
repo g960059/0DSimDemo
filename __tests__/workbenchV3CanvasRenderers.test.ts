@@ -13,6 +13,7 @@ import {
   buildWorkbenchTraceLegendModelV3,
   boundedCanvasPixelRatioV3,
   createWorkbenchCanvasFrameSchedulerV3,
+  drawWorkbenchLeadingCapV3,
   extractLivePvTrajectoryV3,
   extractLastCompletePvBeatV3,
   firstSampleAtOrAfterV3,
@@ -27,9 +28,9 @@ import {
   numericTicksV3,
   orderedFiniteWorkbenchSamplesV3,
   projectHistoricalPvEpochV3,
-  revealPvTrajectoryAfterFirstCompleteCycleV3,
   readWorkbenchCanvasThemeVariablesV3,
   workbenchHistoryAlphaV3,
+  workbenchDefaultScenarioColorV3,
   reconcileWorkbenchGraphColorsV3,
   resolveWorkbenchAutomaticGraphColorV3,
   resolveWorkbenchGraphTraceStyleV3,
@@ -85,6 +86,37 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       .toBe("#000000");
     expect(mixOpaqueWorkbenchCanvasColorV3("#abc", "#000", 1))
       .toBe("#aabbcc");
+  });
+
+  it("draws a solid trace-color leading cap with a Canvas-colored gap", () => {
+    const radii: number[] = [];
+    const fills: string[] = [];
+    let fillStyle = "";
+    const context = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      setLineDash: vi.fn(),
+      beginPath: vi.fn(),
+      arc: (_x: number, _y: number, radius: number) => radii.push(radius),
+      fill: () => fills.push(fillStyle),
+      globalAlpha: 0,
+      get fillStyle() { return fillStyle; },
+      set fillStyle(value: string | CanvasGradient | CanvasPattern) {
+        fillStyle = String(value);
+      },
+    } as unknown as CanvasRenderingContext2D;
+
+    drawWorkbenchLeadingCapV3(
+      context,
+      20,
+      30,
+      "#ff5f73",
+      "#ffffff",
+    );
+
+    expect(radii).toEqual([5, 3.25]);
+    expect(fills).toEqual(["#ffffff", "#ff5f73"]);
+    expect(context.globalAlpha).toBe(1);
   });
 
   it("reserves four percent of the sweep as a readable forward gap", () => {
@@ -252,6 +284,31 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     });
   });
 
+  it("reuses immutable waveform points without changing extrema, windows or signals", () => {
+    const source = Array.from({ length: 210 }, (_, index) => sampleV3(
+      0.9 + index * .002, null,
+      { pressure: Math.sin(index) * 50, flow: index % 3 === 0 ? null : index },
+    ));
+    const buckets = appendWorkbenchPresentationSamplesV3([], source);
+    const mutable = JSON.parse(JSON.stringify(buckets));
+    for (const windowSec of [1, 2, 1]) {
+      for (const outputId of ["pressure", "flow", "missing"]) {
+        const options = { windowSec, forwardGapFraction: .1 };
+        const cold = buildSweepingWaveformSegmentsV3(buckets, outputId, options);
+        const hot = buildSweepingWaveformSegmentsV3(buckets, outputId, options);
+        expect(hot).toEqual(buildSweepingWaveformSegmentsV3(mutable, outputId, options));
+        expect(hot.flat().every((point, index) => point === cold.flat()[index])).toBe(true);
+      }
+    }
+    const appended = appendWorkbenchPresentationSamplesV3(buckets, [sampleV3(1.32, null, { pressure: 123 })]);
+    expect(buildSweepingWaveformSegmentsV3(appended, "pressure", { windowSec: 1 }).at(-1)?.at(-1)?.value).toBe(123);
+    const mutableValues = { pressure: 1 };
+    const shallow = Object.freeze({ ...source[0]!, values: mutableValues });
+    expect(buildSweepingWaveformSegmentsV3([shallow], "pressure", { windowSec: 1 })[0]?.[0]?.value).toBe(1);
+    mutableValues.pressure = 2;
+    expect(buildSweepingWaveformSegmentsV3([shallow], "pressure", { windowSec: 1 })[0]?.[0]?.value).toBe(2);
+  });
+
   it("uses nice ticks, expands without clipping, and contracts only after six commits", () => {
     let state = nextStableNumericDomainStateV3(null, [0, 100], {
       commitKey: "beat/0",
@@ -382,7 +439,7 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     });
   });
 
-  it("extracts but does not reveal a partial PV trajectory before the first complete beat", () => {
+  it("exposes the exact partial PV trajectory from the first sample without closing it", () => {
     const samples = [
       sampleV3(0.2, 0.2, { volume: 118, pressure: 20 }),
       sampleV3(0.4, 0.4, { volume: 88, pressure: 112 }),
@@ -418,10 +475,26 @@ describe("V3-neutral Workbench Canvas helpers", () => {
         },
       ],
     });
-    expect(revealPvTrajectoryAfterFirstCompleteCycleV3(trajectory)).toEqual({
-      completedBeat: [],
-      liveSegment: [],
-    });
+    expect(buildPvBackBufferRemainderV3(trajectory.completedBeat, trajectory.liveSegment)).toEqual([]);
+    const initial = extractLivePvTrajectoryV3(samples.slice(0, 1), "volume", "pressure", TEST_CYCLE_PHASE_OUTPUT_ID_V3);
+    expect(initial.completedBeat).toEqual([]);
+    expect(initial.liveSegment).toEqual(trajectory.liveSegment.slice(0, 1));
+    expect(workbenchPvLoopDomainPointsV3([{ ...trajectory, history: [] }])).toEqual(trajectory.liveSegment);
+  });
+
+  it("retains the initial fragment through the first wrap but drops samples before a missing phase", () => {
+    const samples = [
+      sampleV3(0.7, 0.7, { volume: 110, pressure: 12 }),
+      sampleV3(0.9, 0.9, { volume: 120, pressure: 10 }),
+      sampleV3(1, 0, { volume: 121, pressure: 11 }),
+      sampleV3(1.2, 0.2, { volume: 99, pressure: 105 }),
+    ];
+    const trajectory = extractLivePvTrajectoryV3(samples, "volume", "pressure", TEST_CYCLE_PHASE_OUTPUT_ID_V3);
+    expect(trajectory.completedBeat).toEqual([]);
+    expect(trajectory.liveSegment.map(point => point.acceptedTimeSec)).toEqual([0.7, 0.9, 1, 1.2]);
+    const gap = samples.map((sample, index) => index === 2
+      ? { ...sample, values: { ...sample.values, [TEST_CYCLE_PHASE_OUTPUT_ID_V3]: null } } : sample);
+    expect(extractLivePvTrajectoryV3(gap, "volume", "pressure", TEST_CYCLE_PHASE_OUTPUT_ID_V3).liveSegment.map(point => point.acceptedTimeSec)).toEqual([1.2]);
   });
 
   it("reveals phase-aware live PV motion after the first complete beat", () => {
@@ -439,9 +512,6 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       TEST_CYCLE_PHASE_OUTPUT_ID_V3,
     );
 
-    expect(revealPvTrajectoryAfterFirstCompleteCycleV3(trajectory)).toBe(
-      trajectory,
-    );
     expect(trajectory.completedBeat).toHaveLength(5);
     expect(trajectory.liveSegment).toHaveLength(2);
   });
@@ -1132,7 +1202,7 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       traceColors
         .filter(({ scenarioId }) => scenarioId === "scenario/a")
         .map(({ automaticColorHex }) => automaticColorHex),
-    ).toEqual(["#ff5f73", "#e07ce8", "#39c2ff"]);
+    ).toEqual(["#e07ce8", "#39c2ff", "#ff5f73"]);
     const minimumPairDistance = (colors: readonly string[]) => Math.min(
       ...colors.flatMap((left, leftIndex) =>
         colors.slice(leftIndex + 1).map((right) =>
@@ -1158,7 +1228,10 @@ describe("V3-neutral Workbench Canvas helpers", () => {
           appTheme,
         }).color,
       );
-      expect(minimumPairDistance(renderedColors)).toBeGreaterThan(0.12);
+      expect(
+        minimumPairDistance(renderedColors),
+        `${appTheme}: ${renderedColors.join(", ")}`,
+      ).toBeGreaterThan(0.12);
     }
   });
 
@@ -1256,9 +1329,9 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       [{ scenarioId: "scenario/a" }],
     );
 
-    expect(reconciled.scenarioColorSeeds?.[0]?.colorHex).toBe("#d9822b");
+    expect(reconciled.scenarioColorSeeds?.[0]?.colorHex).toBe("#ff5f73");
     expect(reconciled.graphPanes[0]?.traceColors?.[0]?.automaticColorHex)
-      .toBe("#d9822b");
+      .toBe("#ff5f73");
 
     const comparison = reconcileWorkbenchGraphColorsV3(reconciled, [
       { scenarioId: "scenario/a" },
@@ -1266,7 +1339,7 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     ]);
     expect(comparison.graphPanes[0]?.traceColors?.map(
       ({ automaticColorHex }) => automaticColorHex,
-    )).toEqual(["#d9822b", "#2f9e7d"]);
+    )).toEqual(["#ff5f73", "#39c2ff"]);
   });
 
   it("lets an exact Scenario/item custom color win over its frozen automatic color", () => {
@@ -1350,9 +1423,16 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       }).color;
 
     expect([color("LVP", "dark"), color("LAP", "dark"), color("AoP", "dark")])
-      .toEqual(["#ff5f73", "#e07ce8", "#39c2ff"]);
+      .toEqual(["#e07ce8", "#39c2ff", "#ff5f73"]);
     expect([color("LVP", "light"), color("LAP", "light"), color("AoP", "light")])
-      .toEqual(["#c22347", "#a12bc7", "#0068a3"]);
+      .toEqual(["#a12bc7", "#0068a3", "#c22347"]);
+  });
+
+  it("allocates new Scenario base colors as red, blue, purple, then green", () => {
+    expect(Array.from({ length: 4 }, (_, index) =>
+      workbenchDefaultScenarioColorV3(index)))
+      .toEqual(["#ff5f73", "#39c2ff", "#8b76d1", "#2f9e7d"]);
+    expect(new Set(Array.from({ length: 6 }, (_, index) => workbenchDefaultScenarioColorV3(index))).size).toBe(6);
   });
 
   it("migrates persisted former semantic seeds through the current theme palette", () => {

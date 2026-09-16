@@ -9,7 +9,7 @@ import { createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as factory,
 import { MAIN_WIRE_STATIC_CASE_FIXTURE_SCHEMA_ID_V1 as fixtureSchema } from "@/domain/model/MainWireStaticCaseIdentityV1";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV5";
 import { resolveMainWireAnalysisMethodsForSurfaceV1 as methods } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
-import { importExactExecutableArtifactModuleV2 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
+import { importExactExecutableArtifactModuleV2 } from "@/runtime/ExactExecutableArtifactModuleLoaderV2";
 import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurface";
 import { validateScenarioPresetV2 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import { STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID as presetSchema, type ScenarioPresetV2 } from "@/studio/contracts/v2/content";

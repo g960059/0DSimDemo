@@ -31,6 +31,20 @@ import {
   type MainWireFixedToneSettlementEvidenceV2,
 } from "@/analysis/methods/mainWire/MainWireFixedToneSettlementV2";
 
+// The detached-worker coordinator reuses the same qualification and frontier
+// algorithms. The admitted legacy entry point below remains byte-stable.
+export {
+  settleFormalPressureVolumeSourceV3,
+  measureFormalPressureVolumeBranchV3,
+  runFormalHypovolemicCoverageChainV3,
+  runFormalHypervolemicStarlingChainV3,
+  formalExpectedPointCountV3,
+  formalPressureVolumeLocusV3,
+  formalPairQualifiedV3,
+  FIXED_TBV_TOLERANCE_ML_V3,
+};
+export type { AcceptedBranchV3, StarlingPairV3 };
+
 export {
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,

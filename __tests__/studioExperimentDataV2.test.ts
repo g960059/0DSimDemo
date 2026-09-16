@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
-  STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_V2_SCHEMA_ID,
   STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
@@ -95,34 +94,36 @@ describe("Studio Experiment data V2", () => {
     )).toThrow(/keys must be exactly/);
   });
 
-  it("limits durable and desired Experiment content to four Scenarios", () => {
+  it("preserves five independent Scenarios through durable and desired content validation", () => {
     const experiment = experimentV2() as Record<string, any>;
     const baseline = experiment.content.scenarios[0];
     experiment.content.scenarios = Array.from(
-      { length: STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2 + 1 },
+      { length: 5 },
       (_, index) => ({
         ...baseline,
-        scenarioId: `scenario/${index + 1}`,
+        scenarioId: index === 0 ? baseline.scenarioId : `scenario/${index + 1}`,
         label: `Scenario ${index + 1}`,
       }),
     );
-    expect(() => validateExperimentV2(experiment))
-      .toThrow(/at most 4 Scenarios/);
+    const validated = validateExperimentV2(experiment);
+    expect(validated.content.scenarios).toHaveLength(5);
+    expect(new Set(validated.content.scenarios.map(scenario => scenario.scenarioId)).size).toBe(5);
+    expect(validated.content.scenarios[0].capture).not.toBe(validated.content.scenarios[1].capture);
 
     const desired = desiredContentV2() as Record<string, any>;
     const desiredBaseline = desired.scenarios[0];
     desired.scenarios = Array.from(
-      { length: STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2 + 1 },
+      { length: 5 },
       (_, index) => ({
         ...desiredBaseline,
-        scenarioId: `scenario/${index + 1}`,
+        scenarioId: index === 0 ? desiredBaseline.scenarioId : `scenario/${index + 1}`,
         label: `Scenario ${index + 1}`,
       }),
     );
-    expect(() => validateExperimentDesiredContentForModelV2(
+    expect(validateExperimentDesiredContentForModelV2(
       desired,
       modelContractV2(),
-    )).toThrow(/at most 4 Scenarios/);
+    ).scenarios).toHaveLength(5);
   });
 
   it("keeps immutable snapshot identity opaque and separate from Experiment version", () => {

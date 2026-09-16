@@ -28,6 +28,7 @@ import {
   resolveStudioOutputPressureSummaryStoredLabelV1,
   resolveStudioSurfaceItemLabelV1,
   studioOutputPressureSummaryForOutputIdV1,
+  studioGraphSeriesLabelV1,
   type ResolvedStudioItemPresentationV1,
 } from "@/studio/presentation/StudioItemPresentationCatalogV1";
 
@@ -147,7 +148,7 @@ export function resolveWorkbenchGraphSeriesPresentationV3(
     ...presentation,
     label:
       resolvedLabel === presentation.label
-        ? compactDefaultLabel
+        ? presentation.description ? studioGraphSeriesLabelV1(input.seriesId, presentation) : compactDefaultLabel
         : resolvedLabel,
   });
 }
@@ -249,9 +250,6 @@ export function materializeWorkbenchOutputPresentationItemsV3(
       const minimum = scalarAvailableOutputV3(
         input.frame?.outputs[summary.minimumOutputId],
       );
-      const mean = scalarAvailableOutputV3(
-        input.frame?.outputs[summary.meanOutputId],
-      );
       const quality = outputValues.some(
         (output) => output === undefined || output.quality === "not-assessed",
       )
@@ -275,7 +273,7 @@ export function materializeWorkbenchOutputPresentationItemsV3(
         itemId: summary.presentationId,
         outputId: null,
         label: presentation.label,
-        ...(presentation.inlineDisclosure
+        ...(presentation.description
           ? {
               description: presentation.description,
               descriptionAriaLabel:
@@ -288,8 +286,6 @@ export function materializeWorkbenchOutputPresentationItemsV3(
         displayValue: formatExperimentPressureSummaryV3({
           maximum,
           minimum,
-          mean,
-          significantDigits: summaryDefinitions[0]!.significantDigits,
         }),
         unit: summaryDefinitions[0]!.unit,
         availability: outputValues.every(
@@ -320,6 +316,7 @@ export function materializeWorkbenchOutputPresentationItemsV3(
       ? periodicPvaOutputNoticeV3(
           input.periodicPva,
           input.periodicPvaAnalysisError,
+          input.locale,
         )
       : undefined;
     const presentation = resolveWorkbenchOutputPresentationV3({
@@ -337,7 +334,7 @@ export function materializeWorkbenchOutputPresentationItemsV3(
       itemId: item.outputId,
       outputId: item.outputId,
       label: presentation.label,
-      ...(presentation.inlineDisclosure
+      ...(description
         ? {
             description,
             descriptionAriaLabel:
@@ -375,24 +372,24 @@ export function scalarAvailableOutputV3(
 function periodicPvaOutputNoticeV3(
   periodicPva: MainWirePeriodicPvaV1 | undefined,
   analysisError: string | undefined,
+  locale: "en" | "ja",
 ): string | undefined {
+  const ja = locale === "ja";
   if (analysisError !== undefined) {
-    return `PVA analysis unavailable: ${analysisError}`;
+    return ja ? "圧容積関係から推定値を求められませんでした。" : "The pressure–volume estimate could not be completed.";
   }
-  if (periodicPva === undefined) return "PVA analysis is waiting to start";
+  if (periodicPva === undefined) return ja ? "圧容積関係の推定を待っています。" : "Waiting for the pressure–volume estimate.";
   if (periodicPva.status === "available") {
     return periodicPva.edpvr.parameterBoundaryHit
-      ? "EDPVR zero-pressure intercept reached its search boundary; PE/PVA extrapolation is limited"
+      ? ja
+        ? "拡張期圧容積関係の外挿範囲に制約があり、PE・PVAと酸素消費量の推定に影響します。"
+        : "The diastolic pressure–volume relation has a limited extrapolation range, affecting estimates of PE, PVA and oxygen consumption."
       : undefined;
   }
   if (periodicPva.status === "collecting") {
-    if (periodicPva.preview?.stage === "pva") {
-      return `Provisional PVA from ${periodicPva.preview.pointCount} settled points; refining to at least ${periodicPva.progress.totalPointCount}`;
-    }
-    if (periodicPva.preview?.stage === "relations") {
-      return `Provisional ESPVR / EDPVR from ${periodicPva.preview.pointCount} settled points`;
-    }
-    return `PVA analysis ${periodicPva.progress.completedPointCount} settled points; minimum ${periodicPva.progress.totalPointCount}`;
+    return ja ? "圧容積関係を推定中です。値は計算の進行に伴い更新されます。"
+      : "The pressure–volume estimate is in progress. Values update as the calculation proceeds.";
   }
-  return `PVA analysis unavailable: ${periodicPva.reason}`;
+  return ja ? "現在の条件では圧容積関係から推定値を求められません。"
+    : "The pressure–volume estimate is unavailable under the current conditions.";
 }
