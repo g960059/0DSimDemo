@@ -1,3 +1,4 @@
+import { articleReaderPlacementAfterViewportExitV3 } from "@/components/article/reader/ArticleReaderPlacementV3";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -11,7 +12,6 @@ import {
   ArticleReaderStructuralReturnGraphV3,
   articleReaderPeriodicPvaEnabledV3,
   resolveArticleReaderStaticGraphSeriesLabelV3,
-  articleReaderPlacementAfterViewportExitV3,
   articleReaderBoundedHistoryV3,
   commonGraphUnitV3,
   resolveArticleReaderGraphPresentationV3,

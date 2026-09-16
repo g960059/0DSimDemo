@@ -26,6 +26,15 @@
         ]
       },
       {
+        "source": "/model-documents/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=0, s-maxage=300, must-revalidate"
+          }
+        ]
+      },
+      {
         "source": "!/@(assets)/**",
         "headers": [
           {
@@ -134,6 +143,30 @@
       }
     ],
     "rewrites": [
+      {
+        "source": "/model-documents/**",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
+      {
+        "source": "/@(ja|en)/models",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
+      {
+        "source": "/@(ja|en)/models/**",
+        "run": {
+          "serviceId": "circleheart-public-content",
+          "region": "asia-northeast1",
+          "pinTag": true
+        }
+      },
       {
         "source": "/@(ja|en)/courses/new",
         "destination": "/index.html"

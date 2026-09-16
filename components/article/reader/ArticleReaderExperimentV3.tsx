@@ -127,14 +127,6 @@ export type ArticleReaderExpandedPresentationV3 = Exclude<
   "inflow"
 >;
 
-export function articleReaderPlacementAfterViewportExitV3(
-  activePlacementId: string | null,
-  exitedPlacementId: string,
-  remainingVisiblePlacementIds: readonly string[] = [],
-): string | null {
-  return activePlacementId === exitedPlacementId ? remainingVisiblePlacementIds.at(-1) ?? null : activePlacementId;
-}
-
 /**
  * Borderless article anchor. The live owner is mounted only for the single
  * Placement selected by the Reader page; within that Placement every visible

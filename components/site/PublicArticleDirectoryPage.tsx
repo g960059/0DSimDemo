@@ -1,8 +1,9 @@
+import { PublicArticleLinkV1 } from "@/components/article/PublicArticleLinkV1";
 import { PublicAuthorV1 } from "./PublicAuthorV1";
 import React from "react";
 import { BookOpenText } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 import { articleReaderHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
@@ -81,7 +82,7 @@ export function PublicArticleDirectoryPage() {
           <ul className="mt-10 grid gap-3 sm:grid-cols-2 sm:gap-4">
             {articles.map((article) => (
               <li key={article.articleId}>
-                <Link
+                <PublicArticleLinkV1
                   to={articleReaderHref({ articleId: article.publicSlug, locale })}
                   className="group flex h-full min-w-0 flex-col rounded-2xl border border-wb-line bg-wb-panel p-5 transition-[border-color,box-shadow] duration-150 hover:border-wb-line-strong hover:bg-wb-hover/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                 >
@@ -92,7 +93,7 @@ export function PublicArticleDirectoryPage() {
                     {article.excerpt ?? t("publicArticles.articleFallback")}
                   </span>
                   <span className="mt-3"><PublicAuthorV1 author={article.author} locale={locale} /></span>
-                </Link>
+                </PublicArticleLinkV1>
               </li>
             ))}
           </ul>

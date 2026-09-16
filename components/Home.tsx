@@ -1,3 +1,4 @@
+import { PublicArticleLinkV1 } from "@/components/article/PublicArticleLinkV1";
 import { PublicAuthorV1 } from "@/components/site/PublicAuthorV1";
 import { PublicSectionHeadingV1 as HomeSectionHeadingV4, PUBLIC_CARD_CLASS_V1 as HOME_CARD_CLASS_V4 } from "@/components/site/PublicDiscoveryV1";
 import { FeaturedCoursesV1 } from "@/components/course/CoursePagesV1";
@@ -249,7 +250,7 @@ function HomeArticleCardV4({
   const { t } = useTranslation();
   const publishedDate = homePublishedDateV4(article.publishedAt, locale);
   return (
-    <Link
+    <PublicArticleLinkV1
       to={articleReaderHref({ articleId: article.publicSlug, locale })}
       className={HOME_CARD_CLASS_V4}
     >
@@ -270,7 +271,7 @@ function HomeArticleCardV4({
         </time>
       )}
       </span>
-    </Link>
+    </PublicArticleLinkV1>
   );
 }
 

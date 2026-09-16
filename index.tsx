@@ -1,3 +1,5 @@
+import { ModelDocumentationLoadingV1 } from "./components/model/ModelDocumentationLoadingV1";
+import { ArticleLoadingSkeletonV1 } from "./components/article/ArticleLoadingSkeletonV1";
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Navigate, Routes, Route, useLocation, useParams } from 'react-router-dom';
@@ -182,7 +184,7 @@ const appRoutes = () => (
     <Route
       path="articles/:articleId/preview"
       element={(
-        <React.Suspense fallback={<ProductPageLoading label="Loading Article preview…" />}>
+        <React.Suspense fallback={<ArticleLoadingSkeletonV1 />}>
           <ArticleReaderPage />
         </React.Suspense>
       )}
@@ -190,7 +192,7 @@ const appRoutes = () => (
     <Route
       path="articles/:articleId"
       element={(
-        <React.Suspense fallback={<ProductPageLoading label="Loading Article…" />}>
+        <React.Suspense fallback={<ArticleLoadingSkeletonV1 />}>
           <ArticleReaderPage />
         </React.Suspense>
       )}
@@ -222,7 +224,7 @@ const appRoutes = () => (
     <Route
       path="models"
       element={(
-        <React.Suspense fallback={<ProductPageLoading label="Loading model documentation…" />}>
+        <React.Suspense fallback={<ModelDocumentationLoadingV1 />}>
           <ModelDocumentationPage />
         </React.Suspense>
       )}
@@ -230,7 +232,7 @@ const appRoutes = () => (
     <Route
       path="models/:modelId"
       element={(
-        <React.Suspense fallback={<ProductPageLoading label="Loading model documentation…" />}>
+        <React.Suspense fallback={<ModelDocumentationLoadingV1 />}>
           <ModelDocumentationPage />
         </React.Suspense>
       )}

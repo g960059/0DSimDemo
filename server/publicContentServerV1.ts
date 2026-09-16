@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 import {
   createStudioPublicContentDataSourceV1,
@@ -12,10 +12,13 @@ import {
 
 async function mainV1(): Promise<void> {
   const configuration = readStudioPublicContentServerConfigurationV1();
-  const clientTemplate = await readFile(
-    resolve(process.cwd(), process.env.CIRCLEHEART_CLIENT_TEMPLATE ?? "dist/index.html"),
-    "utf8",
-  );
+  const templatePath = resolve(process.cwd(), process.env.CIRCLEHEART_CLIENT_TEMPLATE ?? "dist/index.html");
+  const clientTemplate = await readFile(templatePath, "utf8");
+  const readModelDocumentAsset = async (path: string): Promise<string | null> => {
+    // ModelDocumentContentV1 only passes catalog-derived generated asset paths.
+    try { return await readFile(resolve(dirname(templatePath), `.${path}`), "utf8"); }
+    catch (error) { if (["ENOENT", "ENAMETOOLONG"].includes((error as NodeJS.ErrnoException).code ?? "")) return null; throw error; }
+  };
   const dataSource = createStudioPublicContentDataSourceV1(configuration);
   const port = parsePortV1(process.env.PORT);
 
@@ -32,6 +35,7 @@ async function mainV1(): Promise<void> {
       canonicalOrigin: configuration.canonicalOrigin,
       clientTemplate,
       dataSource,
+      readModelDocumentAsset,
     });
     outgoing.statusCode = response.status;
     response.headers.forEach((value, key) => outgoing.setHeader(key, value));
