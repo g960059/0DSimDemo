@@ -2857,6 +2857,7 @@ body[data-app-theme="light"] .public-static-theme-moon {
   .course-discovery-card .course-cover { width: 3.5rem; height: 4.5rem; }
   .course-discovery-card .course-cover > svg { width: 1.6rem; height: 1.6rem; }
 }
+.course-start { display: inline-flex; min-height: 2.75rem; align-items: center; justify-content: center; gap: .5rem; padding: 0 1.5rem; border: 1px solid var(--wb-line); border-radius: 999px; font-size: .875rem; font-weight: 600; color: var(--wb-text); background: var(--wb-panel); }
 .course-discovery-grid { display: grid; gap: 1rem; margin-top: 1.25rem; padding: 0; list-style: none; }
 .course-discovery-copy { flex: 1; min-width: 0; }
 .course-discovery-copy > small { font-size: .75rem; color: var(--wb-muted); }
