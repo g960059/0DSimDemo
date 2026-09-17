@@ -434,12 +434,6 @@ body[data-app-theme="dark"] .home-mini-demo {
   font-weight: 600;
   line-height: 1.25;
 }
-.home-slider-label small {
-  display: block;
-  color: var(--wb-text-subtle);
-  font-size: 10.5px;
-  font-weight: 400;
-}
 .home-demo-slider output {
   color: var(--wb-text);
   font-size: 13px;

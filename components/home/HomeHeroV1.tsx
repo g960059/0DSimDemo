@@ -36,8 +36,6 @@ const controls = [
     digits: 1,
     ja: "前負荷",
     en: "Preload",
-    detailJa: "充満圧",
-    detailEn: "Filling pressure",
     unit: "mmHg",
   },
   {
@@ -48,8 +46,6 @@ const controls = [
     digits: 2,
     ja: "後負荷",
     en: "Afterload",
-    detailJa: "体血管抵抗",
-    detailEn: "Resistance",
     unit: "mmHg·s/mL",
   },
   {
@@ -60,8 +56,6 @@ const controls = [
     digits: 1,
     ja: "収縮性",
     en: "Contractility",
-    detailJa: "Ees",
-    detailEn: "Ees",
     unit: "mmHg/mL",
   },
 ] as const;
@@ -274,10 +268,7 @@ export function HomeHeroV1({
       <div className="home-demo-controls">
         {controls.map((c) => (
           <label key={c.key} className="home-demo-slider">
-            <span className="home-slider-label">
-              {c[locale]}
-              <small>{ja ? c.detailJa : c.detailEn}</small>
-            </span>
+            <span className="home-slider-label">{c[locale]}</span>
             <input
               type="range"
               min={c.min}
