@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="CircleHeart">
+  <title>CircleHeart</title>
+  <rect width="128" height="128" rx="30" fill="#172033" />
+  <g transform="translate(64 64) scale(0.8) translate(-52 -50)">
+    <path d="M83.45 20.67A43 43 0 1 0 83.45 79.33" fill="none" stroke="#EEF2F7" stroke-width="18" stroke-linecap="butt" />
+  </g>
+</svg>
