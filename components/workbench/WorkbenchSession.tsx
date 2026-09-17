@@ -28,6 +28,7 @@ import {
 import { useAppTheme } from "@/appTheme";
 import { useUnsavedChangesGuardV3 } from "@/components/useUnsavedChangesGuardV3";
 import { useSiteAccountSessionV3 } from "@/components/site/SiteAccountSessionV3";
+import { CircleHeartLogoV1 } from "@/components/site/CircleHeartLogoV1";
 
 import {
   WorkbenchDockview,
@@ -3173,14 +3174,15 @@ export const WorkbenchSession = ({
                 ? "devDashboard.returnFromModelLab"
                 : articleAuthoringContext === null &&
                     experimentSessionContext === null
-                  ? "workbench.editor.home"
+                  ? "siteHeader.home"
                   : "workbench.editor.returnToArticle",
             )}
           >
-            {modelLab ||
-            (articleAuthoringContext === null &&
-              experimentSessionContext === null) ? (
+            {modelLab ? (
               <Home className="h-4 w-4" aria-hidden="true" />
+            ) : articleAuthoringContext === null &&
+              experimentSessionContext === null ? (
+              <CircleHeartLogoV1 compact />
             ) : (
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             )}

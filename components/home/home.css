@@ -74,21 +74,6 @@
   padding-inline: max(32px, calc((100vw - 1152px) / 2));
   gap: 10px;
 }
-.home-site-header .home-brand {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  flex-shrink: 0;
-  font-size: 16px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-}
-.home-brand svg {
-  width: 26px;
-  height: 26px;
-  color: var(--wb-primary);
-  flex-shrink: 0;
-}
 .home-header-search {
   display: flex;
   align-items: center;
@@ -1505,10 +1490,7 @@ body[data-app-theme="dark"] .home-cover {
     padding-inline: 12px;
     gap: 4px;
   }
-  .home-site-header .home-brand {
-    font-size: 15px;
-    gap: 6px;
-  }
+  .home-header-search { margin-right: 0; }
   .home-site-header [data-testid="site-start-simulation-v3"],
   .home-site-header .public-static-primary-icon {
     display: none;

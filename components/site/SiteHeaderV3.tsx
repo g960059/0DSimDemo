@@ -31,6 +31,7 @@ import {
   switchLocalePath,
 } from "@/localeRouting";
 import { useHomeSearchV1 } from "../home/HomeSearchV1";
+import { CircleHeartLogoV1 } from "./CircleHeartLogoV1";
 import { useSiteAccountSessionV3 } from "./SiteAccountSessionV3";
 
 const LANGUAGE_ITEMS_V3: readonly Readonly<{
@@ -58,7 +59,7 @@ export function SiteHeaderV3() {
 
   return (
     <header
-      className={`${isHome ? "home-site-header " : ""}z-50 flex h-14 shrink-0 items-center gap-3 bg-wb-header/95 px-3 shadow-[inset_0_-1px_0_color-mix(in_srgb,var(--wb-border)_72%,transparent)] backdrop-blur-xl sm:px-5`}
+      className={`${isHome ? "home-site-header " : ""}site-header z-50 flex h-14 shrink-0 items-center gap-1 bg-wb-header/95 px-3 shadow-[inset_0_-1px_0_color-mix(in_srgb,var(--wb-border)_72%,transparent)] backdrop-blur-xl sm:gap-3 sm:px-5`}
       data-testid="site-header-v3"
     >
       <Link
@@ -67,23 +68,10 @@ export function SiteHeaderV3() {
           if (isHome)
             document.querySelector(".home-page")?.scrollTo({ top: 0 });
         }}
-        className={`${isHome ? "home-brand " : ""}min-w-0 shrink truncate rounded-md text-[15px] font-semibold tracking-[-0.02em] text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent`}
+        className="site-brand-link rounded-md"
         aria-label={t("siteHeader.home")}
       >
-        {isHome && (
-          <svg viewBox="0 0 28 28" aria-hidden="true">
-            <rect width="28" height="28" rx="8" fill="currentColor" />
-            <path
-              d="M8 19V12c0-4 12-5 12 0v7H8Z"
-              fill="none"
-              stroke="white"
-              strokeWidth="1.6"
-              strokeLinejoin="round"
-            />
-            <circle cx="20" cy="13" r="2" fill="white" />
-          </svg>
-        )}
-        {t("common.appName")}
+        <CircleHeartLogoV1 />
       </Link>
 
       <span className="min-w-0 flex-1" />
@@ -214,14 +202,16 @@ function SiteCreateMenuV3({ locale }: Readonly<{ locale: Locale }>) {
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={t("siteHeader.create")}
+        title={t("siteHeader.create")}
         data-testid="site-create-trigger-v3"
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-wb-primary px-3 text-xs font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+        className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-lg bg-wb-primary text-xs font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent min-[400px]:w-auto min-[400px]:px-3"
       >
         <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-        {t("siteHeader.create")}
+        <span className="hidden min-[400px]:inline">{t("siteHeader.create")}</span>
         <ChevronDown
-          className={`h-3.5 w-3.5 transition-transform duration-150 motion-reduce:transition-none ${
+          className={`hidden h-3.5 w-3.5 transition-transform duration-150 motion-reduce:transition-none min-[400px]:block ${
             open ? "rotate-180" : ""
           }`}
           aria-hidden="true"
