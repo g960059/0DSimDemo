@@ -5,7 +5,11 @@ const subjects = [
   ["equilibrium", /Guyton|循環平衡|equilibrium/i],
   ["starling", /Starling|スターリング/i],
   ["respiration", /呼吸|PEEP|respira/i],
-  ["filling", /EDPVR|硬さ|弛緩|充満圧|relaxation|stiffness/i],
+  [
+    "filling",
+    /EDPVR|充満圧|心室.{0,5}硬さ|受動.{0,5}硬さ|ventricular stiffness/i,
+  ],
+  ["relaxation", /弛緩|relaxation|\btau\b/i],
   ["afterload", /後負荷|抵抗|afterload|resistance|\bEa\b/i],
   ["preload", /血液量|前負荷|preload|blood volume/i],
   ["contractility", /ESPVR|Ees|収縮|能動張力|contractil/i],
@@ -17,6 +21,24 @@ export function homeCoverSubjectV1(
 ) {
   if (item.kind === "course") return "course";
   for (const text of [item.title, item.description]) {
+    // A pressure/time question must not become a ventricular-stiffness diagram
+    // just because it mentions arterial stiffness or changing resistance.
+    if (
+      /圧波形|waveform|pressure wave/i.test(text) &&
+      /動脈.{0,5}硬さ|compliance|arterial stiffness/i.test(text)
+    )
+      return "waveform";
+    if (
+      /受動.{0,5}硬さ|ventricular stiffness/i.test(text) &&
+      /充満圧|filling pressure/i.test(text)
+    )
+      return "filling";
+    if (/最初の拍|直後|first beats?|transient/i.test(text)) return "waveform";
+    if (
+      /後負荷|体血管抵抗|afterload|resistance|\bEa\b/i.test(text) &&
+      /二つの収縮|能動張力|coupling|two contractil/i.test(text)
+    )
+      return "coupling";
     const matches = subjects.flatMap(([subject, pattern]) => {
       const match = pattern.exec(text);
       return match ? [{ subject, index: match.index }] : [];
@@ -25,6 +47,7 @@ export function homeCoverSubjectV1(
       return matches.sort((a, b) => a.index - b.index)[0].subject;
     if (/PV|一拍|心周期|圧.?容積|cardiac.?cycle|pressure.?volume/i.test(text))
       return "cycle";
+    if (/波形|waveform|pressure trace/i.test(text)) return "waveform";
   }
   return "cycle";
 }
@@ -70,13 +93,23 @@ function Axes({ x = "V", y = "P" }: { x?: string; y?: string }) {
     </g>
   );
 }
-function Label({ children }: { children: React.ReactNode }) {
+function Label({
+  children,
+  x = 351,
+  y = 38,
+  tone,
+}: {
+  children: React.ReactNode;
+  x?: number;
+  y?: number;
+  tone?: Tone;
+}) {
   return (
     <text
-      x="351"
-      y="38"
+      x={x}
+      y={y}
       textAnchor="end"
-      fill="var(--art-label)"
+      fill={tone ? color(tone) : "var(--art-label)"}
       fontSize="13"
       fontWeight="500"
     >
@@ -115,46 +148,27 @@ function pv({ edv = 314, ees = 1.15, ea = 0.67 } = {}) {
   const end = floor - ees * (esv - v0),
     span = edv - esv;
   const filling = 180 - (edv - 244) * 0.16;
+  const espvrTop = { x: v0 + (floor - 36) / ees, y: 36 };
+  const eaTop = { x: edv - (floor - 42) / ea, y: 42 };
   return {
+    origin: { x: v0, y: floor },
+    eaOrigin: { x: edv, y: floor },
+    espvrTop,
+    eaTop,
     esv,
     end,
     loop: `M${edv} ${filling}V${end - 5}C${edv - span * 0.2} ${end - 32} ${esv + span * 0.16} ${end - 16} ${esv} ${end}V184C${esv + span * 0.35} 184 ${edv - span * 0.28} 184 ${edv} ${filling}Z`,
-    espvr: `M${v0} ${floor}L${v0 + (floor - 36) / ees} 36`,
-    ea: `M${edv} ${floor}L${edv - (floor - 42) / ea} 42`,
+    espvr: `M${v0} ${floor}L${espvrTop.x} ${espvrTop.y}`,
+    ea: `M${edv} ${floor}L${eaTop.x} ${eaTop.y}`,
   };
 }
-function PvComparison({
-  subject,
-}: {
-  subject: "contractility" | "afterload" | "preload";
-}) {
-  const base = pv(subject === "preload" ? { edv: 270 } : {});
-  const changed = pv(
-    subject === "contractility"
-      ? { ees: 1.9 }
-      : subject === "afterload"
-        ? { ea: 1.06 }
-        : {},
-  );
+function Preload() {
+  const base = pv({ edv: 270 }),
+    changed = pv();
   return (
     <>
       <Axes />
-      {subject === "contractility" ? (
-        <>
-          <Line d={base.espvr} tone="baseline" reference width={2.5} />
-          <Line d={changed.espvr} width={2.5} />
-          <Label>ESPVR</Label>
-        </>
-      ) : subject === "afterload" ? (
-        <>
-          <Line d={base.espvr} tone="axis" width={2} />
-          <Line d={base.ea} tone="baseline" reference width={2.5} />
-          <Line d={changed.ea} width={2.5} />
-          <Label>Ea</Label>
-        </>
-      ) : (
-        <Line d={base.espvr} tone="axis" width={2} />
-      )}
+      <Line d={base.espvr} tone="axis" width={2} />
       <Line d={base.loop} tone="baseline" reference width={3} />
       <Line d={changed.loop} fill />
       <Point x={base.esv} y={base.end} reference />
@@ -162,7 +176,77 @@ function PvComparison({
     </>
   );
 }
-function Cycle() {
+function Coupling({
+  subject,
+}: {
+  subject: "contractility" | "afterload" | "coupling";
+}) {
+  const base = pv(),
+    stronger = pv({ ees: 1.9 }),
+    loaded = pv({ ea: 1.06 }),
+    both = pv({ ees: 1.9, ea: 1.06 });
+  const wedge = (
+    origin: { x: number; y: number },
+    first: { x: number; y: number },
+    second: { x: number; y: number },
+  ) =>
+    `M${origin.x} ${origin.y}L${first.x} ${first.y}L${second.x} ${second.y}Z`;
+  const contractility = subject !== "afterload",
+    afterload = subject !== "contractility";
+  return (
+    <>
+      <Axes />
+      {contractility && (
+        <path
+          d={wedge(base.origin, base.espvrTop, stronger.espvrTop)}
+          fill={color("primary")}
+          opacity=".08"
+        />
+      )}
+      {afterload && (
+        <path
+          d={wedge(base.eaOrigin, base.eaTop, loaded.eaTop)}
+          fill={color(subject === "coupling" ? "secondary" : "primary")}
+          opacity=".08"
+        />
+      )}
+      <Line
+        d={base.espvr}
+        tone={contractility ? "baseline" : "secondary"}
+        reference={contractility}
+        width={contractility ? 2.5 : 3}
+      />
+      {contractility && <Line d={stronger.espvr} />}
+      <Line
+        d={base.ea}
+        tone={afterload ? "baseline" : "secondary"}
+        reference={afterload}
+        width={afterload ? 2.5 : 3}
+      />
+      {afterload && (
+        <Line
+          d={loaded.ea}
+          tone={subject === "coupling" ? "secondary" : "primary"}
+        />
+      )}
+      <Point x={base.esv} y={base.end} reference />
+      {contractility && <Point x={stronger.esv} y={stronger.end} />}
+      {afterload && <Point x={loaded.esv} y={loaded.end} />}
+      {subject === "coupling" && <Point x={both.esv} y={both.end} />}
+      <Label x={230} y={27} tone={contractility ? "primary" : "secondary"}>
+        ESPVR
+      </Label>
+      <Label
+        x={341}
+        y={181}
+        tone={subject === "afterload" ? "primary" : "secondary"}
+      >
+        Ea
+      </Label>
+    </>
+  );
+}
+function PvCycle() {
   const beat = pv();
   return (
     <>
@@ -173,6 +257,44 @@ function Cycle() {
         width={2.5}
       />
       <Point x={beat.esv} y={beat.end} />
+    </>
+  );
+}
+function Waveform() {
+  return (
+    <>
+      <Axes x="t" />
+      {[65, 197].map((x) => (
+        <g key={x} transform={`translate(${x} 0)`}>
+          <Line
+            d="M0 111C8 113 8 115 10 114C17 67 21 49 28 50C48 54 76 90 132 111"
+            tone="secondary"
+            width={3.5}
+          />
+          <Line
+            d="M0 177C4 177 10 74 18 56C28 22 41 55 47 85C54 119 58 174 65 182C79 173 95 171 132 177"
+            width={3.5}
+          />
+        </g>
+      ))}
+      <Label x={304} y={27} tone="primary">
+        LV
+      </Label>
+      <Label x={348} y={27} tone="secondary">
+        Ao
+      </Label>
+    </>
+  );
+}
+function Cycle() {
+  return (
+    <>
+      <g transform="translate(-3 25) scale(.5 .78)">
+        <PvCycle />
+      </g>
+      <g transform="translate(189 25) scale(.55 .78)">
+        <Waveform />
+      </g>
     </>
   );
 }
@@ -216,6 +338,23 @@ function Filling() {
       <Line d={curve(stiff, 66, 299)} />
       <Point x={260} y={relaxed(260)} reference />
       <Point x={260} y={stiff(260)} />
+    </>
+  );
+}
+function Relaxation() {
+  const pressure = (tau: number) => (x: number) =>
+    184 - 132 * Math.exp(-(x - 66) / tau);
+  return (
+    <>
+      <Axes x="t" />
+      <Line
+        d={curve(pressure(62), 66, 337)}
+        tone="baseline"
+        reference
+        width={3}
+      />
+      <Line d={curve(pressure(118), 66, 337)} />
+      <Label>τ</Label>
     </>
   );
 }
@@ -287,7 +426,7 @@ export function HomeCoverArtV1({ item }: { item: HomeItemV1 }) {
       {subject === "course" ? (
         <>
           <g transform="translate(0 45) scale(.48)">
-            <Cycle />
+            <PvCycle />
           </g>
           <Line
             d="M187 111H209M203 105L209 111L203 117"
@@ -300,14 +439,20 @@ export function HomeCoverArtV1({ item }: { item: HomeItemV1 }) {
         </>
       ) : subject === "contractility" ||
         subject === "afterload" ||
-        subject === "preload" ? (
-        <PvComparison subject={subject} />
+        subject === "coupling" ? (
+        <Coupling subject={subject} />
+      ) : subject === "preload" ? (
+        <Preload />
       ) : subject === "starling" ? (
         <Starling />
       ) : subject === "equilibrium" ? (
         <Guyton />
       ) : subject === "filling" ? (
         <Filling />
+      ) : subject === "relaxation" ? (
+        <Relaxation />
+      ) : subject === "waveform" ? (
+        <Waveform />
       ) : subject === "respiration" ? (
         <Respiration />
       ) : (

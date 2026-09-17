@@ -776,23 +776,97 @@ body[data-app-theme="dark"] .home-mini-demo {
   aspect-ratio: 16 / 9;
   flex: 0 0 auto;
   background: var(--art-bg);
-  --art-bg: #eef2f8;
-  --art-paper: #f9fbfe;
-  --art-primary: #537ebc;
-  --art-secondary: #b57d9a;
-  --art-baseline: #a3afc0;
-  --art-axis: #c0ccdb;
-  --art-label: #7487a2;
+  --art-bg-light: #eef0fa;
+  --art-primary-light: #697ab5;
+  --art-secondary-light: #57958e;
+  --art-bg-dark: #272d43;
+  --art-primary-dark: #abb9e6;
+  --art-secondary-dark: #92c5bb;
+  --art-bg: var(--art-bg-light);
+  --art-primary: var(--art-primary-light);
+  --art-secondary: var(--art-secondary-light);
+  --art-paper: var(--art-bg);
+  --art-baseline: color-mix(
+    in srgb,
+    var(--art-primary) 24%,
+    var(--wb-text-subtle)
+  );
+  --art-axis: color-mix(in srgb, var(--art-primary) 22%, var(--art-bg));
+  --art-label: color-mix(in srgb, var(--art-primary) 30%, var(--wb-text-muted));
+}
+/* Topic palettes change the whole cover, including the space around the SVG. */
+.home-cover[data-cover-subject="cycle"],
+.home-cover[data-cover-subject="waveform"] {
+  --art-bg-light: #edf5fb;
+  --art-primary-light: #b95c78;
+  --art-secondary-light: #467fa2;
+  --art-bg-dark: #202f40;
+  --art-primary-dark: #e493aa;
+  --art-secondary-dark: #8abce0;
+}
+.home-cover[data-cover-subject="contractility"],
+.home-cover[data-cover-subject="coupling"] {
+  --art-bg-light: #f1edfa;
+  --art-primary-light: #8a61ae;
+  --art-secondary-light: #bd8b60;
+  --art-bg-dark: #30293f;
+  --art-primary-dark: #c4a4e6;
+  --art-secondary-dark: #d2aa84;
+}
+.home-cover[data-cover-subject="afterload"] {
+  --art-bg-light: #faf1e7;
+  --art-primary-light: #b8793d;
+  --art-secondary-light: #6c8999;
+  --art-bg-dark: #352d25;
+  --art-primary-dark: #e0b077;
+  --art-secondary-dark: #a9bec5;
+}
+.home-cover[data-cover-subject="filling"],
+.home-cover[data-cover-subject="relaxation"] {
+  --art-bg-light: #f9edf0;
+  --art-primary-light: #b56078;
+  --art-secondary-light: #9278a1;
+  --art-bg-dark: #382a33;
+  --art-primary-dark: #df9fb3;
+  --art-secondary-dark: #b8a0cd;
+}
+.home-cover[data-cover-subject="starling"] {
+  --art-bg-light: #edf5ed;
+  --art-primary-light: #598b69;
+  --art-secondary-light: #91a571;
+  --art-bg-dark: #25362e;
+  --art-primary-dark: #9ec7a5;
+  --art-secondary-dark: #c5c894;
+}
+.home-cover[data-cover-subject="equilibrium"] {
+  --art-bg-light: #e9f5f3;
+  --art-primary-light: #438b8e;
+  --art-secondary-light: #b87c86;
+  --art-bg-dark: #213436;
+  --art-primary-dark: #89c4c0;
+  --art-secondary-dark: #d4a2a6;
+}
+.home-cover[data-cover-subject="preload"] {
+  --art-bg-light: #edf3f5;
+  --art-primary-light: #577f99;
+  --art-secondary-light: #659988;
+  --art-bg-dark: #26323a;
+  --art-primary-dark: #a2c1d4;
+  --art-secondary-dark: #9ec5b8;
+}
+.home-cover[data-cover-subject="respiration"] {
+  --art-bg-light: #edf2fa;
+  --art-primary-light: #6383b8;
+  --art-secondary-light: #7f8cba;
+  --art-bg-dark: #252f41;
+  --art-primary-dark: #9eb8e2;
+  --art-secondary-dark: #b5b8dd;
 }
 [data-app-theme="dark"] .home-cover,
 body[data-app-theme="dark"] .home-cover {
-  --art-bg: #223140;
-  --art-paper: #2b3d50;
-  --art-primary: #91b4e1;
-  --art-secondary: #d3a0bc;
-  --art-baseline: #72879f;
-  --art-axis: #435b72;
-  --art-label: #9ab0c8;
+  --art-bg: var(--art-bg-dark);
+  --art-primary: var(--art-primary-dark);
+  --art-secondary: var(--art-secondary-dark);
 }
 .home-cover-art {
   position: absolute;

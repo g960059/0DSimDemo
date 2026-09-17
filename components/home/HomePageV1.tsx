@@ -20,7 +20,7 @@ import {
   type HomeFilterV1,
 } from "./HomeDiscoveryV1";
 import { HomeHeroV1 } from "./HomeHeroV1";
-import { HomeCoverArtV1 } from "./HomeCoverArtV1";
+import { HomeCoverArtV1, homeCoverSubjectV1 } from "./HomeCoverArtV1";
 export type HomePagePropsV1 = Readonly<{
   locale: "ja" | "en";
   data: StudioPublicHomeBootstrapV1 | null;
@@ -385,6 +385,7 @@ function HomeCardV1({
     <article className={"home-card" + (wide ? " home-card-wide" : "")}>
       <a
         className={"home-cover home-cover-" + item.kind}
+        data-cover-subject={homeCoverSubjectV1(item)}
         href={item.href}
         aria-label={item.title}
         tabIndex={-1}
