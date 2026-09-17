@@ -10,16 +10,18 @@ import {
   HOME_FILTER_V1,
   readHomeBookmarksV1,
   writeHomeBookmarksV1,
-  readHomeIntroCollapsedV1,
-  HOME_INTRO_COLLAPSED_KEY_V1,
 } from "@/components/home/HomeDiscoveryV1";
 import {
   validateStudioPublicHomeBootstrapV1,
   type StudioPublicHomeBootstrapV1,
 } from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
 import { courseFixtureV1 } from "./fixtures/courseFixtureV1";
-import { generateHeroDemoV1 } from "@/tools/home/generateHeroDemoV1";
-import beats from "@/components/home/HomeHeroBeatsV1.json";
+import {
+  HOME_DEMO_BASE_V1,
+  HOME_DEMO_PRESETS_V1,
+  simulateHomeDemoV1,
+} from "@/components/home/HomeDemoModelV1";
+import { homeCoverSubjectV1 } from "@/components/home/HomeCoverArtV1";
 import "@/i18n";
 const author = {
   userId: courseFixtureV1.ownerId,
@@ -135,7 +137,7 @@ describe("Home discovery", () => {
     expect(html).toContain("?course=");
     expect(html).not.toContain("対象ユーザー");
   });
-  it("validates course promotion references and HTTPS cover projection", () => {
+  it("validates course promotion references", () => {
     expect(
       validateStudioPublicHomeBootstrapV1(bootstrap).featuredCourseIds,
     ).toEqual([course.courseId]);
@@ -145,25 +147,6 @@ describe("Home discovery", () => {
         featuredCourseIds: ["missing"],
       }),
     ).toThrow();
-    expect(() =>
-      validateStudioPublicHomeBootstrapV1({
-        ...bootstrap,
-        articles: [
-          { ...bootstrap.articles[0], thumbnailUrl: "javascript:alert(1)" },
-        ],
-      }),
-    ).toThrow();
-    expect(
-      validateStudioPublicHomeBootstrapV1({
-        ...bootstrap,
-        articles: [
-          {
-            ...bootstrap.articles[0],
-            thumbnailUrl: "https://example.org/figure.png",
-          },
-        ],
-      }).articles[0].thumbnailUrl,
-    ).toBe("https://example.org/figure.png");
   });
   it("isolates account saves and handles malformed or denied browser storage", () => {
     const store = new Map<string, string>(),
@@ -188,52 +171,60 @@ describe("Home discovery", () => {
       }),
     ).toBe(false);
   });
-  it("ships exactly reproducible, finite cached illustration beats without an online solver", () => {
-    expect(generateHeroDemoV1()).toEqual(beats);
-    for (const beat of beats) {
-      expect(beat.points).toHaveLength(100);
-      expect(beat.points.flat().every(Number.isFinite)).toBe(true);
-      expect(beat.points.every((p) => p[1] > 0 && p[2] >= 0)).toBe(true);
-    }
-    expect(beats[1].strokeVolume).toBeLessThan(beats[0].strokeVolume);
-    expect(beats[2].strokeVolume).toBeLessThan(beats[0].strokeVolume);
-    expect(beats[3].strokeVolume).toBeGreaterThan(beats[0].strokeVolume);
-  });
-  it("does not infer experience from a page visit, and respects an explicit introduction preference", () => {
-    const storage = {
-      getItem: (key: string) =>
-        key === "circleheart.home.last-visit.v1" ? String(Date.now()) : null,
-    };
-    expect(readHomeIntroCollapsedV1(storage)).toBe(false);
+  it("reproduces the reference Fable demo and recalculates continuous control changes", () => {
+    const base = simulateHomeDemoV1(HOME_DEMO_BASE_V1);
     expect(
-      readHomeIntroCollapsedV1({
-        getItem: (key) => (key === HOME_INTRO_COLLAPSED_KEY_V1 ? "1" : null),
-      }),
-    ).toBe(true);
-    expect(
-      readHomeIntroCollapsedV1({
-        getItem: () => {
-          throw Error("denied");
-        },
-      }),
-    ).toBe(false);
-    const html = renderToStaticMarkup(
-      <HomePageV1
-        locale="ja"
-        data={bootstrap}
-        returning
-        resume={{
-          title: course.entries[0].title!,
-          href: "/ja/articles/read-a-beat?course=test",
-          courseId: course.courseId,
-          articleId: course.entries[0].articleId,
-          chapter: 1,
-        }}
-      />,
+      [
+        base.metrics.SV,
+        base.metrics.EF,
+        base.metrics.sys,
+        base.metrics.dia,
+      ].map(Math.round),
+    ).toEqual([68, 54, 108, 72]);
+    expect(base.metrics.CO.toFixed(1)).toBe("5.1");
+    expect(base.metrics.CO).toBeCloseTo(base.metrics.SV * 0.075, 10);
+    const presets = HOME_DEMO_PRESETS_V1.map((p) =>
+      simulateHomeDemoV1(p.params),
     );
-    expect(html).toContain('<h1 class="sr-only">');
-    expect(html).toContain('href="/ja/articles/read-a-beat?course=test"');
-    expect(html).not.toContain("home-mini-demo");
+    expect(presets[1].metrics.SV).toBeLessThan(base.metrics.SV);
+    expect(presets[2].metrics.SV).toBeLessThan(base.metrics.SV);
+    expect(presets[3].metrics.SV).toBeGreaterThan(base.metrics.SV);
+    expect(
+      simulateHomeDemoV1({ ...HOME_DEMO_BASE_V1, pv: 10.5 }).metrics.SV,
+    ).toBeGreaterThan(base.metrics.SV);
+    for (const pv of [4, 18])
+      for (const svr of [0.5, 2])
+        for (const ees of [0.8, 4]) {
+          const result = simulateHomeDemoV1({ pv, svr, ees });
+          expect(result.rec).toHaveLength(800);
+          expect(result.last.length).toBeGreaterThan(390);
+          expect(
+            result.rec.every((p) => Object.values(p).every(Number.isFinite)),
+          ).toBe(true);
+          expect(Object.values(result.metrics).every(Number.isFinite)).toBe(
+            true,
+          );
+          expect(result.metrics.EF).toBeGreaterThan(0);
+          expect(result.metrics.EF).toBeLessThan(100);
+        }
+    expect(() =>
+      simulateHomeDemoV1({ ...HOME_DEMO_BASE_V1, ees: NaN }),
+    ).toThrow();
+  });
+  it("keeps the same hero for signed-in and anonymous visits, with a direct workbench entry", () => {
+    for (const signedIn of [true, false]) {
+      const html = renderToStaticMarkup(
+        <HomePageV1 locale="ja" data={bootstrap} signedIn={signedIn} />,
+      );
+      expect(html).toContain('href="/ja/experiments/new"');
+      expect(html).toContain("home-mini-demo");
+      expect(html).toContain("home-intro-copy");
+      expect(html).not.toContain("続きから読む");
+      expect(html).not.toContain("home-collapse-intro");
+      expect(html).not.toContain("home-search-row");
+      expect(html).not.toContain("home-topics");
+      expect(html).not.toContain("コースから学ぶ");
+    }
   });
   it("offers sign-in in place and only shows Saved to signed-in accounts", () => {
     const anonymous = renderToStaticMarkup(
@@ -247,19 +238,7 @@ describe("Home discovery", () => {
     );
     expect(signedIn).toContain("保存済み");
   });
-  it("uses published chapter images as a course collage without inventing plot data", () => {
-    const items = homeItemsV1({
-      ...bootstrap,
-      articles: [
-        {
-          ...bootstrap.articles[0],
-          thumbnailUrl: "https://example.org/published-figure.png",
-        },
-      ],
-    });
-    expect(items.find((i) => i.kind === "course")?.chapterThumbnails).toEqual([
-      "https://example.org/published-figure.png",
-    ]);
+  it("illustrates content without numbers, duplicate titles or scenario counts", () => {
     const html = renderToStaticMarkup(
       <HomePageV1
         locale="ja"
@@ -267,7 +246,23 @@ describe("Home discovery", () => {
         filter={{ ...HOME_FILTER_V1, kind: "article" }}
       />,
     );
-    expect(html.match(/Community PV loop/g)).toHaveLength(3); // Cover link label, heading, save label; no duplicate title inside the cover.
-    expect(html).not.toContain("READ &amp; EXPLAIN");
+    expect(html.match(/Community PV loop/g)).toHaveLength(3); // Link label, heading and save label only.
+    expect(html).toContain("home-cover-art");
+    expect(html).not.toContain("home-cover-number");
+    expect(html).not.toContain("シナリオ");
+    expect(
+      homeCoverSubjectV1({
+        kind: "article",
+        title: "後負荷を変える",
+        description: "前負荷・後負荷・収縮性のシリーズ",
+      }),
+    ).toBe("afterload");
+    expect(
+      homeCoverSubjectV1({
+        kind: "article",
+        title: "心室の硬さと充満圧",
+        description: "",
+      }),
+    ).toBe("filling");
   });
 });

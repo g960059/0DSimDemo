@@ -29,7 +29,6 @@ export type StudioPublicArticleSummaryV1 = Readonly<{
   locale: string;
   title: string;
   excerpt: string | null;
-  thumbnailUrl?: string | null;
   publicSlug: string;
   publishedAt: string;
 }>;
@@ -166,7 +165,6 @@ function articleSummaryV1(
       "excerpt",
       "publicSlug",
       "publishedAt",
-      ...(entry.thumbnailUrl === undefined ? [] : ["thumbnailUrl"]),
       ...(entry.author === undefined ? [] : ["author"]),
     ],
     path,
@@ -182,14 +180,6 @@ function articleSummaryV1(
     locale,
     title: stringV1(entry.title, `${path}.title`),
     excerpt: nullableStringV1(entry.excerpt, `${path}.excerpt`),
-    ...(entry.thumbnailUrl === undefined
-      ? {}
-      : {
-          thumbnailUrl: thumbnailUrlV1(
-            entry.thumbnailUrl,
-            `${path}.thumbnailUrl`,
-          ),
-        }),
     publicSlug: stringV1(entry.publicSlug, `${path}.publicSlug`),
     publishedAt: timestampV1(entry.publishedAt, `${path}.publishedAt`),
   });
@@ -295,18 +285,4 @@ function timestampV1(value: unknown, path: string): string {
 
 function failV1(path: string, message: string): never {
   throw new Error(`Public Home bootstrap rejected ${path}: ${message}`);
-}
-
-function thumbnailUrlV1(value: unknown, path: string): string | null {
-  if (value === null) return null;
-  if (typeof value !== "string" || value.length > 2048)
-    failV1(path, "must be an HTTPS image URL");
-  try {
-    const url = new URL(value);
-    if (url.protocol === "https:" && !url.username && !url.password)
-      return value;
-  } catch {
-    /* rejected below */
-  }
-  return failV1(path, "must be an HTTPS image URL");
 }

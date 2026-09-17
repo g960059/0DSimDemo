@@ -36,7 +36,6 @@ export type PublicArticleCatalogItemV3 = Readonly<{
   locale: string;
   title: string;
   excerpt: string | null;
-  thumbnailUrl?: string | null;
   publishedAt: string;
 }>;
 

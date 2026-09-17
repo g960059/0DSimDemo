@@ -28,7 +28,6 @@
           document.documentElement.lang = routeLanguage;
         }
         try {
-          if (localStorage.getItem('circleheart.home.intro-collapsed.v1') === '1') document.documentElement.dataset.homeReturning = 'true';
           var stored = localStorage.getItem('circleheart.app.theme');
           document.body.dataset.appTheme = stored === 'light' ? 'light' : 'dark';
         } catch (error) {

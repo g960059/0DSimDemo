@@ -14,75 +14,14 @@ export type HomeItemV1 = Readonly<{
   author?: PublicAuthorV1;
   authorName?: string;
   course?: PublicCourseV1;
-  scenarioCount?: number;
   featured: boolean;
-  topics: readonly string[];
-  thumbnailUrl?: string | null;
-  chapterThumbnails?: readonly string[];
 }>;
-export const HOME_TOPICS_V1 = [
-  {
-    id: "pv",
-    ja: "PVループ",
-    en: "PV loops",
-    match: /PV|圧容積|pressure.volume/i,
-  },
-  {
-    id: "pressure",
-    ja: "圧波形",
-    en: "Pressure",
-    match: /圧波形|圧・|pressure|waveform/i,
-  },
-  {
-    id: "preload",
-    ja: "前負荷・血液量",
-    en: "Preload",
-    match: /前負荷|充満|血液量|preload|filling|blood volume/i,
-  },
-  {
-    id: "afterload",
-    ja: "後負荷・抵抗",
-    en: "Afterload",
-    match: /後負荷|抵抗|afterload|resistance/i,
-  },
-  {
-    id: "contractility",
-    ja: "収縮性",
-    en: "Contractility",
-    match: /収縮|Ees|contractil/i,
-  },
-  {
-    id: "equilibrium",
-    ja: "循環平衡",
-    en: "Equilibrium",
-    match: /循環平衡|Guyton|Starling|equilibrium/i,
-  },
-  {
-    id: "respiration",
-    ja: "呼吸・PEEP",
-    en: "Respiration",
-    match: /呼吸|PEEP|respira/i,
-  },
-] as const;
 export function homeItemsV1(
   data: StudioPublicHomeBootstrapV1,
 ): readonly HomeItemV1[] {
   const locale = data.locale;
   const featured = new Set(data.featuredCourseIds ?? []);
-  const make = (item: Omit<HomeItemV1, "topics">): HomeItemV1 => ({
-    ...item,
-    topics: HOME_TOPICS_V1.filter((t) =>
-      t.match.test(
-        item.title +
-          " " +
-          item.description +
-          (item.course?.entries
-            .filter((e) => e.available)
-            .map((e) => e.title)
-            .join(" ") ?? ""),
-      ),
-    ).map((t) => t.id),
-  });
+  const make = (item: HomeItemV1) => item;
   return [
     ...(data.courses ?? []).map((c) =>
       make({
@@ -97,19 +36,6 @@ export function homeItemsV1(
         authorName: c.authorName,
         course: c,
         featured: featured.has(c.courseId),
-        thumbnailUrl: c.coverUrl,
-        chapterThumbnails: [
-          ...new Set(
-            c.entries
-              .filter((e) => e.available)
-              .flatMap((e) => {
-                const image = data.articles.find(
-                  (a) => a.articleId === e.articleId,
-                )?.thumbnailUrl;
-                return image ? [image] : [];
-              }),
-          ),
-        ].slice(0, 4),
       }),
     ),
     ...data.articles.map((a) =>
@@ -123,7 +49,6 @@ export function homeItemsV1(
         publishedAt: a.publishedAt,
         author: a.author,
         featured: false,
-        thumbnailUrl: a.thumbnailUrl,
       }),
     ),
     ...data.experiments.map((e) =>
@@ -136,7 +61,6 @@ export function homeItemsV1(
         href: `/${locale}/snapshots/${encodeURIComponent(e.snapshotId)}`,
         publishedAt: e.publishedAt,
         author: e.author,
-        scenarioCount: e.scenarioCount,
         featured: false,
       }),
     ),
@@ -146,15 +70,11 @@ export type HomeFilterV1 = Readonly<{
   kind: HomeKindV1 | "all";
   sort: "recommended" | "new" | "saved";
   query: string;
-  topic: string;
-  since: number | null;
 }>;
 export const HOME_FILTER_V1: HomeFilterV1 = {
   kind: "all",
   sort: "recommended",
   query: "",
-  topic: "",
-  since: null,
 };
 /** A course can collect another author's article; that must never hide their card. */
 export function selectHomeItemsV1(
@@ -166,8 +86,6 @@ export function selectHomeItemsV1(
   let found = items.filter(
     (item) =>
       (filter.kind === "all" || item.kind === filter.kind) &&
-      (!filter.topic || item.topics.includes(filter.topic)) &&
-      (!filter.since || Date.parse(item.publishedAt) > filter.since) &&
       (filter.sort !== "saved" || saved.has(item.key)) &&
       (!query ||
         [
@@ -253,24 +171,6 @@ export function writeHomeBookmarksV1(
       JSON.stringify([...values].slice(0, 500)),
     );
     return true;
-  } catch {
-    return false;
-  }
-}
-
-export const HOME_INTRO_COLLAPSED_KEY_V1 =
-  "circleheart.home.intro-collapsed.v1";
-/** Visiting Home alone is not evidence that someone has learned how to use it. */
-export function readHomeIntroCollapsedV1(
-  storage?: Pick<Storage, "getItem">,
-): boolean {
-  try {
-    return (
-      (
-        storage ??
-        (typeof localStorage === "undefined" ? undefined : localStorage)
-      )?.getItem(HOME_INTRO_COLLAPSED_KEY_V1) === "1"
-    );
   } catch {
     return false;
   }

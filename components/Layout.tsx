@@ -3,9 +3,9 @@ import { Outlet, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { useAppTheme } from "@/appTheme";
+import { HomeSearchProviderV1 } from "@/components/home/HomeSearchV1";
 import { SiteHeaderV3 } from "@/components/site/SiteHeaderV3";
-import { WorkbenchPerformanceReportV3 } from
-  "@/components/workbench/runtime/WorkbenchPerformanceReportV3";
+import { WorkbenchPerformanceReportV3 } from "@/components/workbench/runtime/WorkbenchPerformanceReportV3";
 import {
   localeFromPathname,
   setPreferredLocale,
@@ -42,10 +42,12 @@ export const Layout = () => {
       className="app-root flex h-screen w-full flex-col overflow-hidden bg-wb-app font-sans text-wb-text"
       data-app-theme={appTheme}
     >
-      {!pageOwnsChrome && <SiteHeaderV3 />}
-      <div className="relative min-h-0 flex-1 overflow-hidden">
-        <Outlet />
-      </div>
+      <HomeSearchProviderV1>
+        {!pageOwnsChrome && <SiteHeaderV3 />}
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          <Outlet />
+        </div>
+      </HomeSearchProviderV1>
       <WorkbenchPerformanceReportV3 />
     </div>
   );

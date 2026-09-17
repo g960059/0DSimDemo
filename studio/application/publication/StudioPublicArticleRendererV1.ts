@@ -513,11 +513,14 @@ function publicStaticSiteHeaderHtmlV1(
   const homeLabel = siteHeaderCopy.home;
   const simulationLabel = siteHeaderCopy.startSimulation;
   const loginLabel = siteHeaderCopy.login;
+  const isHome = /^\/(ja|en)\/?$/.test(canonical.pathname);
+  const brandMark = '<svg viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="8" fill="currentColor"/><path d="M8 19V12c0-4 12-5 12 0v7H8Z" fill="none" stroke="white" stroke-width="1.6" stroke-linejoin="round"/><circle cx="20" cy="13" r="2" fill="white"/></svg>';
   return [
-    `<header class="public-static-site-header">`,
-    `<a class="public-static-brand" href="/${locale}" aria-label="${homeLabel}">${SITE_NAME_V1}</a>`,
-    ...(/^\/(ja|en)\/?$/.test(canonical.pathname) ? [`<nav class="home-site-links" aria-label="${locale === 'ja' ? '主要ナビゲーション' : 'Main navigation'}"><a href="/${locale}/courses">${locale === 'ja' ? 'コース' : 'Courses'}</a><a href="/${locale}/articles">${locale === 'ja' ? '記事' : 'Articles'}</a><a href="/${locale}/experiments">${locale === 'ja' ? 'シミュレーション' : 'Simulations'}</a><a href="/${locale}/models">${locale === 'ja' ? '数理モデル' : 'Models'}</a></nav>`] : []),
+    `<header class="public-static-site-header${isHome ? ' home-site-header' : ''}">`,
+    `<a class="public-static-brand${isHome ? ' home-brand' : ''}" href="/${locale}" aria-label="${homeLabel}">${isHome ? brandMark : ''}${SITE_NAME_V1}</a>`,
+    ...(isHome ? [`<nav class="home-site-links" aria-label="${locale === 'ja' ? '主要ナビゲーション' : 'Main navigation'}"><a href="#home-discovery">${locale === 'ja' ? '見つける' : 'Discover'}</a></nav>`] : []),
     `<span class="public-static-site-header-spacer"></span>`,
+    ...(isHome ? [`<button class="home-header-search" type="button" disabled aria-label="${locale === 'ja' ? 'コンテンツを検索' : 'Search content'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7.5"/><path d="m16 16 5 5"/></svg><span>${locale === 'ja' ? '検索' : 'Search'}</span><kbd>⌘K</kbd></button>`] : []),
     `<nav class="public-static-language" aria-label="${siteHeaderCopy.language}">`,
     `<a${locale === "ja" ? " aria-current=\"true\"" : ""} href="${locale === "ja" ? canonical.pathname : alternatePath}">JA</a>`,
     `<a${locale === "en" ? " aria-current=\"true\"" : ""} href="${locale === "en" ? canonical.pathname : alternatePath}">EN</a>`,
