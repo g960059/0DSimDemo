@@ -91,12 +91,14 @@ test("@desktop selector stays ID-less until the first explicit Save", async ({
     `/ja/experiments/${EXPERIMENT_RESOURCE_ID}$`,
   ));
 
-  await page.goto("/ja/me/experiments");
+  // The first Save replaces /new but must preserve the management entry.
+  await page.getByTestId("workbench-back-v1").click();
+  await expect(page).toHaveURL(/\/ja\/me\/experiments$/);
   const experimentRow = page.getByRole("listitem").filter({
     hasText: "Acute afterload comparison",
   });
   await expect(experimentRow).toContainText("未公開");
-  await expect(experimentRow.getByRole("link", { name: "開く" })).toBeVisible();
+  await expect(experimentRow.getByRole("link", { name: "編集", exact: true })).toBeVisible();
   await expect(experimentRow.getByRole("button", {
     name: "シミュレーションを削除",
   })).toBeVisible();

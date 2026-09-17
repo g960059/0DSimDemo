@@ -20,6 +20,8 @@ export type BrowserExperimentRecord = Readonly<{
   updatedAt: string;
   /** The immutable Snapshot currently exposed as this Experiment's release. */
   publishedSnapshotId: string | null;
+  publishedVersion?: number | null;
+  publishedAt?: string | null;
 }>;
 
 type BrowserExperimentIndexEnvelope = Readonly<{
@@ -73,6 +75,8 @@ export class BrowserExperimentIndex {
       createdAt: input.nowIso,
       updatedAt: input.nowIso,
       publishedSnapshotId: null,
+      publishedVersion: null,
+      publishedAt: null,
     });
     const current = this.#read();
     this.#write({
@@ -104,6 +108,7 @@ export class BrowserExperimentIndex {
   publish(input: Readonly<{
     experimentId: string;
     snapshotId: string;
+    version: number;
     nowIso: string;
   }>): BrowserExperimentRecord {
     return this.#replace(input.experimentId, (current) => ({
@@ -112,7 +117,19 @@ export class BrowserExperimentIndex {
         input.snapshotId,
         "publishedSnapshotId",
       ),
+      publishedVersion: input.version,
+      publishedAt: input.nowIso,
       updatedAt: input.nowIso,
+    }));
+  }
+
+  unpublish(experimentId: string, nowIso: string): BrowserExperimentRecord {
+    return this.#replace(experimentId, current => ({
+      ...current,
+      publishedSnapshotId: null,
+      publishedVersion: null,
+      publishedAt: null,
+      updatedAt: nowIso,
     }));
   }
 
@@ -223,7 +240,7 @@ export function validateBrowserExperimentRecord(
     "title",
     "updatedAt",
   ];
-  const keys = Object.keys(record).sort();
+  const keys = Object.keys(record).filter(key => key !== "publishedVersion" && key !== "publishedAt").sort();
   if (
     keys.length !== expected.length
     || keys.some((key, index) => key !== expected[index])
@@ -244,6 +261,11 @@ export function validateBrowserExperimentRecord(
   const publishedSnapshotId = record.publishedSnapshotId === null
     ? null
     : requiredPortableIdV3(record.publishedSnapshotId, "publishedSnapshotId");
+  const publishedVersion = record.publishedVersion ?? null;
+  if (publishedVersion !== null && (!Number.isSafeInteger(publishedVersion) || (publishedVersion as number) < 0)) {
+    throw new Error("Browser Experiment publishedVersion must be a nonnegative integer");
+  }
+  const publishedAt = record.publishedAt == null ? null : requiredIsoTimestampV3(record.publishedAt, "publishedAt");
   return Object.freeze({
     schemaId: BROWSER_EXPERIMENT_RECORD_SCHEMA_ID,
     experimentId,
@@ -251,6 +273,8 @@ export function validateBrowserExperimentRecord(
     createdAt,
     updatedAt,
     publishedSnapshotId,
+    publishedVersion: publishedVersion as number | null,
+    publishedAt,
   });
 }
 

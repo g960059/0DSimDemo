@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(28);
+select plan(31);
 
 insert into auth.users (
   id,
@@ -331,6 +331,16 @@ select public.publish_experiment_v1(
 select is(public.read_public_snapshot_title_v1(((select value->>'snapshotId' from rpc_state where key='snapshot'))::uuid),'Integration baseline'::text,'Public Snapshot resolves its Experiment title');
 
 select is(
+  public.read_my_experiment_v1(((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid) ->> 'publishedVersion',
+  '0'::text,
+  'Workbench publication remembers the saved version without changing Snapshot identity'
+);
+select ok(
+  public.read_my_experiment_v1(((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid) ->> 'publishedAt' is not null,
+  'Workbench can display the current publication time'
+);
+
+select is(
   public.read_public_experiment_v1('integration-public-experiment')
     #>> '{snapshot,snapshotId}',
   (select value ->> 'snapshotId' from rpc_state where key = 'snapshot'),
@@ -480,6 +490,12 @@ select is(
   'Unpublished Experiment is no longer publicly readable'
 );
 select is(public.read_public_snapshot_title_v1(((select value->>'snapshotId' from rpc_state where key='snapshot'))::uuid),null::text,'Unpublishing hides the source title even during Snapshot retention');
+
+select is(
+  public.read_my_experiment_v1(((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid) ->> 'publishedVersion',
+  null::text,
+  'Unpublishing clears the publication comparison metadata'
+);
 
 select ok(
   (

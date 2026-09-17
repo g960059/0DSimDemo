@@ -6,7 +6,7 @@
   container-type: inline-size;
   display: flex;
   flex-direction: column;
-  min-height: calc(100dvh - 3.5rem);
+  min-height: calc(100dvh - 62px);
   height: 100%;
   width: 100%;
   overflow-y: auto;
@@ -68,24 +68,25 @@
   transform: translateY(0);
 }
 
-/* ---------- header (Home only; other pages keep the shared chrome) ---------- */
+/* ---------- contained site header ---------- */
 .home-site-header,
+.management-site-header,
 .public-static-site-header.home-site-header {
   padding-inline: max(32px, calc((100vw - 1152px) / 2));
-  gap: 10px;
+  gap: 16px;
 }
 .home-header-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
-  min-width: 172px;
-  margin-right: 4px;
+  height: 32px;
+  min-width: 280px;
+  margin-right: 0;
   padding: 0 10px;
   border: 1px solid var(--wb-border);
   background: var(--wb-panel-bg-soft);
-  border-radius: 9px;
-  font-size: 12px;
+  border-radius: 10px;
+  font-size: 13.5px;
   color: var(--wb-text-muted);
   cursor: pointer;
   transition:
@@ -101,8 +102,8 @@
   outline-offset: 2px;
 }
 .home-header-search svg {
-  width: 15px;
-  height: 15px;
+  width: 18px;
+  height: 18px;
 }
 .home-header-search kbd {
   margin-left: auto;
@@ -1386,6 +1387,7 @@ body[data-app-theme="dark"] .home-cover {
     width: calc(100% - 40px);
   }
   .home-site-header,
+  .management-site-header,
   .public-static-site-header.home-site-header {
     padding-inline: 20px;
   }
@@ -1425,13 +1427,14 @@ body[data-app-theme="dark"] .home-cover {
     width: calc(100% - 32px);
   }
   .home-site-header,
+  .management-site-header,
   .public-static-site-header.home-site-header {
     padding-inline: 16px;
     gap: 8px;
   }
   .home-header-search {
-    min-width: 36px;
-    width: 36px;
+    min-width: 32px;
+    width: 32px;
     padding: 0;
     justify-content: center;
     background: none;
@@ -1486,6 +1489,7 @@ body[data-app-theme="dark"] .home-cover {
 }
 @media (max-width: 600px) {
   .home-site-header,
+  .management-site-header,
   .public-static-site-header.home-site-header {
     padding-inline: 12px;
     gap: 4px;

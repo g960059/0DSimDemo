@@ -208,7 +208,6 @@ export function WorkbenchMobileStageDeckV3({
           selectedPaneId={graphPaneId}
           addOptions={graphAddOptions}
           onSelectPane={setGraphPaneId}
-          onOpenPaneSettings={onOpenPaneSettings}
           onAddOption={anchor => onAddGraphPane(anchor, setGraphPaneId)}
           graphFocused={graphFocused}
           onToggleGraphFocus={() => setGraphFocused((current) => !current)}
@@ -298,7 +297,6 @@ function MobileGraphViewRailV3({
   selectedPaneId,
   addOptions,
   onSelectPane,
-  onOpenPaneSettings,
   onAddOption,
   graphFocused,
   onToggleGraphFocus,
@@ -308,7 +306,6 @@ function MobileGraphViewRailV3({
   selectedPaneId: string | null;
   addOptions: readonly WorkbenchAddPaneOptionV3[];
   onSelectPane: (paneId: string) => void;
-  onOpenPaneSettings: (paneId: string, section?: "items" | "binding", intent?: "add" | "manage", anchor?: HTMLElement) => void;
   onAddOption: (anchor: HTMLElement) => void;
   graphFocused: boolean;
   onToggleGraphFocus: () => void;
@@ -379,7 +376,6 @@ function MobileGraphViewRailV3({
           })}
         </div>
         <div className="workbench-mobile-graph-view-actions">
-          {selectedPaneId !== null && <WorkbenchPaneSettingsButtonV3 title={panes.find(p => p.paneId === selectedPaneId)!.title} onOpen={anchor => onOpenPaneSettings(selectedPaneId, "items", "manage", anchor)} />}
           {addOptions.length > 0 && (
             <button
               type="button"
@@ -476,7 +472,7 @@ function MobilePaneGroupCollectionV3({
                   {pane.title}
                 </span>
               </button>
-              <WorkbenchPaneSettingsButtonV3 title={pane.title} onOpen={anchor => onOpenPaneSettings(pane.paneId, "items", "manage", anchor)} />
+              {!expanded && <WorkbenchPaneSettingsButtonV3 title={pane.title} onOpen={anchor => onOpenPaneSettings(pane.paneId, "items", "manage", anchor)} />}
             </header>
             <div
               id={bodyId}

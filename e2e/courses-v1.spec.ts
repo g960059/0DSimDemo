@@ -791,3 +791,45 @@ test("@desktop pending account initialization preserves guest reading position",
     .toBe(course.entries[2].articleId);
   expect(await read("guest")).toBe(course.entries[0].articleId);
 });
+
+test("@desktop @mobile course management shares navigation and separates editing from publication", async ({ page }, info) => {
+  await signInFixture(page);
+  await publicFixtures(page);
+  let drafts: CourseDraftV1[] = [
+    { courseId: course.courseId, version: 3, published: true, updatedAt: course.updatedAt,
+      content: { title: "循環動態を、実験でつなぐ", description: "", audience: "", locale: "ja", articleIds: [] } },
+    { courseId: "a0000000-0000-4000-8000-000000000099", version: 1, published: false, updatedAt: course.updatedAt,
+      content: { title: "心不全の循環を考える", description: "", audience: "", locale: "ja", articleIds: [] } },
+  ];
+  await page.route("**/rest/v1/rpc/list_courses_v1", route => route.fulfill({
+    json: route.request().postDataJSON().p_scope === "mine" ? drafts : [course],
+  }));
+  const deleted: unknown[] = [];
+  await page.route("**/rest/v1/rpc/delete_course_v1", route => {
+    const body = route.request().postDataJSON();
+    deleted.push(body);
+    drafts = drafts.filter(draft => draft.courseId !== body.p_course_id);
+    return route.fulfill({ json: { courseId: body.p_course_id, deleted: true } });
+  });
+  await page.goto("/ja/me/courses");
+  await expect(page.getByRole("heading", { name: "コースを管理", exact: true })).toBeVisible();
+  const nav = page.getByRole("navigation", { name: "コンテンツの管理" });
+  await expect(nav.locator('[aria-current="page"]')).toHaveText("コース");
+  const list = page.getByRole("list", { name: "保存したコース" });
+  await expect(list.getByRole("listitem")).toHaveCount(2);
+  await expect(list.getByRole("link", { name: "編集", exact: true })).toHaveCount(2);
+  await expect(list.getByRole("link", { name: "公開版を見る" })).toHaveCount(1);
+  const published = list.getByRole("listitem").filter({ hasText: course.title });
+  await expect(published.getByRole("link", { name: "編集", exact: true })).toHaveAttribute("href", `/ja/courses/${course.courseId}/edit`);
+  await expect(published.getByRole("link", { name: "公開版を見る" })).toHaveAttribute("href", `/ja/courses/${course.courseId}`);
+  await expect(page.locator(".management-create")).toHaveAttribute("href", "/ja/courses/new");
+  await page.screenshot({ path: info.outputPath("course-management.png"), animations: "disabled" });
+  page.once("dialog", dialog => dialog.dismiss());
+  await published.getByRole("button", { name: "コースを削除" }).click();
+  expect(deleted).toHaveLength(0);
+  page.once("dialog", dialog => dialog.accept());
+  await published.getByRole("button", { name: "コースを削除" }).click();
+  await expect(list.getByRole("listitem")).toHaveCount(1);
+  expect(deleted).toHaveLength(1);
+  expect(deleted[0]).toMatchObject({ p_course_id: course.courseId, p_expected_version: 3 });
+});

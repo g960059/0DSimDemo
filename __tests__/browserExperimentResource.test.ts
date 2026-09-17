@@ -49,12 +49,23 @@ describe("browser Experiment resource metadata", () => {
     const published = index.publish({
       experimentId,
       snapshotId: "snapshot/severe-as-v1",
+      version: 3,
       nowIso: "2026-08-04T00:02:00.000Z",
     });
     expect(published.publishedSnapshotId).toBe("snapshot/severe-as-v1");
+    expect(published.publishedVersion).toBe(3);
+    expect(published.publishedAt).toBe("2026-08-04T00:02:00.000Z");
     expect(index.read(experimentId)).toEqual(published);
     expect(storage.values.get(BROWSER_EXPERIMENT_INDEX_KEY))
       .not.toContain("fixture");
+
+    index.touch(experimentId, "2026-08-04T00:03:00.000Z");
+    expect(new BrowserExperimentIndex(storage).read(experimentId)?.publishedVersion).toBe(3);
+    const unpublished = index.unpublish(experimentId, "2026-08-04T00:04:00.000Z");
+    expect(unpublished.publishedSnapshotId).toBeNull();
+    expect(unpublished.publishedVersion).toBeNull();
+    expect(unpublished.publishedAt).toBeNull();
+    expect(unpublished.title).toBe("Severe AS comparison");
 
     expect(index.delete(experimentId)).toBe(true);
     expect(index.read(experimentId)).toBeNull();

@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 
 export type WorkbenchPaneBindingModeV3 = "active-slot" | "fixed";
 
@@ -80,25 +80,53 @@ export function WorkbenchPaneBindingButtonV3({
 }>) {
   if (!visible) return null;
   return (
-    <div className="workbench-pane-binding-row shrink-0 px-2 pb-0.5 pt-1">
-      <button
-        type="button"
-        className="workbench-pane-binding group inline-flex min-h-7 max-w-full items-center gap-1 rounded-full px-2 text-left text-[11px] font-medium text-wb-muted transition-[background-color,color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-        aria-label={label}
-        onClick={onClick}
-        data-testid={testId}
-        title={label}
-      >
-        <span className="shrink-0 text-wb-subtle">{modeLabel}</span>
-        <span className="shrink-0 text-wb-faint" aria-hidden="true">
-          ·
-        </span>
-        <span className="min-w-0 truncate text-wb-text">{targetLabel}</span>
-        <ChevronRight
-          className="h-3 w-3 shrink-0 text-wb-faint transition-colors duration-150 group-hover:text-wb-muted"
-          aria-hidden="true"
-        />
-      </button>
+    <button
+      type="button"
+      className="workbench-pane-binding group inline-flex min-h-7 min-w-0 max-w-full items-center gap-1 rounded-full px-2 text-left text-[11px] font-medium text-wb-muted transition-[background-color,color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+      aria-label={label}
+      onClick={onClick}
+      data-testid={testId}
+      title={label}
+    >
+      <span className="shrink-0 text-wb-subtle">{modeLabel}</span>
+      <span className="shrink-0 text-wb-faint" aria-hidden="true">
+        ·
+      </span>
+      <span className="min-w-0 truncate text-wb-text">{targetLabel}</span>
+      <ChevronRight
+        className="h-3 w-3 shrink-0 text-wb-faint transition-colors duration-150 group-hover:text-wb-muted"
+        aria-hidden="true"
+      />
+    </button>
+  );
+}
+
+/** Keep pane actions in one stable row, even when there is no binding choice. */
+export function WorkbenchPaneContextRowV3({
+  children,
+  addItem,
+  settings,
+}: Readonly<{
+  children?: React.ReactNode;
+  addItem?: Readonly<{ label: string; onClick: () => void }>;
+  settings?: React.ReactNode;
+}>) {
+  return (
+    <div className="workbench-pane-context-row flex shrink-0 items-center gap-1 px-2 py-0.5" data-pane-context-row="true">
+      {children}
+      {addItem && (
+        <button
+          type="button"
+          className="workbench-pane-add-compact inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-[11px] font-medium text-wb-subtle hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+          aria-label={addItem.label}
+          title={addItem.label}
+          onClick={addItem.onClick}
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="workbench-pane-add-label">{addItem.label}</span>
+        </button>
+      )}
+      <div className="ml-auto flex shrink-0 items-center">{settings}</div>
     </div>
   );
 }

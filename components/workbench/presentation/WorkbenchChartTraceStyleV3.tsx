@@ -211,8 +211,8 @@ export function WorkbenchChartLegendRowV3({ children, actions, updatingLabel }: 
     <div className="flex shrink-0 items-start gap-2 px-3" data-chart-legend-row="true">
       <div className="min-w-0 flex-1">{children}</div>
       {(actions != null || updatingLabel !== undefined) && <div className="pointer-events-auto flex shrink-0 items-center" data-chart-legend-actions="true">
-        {actions}
         {updatingLabel !== undefined && <SimulationUpdatingIndicatorV1 label={updatingLabel} />}
+        {actions}
       </div>}
     </div>
   );

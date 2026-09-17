@@ -18,7 +18,7 @@ function ui(page: Page) {
   const graphs = mobile ? page.getByTestId("workbench-mobile-stage") : page.getByRole("region", { name: "グラフエリア" });
   const task = async (name: string) => { if (mobile) await page.getByTestId("workbench-mobile-task-deck").getByRole("tab", { name, exact: true }).click(); };
   const addGraph = async () => {
-    if (mobile) await graphs.locator('[aria-haspopup="dialog"]').last().click();
+    if (mobile) await graphs.getByRole("button", { name: "グラフビューを追加", exact: true }).click();
     else await graphs.getByRole("button", { name: "Paneを追加", exact: true }).last().click();
   };
   const addPane = async (kind: "output" | "control") => {
@@ -155,7 +155,7 @@ test("@desktop @mobile @pane-picker adapts to viewport changes while retaining a
   await page.keyboard.press("Escape");
 });
 
-test("@desktop @mobile @pane-picker shares a quiet header entry and keeps the existing pane menu", async ({ page }, testInfo) => {
+test("@desktop @mobile @pane-picker scopes settings to the pane body and keeps the existing pane menu", async ({ page }, testInfo) => {
   const { mobile, graphs, picker, task } = ui(page);
   for (const title of ["PV loop", "Pressure waveforms"]) {
     await openItems(page, title);
@@ -170,8 +170,9 @@ test("@desktop @mobile @pane-picker shares a quiet header entry and keeps the ex
   }
   for (const row of await graphs.locator('[data-chart-legend-row="true"]:visible').all()) {
     await expect(row).toHaveCSS("padding-top", "0px");
-    await expect(row.getByTestId("pane-settings-button-v3")).toHaveCount(0);
+    await expect(row.getByTestId("pane-settings-button-v3")).toHaveCount(1);
   }
+  await expect(graphs.locator(mobile ? ".workbench-mobile-graph-view-rail" : ".dv-tabs-and-actions-container").getByTestId("pane-settings-button-v3")).toHaveCount(0);
   if (mobile) await graphs.getByRole("tab", { name: "Systemic Guyton / Starling", exact: true }).click();
   else await graphs.locator(".workbench-dock-tab").getByText("Systemic Guyton / Starling", { exact: true }).click();
   await page.getByRole("button", { name: "Pane設定: Systemic Guyton / Starling", exact: true }).click();
@@ -195,6 +196,20 @@ test("@desktop @mobile @pane-picker shares a quiet header entry and keeps the ex
     await expect(picker.getByTestId("pane-selected-items-v3")).toBeVisible();
     await expect(picker.locator('input[type="color"]')).toHaveCount(0);
     await page.keyboard.press("Escape");
+    if (mobile) {
+      const group = page.locator(`[data-mobile-pane-group-role="${area}"]`).first();
+      const toggle = group.locator(".workbench-mobile-pane-group-toggle");
+      await toggle.click();
+      await expect(group).toHaveAttribute("data-expanded", "false");
+      await expect(group.getByTestId("pane-settings-button-v3")).toHaveCount(1);
+      await group.getByTestId("pane-settings-button-v3").click();
+      await expect(picker.getByTestId("pane-selected-items-v3")).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(group.getByTestId("pane-settings-button-v3")).toBeFocused();
+      await toggle.click();
+      await expect(group).toHaveAttribute("data-expanded", "true");
+      await expect(group.getByTestId("pane-settings-button-v3")).toHaveCount(1);
+    }
   }
   await page.screenshot({ path: testInfo.outputPath("shared-pane-headers.png") });
 });

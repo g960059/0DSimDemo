@@ -45,6 +45,8 @@ import {
   cloneWorkbenchControlValuesV3,
   modelLabEnabledV3,
   resolveWorkbenchInitialSaveStateV3,
+  workbenchSaveAvailableV3,
+  workbenchPublicationIsStaleV3,
   resolveWorkbenchSurfaceAfterCommitV3,
   shouldConfirmWorkbenchDiscardV3,
   shouldPublishWorkbenchRootFrameV3,
@@ -1632,14 +1634,17 @@ describe("V3 Dockview Workbench", () => {
     ]);
   });
 
-  it("marks a new Workbench dirty until its first durable Save", () => {
+  it("keeps an untouched launch pristine while allowing authored Snapshot copies", () => {
     expect(
       resolveWorkbenchInitialSaveStateV3({
         hasStoredExperiment: false,
         hasPendingSurface: false,
         pendingSaveState: null,
       }),
-    ).toBe("dirty");
+    ).toBe("pristine");
+    expect(resolveWorkbenchInitialSaveStateV3({
+      hasStoredExperiment: false, hasSourceSnapshot: true, hasPendingSurface: false, pendingSaveState: null,
+    })).toBe("dirty");
     expect(
       resolveWorkbenchInitialSaveStateV3({
         hasStoredExperiment: true,
@@ -1661,6 +1666,21 @@ describe("V3 Dockview Workbench", () => {
         pendingSaveState: "error",
       }),
     ).toBe("error");
+  });
+
+  it("enables save for authored changes and keeps publication freshness independent of saving", () => {
+    expect(workbenchSaveAvailableV3("pristine", false)).toBe(false);
+    expect(workbenchSaveAvailableV3("pristine", true)).toBe(true);
+    expect(workbenchSaveAvailableV3("clean", false)).toBe(false);
+    expect(workbenchSaveAvailableV3("clean", true)).toBe(true);
+    expect(workbenchSaveAvailableV3("saving", true)).toBe(false);
+    expect(workbenchSaveAvailableV3("error", false)).toBe(true);
+    const current = { publishedSnapshotId: "snapshot/example", publishedVersion: 3, savedVersion: 3, hasChanges: false };
+    expect(workbenchPublicationIsStaleV3(current)).toBe(false);
+    expect(workbenchPublicationIsStaleV3({ ...current, hasChanges: true })).toBe(true);
+    expect(workbenchPublicationIsStaleV3({ ...current, savedVersion: 4 })).toBe(true);
+    expect(workbenchPublicationIsStaleV3({ ...current, publishedVersion: null })).toBe(true);
+    expect(workbenchPublicationIsStaleV3({ ...current, publishedSnapshotId: null, hasChanges: true })).toBe(false);
   });
 
   it("prompts only for authored Session, title, or Briefing changes", () => {
@@ -1924,7 +1944,6 @@ describe("V3 Dockview Workbench", () => {
       },
     ]);
     expect(outputPane.items.map(({ outputId }) => outputId)).toEqual([
-      "rhythm.heart-rate.instantaneous",
       "hemodynamics.pressure.systolic.Ao",
       "hemodynamics.pressure.diastolic.Ao",
       "hemodynamics.pressure.systolic.PA",
@@ -1937,7 +1956,6 @@ describe("V3 Dockview Workbench", () => {
       "hemodynamics.pressure.absolute.end-systolic.LV-at-AoV-closure",
       "hemodynamics.stroke-volume.LV-event-defined",
       "hemodynamics.ejection-fraction.LV-event-defined",
-      "hemodynamics.valve-volume.net.AoV",
       "hemodynamics.output.effective-native-left",
       "myocardium.work.stroke.LV",
       "oxygen.delivery.systemic",

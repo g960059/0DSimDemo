@@ -6,7 +6,8 @@ import { useTranslation } from "react-i18next";
 export function WorkbenchPaneSettingsButtonV3({
   title,
   onOpen,
-}: Readonly<{ title: string; onOpen: (anchor: HTMLElement) => void }>) {
+  compact = false,
+}: Readonly<{ title: string; onOpen: (anchor: HTMLElement) => void; compact?: boolean }>) {
   const { t } = useTranslation();
   const label = `${t("workbench.live.paneSettings")}: ${title}`;
   return (
@@ -17,7 +18,7 @@ export function WorkbenchPaneSettingsButtonV3({
       aria-label={label}
       title={label}
       onClick={(event) => onOpen(event.currentTarget)}
-      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text focus-visible:ring-2 focus-visible:ring-wb-accent"
+      className={`inline-flex shrink-0 items-center justify-center rounded text-wb-subtle hover:bg-wb-hover hover:text-wb-text focus-visible:ring-2 focus-visible:ring-wb-accent ${compact ? "workbench-pane-settings-compact h-7 w-7" : "h-9 w-9"}`}
     >
       <Settings2 className="h-4 w-4" aria-hidden="true" />
     </button>

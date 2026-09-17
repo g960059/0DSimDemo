@@ -49,6 +49,8 @@ export type StudioRemoteExperimentResourceV1 = Readonly<{
   updatedAt: string;
   publishedSnapshotId: string | null;
   publicSlug: string | null;
+  publishedVersion?: number | null;
+  publishedAt?: string | null;
 }>;
 
 export type StudioSummaryCursorV1 = Readonly<{
@@ -648,6 +650,8 @@ function validateExperimentResourceV1(value: unknown): StudioRemoteExperimentRes
       "publishedSnapshotId",
     ),
     publicSlug: nullableStringV1(record.publicSlug, "publicSlug"),
+    publishedVersion: record.publishedVersion == null ? null : nonnegativeIntegerV1(record.publishedVersion, "publishedVersion"),
+    publishedAt: record.publishedAt == null ? null : isoTimestampV1(record.publishedAt, "publishedAt"),
   });
 }
 

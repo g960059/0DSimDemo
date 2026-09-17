@@ -5,6 +5,8 @@ import {
 } from "@/components/site/PublicDiscoveryV1";
 import { courseReadingEntryV1 } from "@/studio/application/course/StudioCourseReadingPositionV1";
 import React from "react";
+import { useTranslation } from "react-i18next";
+import { ManagementPageHeaderV1 } from "@/components/management/ContentManagementV1";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowDown,
@@ -13,6 +15,7 @@ import {
   Trash2,
   ArrowRight,
   BookOpenText,
+  PencilLine,
 } from "lucide-react";
 import { createStudioSupabaseContentRepositoryV1 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import {
@@ -96,6 +99,7 @@ export function CourseDirectoryPageV1() {
   );
 }
 function CourseDirectoryResourceV1() {
+  const { t } = useTranslation();
   const { repository, locale, ja } = useCourseEnvironment();
   const { pathname } = useLocation();
   const mine = pathname.includes("/me/");
@@ -105,6 +109,7 @@ function CourseDirectoryResourceV1() {
   const [error, setError] = React.useState("");
   const [pending, setPending] = React.useState(true);
   const [more, setMore] = React.useState(false);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const requestId = React.useRef(0);
   React.useEffect(
     () => () => {
@@ -139,6 +144,83 @@ function CourseDirectoryResourceV1() {
   React.useEffect(() => {
     void load(0);
   }, [load]);
+  const deleteCourse = async (course: CourseDraftV1) => {
+    if (repository === null || deletingId !== null) return;
+    if (!window.confirm(ja
+      ? "このコースを削除しますか？公開中の場合は公開も終了します。記事はそのまま残ります。この操作は取り消せません。"
+      : "Delete this course? Its publication will end. Articles will remain available. This cannot be undone.")) return;
+    setDeletingId(course.courseId);
+    setError("");
+    try {
+      await repository.deleteCourse({ courseId: course.courseId, expectedVersion: course.version });
+      setCourses(items => items.filter(item => item.courseId !== course.courseId));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  if (mine) return (
+    <div className="management-page" data-testid="course-directory">
+      <main>
+        <ManagementPageHeaderV1
+          title={t("management.manageCourses")}
+          createHref={`/${locale}/courses/new`}
+          createLabel={ja ? "新しいコース" : "New course"}
+        />
+        {error && <p role="alert" className="mt-6 rounded-xl bg-wb-danger-soft p-4 text-sm text-wb-danger">{error}</p>}
+        {pending && courses.length === 0 ? (
+          <p role="status" className="mt-8 text-sm text-wb-muted">{ja ? "コースを読み込んでいます…" : "Loading courses…"}</p>
+        ) : courses.length === 0 && !error ? (
+          <section className="mt-12 py-12 text-center">
+            <BookOpenText className="mx-auto h-7 w-7 text-wb-subtle" aria-hidden="true" />
+            <h2 className="mt-4 text-sm font-semibold">{ja ? "コースはまだありません" : "No courses yet"}</h2>
+            <p className="mt-2 text-xs leading-6 text-wb-muted">{ja ? "記事をまとめて、コースを作成できます。" : "Group your articles into a course."}</p>
+          </section>
+        ) : (
+          <ul className="management-list" aria-label={ja ? "保存したコース" : "Saved courses"}>
+            {courses.map(course => "content" in course && (
+              <li key={course.courseId} className="management-row">
+                <div className="management-row-content">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="truncate text-base font-semibold tracking-tight">
+                      <Link to={`${courseHrefV1(course.courseId, locale)}/edit`} className="rounded hover:text-wb-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent">
+                        {course.content.title || (ja ? "名称未設定のコース" : "Untitled course")}
+                      </Link>
+                    </h2>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-wb-subtle">
+                      <span className={course.published ? "text-wb-accent" : "text-wb-muted"}>
+                        {t(course.published ? "articleLibrary.statusPublic" : "articleLibrary.statusDraft")}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <time dateTime={course.updatedAt}>{t("articleLibrary.updated", { date: new Intl.DateTimeFormat(locale, { year: "numeric", month: "short", day: "numeric" }).format(new Date(course.updatedAt)) })}</time>
+                      {course.published && <>
+                        <span aria-hidden="true">·</span>
+                        <Link to={courseHrefV1(course.courseId, locale)} className="inline-flex min-h-8 items-center gap-1 rounded text-wb-muted underline-offset-4 hover:text-wb-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent">
+                          {t("workbench.selector.openPublished")}<ArrowRight className="h-3 w-3" aria-hidden="true" />
+                        </Link>
+                      </>}
+                    </div>
+                  </div>
+                  <div className="management-row-actions">
+                    <Link to={`${courseHrefV1(course.courseId, locale)}/edit`} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent">
+                      <PencilLine className="h-3.5 w-3.5" aria-hidden="true" />{t("articleLibrary.edit")}
+                    </Link>
+                    <button type="button" disabled={pending || deletingId !== null} onClick={() => void deleteCourse(course)} aria-label={ja ? "コースを削除" : "Delete course"} title={ja ? "コースを削除" : "Delete course"}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-danger-soft hover:text-wb-danger active:scale-[0.97] disabled:cursor-wait disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-danger">
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {more && <button className={`${control} mt-6`} disabled={pending || deletingId !== null} onClick={() => void load(courses.length)}>{ja ? "さらに表示" : "Load more"}</button>}
+      </main>
+    </div>
+  );
   return (
     <div
       className="h-full overflow-y-auto bg-wb-app text-wb-text"
@@ -147,13 +229,7 @@ function CourseDirectoryResourceV1() {
       <main className={shell}>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-3xl font-semibold">
-            {mine
-              ? ja
-                ? "自分のコース"
-                : "My courses"
-              : ja
-                ? "コース"
-                : "Courses"}
+            {ja ? "コース" : "Courses"}
           </h1>
           <Link className={control} to={`/${locale}/courses/new`}>
             {ja ? "コースを作成" : "Create course"}
@@ -170,28 +246,9 @@ function CourseDirectoryResourceV1() {
           </p>
         )}
         <div className="mt-8 grid gap-4">
-          {courses.map((c) =>
-            "content" in c ? (
-              <Link
-                className="rounded-xl border border-wb-line p-5"
-                key={c.courseId}
-                to={`${courseHrefV1(c.courseId, locale)}/edit`}
-              >
-                <h2 className="font-semibold">{c.content.title}</h2>
-                <p className="mt-2 text-sm text-wb-muted">
-                  {c.published
-                    ? ja
-                      ? "公開中"
-                      : "Published"
-                    : ja
-                      ? "下書き"
-                      : "Draft"}
-                </p>
-              </Link>
-            ) : (
-              <CourseCardV1 key={c.courseId} course={c} />
-            ),
-          )}
+          {courses.map(course => !("content" in course) && (
+            <CourseCardV1 key={course.courseId} course={course} />
+          ))}
         </div>
         {pending ? (
           <p role="status" className="mt-6">

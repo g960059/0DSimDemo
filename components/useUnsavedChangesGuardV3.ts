@@ -14,8 +14,15 @@ export function useUnsavedChangesGuardV3(input: Readonly<{
   enabled: boolean;
   message: string;
   onConfirmedDiscard?: () => void;
-}>): void {
+}>): () => boolean {
   const { enabled, message, onConfirmedDiscard } = input;
+
+  const confirmNavigation = React.useCallback(() => {
+    if (!enabled) return true;
+    if (!window.confirm(message)) return false;
+    onConfirmedDiscard?.();
+    return true;
+  }, [enabled, message, onConfirmedDiscard]);
 
   React.useEffect(() => {
     if (!enabled) return undefined;
@@ -56,10 +63,7 @@ export function useUnsavedChangesGuardV3(input: Readonly<{
         && destination.pathname === current.pathname
         && destination.search === current.search
       ) return;
-      if (window.confirm(message)) {
-        onConfirmedDiscard?.();
-        return;
-      }
+      if (confirmNavigation()) return;
       event.preventDefault();
       event.stopImmediatePropagation();
     };
@@ -69,5 +73,8 @@ export function useUnsavedChangesGuardV3(input: Readonly<{
       confirmAnchorNavigation,
       true,
     );
-  }, [enabled, message, onConfirmedDiscard]);
+  }, [enabled, confirmNavigation]);
+
+  // Back buttons use programmatic history navigation, not an anchor click.
+  return confirmNavigation;
 }

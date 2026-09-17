@@ -6,9 +6,40 @@ import { describe, expect, it } from "vitest";
 import { routeOwnsApplicationChrome } from "@/components/Layout";
 import { SiteAccountSessionProviderV3 } from "@/components/site/SiteAccountSessionV3";
 import { SiteHeaderV3 } from "@/components/site/SiteHeaderV3";
+import { isModuleLoadErrorV1 } from "@/components/ErrorBoundary";
+import { ContentManagementLayoutV1, isContentManagementRouteV1 } from "@/components/management/ContentManagementV1";
 import "@/i18n";
 
 describe("site shell V3", () => {
+  it("limits management navigation to owned lists and preserves the locale", () => {
+    for (const path of ["/ja/me/articles", "/en/me/courses/", "/ja/me/experiments"]) {
+      expect(isContentManagementRouteV1(path)).toBe(true);
+    }
+    for (const path of ["/ja/articles", "/ja/me/settings", "/ja/courses/new", "/ja/experiments/new"]) {
+      expect(isContentManagementRouteV1(path)).toBe(false);
+    }
+    const markup = renderToStaticMarkup(
+      <MemoryRouter initialEntries={["/en/me/courses"]}>
+        <ContentManagementLayoutV1>Course list</ContentManagementLayoutV1>
+      </MemoryRouter>,
+    );
+    expect(markup.match(/aria-current="page"/g)).toHaveLength(1);
+    for (const resource of ["articles", "courses", "experiments"]) expect(markup).toContain(`href="/en/me/${resource}"`);
+    expect(markup).not.toContain('href="/ja/');
+  });
+
+  it("recognizes browser module failures without misclassifying application errors", () => {
+    for (const message of [
+      "Failed to fetch dynamically imported module: https://www.circleheart.dev/assets/WorkbenchSelectorPage-retired.js",
+      "Importing a module script failed.",
+      "'text/html' is not a valid JavaScript MIME type for module script 'https://www.circleheart.dev/assets/WorkbenchSelectorPage-retired.js'.",
+      "error loading dynamically imported module: https://www.circleheart.dev/assets/page.js",
+      "Unable to preload CSS for /assets/page.css",
+    ]) expect(isModuleLoadErrorV1(new TypeError(message))).toBe(true);
+    expect(isModuleLoadErrorV1(new TypeError("Cannot read properties of null"))).toBe(false);
+    expect(isModuleLoadErrorV1(new Error("Could not load saved simulation"))).toBe(false);
+  });
+
   it("uses global chrome for discovery and Reader routes only", () => {
     expect(routeOwnsApplicationChrome("/")).toBe(false);
     expect(routeOwnsApplicationChrome("/articles")).toBe(false);

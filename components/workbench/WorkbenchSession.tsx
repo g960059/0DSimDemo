@@ -1,3 +1,4 @@
+import { WorkbenchPaneSettingsButtonV3 } from "./WorkbenchPaneSettingsButtonV3";
 import { ResourceAuthorV1 } from "@/components/site/PublicAuthorV1";
 import React from "react";
 import { loadPreparedScenarioAnalysisV1 } from "./runtime/PreparedModelAnalysisRegistryV1";
@@ -10,13 +11,11 @@ import { workbenchReferencePresetsV1 } from "./WorkbenchReferencePresetsV1";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import {
   ArrowLeft,
-  Check,
   ClipboardList,
   Home,
   Moon,
-  Save,
+  LoaderCircle,
   Sun,
-  Upload,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -27,6 +26,7 @@ import {
 } from "react-router-dom";
 import { useAppTheme } from "@/appTheme";
 import { useUnsavedChangesGuardV3 } from "@/components/useUnsavedChangesGuardV3";
+import { usePreviousPageV1 } from "@/components/usePreviousPageV1";
 import { useSiteAccountSessionV3 } from "@/components/site/SiteAccountSessionV3";
 
 import {
@@ -53,6 +53,7 @@ import {
 } from "@/components/workbench/WorkbenchPaneBodiesV3";
 import { WorkbenchSimulationInfoV3, workbenchAnalysisLimitationsV3 } from "@/components/workbench/WorkbenchSimulationInfoV3";
 import { WorkbenchPlaybackControlV3 } from "@/components/workbench/WorkbenchPlaybackControlV3";
+import { WorkbenchPublishMenuV3, type WorkbenchPublicationStageV3 } from "./WorkbenchPublishMenuV3";
 import {
   WorkbenchRuntimeErrorV3,
   WorkbenchSaveErrorBannerV3,
@@ -94,6 +95,7 @@ import {
   devDashboardHref,
   articleEditorHref,
   experimentDetailHref,
+  experimentSnapshotHref,
   homeHref,
   loginHref,
   modelDocumentationHref,
@@ -216,6 +218,9 @@ import {
   workbenchDurableContentAvailableV3,
   workbenchPaneIdentityForIdV3,
   workbenchPublicationAvailableV3,
+  workbenchPublicationIsStaleV3,
+  workbenchSaveAvailableV3,
+  type WorkbenchSaveStateV3,
   type WorkbenchPaneSettingsV3,
 } from "@/components/workbench/WorkbenchSessionPolicy";
 import {
@@ -234,7 +239,7 @@ type WorkbenchScenarioOperationV3 =
   "select" | "add" | "duplicate" | "rename" | "delete";
 
 type WorkbenchRuntimeRestartFeedbackV3 = Readonly<{
-  saveState: "clean" | "dirty" | "error";
+  saveState: "pristine" | "clean" | "dirty" | "error";
   saveError: string | null;
   snapshotState: "idle" | "created" | "error";
   snapshotError: string | null;
@@ -293,9 +298,14 @@ export const WorkbenchSession = ({
   const { locale } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  // First-save URL replacement changes useNavigate's identity. That must not
+  // restart the runtime and discard edits made while a save was in flight.
+  const navigateRef = React.useRef(navigate);
+  navigateRef.current = navigate;
   const mobileWorkbenchShell = useMobileWorkbenchShellV3();
   const resolvedLocale = locale === "ja" || locale === "en" ? locale : "ja";
   const experimentIdRef = React.useRef<string | null>(initialExperimentId);
+  const savedRoutePendingRef = React.useRef(false);
   const [sessionToken] = React.useState(() => {
     const queryToken = new URLSearchParams(location.search).get("sessionToken");
     return queryToken ?? `session-${randomPortableTokenV3()}`;
@@ -361,9 +371,20 @@ export const WorkbenchSession = ({
   );
   const [experiment, setExperiment] = React.useState<ExperimentV2 | null>(null);
   const [snapshotCount, setSnapshotCount] = React.useState(0);
-  const [saveState, setSaveState] = React.useState<
-    "clean" | "dirty" | "saving" | "error"
-  >("dirty");
+  const [saveState, setSaveStateValue] = React.useState<WorkbenchSaveStateV3>("pristine");
+  const saveStateRef = React.useRef<WorkbenchSaveStateV3>("pristine");
+  const setSaveState = React.useCallback((value: WorkbenchSaveStateV3) => {
+    saveStateRef.current = value;
+    setSaveStateValue(value);
+  }, []);
+  const savedTitleRef = React.useRef("");
+  const [saveJustFinished, setSaveJustFinished] = React.useState(false);
+  React.useEffect(() => {
+    if (!saveJustFinished) return;
+    const timer = window.setTimeout(() => setSaveJustFinished(false), 1600);
+    return () => window.clearTimeout(timer);
+  }, [saveJustFinished]);
+  const [publicationStage, setPublicationStage] = React.useState<WorkbenchPublicationStageV3>(null);
   const [hasUnsavedContentChanges, setHasUnsavedContentChanges] =
     React.useState(false);
   const [hasUncommittedTitleChanges, setHasUncommittedTitleChanges] =
@@ -483,7 +504,7 @@ export const WorkbenchSession = ({
   const playingIntentRef = React.useRef(true);
   const appliedReaderPlaybackTokenRef = React.useRef<string | null>(null);
   const exclusiveOperationRef = React.useRef<
-    "control" | "analysis" | "scenario" | "save" | "snapshot" | null
+    "control" | "analysis" | "scenario" | "save" | "snapshot" | "publication" | null
   >(null);
   const analysisCaptureTokenRef = React.useRef<symbol | null>(null);
   const analysisCaptureReleaseRef = React.useRef<Readonly<{
@@ -723,7 +744,7 @@ export const WorkbenchSession = ({
             ? contentStore!.readExperiment(durableExperimentId)
             : (remoteExperimentResource?.experiment ?? null);
       if (durableExperimentId !== null && storedExperiment === null) {
-        navigate(myExperimentsHref(resolvedLocale), { replace: true });
+        navigateRef.current(myExperimentsHref(resolvedLocale), { replace: true });
         return;
       }
       const requestedSnapshotId = sourceSnapshotId ?? new URLSearchParams(location.search).get(
@@ -826,6 +847,7 @@ export const WorkbenchSession = ({
         translationRef.current("workbench.selector.untitled");
       setExperimentTitle(initialTitle);
       experimentTitleRef.current = initialTitle;
+      savedTitleRef.current = initialTitle;
       setArticleLinked(articleAuthoringContext !== null);
       const preferredScenarioId = activeScenarioIdRef.current ?? continuation?.activeScenarioId;
       const initialScenarioId =
@@ -911,6 +933,7 @@ export const WorkbenchSession = ({
       setSaveState(
         resolveWorkbenchInitialSaveStateV3({
           hasStoredExperiment: storedExperiment !== null,
+          hasSourceSnapshot: sourceSnapshot !== null,
           hasPendingSurface: pendingSurface !== null,
           pendingSaveState: pendingFeedback?.saveState ?? null,
         }),
@@ -1148,7 +1171,6 @@ export const WorkbenchSession = ({
   }, [
     backgroundWorkerPool,
     location.search,
-    navigate,
     presentationSampleStore,
     replaceAnalysisByKeyV3,
     remoteContentRepository,
@@ -1258,6 +1280,14 @@ export const WorkbenchSession = ({
     },
     [],
   );
+
+  const paneSettingsActions = React.useMemo(() => new Map(
+    [...(surface?.graphPanes ?? []), ...(surface?.outputPanes ?? []), ...(surface?.controlPanes ?? [])].map(pane => [
+      pane.paneId,
+      <WorkbenchPaneSettingsButtonV3 key={pane.paneId} compact title={pane.label}
+        onOpen={anchor => openPaneSettings(pane.paneId, "items", "manage", anchor)} />,
+    ]),
+  ), [surface, openPaneSettings]);
 
   const addPaneToRoleArea = React.useCallback(
     (
@@ -2152,8 +2182,10 @@ export const WorkbenchSession = ({
     ],
   );
 
-  const saveExperimentV3 = React.useCallback(async () => {
-    if (!workbenchDurableContentAvailableV3({ modelLab })) return;
+  const saveExperimentV3 = React.useCallback(async (options?: { deferNavigation?: boolean }): Promise<boolean> => {
+    if (!workbenchDurableContentAvailableV3({ modelLab })) return false;
+    const titleChanged = (experimentTitleRef.current.trim() || savedTitleRef.current) !== savedTitleRef.current;
+    if (!workbenchSaveAvailableV3(saveStateRef.current, titleChanged)) return false;
     const runtime = runtimeRef.current;
     const frame = latestFrameRef.current;
     const contentStore = contentStoreRef.current;
@@ -2164,7 +2196,7 @@ export const WorkbenchSession = ({
       (remoteContentRepository === null && contentStore === null) ||
       backgroundWorkerPool === null
     )
-      return;
+      return false;
     if (exclusiveOperationRef.current === "analysis") {
       // Save is a foreground action. Revoke the detached analysis and wait only
       // for its exact-source capture to release the live lane.
@@ -2176,18 +2208,19 @@ export const WorkbenchSession = ({
       runtimeRef.current !== runtime
       || latestFrameRef.current === null
       || exclusiveOperationRef.current !== null
-    ) return;
+    ) return false;
     const currentSurface = surfaceRef.current;
-    if (currentSurface === null) return;
+    if (currentSurface === null) return false;
     const submittedSurface = reconcileWorkbenchSurfaceScenariosV3(
       currentSurface,
       scenarioDescriptorsRef.current,
     );
     const submittedSurfaceMutationRevision = surfaceMutationRevisionRef.current;
     const submittedTitle =
-      experimentTitle.trim() || t("workbench.selector.untitled");
+      experimentTitleRef.current.trim() || t("workbench.selector.untitled");
     exclusiveOperationRef.current = "save";
     setSaveState("saving");
+    setSaveJustFinished(false);
     setSaveError(null);
     try {
       // Persistence is an explicit foreground action. Detached relation
@@ -2290,8 +2323,10 @@ export const WorkbenchSession = ({
               })
           : remoteExperimentRecordV3(remoteSavedResource!);
       const isFirstSave = experimentIdRef.current === null;
+      if (isFirstSave) savedRoutePendingRef.current = true;
       experimentIdRef.current = targetExperimentId;
       setExperimentRecord(touchedRecord);
+      savedTitleRef.current = touchedRecord.title;
       surfaceRef.current = surfaceResolution.surface;
       setSurface(surfaceResolution.surface);
       setScenarios(
@@ -2324,13 +2359,13 @@ export const WorkbenchSession = ({
       }
       setSaveState(surfaceResolution.hasNewerMutations ? "dirty" : "clean");
       setHasUnsavedContentChanges(surfaceResolution.hasNewerMutations);
-      setHasUncommittedTitleChanges(
-        (experimentTitleRef.current.trim() ||
-          t("workbench.selector.untitled")) !== touchedRecord.title,
-      );
+      const hasNewerTitle = (experimentTitleRef.current.trim() || t("workbench.selector.untitled")) !== touchedRecord.title;
+      setHasUncommittedTitleChanges(hasNewerTitle);
+      setSaveJustFinished(!surfaceResolution.hasNewerMutations && !hasNewerTitle);
       setSnapshotState("idle");
       setSnapshotPurpose(null);
-      if (isFirstSave) {
+      if (savedRoutePendingRef.current && !options?.deferNavigation && !surfaceResolution.hasNewerMutations && !hasNewerTitle) {
+        savedRoutePendingRef.current = false;
         navigate(
           `${experimentDetailHref({
             experimentId: targetExperimentId,
@@ -2339,8 +2374,9 @@ export const WorkbenchSession = ({
           { replace: true },
         );
       }
+      return !surfaceResolution.hasNewerMutations && !hasNewerTitle;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = workbenchAuthoringErrorMessageV3(error);
       // Never adopt another tab's newer version as an implicit retry base:
       // doing so would let a second Save overwrite that tab without an
       // explicit conflict decision. Keep this Session dirty and fail closed;
@@ -2348,6 +2384,7 @@ export const WorkbenchSession = ({
       setSaveError(message);
       setSaveState("error");
       setHasUnsavedContentChanges(true);
+      return false;
     } finally {
       exclusiveOperationRef.current = null;
       const latest = latestFrameRef.current;
@@ -2394,7 +2431,8 @@ export const WorkbenchSession = ({
       }
       if (
         options.kind === "publication" &&
-        (experimentRef.current === null || saveState !== "clean")
+        (experimentRef.current === null || saveStateRef.current !== "clean" ||
+          (experimentTitleRef.current.trim() || savedTitleRef.current) !== savedTitleRef.current)
       ) {
         setSnapshotError(
           t(
@@ -2443,6 +2481,7 @@ export const WorkbenchSession = ({
       exclusiveOperationRef.current = "snapshot";
       setSnapshotPurpose(options.kind);
       setSnapshotState("creating");
+      if (options.kind === "publication") setPublicationStage("checking");
       setSnapshotError(null);
       try {
         await runtime.pauseAll();
@@ -2546,6 +2585,7 @@ export const WorkbenchSession = ({
                   : {}),
               });
         if (options.kind === "publication" && experimentRef.current !== null) {
+          setPublicationStage("publishing");
           if (remoteContentRepository !== null) {
             await remoteContentRepository.publishExperiment({
               experimentId: experimentRef.current.experimentId,
@@ -2574,6 +2614,7 @@ export const WorkbenchSession = ({
               ? experimentIndex.publish({
                   experimentId: experimentRef.current.experimentId,
                   snapshotId: persistedSnapshot.snapshotId,
+                  version: publicationExperiment!.version,
                   nowIso,
                 })
               : remoteExperimentRecordV3(remotePublishedResource!);
@@ -2583,12 +2624,13 @@ export const WorkbenchSession = ({
         setSnapshotState("created");
         return persistedSnapshot;
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
+        const message = workbenchAuthoringErrorMessageV3(error);
         setSnapshotError(message);
         setSnapshotState("error");
         return null;
       } finally {
         exclusiveOperationRef.current = null;
+        if (options.kind === "publication") setPublicationStage(null);
         const latest = latestFrameRef.current;
         if (playingIntentRef.current && !document.hidden && latest !== null) {
           runtime.playAll();
@@ -2606,6 +2648,59 @@ export const WorkbenchSession = ({
       t,
     ],
   );
+
+  const publishExperimentV3 = React.useCallback(async () => {
+    if (publicationStage !== null || exclusiveOperationRef.current !== null) return;
+    setSnapshotError(null);
+    if (remoteContentRepository !== null && authIdentity.kind !== "account") {
+      setSnapshotError(t("workbench.editor.publishRequiresLinkedAccount"));
+      return;
+    }
+    let publicationSucceeded = false;
+    try {
+      const titleChanged = (experimentTitleRef.current.trim() || savedTitleRef.current) !== savedTitleRef.current;
+      if (workbenchSaveAvailableV3(saveStateRef.current, titleChanged)) {
+        setPublicationStage("saving");
+        if (!await saveExperimentV3({ deferNavigation: true })) {
+          if (saveStateRef.current !== "error") setSnapshotError(t("workbench.editor.publication.changedDuringSave"));
+          return;
+        }
+      }
+      publicationSucceeded = await createSnapshotV3({ kind: "publication" }) !== null;
+    } finally {
+      setPublicationStage(null);
+      // Keep a first-save Session mounted until the entire save/publish chain
+      // finishes. A Snapshot-reader route would otherwise unmount its runtime.
+      if (publicationSucceeded && savedRoutePendingRef.current && experimentIdRef.current !== null &&
+        saveStateRef.current === "clean" && (experimentTitleRef.current.trim() || savedTitleRef.current) === savedTitleRef.current) {
+        savedRoutePendingRef.current = false;
+        navigate(`${experimentDetailHref({ experimentId: experimentIdRef.current, locale: resolvedLocale })}${location.search}`, { replace: true });
+      }
+    }
+  }, [authIdentity.kind, createSnapshotV3, location.search, navigate, publicationStage, remoteContentRepository, resolvedLocale, saveExperimentV3, t]);
+
+  const unpublishExperimentV3 = React.useCallback(async () => {
+    const current = experimentRef.current;
+    if (!current || exclusiveOperationRef.current !== null || publicationStage !== null) return;
+    exclusiveOperationRef.current = "publication";
+    setPublicationStage("unpublishing");
+    setSnapshotError(null);
+    try {
+      if (remoteContentRepository) {
+        await remoteContentRepository.unpublishExperiment(current.experimentId, current.version);
+        const resource = await remoteContentRepository.readMyExperiment(current.experimentId);
+        if (!resource) throw new Error("Experiment could not be read back");
+        setExperimentRecord(remoteExperimentRecordV3(resource));
+      } else {
+        setExperimentRecord(experimentIndex.unpublish(current.experimentId, new Date().toISOString()));
+      }
+    } catch (error) {
+      setSnapshotError(workbenchAuthoringErrorMessageV3(error));
+    } finally {
+      exclusiveOperationRef.current = null;
+      setPublicationStage(null);
+    }
+  }, [experimentIndex, publicationStage, remoteContentRepository]);
 
   const createArticleSnapshotV3 = React.useCallback(async () => {
     const currentBriefing = briefingRef.current;
@@ -2678,7 +2773,7 @@ export const WorkbenchSession = ({
     experimentSessionContext,
     experimentSessionHandoff,
   ]);
-  useUnsavedChangesGuardV3({
+  const confirmNavigation = useUnsavedChangesGuardV3({
     enabled:
       workbenchDurableContentAvailableV3({ modelLab }) &&
       shouldConfirmWorkbenchDiscardV3({
@@ -2689,6 +2784,12 @@ export const WorkbenchSession = ({
     message: t("common.unsavedChanges"),
     onConfirmedDiscard: discardArticleHandoffV3,
   });
+  const returnToPreviousPage = usePreviousPageV1(
+    articleAuthoringContext !== null
+      ? articleEditorHref({ articleId: articleAuthoringContext.articleId, locale: resolvedLocale })
+      : experimentSessionContext?.returnHref
+        ?? (initialExperimentId !== null ? myExperimentsHref(resolvedLocale) : homeHref(resolvedLocale)),
+  );
 
   const latestFrame = status.kind === "live" ? status.frame : null;
   const formalPvAnalysisId = mainWireFormalPvAnalysisIdV1(periodicPvaDerivationRef.current);
@@ -2706,7 +2807,7 @@ export const WorkbenchSession = ({
     pendingControlId !== null ||
     analysisCapturePending ||
     scenarioOperation !== null ||
-    saveState === "saving" ||
+    saveState === "saving" || publicationStage !== null ||
     snapshotState === "creating";
   const periodicPvaOutputScenarioIds = React.useMemo(() => {
     if (periodicPvaDerivationRef.current === null) return Object.freeze([]);
@@ -2861,44 +2962,20 @@ export const WorkbenchSession = ({
   }, [contract, updateWorkbenchBriefingV3]);
   const briefingSnapshot = briefingCaptureSnapshot;
   const commitExperimentTitleV3 = React.useCallback(() => {
-    const fallback =
-      experimentRecord?.title ?? t("workbench.selector.untitled");
-    const nextTitle = experimentTitle.trim() || fallback;
+    const nextTitle = experimentTitleRef.current.trim() || savedTitleRef.current || t("workbench.selector.untitled");
     experimentTitleRef.current = nextTitle;
     setExperimentTitle(nextTitle);
-    // Ephemeral Workbenches keep title locally until the first explicit Save.
-    if (experimentRecord === null) return;
-    if (nextTitle === experimentRecord.title) {
-      setHasUncommittedTitleChanges(false);
-      return;
-    }
-    if (remoteContentRepository !== null) {
-      setHasUncommittedTitleChanges(true);
-      setSaveState("dirty");
-      setHasUnsavedContentChanges(true);
-      return;
-    }
-    try {
-      const nextRecord = experimentIndex.rename({
-        experimentId: experimentRecord.experimentId,
-        title: nextTitle,
-        nowIso: new Date().toISOString(),
-      });
-      setExperimentRecord(nextRecord);
-      setHasUncommittedTitleChanges(false);
-    } catch (error) {
-      experimentTitleRef.current = fallback;
-      setExperimentTitle(fallback);
-      setHasUncommittedTitleChanges(false);
-      setSaveError(error instanceof Error ? error.message : String(error));
-    }
-  }, [
-    experimentIndex,
-    experimentRecord,
-    experimentTitle,
-    remoteContentRepository,
-    t,
-  ]);
+    setHasUncommittedTitleChanges(nextTitle !== savedTitleRef.current);
+  }, [t]);
+  const canSave = workbenchSaveAvailableV3(saveState, hasUncommittedTitleChanges);
+  const effectiveSaveState = hasUncommittedTitleChanges && saveState !== "saving" && saveState !== "error" ? "dirty" : saveState;
+  const isPublished = experimentRecord?.publishedSnapshotId != null;
+  const publicationStale = workbenchPublicationIsStaleV3({
+    publishedSnapshotId: experimentRecord?.publishedSnapshotId ?? null,
+    publishedVersion: experimentRecord?.publishedVersion,
+    savedVersion: experiment?.version ?? null,
+    hasChanges: canSave || hasUnsavedContentChanges || hasUncommittedTitleChanges,
+  });
   const durableContentAvailable = workbenchDurableContentAvailableV3({
     modelLab,
   });
@@ -2943,6 +3020,7 @@ export const WorkbenchSession = ({
       <PaneLoadingV3 />
     ) : (
       <GraphPaneBodyV3
+        legendActions={paneSettingsActions.get(graphPane.paneId)}
         activeScenarioId={activeScenarioId}
         playbackRunning={isPlaying}
         analysisByKey={analysisByKey}
@@ -3012,6 +3090,7 @@ export const WorkbenchSession = ({
         locale={resolvedLocale}
         onAddItem={() => openPaneSettings(pane.paneId, "items", "add")}
         onOpenBindingSettings={() => openPaneSettings(pane.paneId, "binding")}
+        settingsAction={paneSettingsActions.get(pane.paneId)}
         pane={pane}
         periodicPva={periodicPva}
         periodicPvaAnalysisError={
@@ -3047,6 +3126,7 @@ export const WorkbenchSession = ({
         locale={resolvedLocale}
         onApplyControl={applyControl}
         onOpenSettings={openPaneSettings}
+        settingsAction={paneSettingsActions.get(pane.paneId)}
         pane={pane}
         pendingControlId={pendingControlId}
         scenarios={scenarios}
@@ -3153,36 +3233,28 @@ export const WorkbenchSession = ({
     >
       <header className="workbench-app-header flex min-h-12 shrink-0 items-center gap-2 px-2.5 py-1.5 sm:px-3">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
-          <Link
-            to={
-              modelLab
-                ? devDashboardHref(resolvedLocale)
-                : articleAuthoringContext !== null
-                  ? articleEditorHref({
-                      articleId: articleAuthoringContext.articleId,
-                      locale: resolvedLocale,
-                    })
-                  : (experimentSessionContext?.returnHref ??
-                    homeHref(
-                      locale === "ja" || locale === "en" ? locale : undefined,
-                    ))
-            }
-            className="workbench-header-action inline-flex h-9 w-9 shrink-0 items-center justify-center"
-            aria-label={t(
-              modelLab
-                ? "devDashboard.returnFromModelLab"
-                : articleAuthoringContext === null &&
-                    experimentSessionContext === null
-                  ? "siteHeader.home"
-                  : "workbench.editor.returnToArticle",
-            )}
-          >
-            {modelLab ? (
+          {modelLab ? (
+            <Link
+              to={devDashboardHref(resolvedLocale)}
+              className="workbench-header-action inline-flex h-9 w-9 shrink-0 items-center justify-center"
+              aria-label={t("devDashboard.returnFromModelLab")}
+            >
               <Home className="h-4 w-4" aria-hidden="true" />
-            ) : (
+            </Link>
+          ) : (
+            <button
+              type="button"
+              className="workbench-header-action inline-flex h-9 w-9 shrink-0 items-center justify-center"
+              aria-label={t("common.back")}
+              title={t("common.back")}
+              onClick={() => {
+                if (confirmNavigation()) returnToPreviousPage();
+              }}
+              data-testid="workbench-back-v1"
+            >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            )}
-          </Link>
+            </button>
+          )}
           <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5">
           <input
             type="text"
@@ -3190,12 +3262,12 @@ export const WorkbenchSession = ({
             maxLength={240}
             aria-label={t("workbench.editor.experimentTitle")}
             data-testid="workbench-experiment-title-v3"
-            className="workbench-app-title min-w-16 max-w-[min(36vw,30rem)] flex-1 truncate border-0 bg-transparent p-0 text-left outline-none ring-0 selection:bg-wb-accent/25 focus:outline-none focus:ring-0"
+            className="workbench-app-title min-w-0 w-full max-w-[30rem] flex-1 truncate border-0 bg-transparent p-0 text-left outline-none ring-0 selection:bg-wb-accent/25 focus:outline-none focus:ring-0"
             style={{ caretColor: "var(--wb-accent)" }}
             onChange={(event) => {
               const nextTitle = event.currentTarget.value;
               const fallback =
-                experimentRecord?.title ?? t("workbench.selector.untitled");
+                savedTitleRef.current || t("workbench.selector.untitled");
               experimentTitleRef.current = nextTitle;
               setExperimentTitle(nextTitle);
               setHasUncommittedTitleChanges(
@@ -3210,10 +3282,10 @@ export const WorkbenchSession = ({
               } else if (event.key === "Escape") {
                 event.preventDefault();
                 setExperimentTitle(
-                  experimentRecord?.title ?? t("workbench.selector.untitled"),
+                  savedTitleRef.current || t("workbench.selector.untitled"),
                 );
                 experimentTitleRef.current =
-                  experimentRecord?.title ?? t("workbench.selector.untitled");
+                  savedTitleRef.current || t("workbench.selector.untitled");
                 setHasUncommittedTitleChanges(false);
                 event.currentTarget.blur();
               }
@@ -3329,61 +3401,34 @@ export const WorkbenchSession = ({
           {durableContentAvailable && (
             <button
               type="button"
-              className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5 disabled:cursor-wait disabled:opacity-40"
-              disabled={status.kind !== "live" || runtimeOperationPending}
+              className="workbench-header-action workbench-save-action"
+              data-state={effectiveSaveState === "clean" && saveJustFinished ? "just-saved" : effectiveSaveState}
+              disabled={status.kind !== "live" || runtimeOperationPending || !canSave}
               onClick={() => void saveExperimentV3()}
-              aria-label={t(saveState === "saving" ? "workbench.editor.saving" : saveState === "clean" ? "workbench.editor.saved" : "workbench.editor.save")}
-              title={saveError ?? undefined}
+              aria-label={t(effectiveSaveState === "saving" ? "workbench.editor.saving" : effectiveSaveState === "clean" ? "workbench.editor.saved" : "workbench.editor.save")}
+              title={saveError ?? (effectiveSaveState === "pristine" ? t("workbench.editor.publication.noChanges") : undefined)}
               data-testid="v3-save-experiment"
             >
-              {saveState === "clean" ? (
-                <Check
-                  className="h-3.5 w-3.5 text-emerald-500"
-                  aria-hidden="true"
-                />
-              ) : (
-                <Save className="h-3.5 w-3.5" aria-hidden="true" />
-              )}
-              <span className="hidden sm:inline">
-                {saveState === "saving"
-                  ? t("workbench.editor.saving")
-                  : saveState === "clean"
-                    ? t("workbench.editor.saved")
-                    : t("workbench.editor.save")}
-              </span>
+              {saveState === "saving" && <LoaderCircle className="h-3 w-3 shrink-0 animate-spin" aria-hidden="true" />}
+              <span>{t(effectiveSaveState === "saving" ? "workbench.editor.saving" : effectiveSaveState === "clean" ? "workbench.editor.saved" : "workbench.editor.save")}</span>
             </button>
           )}
+          <span className="sr-only" role="status">{effectiveSaveState === "clean" ? t("workbench.editor.saved") : ""}</span>
           {publicationAvailable && (
-            <button
-              type="button"
-              className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5 disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={
-                status.kind !== "live" ||
-                runtimeOperationPending ||
-                experiment === null ||
-                saveState !== "clean"
-              }
-              onClick={() => void createSnapshotV3({ kind: "publication" })}
-              title={t(
-                status.kind !== "live"
-                  ? "workbench.editor.snapshotNotReady"
-                  : runtimeOperationPending
-                    ? "workbench.editor.snapshotBusy"
-                    : experiment === null
-                      ? "workbench.editor.publishRequiresSave"
-                      : saveState !== "clean"
-                        ? "workbench.editor.publishRequiresClean"
-                        : "workbench.editor.publishDescription",
-              )}
-              data-testid="v3-publish-experiment"
-            >
-              <Upload className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="hidden md:inline">
-                {snapshotState === "creating"
-                  ? t("workbench.editor.publishing")
-                  : t("workbench.editor.publish")}
-              </span>
-            </button>
+            <WorkbenchPublishMenuV3
+              published={isPublished}
+              stale={publicationStale}
+              comparisonKnown={experimentRecord?.publishedVersion != null}
+              dirty={canSave}
+              disabled={status.kind !== "live" || runtimeOperationPending || effectiveSaveState === "pristine"}
+              stage={publicationStage}
+              publishedAt={experimentRecord?.publishedAt ?? null}
+              publicHref={experimentRecord?.publishedSnapshotId ? experimentSnapshotHref({ snapshotId: experimentRecord.publishedSnapshotId, locale: resolvedLocale }) : null}
+              error={snapshotError ?? saveError}
+              loginHref={remoteContentRepository !== null && authIdentity.kind !== "account" ? loginHref(resolvedLocale) : null}
+              onPublish={publishExperimentV3}
+              onUnpublish={unpublishExperimentV3}
+            />
           )}
         </div>
       </header>
@@ -3404,6 +3449,9 @@ export const WorkbenchSession = ({
       {saveError !== null && (
         <WorkbenchSaveErrorBannerV3
           message={`${t("workbench.editor.saveError")}: ${saveError}`}
+          retryLabel={t("workbench.editor.publication.retry")}
+          onRetry={() => void saveExperimentV3()}
+          retryDisabled={runtimeOperationPending}
         />
       )}
 
@@ -3799,11 +3847,20 @@ function remoteExperimentRecordV3(
     createdAt: resource.createdAt,
     updatedAt: resource.updatedAt,
     publishedSnapshotId: resource.publishedSnapshotId,
+    publishedVersion: resource.publishedVersion ?? null,
+    publishedAt: resource.publishedAt ?? null,
   });
 }
 
 function publicExperimentSlugV3(experimentId: string): string {
   return `simulation-${experimentId.toLocaleLowerCase()}`;
+}
+
+function workbenchAuthoringErrorMessageV3(error: unknown): string {
+  // PostgREST returns structured errors rather than Error instances.
+  return error !== null && typeof error === "object" && "message" in error && typeof error.message === "string"
+    ? error.message
+    : String(error);
 }
 
 function requiredWorkbenchSurfaceSeriesIdV3(value: string | undefined): string {

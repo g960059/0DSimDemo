@@ -28,14 +28,33 @@ export type WorkbenchPaneSettingsV3 =
 export function resolveWorkbenchInitialSaveStateV3(
   input: Readonly<{
     hasStoredExperiment: boolean;
+    hasSourceSnapshot?: boolean;
     hasPendingSurface: boolean;
-    pendingSaveState: "clean" | "dirty" | "error" | null;
+    pendingSaveState: "pristine" | "clean" | "dirty" | "error" | null;
   }>,
-): "clean" | "dirty" | "error" {
+): "pristine" | "clean" | "dirty" | "error" {
   if (input.pendingSaveState !== null) return input.pendingSaveState;
-  return input.hasStoredExperiment && !input.hasPendingSurface
-    ? "clean"
-    : "dirty";
+  if (input.hasPendingSurface) return "dirty";
+  if (input.hasStoredExperiment) return "clean";
+  // A reader capture is already authored content and can be saved as a copy.
+  return input.hasSourceSnapshot ? "dirty" : "pristine";
+}
+
+export type WorkbenchSaveStateV3 = "pristine" | "clean" | "dirty" | "saving" | "error";
+
+export function workbenchSaveAvailableV3(state: WorkbenchSaveStateV3, titleChanged: boolean): boolean {
+  return state !== "saving" && (titleChanged || state === "dirty" || state === "error");
+}
+
+export function workbenchPublicationIsStaleV3(input: Readonly<{
+  publishedSnapshotId: string | null;
+  publishedVersion: number | null | undefined;
+  savedVersion: number | null;
+  hasChanges: boolean;
+}>): boolean {
+  if (input.publishedSnapshotId === null) return false;
+  return input.hasChanges || input.publishedVersion == null
+    || input.savedVersion !== input.publishedVersion;
 }
 
 export function shouldConfirmWorkbenchDiscardV3(

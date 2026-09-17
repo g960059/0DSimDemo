@@ -2,6 +2,7 @@
   "common": {
     "appName": "CircleHeart",
     "close": "閉じる",
+    "back": "前のページに戻る",
     "unsavedChanges": "未保存の変更があります。保存せずに移動しますか？",
     "theme": {
       "toggle": "テーマを切り替え"
@@ -11,6 +12,13 @@
       "en": "EN",
       "switchTo": "{{language}}に切り替え"
     }
+  },
+  "pageFailure": {
+    "title": "画面を読み込めませんでした",
+    "moduleDescription": "ページの更新や通信の中断により、読み込めなかった可能性があります。再読み込みしてお試しください。",
+    "description": "画面の表示中に問題が発生しました。再読み込みしてお試しください。",
+    "reload": "再読み込み",
+    "details": "エラーの詳細"
   },
   "nav": {
     "home": "ホーム",
@@ -23,9 +31,7 @@
     "startSimulation": "シミュレーションを始める",
     "create": "作成",
     "newSimulation": "新しいシミュレーション",
-    "newSimulationDescription": "循環動態を操作して検討する",
     "newArticle": "新しい記事",
-    "newArticleDescription": "文章とシミュレーションを組み合わせる",
     "login": "ログイン",
     "profile": "プロフィールメニュー",
     "manageExperiments": "シミュレーションを管理",
@@ -116,28 +122,23 @@
     "waitingForPvData": "データを取得しています…",
     "pvDataPaused": "再生すると、軌跡の描画を開始します",
     "selector": {
-      "title": "シミュレーション",
-      "eyebrow": "MY SIMULATIONS",
-      "newTitle": "新しいシミュレーション",
-      "newDescription": "利用可能な最新の数理モデルで、未保存のシミュレーションを開始します。明示的に保存したときだけこの一覧に追加されます。",
       "newAction": "新しいシミュレーション",
       "savedTitle": "保存したシミュレーション",
-      "savedCount": "{{count}}件",
       "loading": "シミュレーションを読み込んでいます…",
       "errorTitle": "シミュレーションを読み込めませんでした",
       "retry": "再試行",
       "emptyTitle": "保存したシミュレーションはありません",
       "emptyDescription": "新しいシミュレーションを始め、残したいときに保存してください。",
       "untitled": "名称未設定のシミュレーション",
-      "exactModel": "固定された数理モデル",
       "unavailable": "このシミュレーションに必要な数理モデルを現在読み込めません。保存内容は保持されています。",
       "delete": "シミュレーションを削除",
       "deleteConfirm": "この保存済みシミュレーションを削除しますか？記事内に固定された内容は保持されます。この操作は取り消せません。",
-      "open": "開く",
       "inspect": "復旧方法を見る",
-      "openPublished": "公開中のSnapshotを開く",
+      "openPublished": "公開版を見る",
       "statusDraft": "未公開",
-      "statusPublished": "公開済み"
+      "statusPublished": "公開済み",
+      "updated": "{{date}} 更新",
+      "edit": "編集"
     },
     "unavailable": {
       "title": "このシミュレーションを現在開けません",
@@ -250,7 +251,7 @@
       "saving": "保存中…",
       "saveError": "保存できませんでした",
       "publish": "公開",
-      "publishing": "公開中…",
+      "publishing": "公開処理中…",
       "publishDescription": "現在の状態を数値確認し、保存済みシミュレーションの公開内容として固定します。",
       "publishRequiresSave": "公開する前にシミュレーションを保存してください。",
       "publishRequiresClean": "現在のシミュレーションの変更を保存してから公開してください。",
@@ -421,7 +422,11 @@
       "notePlaceholder": "このシミュレーションの解釈、制限事項、参考文献などを記入…",
       "pinnedPreview": "固定プレビュー",
       "panePicker": {
-        "add": { "graph": "グラフを追加", "output": "Output paneを追加", "control": "Controller paneを追加" },
+        "add": {
+          "graph": "グラフを追加",
+          "output": "Output paneを追加",
+          "control": "Controller paneを追加"
+        },
         "selectItems": "項目を選択",
         "editItems": "表示項目を編集",
         "search": "名前・略語で検索",
@@ -474,6 +479,43 @@
         "scenarios": "Scenarios",
         "showScenario": "グラフに表示",
         "title": "Scenario inspector"
+      },
+      "publication": {
+        "settings": "公開設定",
+        "private": "非公開",
+        "published": "公開中",
+        "staleStatus": "公開中。公開版に未反映の変更があります",
+        "publish": "公開する",
+        "saveAndPublish": "保存して公開",
+        "update": "公開版を更新",
+        "saveAndUpdate": "保存して公開版を更新",
+        "processing": "処理中…",
+        "unpublishing": "解除中…",
+        "publishedAt": "{{date}} に公開",
+        "privateNotice": "保存した内容は、自分だけが見られます。",
+        "publicNotice": "リンクを知っている全員が、このシミュレーションを開けます。",
+        "dirtyNotice": "未保存の変更があります。保存してから公開します。",
+        "staleNotice": "保存した変更は、まだ公開版に反映されていません。",
+        "currentNotice": "公開版は最新の保存内容と同じです。",
+        "fixedNotice": "公開後の変更は「公開版を更新」するまで反映されません。",
+        "unpublishTitle": "公開を解除しますか？",
+        "unpublish": "公開を解除",
+        "unpublishNotice": "シミュレーション一覧から取り下げます。保存した内容は残ります。公開中の記事に配置したものは、引き続き記事から閲覧できます。",
+        "view": "公開ページ",
+        "copy": "リンクをコピー",
+        "copied": "コピーしました",
+        "copyError": "コピーできませんでした。公開ページのURLをコピーしてください。",
+        "noChanges": "変更はありません",
+        "changedDuringSave": "保存中に新しい変更が加わりました。内容を確認して、もう一度保存して公開してください。",
+        "cancel": "キャンセル",
+        "retry": "再試行",
+        "stage": {
+          "saving": "変更を保存しています…",
+          "checking": "現在の状態を数値確認しています…",
+          "publishing": "公開版を更新しています…",
+          "unpublishing": "公開を解除しています…"
+        },
+        "updateNotice": "現在の保存内容で公開版を更新できます。"
       }
     }
   },
@@ -671,12 +713,20 @@
     },
     "readingMarker": "本文に貼る参照表記"
   },
+  "management": {
+    "navigation": "コンテンツの管理",
+    "articles": "記事",
+    "courses": "コース",
+    "experiments": "シミュレーション",
+    "manageArticles": "記事を管理",
+    "manageCourses": "コースを管理",
+    "manageExperiments": "シミュレーションを管理",
+    "create": "新規作成",
+    "preview": "プレビュー"
+  },
   "articleLibrary": {
     "title": "記事",
     "new": "新しい記事",
-    "eyebrow": "GUIDED EXPLORATION",
-    "heading": "記事",
-    "description": "文章と固定したシミュレーションを組み合わせて、循環動態を伝えます。",
     "loading": "記事を読み込んでいます…",
     "emptyTitle": "記事はまだありません",
     "emptyDescription": "記事を作成し、必要に応じてシミュレーションを追加してください。",
@@ -686,7 +736,6 @@
     "savedLocally": "この端末に保存",
     "updated": "{{date}} 更新",
     "edit": "編集",
-    "read": "読む",
     "delete": "削除",
     "deleteConfirm": "この記事を削除しますか？公開中の場合は公開も終了します。この操作は取り消せません。",
     "deleteFailed": "記事を削除できませんでした: {{message}}"
