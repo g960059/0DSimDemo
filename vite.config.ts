@@ -1,4 +1,5 @@
 import path from 'path';
+import { readFileSync } from 'node:fs';
 import { defineConfig, type ResolveModulePreloadDependenciesFn } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -14,13 +15,26 @@ const readerPreloadDependencies: ResolveModulePreloadDependenciesFn = (filename,
   return dependencies;
 };
 
-export default defineConfig(() => {
+export default defineConfig(({ isSsrBuild }) => {
     return {
       server: {
         port: 3000,
         host: '0.0.0.0',
       },
-      plugins: [react(), tailwindcss(), modelDocumentPagesPluginV1()],
+      plugins: [react(), tailwindcss(), modelDocumentPagesPluginV1(), {
+        name: 'license-documents',
+        apply: 'build',
+        generateBundle() {
+          if (isSsrBuild) return;
+          for (const fileName of ['LICENSE', 'LICENSING.md', 'CONTRIBUTING.md']) {
+            this.emitFile({
+              type: 'asset',
+              fileName,
+              source: readFileSync(path.resolve(__dirname, fileName), 'utf8'),
+            });
+          }
+        },
+      }],
       build: { modulePreload: { resolveDependencies: readerPreloadDependencies } },
       // Workers are constructed with type: 'module'. Preserve lazy numerical
       // analysis imports instead of folding them into every live lane.
