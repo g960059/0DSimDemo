@@ -518,7 +518,6 @@ function publicStaticSiteHeaderHtmlV1(
   return [
     `<header class="public-static-site-header${isHome ? ' home-site-header' : ''}">`,
     `<a class="public-static-brand${isHome ? ' home-brand' : ''}" href="/${locale}" aria-label="${homeLabel}">${isHome ? brandMark : ''}${SITE_NAME_V1}</a>`,
-    ...(isHome ? [`<nav class="home-site-links" aria-label="${locale === 'ja' ? '主要ナビゲーション' : 'Main navigation'}"><a href="#home-discovery">${locale === 'ja' ? '見つける' : 'Discover'}</a></nav>`] : []),
     `<span class="public-static-site-header-spacer"></span>`,
     ...(isHome ? [`<button class="home-header-search" type="button" disabled aria-label="${locale === 'ja' ? 'コンテンツを検索' : 'Search content'}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7.5"/><path d="m16 16 5 5"/></svg><span>${locale === 'ja' ? '検索' : 'Search'}</span><kbd>⌘K</kbd></button>`] : []),
     `<nav class="public-static-language" aria-label="${siteHeaderCopy.language}">`,

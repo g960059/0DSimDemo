@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  ArrowDown,
   ArrowRight,
   Bookmark,
   BookOpen,
@@ -122,6 +123,10 @@ export function HomePageV1(props: HomePagePropsV1) {
                 {ja ? "シミュレーションを試す" : "Try a simulation"}
                 <ArrowRight aria-hidden="true" />
               </a>
+              <a className="home-quiet" href="#home-discovery">
+                {ja ? "コンテンツを見る" : "Browse content"}
+                <ArrowDown aria-hidden="true" />
+              </a>
             </div>
           </div>
           <HomeHeroV1 locale={locale} interactive={!props.staticRender} />
@@ -147,12 +152,7 @@ export function HomePageV1(props: HomePagePropsV1) {
             >
               {(["all", "course", "article", "experiment"] as const).map(
                 (kind) => {
-                  const Icon = kindIcons[kind],
-                    count = selectHomeItemsV1(
-                      items,
-                      { ...filter, kind },
-                      saved,
-                    ).length;
+                  const Icon = kindIcons[kind];
                   return (
                     <button
                       type="button"
@@ -163,9 +163,6 @@ export function HomePageV1(props: HomePagePropsV1) {
                     >
                       <Icon aria-hidden="true" />
                       {kindLabels[locale][kind]}
-                      {kind !== "all" && (
-                        <small>{data !== null ? count : ""}</small>
-                      )}
                     </button>
                   );
                 },
@@ -312,8 +309,9 @@ export function HomePageV1(props: HomePagePropsV1) {
                 key={k}
                 href={`/${locale}/${k === "course" ? "courses" : k === "article" ? "articles" : "experiments"}`}
               >
-                {ja ? "すべての" : ""}
-                {kindLabels[locale][k]} →
+                {ja ? "すべての" : "All "}
+                {kindLabels[locale][k]}
+                <ArrowRight aria-hidden="true" />
               </a>
             ))}
           </div>
@@ -441,12 +439,7 @@ function HomeCardV1({
             </i>
             <span>{name}</span>
           </span>
-          <span className="home-item-meta">
-            {item.course
-              ? `${entries.length}${ja ? "章 · " : " chapters · "}`
-              : ""}
-            {date}
-          </span>
+          {date && <span className="home-item-meta">{date}</span>}
           {wide && entries.length > 0 && (
             <a
               className="home-course-start"

@@ -86,18 +86,6 @@ export function SiteHeaderV3() {
         {t("common.appName")}
       </Link>
 
-      {isHome && (
-        <nav
-          className="home-site-links"
-          aria-label={
-            locale === "ja" ? "主要ナビゲーション" : "Main navigation"
-          }
-        >
-          <a href="#home-discovery">
-            {locale === "ja" ? "見つける" : "Discover"}
-          </a>
-        </nav>
-      )}
       <span className="min-w-0 flex-1" />
       {isHome && (
         <button

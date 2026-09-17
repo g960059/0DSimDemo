@@ -219,6 +219,11 @@ describe("Home discovery", () => {
       expect(html).toContain('href="/ja/experiments/new"');
       expect(html).toContain("home-mini-demo");
       expect(html).toContain("home-intro-copy");
+      expect(html).toContain('class="home-quiet" href="#home-discovery"');
+      expect(
+        html.match(/class="home-kinds"[\s\S]*?<\/div>/)?.[0],
+      ).not.toContain("<small>");
+      expect(html).not.toContain("章 · ");
       expect(html).not.toContain("続きから読む");
       expect(html).not.toContain("home-collapse-intro");
       expect(html).not.toContain("home-search-row");
