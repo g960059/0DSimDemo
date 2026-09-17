@@ -202,14 +202,16 @@ function SiteCreateMenuV3({ locale }: Readonly<{ locale: Locale }>) {
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={t("siteHeader.create")}
+        title={t("siteHeader.create")}
         data-testid="site-create-trigger-v3"
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-wb-primary px-3 text-xs font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+        className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-lg bg-wb-primary text-xs font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent min-[400px]:w-auto min-[400px]:px-3"
       >
         <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-        {t("siteHeader.create")}
+        <span className="hidden min-[400px]:inline">{t("siteHeader.create")}</span>
         <ChevronDown
-          className={`h-3.5 w-3.5 transition-transform duration-150 motion-reduce:transition-none ${
+          className={`hidden h-3.5 w-3.5 transition-transform duration-150 motion-reduce:transition-none min-[400px]:block ${
             open ? "rotate-180" : ""
           }`}
           aria-hidden="true"
