@@ -38,7 +38,7 @@ async function authoringFixture(page: Page) {
       state.lastResolvedSnapshotId = state.resource?.publishedSnapshotId ?? null;
       return reply(state.resource?.publicSlug === body.p_public_slug ? { experimentId, title: state.resource.title, snapshot: state.snapshots.get(state.resource.publishedSnapshotId) } : null);
     }
-    if (rpc === "read_public_snapshot_title_v1") return reply(state.resource?.title ?? null);
+    if (rpc === "read_public_snapshot_title_v1") return reply(state.resource?.publishedTitle ?? null);
     if (rpc === "save_experiment_v1") {
       state.saves++;
       if (state.saveDelay) await new Promise(resolve => setTimeout(resolve, state.saveDelay));
@@ -56,7 +56,7 @@ async function authoringFixture(page: Page) {
     if (rpc === "publish_experiment_v1") {
       state.publishes++;
       if (state.failPublish) return fail("Fixture publish failed");
-      Object.assign(state.resource, { publishedSnapshotId: body.p_snapshot_id, publishedVersion: body.p_expected_version, publishedAt: new Date().toISOString(), publicSlug: body.p_public_slug });
+      Object.assign(state.resource, { publishedSnapshotId: body.p_snapshot_id, publishedVersion: body.p_expected_version, publishedAt: new Date().toISOString(), publicSlug: body.p_public_slug, publishedTitle: state.resource.title });
       return reply({ experimentId, snapshotId: body.p_snapshot_id, publicSlug: body.p_public_slug });
     }
     if (rpc === "unpublish_experiment_v1") {
@@ -95,6 +95,10 @@ test("@desktop @mobile Workbench save and publication stay distinct through fail
   await expect(save).toBeDisabled();
   await expect(save).toHaveText("保存済み");
   await expect(publish).toHaveText("公開");
+  await expect(page).toHaveURL(new RegExp(`/experiments/${experimentId}$`));
+  await page.reload();
+  await expect(save).toHaveText("保存済み");
+  await expect(title).toHaveValue("公開の操作確認");
   state.failPublish = false;
   if (!await menu.isVisible()) await publish.click();
   await menu.getByRole("button", { name: "公開する", exact: true }).click();

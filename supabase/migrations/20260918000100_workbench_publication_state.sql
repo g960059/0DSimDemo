@@ -108,6 +108,13 @@ begin
 end;
 $$;
 
+-- Preserve the currently visible title for existing publications, then freeze
+-- later titles only when the owner explicitly publishes them.
+alter table studio.experiment_publications add column published_title text;
+update studio.experiment_publications p set published_title = e.title
+from studio.experiments e where e.experiment_id = p.experiment_id;
+alter table studio.experiment_publications alter column published_title set not null;
+
 CREATE OR REPLACE FUNCTION "public"."publish_experiment_v1"("p_operation_id" "uuid", "p_experiment_id" "uuid", "p_expected_version" bigint, "p_snapshot_id" "uuid", "p_public_slug" "text") RETURNS "jsonb"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO ''
@@ -164,13 +171,14 @@ begin
   for update;
 
   insert into studio.experiment_publications (
-    experiment_id, owner_id, current_snapshot_id, public_slug, published_version
+    experiment_id, owner_id, current_snapshot_id, public_slug, published_version, published_title
   ) values (
-    p_experiment_id, actor, p_snapshot_id, p_public_slug, captured_version
+    p_experiment_id, actor, p_snapshot_id, p_public_slug, captured_version, experiment_row.title
   ) on conflict (experiment_id) do update
     set current_snapshot_id = excluded.current_snapshot_id,
         public_slug = excluded.public_slug,
         published_version = excluded.published_version,
+        published_title = excluded.published_title,
         updated_at = now();
   update studio.experiment_snapshot_retention
   set retain_until = null, updated_at = now()
@@ -224,4 +232,99 @@ begin
     and e.deleted_at is null;
   return result_body;
 end;
+$$;
+
+
+CREATE OR REPLACE FUNCTION "public"."read_public_experiment_v1"("p_public_slug" "text") RETURNS "jsonb"
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+  select jsonb_build_object(
+    'experimentId', publication.experiment_id,
+    'title', publication.published_title,
+    'snapshot', jsonb_build_object(
+      'schemaId', 'circleheart-studio-experiment-snapshot-v2',
+      'snapshotId', snapshot.snapshot_id,
+      'content', content.content,
+      'surfaceReleaseId', snapshot.surface_release_id,
+      'createdAt', to_char(snapshot.created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+    )
+  )
+  from studio.experiment_publications as publication
+  join studio.experiments as experiment
+    on experiment.experiment_id = publication.experiment_id
+  join studio.experiment_snapshots as snapshot
+    on snapshot.snapshot_id = publication.current_snapshot_id
+  join studio.experiment_contents as content
+    on content.content_id = snapshot.content_id
+  where publication.public_slug = p_public_slug;
+$$;
+
+CREATE OR REPLACE FUNCTION "public"."list_public_experiment_summaries_v1"("p_limit" integer DEFAULT 50, "p_before_published_at" timestamp with time zone DEFAULT NULL::timestamp with time zone, "p_before_id" "uuid" DEFAULT NULL::"uuid") RETURNS "jsonb"
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+declare
+  result_body jsonb;
+begin
+  if p_limit < 1 or p_limit > 100 then
+    raise exception 'List page limit must be within [1, 100]' using errcode = '22023';
+  end if;
+  if (p_before_published_at is null) <> (p_before_id is null) then
+    raise exception 'List cursor timestamp and ID must be supplied together' using errcode = '22023';
+  end if;
+
+  with page as materialized (
+    select
+      p.experiment_id,
+      e.owner_id,
+      p.published_title as title,
+      p.public_slug,
+      p.updated_at as published_at,
+      s.snapshot_id,
+      c.model_id,
+      jsonb_array_length(c.content -> 'scenarios') as scenario_count
+    from studio.experiment_publications p
+    join studio.experiments e on e.experiment_id = p.experiment_id
+    join studio.experiment_snapshots s on s.snapshot_id = p.current_snapshot_id
+    join studio.experiment_contents c on c.content_id = s.content_id
+    where e.deleted_at is null
+      and (
+        p_before_published_at is null
+        or (p.updated_at, p.experiment_id) < (p_before_published_at, p_before_id)
+      )
+    order by p.updated_at desc, p.experiment_id desc
+    limit p_limit
+  )
+  select jsonb_build_object(
+    'items', coalesce(jsonb_agg(jsonb_build_object(
+      'experimentId', experiment_id,
+      'author', studio.public_author_v1(owner_id),
+      'title', title,
+      'publicSlug', public_slug,
+      'publishedAt', to_char(published_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+      'snapshotId', snapshot_id,
+      'modelId', model_id,
+      'scenarioCount', scenario_count
+    ) order by published_at desc, experiment_id desc), '[]'::jsonb),
+    'nextCursor', case when count(*) = p_limit then (
+      select jsonb_build_object(
+        'timestamp', to_char(last_page.published_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+        'id', last_page.experiment_id
+      )
+      from page last_page
+      order by last_page.published_at asc, last_page.experiment_id asc
+      limit 1
+    ) else null end
+  ) into result_body
+  from page;
+  return result_body;
+end;
+$$;
+
+create or replace function public.read_public_snapshot_title_v1(p_snapshot_id uuid) returns text
+language sql stable security definer set search_path = '' as $$
+ select p.published_title from studio.experiment_publications p
+ join studio.experiments e on e.experiment_id=p.experiment_id and e.deleted_at is null
+ where p.current_snapshot_id=p_snapshot_id order by p.updated_at desc,p.experiment_id limit 1;
 $$;

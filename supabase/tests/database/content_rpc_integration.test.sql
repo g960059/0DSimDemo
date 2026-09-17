@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(35);
+select plan(39);
 
 insert into auth.users (
   id,
@@ -586,6 +586,9 @@ select ok(
 -- mutable version used to authorize a later publication request.
 select pg_catalog.set_config('request.jwt.claims',
   '{"sub":"10000000-0000-0000-0000-000000000001","role":"authenticated","is_anonymous":false}', true);
+select public.publish_experiment_v1('20000000-0000-0000-0000-000000000020',
+  ((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid, 0,
+  ((select value ->> 'snapshotId' from rpc_state where key = 'snapshot'))::uuid, 'integration-public-experiment');
 select public.save_experiment_v1(
   '20000000-0000-0000-0000-000000000021',
   ((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid,
@@ -593,9 +596,17 @@ select public.save_experiment_v1(
   jsonb_set(public.read_my_experiment_v1(((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid)#>'{experiment,content}',
     '{scenarios,0,capture,fixture,control}', '2'::jsonb)
 );
+select is(public.read_public_experiment_v1('integration-public-experiment')->>'title', 'Integration baseline',
+  'Saving a new title leaves the public route title unchanged');
+select is(public.read_public_snapshot_title_v1(((select value->>'snapshotId' from rpc_state where key='snapshot'))::uuid), 'Integration baseline',
+  'Saving a new title leaves the public Snapshot title unchanged');
+select is(public.list_public_experiment_summaries_v1()#>>'{items,0,title}', 'Integration baseline',
+  'Saving a new title leaves the public directory title unchanged');
 select public.publish_experiment_v1('20000000-0000-0000-0000-000000000022',
   ((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid, 1,
   ((select value ->> 'snapshotId' from rpc_state where key = 'snapshot'))::uuid, 'integration-public-experiment');
+select is(public.read_public_experiment_v1('integration-public-experiment')->>'title', 'Changed baseline',
+  'Explicit publication makes the saved title public');
 select is(public.read_my_experiment_v1(((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid)->>'publishedVersion',
   '0', 'Publishing an older admitted Snapshot does not claim the new saved version');
 insert into rpc_state(key,value) select 'updated-snapshot', public.commit_admitted_experiment_snapshot_v1(

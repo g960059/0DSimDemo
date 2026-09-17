@@ -399,7 +399,23 @@ export const WorkbenchSession = ({
   const [snapshotPurpose, setSnapshotPurpose] = React.useState<
     "article" | "publication" | null
   >(null);
-  const [snapshotError, setSnapshotError] = React.useState<string | null>(null);
+  const [snapshotError, setSnapshotErrorValue] = React.useState<string | null>(null);
+  const snapshotErrorRef = React.useRef<string | null>(null);
+  const inheritedPublicationErrorRef = React.useRef<string | null>(null);
+  const setSnapshotError = React.useCallback((error: string | null) => {
+    snapshotErrorRef.current = error;
+    if (error === null) inheritedPublicationErrorRef.current = null;
+    setSnapshotErrorValue(error);
+  }, []);
+  React.useEffect(() => {
+    const inherited = location.state?.workbenchPublicationError;
+    if (typeof inherited !== "string") return;
+    inheritedPublicationErrorRef.current = inherited;
+    setSnapshotError(inherited);
+    const state = { ...location.state };
+    delete state.workbenchPublicationError;
+    navigateRef.current(`${location.pathname}${location.search}`, { replace: true, state });
+  }, [location.key]);
   const [recoveryError, setRecoveryError] = React.useState<string | null>(null);
   const [briefingOpen, setBriefingOpen] = React.useState(false);
   const [articleLinked, setArticleLinked] = React.useState(false);
@@ -949,7 +965,8 @@ export const WorkbenchSession = ({
       setSaveError(pendingFeedback?.saveError ?? null);
       setSnapshotState(pendingFeedback?.snapshotState ?? "idle");
       setSnapshotPurpose(null);
-      setSnapshotError(pendingFeedback?.snapshotError ?? null);
+      setSnapshotError(pendingFeedback?.snapshotError ?? inheritedPublicationErrorRef.current);
+      inheritedPublicationErrorRef.current = null;
       setScenarios([]);
       setActiveScenarioId(null);
       setScenarioPresets([]);
@@ -2657,7 +2674,6 @@ export const WorkbenchSession = ({
       setSnapshotError(t("workbench.editor.publishRequiresLinkedAccount"));
       return;
     }
-    let publicationSucceeded = false;
     try {
       const titleChanged = (experimentTitleRef.current.trim() || savedTitleRef.current) !== savedTitleRef.current;
       if (workbenchSaveAvailableV3(saveStateRef.current, titleChanged)) {
@@ -2667,15 +2683,18 @@ export const WorkbenchSession = ({
           return;
         }
       }
-      publicationSucceeded = await createSnapshotV3({ kind: "publication" }) !== null;
+      await createSnapshotV3({ kind: "publication" });
     } finally {
       setPublicationStage(null);
       // Keep a first-save Session mounted until the entire save/publish chain
       // finishes. A Snapshot-reader route would otherwise unmount its runtime.
-      if (publicationSucceeded && savedRoutePendingRef.current && experimentIdRef.current !== null &&
+      if (savedRoutePendingRef.current && experimentIdRef.current !== null &&
         saveStateRef.current === "clean" && (experimentTitleRef.current.trim() || savedTitleRef.current) === savedTitleRef.current) {
         savedRoutePendingRef.current = false;
-        navigate(`${experimentDetailHref({ experimentId: experimentIdRef.current, locale: resolvedLocale })}${location.search}`, { replace: true });
+        navigate(`${experimentDetailHref({ experimentId: experimentIdRef.current, locale: resolvedLocale })}${location.search}`, {
+          replace: true,
+          state: snapshotErrorRef.current ? { workbenchPublicationError: snapshotErrorRef.current } : null,
+        });
       }
     }
   }, [authIdentity.kind, createSnapshotV3, location.search, navigate, publicationStage, remoteContentRepository, resolvedLocale, saveExperimentV3, t]);

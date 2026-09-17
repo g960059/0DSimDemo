@@ -164,6 +164,7 @@ insert into studio.experiment_publications (
   owner_id,
   current_snapshot_id,
   public_slug,
+  published_title,
   published_at,
   updated_at
 ) values (
@@ -171,6 +172,7 @@ insert into studio.experiment_publications (
   '30000000-0000-0000-0000-000000000001',
   '32000000-0000-0000-0000-000000000001',
   'summary-public-experiment',
+  (select title from studio.experiments where experiment_id='31000000-0000-0000-0000-000000000001'),
   '2026-08-06 00:02:00+00',
   '2026-08-06 00:02:00+00'
 );
