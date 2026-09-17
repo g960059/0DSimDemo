@@ -68,12 +68,14 @@ export function homeItemsV1(
 }
 export type HomeFilterV1 = Readonly<{
   kind: HomeKindV1 | "all";
-  sort: "recommended" | "new" | "saved";
+  sort: "recommended" | "new";
+  savedOnly: boolean;
   query: string;
 }>;
 export const HOME_FILTER_V1: HomeFilterV1 = {
   kind: "all",
   sort: "recommended",
+  savedOnly: false,
   query: "",
 };
 /** A course can collect another author's article; that must never hide their card. */
@@ -86,7 +88,7 @@ export function selectHomeItemsV1(
   let found = items.filter(
     (item) =>
       (filter.kind === "all" || item.kind === filter.kind) &&
-      (filter.sort !== "saved" || saved.has(item.key)) &&
+      (!filter.savedOnly || saved.has(item.key)) &&
       (!query ||
         [
           item.title,
@@ -103,7 +105,12 @@ export function selectHomeItemsV1(
           .includes(query)),
   );
   // Search and private saves remain direct entry points to individual chapters.
-  if (filter.kind === "all" && filter.sort === "recommended" && !query) {
+  if (
+    filter.kind === "all" &&
+    filter.sort === "recommended" &&
+    !filter.savedOnly &&
+    !query
+  ) {
     const grouped = new Set<string>();
     for (const item of found)
       if (item.course)

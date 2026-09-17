@@ -101,7 +101,7 @@ export function HomeHeroV1({
   React.useEffect(() => {
     if (!interactive || paused || reduced) return;
     let frame = 0,
-      visible = true,
+      visible = false,
       previous = 0,
       elapsed = 0;
     const tick = (now: number) => {
@@ -155,7 +155,7 @@ export function HomeHeroV1({
     >
       <div className="home-demo-heading">
         <strong>
-          {ja ? "動かして、確かめる" : "Change it. See what happens."}
+          {ja ? "左室 PVループ／圧波形" : "LV PV loop / pressure waveforms"}
         </strong>
         <span>{ja ? "簡易モデル" : "Simplified model"}</span>
         <button
@@ -184,9 +184,8 @@ export function HomeHeroV1({
       </div>
       <div className="home-demo-plots">
         <figure>
-          <figcaption>
-            {ja ? "左室PVループ" : "LV pressure–volume"}
-            <small>mmHg, mL</small>
+          <figcaption className="home-plot-meta">
+            <span>mmHg / mL</span>
           </figcaption>
           <svg
             viewBox="0 0 320 214"
@@ -231,11 +230,11 @@ export function HomeHeroV1({
           </svg>
         </figure>
         <figure>
-          <figcaption>
-            {ja ? "圧波形" : "Pressure"}
-            <small>
+          <figcaption className="home-plot-meta">
+            <span>mmHg</span>
+            <span className="home-plot-legend">
               <i className="home-lvp">LVP</i> <i className="home-aop">AoP</i>
-            </small>
+            </span>
           </figcaption>
           <svg
             viewBox="0 0 320 214"

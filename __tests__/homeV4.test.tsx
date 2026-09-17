@@ -98,7 +98,7 @@ describe("Home discovery", () => {
     expect(
       selectHomeItemsV1(
         items,
-        { ...HOME_FILTER_V1, sort: "saved" },
+        { ...HOME_FILTER_V1, savedOnly: true },
         new Set([chapter.key]),
       ),
     ).toEqual([chapter]);
@@ -136,6 +136,32 @@ describe("Home discovery", () => {
     expect(html).toContain("home-card-wide");
     expect(html).toContain("?course=");
     expect(html).not.toContain("対象ユーザー");
+  });
+  it("combines saved-only filtering with either ordering without hiding saved chapters", () => {
+    const items = homeItemsV1(bootstrap).map((item, index) => ({
+      ...item,
+      publishedAt: `2026-09-${10 + index}T00:00:00Z`,
+    }));
+    const saved = new Set(items.map((item) => item.key));
+    const filter = { ...HOME_FILTER_V1, savedOnly: true };
+    const recommended = selectHomeItemsV1(items, filter, saved);
+    expect(recommended.map((item) => item.key)).toEqual([
+      items[0].key,
+      items[2].key,
+      items[1].key,
+    ]);
+    expect(
+      selectHomeItemsV1(items, { ...filter, sort: "new" }, saved).map(
+        (item) => item.key,
+      ),
+    ).toEqual([items[2].key, items[1].key, items[0].key]);
+    expect(
+      selectHomeItemsV1(
+        items,
+        { ...filter, kind: "article", sort: "new" },
+        new Set([items[0].key, items[1].key]),
+      ).map((item) => item.key),
+    ).toEqual([items[1].key]);
   });
   it("validates course promotion references", () => {
     expect(
@@ -219,7 +245,7 @@ describe("Home discovery", () => {
       expect(html).toContain('href="/ja/experiments/new"');
       expect(html).toContain("home-mini-demo");
       expect(html).toContain("home-intro-copy");
-      expect(html).toContain('class="home-quiet" href="#home-discovery"');
+      expect(html).not.toContain('class="home-quiet"');
       expect(
         html.match(/class="home-kinds"[\s\S]*?<\/div>/)?.[0],
       ).not.toContain("<small>");

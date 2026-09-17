@@ -1,15 +1,11 @@
 import React from "react";
 import {
-  ArrowDown,
   ArrowRight,
   Bookmark,
   BookOpen,
   BookOpenText,
   FlaskConical,
   Search,
-  Grid2X2,
-  Clock,
-  Star,
   ChevronDown,
   X,
 } from "lucide-react";
@@ -57,7 +53,6 @@ const kindLabels = {
   },
 };
 const kindIcons = {
-  all: Grid2X2,
   course: BookOpen,
   article: BookOpenText,
   experiment: FlaskConical,
@@ -76,7 +71,10 @@ export function HomePageV1(props: HomePagePropsV1) {
   const set = (patch: Partial<HomeFilterV1>) =>
     props.onFilter?.({ ...filter, ...patch });
   const isDefault =
-    filter.kind === "all" && filter.sort === "recommended" && !filter.query;
+    filter.kind === "all" &&
+    filter.sort === "recommended" &&
+    !filter.savedOnly &&
+    !filter.query;
   const featured = visible.find(
     (item) => item.featured && item.kind === "course",
   );
@@ -97,22 +95,27 @@ export function HomePageV1(props: HomePagePropsV1) {
           aria-label={ja ? "はじめに" : "Introduction"}
         >
           <div className="home-intro-copy">
+            <p className="home-eyebrow">
+              {ja
+                ? "循環動態の教育・研究プラットフォーム"
+                : "A platform for hemodynamics education and research"}
+            </p>
             <h1>
               {ja ? (
                 <>
-                  循環動態を、
+                  循環動態は、
                   <br />
-                  動かして学ぶ。
+                  <span className="home-hero-accent">動かす</span>と見えてくる。
                 </>
               ) : (
                 <>
-                  Understand circulation.
+                  See circulation.
                   <br />
-                  By changing it.
+                  <span className="home-hero-accent">Set it in motion.</span>
                 </>
               )}
             </h1>
-            <p>
+            <p className="home-lead">
               {ja
                 ? "記事を読みながら、その場でシミュレーションを動かす。前負荷・後負荷・収縮性の変化を、説明できる理解へ。"
                 : "Read an explanation, change the conditions, and see how pressure and volume respond. Turn observations into understanding."}
@@ -122,10 +125,6 @@ export function HomePageV1(props: HomePagePropsV1) {
                 <FlaskConical aria-hidden="true" />
                 {ja ? "シミュレーションを試す" : "Try a simulation"}
                 <ArrowRight aria-hidden="true" />
-              </a>
-              <a className="home-quiet" href="#home-discovery">
-                {ja ? "コンテンツを見る" : "Browse content"}
-                <ArrowDown aria-hidden="true" />
               </a>
             </div>
           </div>
@@ -146,62 +145,55 @@ export function HomePageV1(props: HomePagePropsV1) {
               aria-label={ja ? "コンテンツの種類" : "Content type"}
             >
               {(["all", "course", "article", "experiment"] as const).map(
-                (kind) => {
-                  const Icon = kindIcons[kind];
-                  return (
-                    <button
-                      type="button"
-                      key={kind}
-                      disabled={!props.onFilter}
-                      aria-pressed={filter.kind === kind}
-                      onClick={() => set({ kind })}
-                    >
-                      <Icon aria-hidden="true" />
-                      {kindLabels[locale][kind]}
-                    </button>
-                  );
-                },
-              )}
-            </div>
-            <div
-              className="home-sorts"
-              role="group"
-              aria-label={ja ? "表示順" : "Order"}
-            >
-              {(["recommended", "new", "saved"] as const).map((sort) => {
-                if (sort === "saved" && !props.signedIn) return null;
-                const Icon = { recommended: Star, new: Clock, saved: Bookmark }[
-                  sort
-                ];
-                return (
+                (kind) => (
                   <button
                     type="button"
-                    key={sort}
+                    key={kind}
                     disabled={!props.onFilter}
-                    aria-pressed={filter.sort === sort}
-                    onClick={() => set({ sort })}
+                    aria-pressed={filter.kind === kind}
+                    onClick={() => set({ kind })}
                   >
-                    <Icon aria-hidden="true" />
-                    {sort === "recommended"
-                      ? ja
-                        ? "おすすめ"
-                        : "Recommended"
-                      : sort === "new"
-                        ? ja
-                          ? "新着"
-                          : "Newest"
-                        : ja
-                          ? "保存済み"
-                          : "Saved"}
-                    {sort === "saved" && saved.size > 0 && (
-                      <small>{saved.size}</small>
-                    )}
+                    {kindLabels[locale][kind]}
                   </button>
-                );
-              })}
+                ),
+              )}
+            </div>
+            <div className="home-sorts">
+              {props.signedIn && (
+                <button
+                  className="home-saved-filter"
+                  type="button"
+                  disabled={!props.onFilter}
+                  aria-pressed={filter.savedOnly}
+                  onClick={() => set({ savedOnly: !filter.savedOnly })}
+                >
+                  <Bookmark aria-hidden="true" />
+                  {ja ? "保存済み" : "Saved"}
+                  {saved.size > 0 && <small>{saved.size}</small>}
+                </button>
+              )}
+              <label className="home-sort-select">
+                <span className="sr-only">{ja ? "並び順" : "Sort order"}</span>
+                <select
+                  value={filter.sort}
+                  disabled={!props.onFilter}
+                  onChange={(event) =>
+                    set({
+                      sort:
+                        event.target.value === "new" ? "new" : "recommended",
+                    })
+                  }
+                >
+                  <option value="recommended">
+                    {ja ? "おすすめ順" : "Recommended"}
+                  </option>
+                  <option value="new">{ja ? "新着順" : "Newest"}</option>
+                </select>
+                <ChevronDown aria-hidden="true" />
+              </label>
             </div>
           </div>
-          {filter.sort === "saved" && (
+          {filter.savedOnly && (
             <p className="home-catalog-note">
               {ja
                 ? "保存はログイン中のアカウントごとに、このブラウザに保持されます。"
@@ -258,7 +250,7 @@ export function HomePageV1(props: HomePagePropsV1) {
             <div className="home-empty">
               <Search aria-hidden="true" />
               <p>
-                {filter.sort === "saved"
+                {filter.savedOnly
                   ? ja
                     ? "この一覧に保存済みのコンテンツはありません。"
                     : "No saved items in this selection."
