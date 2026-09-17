@@ -1250,6 +1250,11 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
     name: "HR (現在値)",
     exact: true,
   });
+  await expect(selectedHeartRate).toHaveCount(0);
+  await settings.getByRole("button", { name: "項目を追加", exact: true }).click();
+  await settings.getByRole("searchbox").fill("心拍数");
+  await settings.getByRole("checkbox", { name: "HR", exact: true }).check();
+  await settings.getByRole("tab", { name: "項目", exact: true }).click();
   await expect(selectedHeartRate).toBeVisible();
   await settings.getByRole("button", { name: "Paneから外す: HR", exact: true }).click();
   await expect(selectedHeartRate).toHaveCount(0);
@@ -1269,7 +1274,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
     page
       .getByTestId("workbench-pane-picker-v3")
       .getByRole("button", { name: "HR (現在値)", exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "キャンセル" }).click();
 
   await page.getByRole("button", { name: "Paneメニュー: Outputs" }).click();
