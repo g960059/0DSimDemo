@@ -181,7 +181,7 @@ describe("public catalog V3", () => {
       { limit: 100, cursor: null },
       { limit: 100, cursor },
     ]);
-    expect(experimentRequests).toEqual([{ limit: 7 }]);
+    expect(experimentRequests).toEqual([{ limit: 50 }]);
   });
 });
 

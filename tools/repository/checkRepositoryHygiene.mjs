@@ -103,7 +103,8 @@ const architectureImportRules = [
 ];
 const machineLocalPathPatterns = [
   /\/Users\/[^/]+\//,
-  /\/home\/[^/]+\//,
+  // Do not mistake product-area imports such as components/home/... for home directories.
+  /(?<![\w./])\/home\/[^/\s]+\//,
   /[A-Za-z]:\\Users\\[^\\]+\\/,
 ];
 

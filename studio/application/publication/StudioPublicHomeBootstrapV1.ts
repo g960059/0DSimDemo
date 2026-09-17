@@ -1,4 +1,7 @@
-import { validatePublicAuthorV1, type PublicAuthorV1 } from "@/studio/application/profile/StudioPublicProfileV1";
+import {
+  validatePublicAuthorV1,
+  type PublicAuthorV1,
+} from "@/studio/application/profile/StudioPublicProfileV1";
 import {
   validatePublicCourseV1,
   type PublicCourseV1,
@@ -7,7 +10,7 @@ export const STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_SCHEMA_ID =
   "circleheart-public-home-bootstrap-v1";
 export const STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_ELEMENT_ID =
   "circleheart-public-home-bootstrap-v1";
-export const STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1 = 7;
+export const STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1 = 50;
 
 export type StudioPublicExperimentSummaryV1 = Readonly<{
   author?: PublicAuthorV1;
@@ -36,6 +39,7 @@ export type StudioPublicHomeBootstrapV1 = Readonly<{
   articles: readonly StudioPublicArticleSummaryV1[];
   experiments: readonly StudioPublicExperimentSummaryV1[];
   courses?: readonly PublicCourseV1[];
+  featuredCourseIds?: readonly string[];
 }>;
 
 export function validateStudioPublicHomeBootstrapV1(
@@ -50,6 +54,7 @@ export function validateStudioPublicHomeBootstrapV1(
       "articles",
       "experiments",
       ...("courses" in root ? ["courses"] : []),
+      ...("featuredCourseIds" in root ? ["featuredCourseIds"] : []),
     ],
     "$home",
   );
@@ -74,7 +79,27 @@ export function validateStudioPublicHomeBootstrapV1(
     (courses.length > 50 || courses.some((c) => c.locale !== locale))
   )
     failV1("$home.courses", "must fit the localized discovery list");
+  const featuredCourseIds =
+    root.featuredCourseIds === undefined
+      ? undefined
+      : arrayV1(root.featuredCourseIds, "$home.featuredCourseIds");
+  if (
+    featuredCourseIds &&
+    (featuredCourseIds.length > 50 ||
+      new Set(featuredCourseIds).size !== featuredCourseIds.length ||
+      featuredCourseIds.some(
+        (id) =>
+          typeof id !== "string" || !courses?.some((c) => c.courseId === id),
+      ))
+  )
+    failV1(
+      "$home.featuredCourseIds",
+      "must identify unique courses in this projection",
+    );
   return Object.freeze({
+    ...(featuredCourseIds === undefined
+      ? {}
+      : { featuredCourseIds: Object.freeze(featuredCourseIds as string[]) }),
     ...(courses === undefined ? {} : { courses: Object.freeze(courses) }),
     schemaId: STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_SCHEMA_ID,
     locale,
@@ -133,14 +158,24 @@ function articleSummaryV1(
   const entry = recordV1(value, path);
   exactKeysV1(
     entry,
-    ["articleId", "locale", "title", "excerpt", "publicSlug", "publishedAt", ...(entry.author === undefined ? [] : ["author"])],
+    [
+      "articleId",
+      "locale",
+      "title",
+      "excerpt",
+      "publicSlug",
+      "publishedAt",
+      ...(entry.author === undefined ? [] : ["author"]),
+    ],
     path,
   );
   if (entry.locale !== locale) {
     failV1(`${path}.locale`, "must match the Home locale");
   }
   return Object.freeze({
-    ...(entry.author === undefined ? {} : { author: validatePublicAuthorV1(entry.author) }),
+    ...(entry.author === undefined
+      ? {}
+      : { author: validatePublicAuthorV1(entry.author) }),
     articleId: stringV1(entry.articleId, `${path}.articleId`),
     locale,
     title: stringV1(entry.title, `${path}.title`),
@@ -174,7 +209,9 @@ function experimentSummaryV1(
     failV1(`${path}.scenarioCount`, "must be a nonnegative integer");
   }
   return Object.freeze({
-    ...(entry.author === undefined ? {} : { author: validatePublicAuthorV1(entry.author) }),
+    ...(entry.author === undefined
+      ? {}
+      : { author: validatePublicAuthorV1(entry.author) }),
     experimentId: stringV1(entry.experimentId, `${path}.experimentId`),
     title: stringV1(entry.title, `${path}.title`),
     publicSlug: stringV1(entry.publicSlug, `${path}.publicSlug`),

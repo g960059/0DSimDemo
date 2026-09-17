@@ -1,19 +1,16 @@
 import { PublicArticleLinkV1 as Link } from "@/components/article/PublicArticleLinkV1";
 import { PublicAuthorV1 } from "@/components/site/PublicAuthorV1";
 import {
-  PublicSectionHeadingV1,
   PUBLIC_CARD_CLASS_V1,
 } from "@/components/site/PublicDiscoveryV1";
 import { courseReadingEntryV1 } from "@/studio/application/course/StudioCourseReadingPositionV1";
 import React from "react";
-import { readStudioPublicHomeBootstrapV1 } from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowDown,
   ArrowUp,
   Plus,
   Trash2,
-  LibraryBig,
   ArrowRight,
   BookOpenText,
 } from "lucide-react";
@@ -87,48 +84,6 @@ export function CourseCardV1({ course }: { course: PublicCourseV1 }) {
         </span>
       </span>
     </Link>
-  );
-}
-export function FeaturedCoursesV1() {
-  const { repository, locale, ja } = useCourseEnvironment();
-  const bootstrap = React.useMemo(
-    () => readStudioPublicHomeBootstrapV1(locale)?.courses ?? [],
-    [locale],
-  );
-  const [state, setState] = React.useState({ locale, courses: bootstrap });
-  const courses = state.locale === locale ? state.courses : bootstrap;
-  React.useEffect(() => {
-    let current = true;
-    setState({ locale, courses: bootstrap });
-    void repository
-      ?.listPublicCourses({ locale, featured: true })
-      .then((c) => {
-        if (current) setState({ locale, courses: c });
-      })
-      .catch(() => {});
-    return () => {
-      current = false;
-    };
-  }, [repository, locale, bootstrap]);
-  return (
-    <section className="pb-14 sm:pb-20" aria-labelledby="home-courses-heading">
-      <PublicSectionHeadingV1
-        headingId="home-courses-heading"
-        icon={<LibraryBig className="h-5 w-5" aria-hidden="true" />}
-        title={ja ? "コースで学ぶ" : "Learn with courses"}
-        viewAllHref={`/${locale}/courses`}
-        viewAllLabel={ja ? "すべて見る" : "View all"}
-      />
-      {courses.length > 0 && (
-        <div
-          className={`mt-5 grid gap-4 ${courses.length > 1 ? "lg:grid-cols-2" : ""}`}
-        >
-          {courses.map((c) => (
-            <CourseCardV1 key={c.courseId} course={c} />
-          ))}
-        </div>
-      )}
-    </section>
   );
 }
 export function CourseDirectoryPageV1() {

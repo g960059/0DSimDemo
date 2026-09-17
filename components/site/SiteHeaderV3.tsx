@@ -9,6 +9,7 @@ import {
   Plus,
   Settings,
   Sun,
+  Search,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
@@ -29,6 +30,7 @@ import {
   setPreferredLocale,
   switchLocalePath,
 } from "@/localeRouting";
+import { useHomeSearchV1 } from "../home/HomeSearchV1";
 import { useSiteAccountSessionV3 } from "./SiteAccountSessionV3";
 
 const LANGUAGE_ITEMS_V3: readonly Readonly<{
@@ -45,6 +47,8 @@ export function SiteHeaderV3() {
   const locale = localeFromPathname(location.pathname);
   const { appTheme, setAppTheme } = useAppTheme();
   const accountSession = useSiteAccountSessionV3();
+  const isHome = /^\/(ja|en)\/?$/.test(location.pathname);
+  const search = useHomeSearchV1();
 
   React.useEffect(() => {
     if (i18n.language !== locale) void i18n.changeLanguage(locale);
@@ -54,18 +58,48 @@ export function SiteHeaderV3() {
 
   return (
     <header
-      className="z-50 flex h-14 shrink-0 items-center gap-3 bg-wb-header/95 px-3 shadow-[inset_0_-1px_0_color-mix(in_srgb,var(--wb-border)_72%,transparent)] backdrop-blur-xl sm:px-5"
+      className={`${isHome ? "home-site-header " : ""}z-50 flex h-14 shrink-0 items-center gap-3 bg-wb-header/95 px-3 shadow-[inset_0_-1px_0_color-mix(in_srgb,var(--wb-border)_72%,transparent)] backdrop-blur-xl sm:px-5`}
       data-testid="site-header-v3"
     >
       <Link
         to={homeHref(locale)}
-        className="min-w-0 shrink truncate rounded-md text-[15px] font-semibold tracking-[-0.02em] text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+        onClick={() => {
+          if (isHome)
+            document.querySelector(".home-page")?.scrollTo({ top: 0 });
+        }}
+        className={`${isHome ? "home-brand " : ""}min-w-0 shrink truncate rounded-md text-[15px] font-semibold tracking-[-0.02em] text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent`}
         aria-label={t("siteHeader.home")}
       >
+        {isHome && (
+          <svg viewBox="0 0 28 28" aria-hidden="true">
+            <rect width="28" height="28" rx="8" fill="currentColor" />
+            <path
+              d="M8 19V12c0-4 12-5 12 0v7H8Z"
+              fill="none"
+              stroke="white"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+            />
+            <circle cx="20" cy="13" r="2" fill="white" />
+          </svg>
+        )}
         {t("common.appName")}
       </Link>
 
       <span className="min-w-0 flex-1" />
+      {isHome && (
+        <button
+          type="button"
+          className="home-header-search"
+          aria-label={locale === "ja" ? "コンテンツを検索" : "Search content"}
+          aria-haspopup="dialog"
+          onClick={search?.open}
+        >
+          <Search aria-hidden="true" />
+          <span>{locale === "ja" ? "検索" : "Search"}</span>
+          <kbd>⌘K</kbd>
+        </button>
+      )}
 
       {accountSession.account === null && (
         <nav
@@ -110,9 +144,11 @@ export function SiteHeaderV3() {
         data-testid="site-theme-toggle-v3"
         className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
       >
-        {appTheme === "light"
-          ? <Moon className="h-4 w-4" aria-hidden="true" />
-          : <Sun className="h-4 w-4" aria-hidden="true" />}
+        {appTheme === "light" ? (
+          <Moon className="h-4 w-4" aria-hidden="true" />
+        ) : (
+          <Sun className="h-4 w-4" aria-hidden="true" />
+        )}
       </button>
 
       {accountSession.account === null ? (
@@ -156,9 +192,10 @@ function SiteCreateMenuV3({ locale }: Readonly<{ locale: Locale }>) {
     if (!open) return undefined;
     const closeOnPointerDown = (event: PointerEvent) => {
       if (
-        event.target instanceof Node
-        && !rootRef.current?.contains(event.target)
-      ) setOpen(false);
+        event.target instanceof Node &&
+        !rootRef.current?.contains(event.target)
+      )
+        setOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
@@ -205,11 +242,17 @@ function SiteCreateMenuV3({ locale }: Readonly<{ locale: Locale }>) {
             description={t("siteHeader.newSimulationDescription")}
             onSelect={() => setOpen(false)}
           />
-          <SiteCreateMenuLinkV3 to={`/${locale}/courses/new`}
+          <SiteCreateMenuLinkV3
+            to={`/${locale}/courses/new`}
             icon={<BookOpenText className="h-4 w-4" aria-hidden="true" />}
-            title={locale==='ja'?'新しいコース':'New course'}
-            description={locale==='ja'?'記事を束ねて、読む順序を作る':'Arrange articles into a reading path'}
-            onSelect={()=>setOpen(false)} />
+            title={locale === "ja" ? "新しいコース" : "New course"}
+            description={
+              locale === "ja"
+                ? "記事を束ねて、読む順序を作る"
+                : "Arrange articles into a reading path"
+            }
+            onSelect={() => setOpen(false)}
+          />
           <SiteCreateMenuLinkV3
             to={newArticleEditorHref(locale)}
             icon={<BookOpenText className="h-4 w-4" aria-hidden="true" />}
@@ -247,7 +290,9 @@ function SiteCreateMenuLinkV3({
         {icon}
       </span>
       <span className="min-w-0">
-        <span className="block text-xs font-semibold text-wb-text">{title}</span>
+        <span className="block text-xs font-semibold text-wb-text">
+          {title}
+        </span>
         <span className="mt-0.5 block text-[11px] leading-5 text-wb-muted">
           {description}
         </span>
@@ -266,9 +311,10 @@ function SiteProfileMenuV3({ locale }: Readonly<{ locale: Locale }>) {
     if (!open) return undefined;
     const closeOnPointerDown = (event: PointerEvent) => {
       if (
-        event.target instanceof Node
-        && !rootRef.current?.contains(event.target)
-      ) setOpen(false);
+        event.target instanceof Node &&
+        !rootRef.current?.contains(event.target)
+      )
+        setOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
@@ -282,8 +328,9 @@ function SiteProfileMenuV3({ locale }: Readonly<{ locale: Locale }>) {
   }, [open]);
 
   if (account === null) return null;
-  const initial = account.displayName.trim().charAt(0).toLocaleUpperCase()
-    || account.accountId.charAt(0).toLocaleUpperCase();
+  const initial =
+    account.displayName.trim().charAt(0).toLocaleUpperCase() ||
+    account.accountId.charAt(0).toLocaleUpperCase();
 
   return (
     <div ref={rootRef} className="relative shrink-0">
@@ -325,9 +372,12 @@ function SiteProfileMenuV3({ locale }: Readonly<{ locale: Locale }>) {
           >
             {t("siteHeader.manageExperiments")}
           </ProfileMenuLinkV3>
-          <ProfileMenuLinkV3 to={`/${locale}/me/courses`}
-            icon={<BookOpenText className="h-4 w-4" aria-hidden="true" />} onSelect={()=>setOpen(false)}>
-            {locale==='ja'?'自分のコース':'My courses'}
+          <ProfileMenuLinkV3
+            to={`/${locale}/me/courses`}
+            icon={<BookOpenText className="h-4 w-4" aria-hidden="true" />}
+            onSelect={() => setOpen(false)}
+          >
+            {locale === "ja" ? "自分のコース" : "My courses"}
           </ProfileMenuLinkV3>
           <ProfileMenuLinkV3
             to={myArticlesHref(locale)}
