@@ -181,6 +181,7 @@ test("@desktop @mobile management navigation keeps lists, creation actions and h
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
     await expect(page.locator(".management-create")).toHaveAttribute("href", createHref);
     await expect(page.locator(".management-create")).toHaveText("新規作成");
+    await expect(page.locator(".management-create")).toHaveAccessibleName(/^新規作成:/);
     await expect(page.locator(".management-page-header p")).toHaveCount(0);
     layouts[resource] = (await page.locator(".management-create").boundingBox())!;
     await page.screenshot({ path: info.outputPath(`management-${resource}.png`), animations: "disabled" });

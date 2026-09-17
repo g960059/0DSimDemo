@@ -126,6 +126,7 @@ test("@desktop @mobile Workbench save and publication stay distinct through fail
     const box = await menu.boundingBox();
     expect(box!.y + box!.height).toBeLessThanOrEqual(844);
     await page.setViewportSize({ width: 320, height: 740 });
+    await expect(page.getByTestId("workbench-simulation-info-trigger-v3")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
     const publishBox = await publish.boundingBox();
     expect(publishBox!.x + publishBox!.width).toBeLessThanOrEqual(320);

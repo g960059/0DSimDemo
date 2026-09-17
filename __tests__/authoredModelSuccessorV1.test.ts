@@ -21,9 +21,9 @@ export function successorBackupFixtureV1(): AuthoredModelBackupV1 {
     activeBundle: { singleton: true, model_id: "model/successor-before", surface_release_id: "surface/successor-test", version: 17, updated_at: date },
     contents: [1, 2].map(n => ({ content_id: uuid(n), model_id: "model/successor-before", content: content(n), surface_series_id: "surface-series/successor-test", created_by: owner, created_at: date, content_size_bytes: 0 })),
     experiments: [{ experiment_id: uuid(4), owner_id: owner, title: "Current head", model_id: "model/successor-before", current_content_id: uuid(2), version: 8, created_at: date, updated_at: date, deleted_at: null }],
-    experimentPublications: [{ experiment_id: uuid(4), owner_id: owner, current_snapshot_id: uuid(3), public_slug: "successor-experiment", published_at: date, updated_at: date }],
+    experimentPublications: [{ experiment_id: uuid(4), owner_id: owner, current_snapshot_id: uuid(3), public_slug: "successor-experiment", published_title: "Published title", published_version: 7, published_at: date, updated_at: date }],
     snapshots: [{ snapshot_id: uuid(3), content_id: uuid(1), surface_release_id: "surface/successor-test", owner_id: owner, created_at: date }],
-    snapshotSources: [{ snapshot_id: uuid(3), source_experiment_id: uuid(4) }], snapshotRetention: [{ snapshot_id: uuid(3), retain_until: null, updated_at: date }],
+    snapshotSources: [{ snapshot_id: uuid(3), source_experiment_id: uuid(4), source_experiment_version: 7 }], snapshotRetention: [{ snapshot_id: uuid(3), retain_until: null, updated_at: date }],
     articleContents: [article(5, "Unpublished changes"), article(6, "Published text")],
     articles: [{ article_id: uuid(7), owner_id: owner, current_draft_content_id: uuid(5), version: 5, deleted_at: null, created_at: date, updated_at: date }],
     articlePublications: [{ article_id: uuid(7), owner_id: owner, current_content_id: uuid(6), public_slug: "successor-article", published_at: date, updated_at: date }],
@@ -76,6 +76,9 @@ do $test$ begin
 end $test$;
 delete from studio.experiment_snapshots where snapshot_id='${extraSnapshotId}';
 ` + forward + `
+do $test$ begin
+ if (select source_experiment_version from studio.experiment_snapshot_sources where snapshot_id='${plan.after.snapshots[0]!.snapshot_id}') is distinct from 7::bigint then raise exception 'successor publication provenance failed'; end if;
+end $test$;
 -- Publication-only changes do not increment the draft head version.
 update studio.article_publications set current_content_id='${plan.after.articles[0]!.current_draft_content_id}' where article_id='${backup.articles[0]!.article_id}';
 do $test$ begin
@@ -95,7 +98,10 @@ delete from studio.article_contents where article_content_id in (${backup.articl
 do $test$ begin
  if (select model_id from studio.experiments where experiment_id='${backup.experiments[0]!.experiment_id}') <> 'model/successor-before' or
     (select version from studio.experiments where experiment_id='${backup.experiments[0]!.experiment_id}') <> 10 then raise exception 'rollback head failed'; end if;
- if (select current_content_id from studio.article_publications where article_id='${backup.articles[0]!.article_id}') <> '${backup.articlePublications[0]!.current_content_id}'::uuid then raise exception 'rollback published pointer failed'; end if;
+    if (select current_content_id from studio.article_publications where article_id='${backup.articles[0]!.article_id}') <> '${backup.articlePublications[0]!.current_content_id}'::uuid then raise exception 'rollback published pointer failed'; end if;
+ if (select published_title from studio.experiment_publications where experiment_id='${backup.experiments[0]!.experiment_id}') <> 'Published title' or
+    (select published_version from studio.experiment_publications where experiment_id='${backup.experiments[0]!.experiment_id}') <> 7 or
+    (select source_experiment_version from studio.experiment_snapshot_sources where snapshot_id='${backup.snapshots[0]!.snapshot_id}') is distinct from 7::bigint then raise exception 'rollback publication metadata failed'; end if;
  if (select version from studio.active_model_bundle where singleton) <> 19 then raise exception 'rollback active version failed'; end if;
 end $test$;
 rollback;`;

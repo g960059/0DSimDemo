@@ -50,7 +50,7 @@ const insertRows = (table: "contents" | "snapshots" | "snapshotSources" | "artic
   const columns = {
     contents: ["content_id", "model_id", "content", "created_by", "created_at", "surface_series_id"],
     snapshots: ["snapshot_id", "owner_id", "content_id", "created_at", "surface_release_id"],
-    snapshotSources: ["snapshot_id", "source_experiment_id"],
+    snapshotSources: ["snapshot_id", "source_experiment_id", "source_experiment_version"],
     articleContents: ["article_content_id", "owner_id", "locale", "title", "blocks", "created_at"],
   }[table];
   const [name] = tables[table];

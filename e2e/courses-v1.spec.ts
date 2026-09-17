@@ -300,7 +300,7 @@ for (const operation of ["save", "delete"] as const)
     await page
       .getByRole("link", { name: "← 自分のコース", exact: true })
       .click();
-    await page.getByRole("link", { name: "新しいコース", exact: true }).click();
+    await page.getByRole("link", { name: "新規作成: 新しいコース", exact: true }).click();
     await page
       .getByLabel("タイトル", { exact: true })
       .fill("入力を続けている新しいコース");

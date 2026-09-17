@@ -48,7 +48,7 @@ export function ManagementPageHeaderV1({ title, createHref, createLabel, createT
   return (
     <div className="management-page-header">
       <h1>{title}</h1>
-      <Link to={createHref} className="management-create" aria-label={createLabel} data-testid={createTestId}>
+      <Link to={createHref} className="management-create" aria-label={`${t("management.create")}: ${createLabel}`} data-testid={createTestId}>
         <Plus aria-hidden="true" />
         {t("management.create")}
       </Link>

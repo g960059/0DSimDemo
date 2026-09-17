@@ -49,6 +49,7 @@ export function WorkbenchPublishMenuV3({
       data-testid="v3-publish-experiment"
       data-published={published}
       data-stale={stale}
+      data-attention={stale && (dirty || comparisonKnown)}
       disabled={disabled && !busy}
       aria-label={busy ? t(`${key}.stage.${stage}`) : status}
       aria-haspopup="dialog"

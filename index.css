@@ -856,7 +856,7 @@ body[data-app-theme="light"] {
   background: var(--wb-success);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--wb-success) 14%, transparent);
 }
-.workbench-publication-trigger[data-stale="true"] .workbench-publication-dot {
+.workbench-publication-trigger[data-attention="true"] .workbench-publication-dot {
   background: var(--wb-warning);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--wb-warning) 14%, transparent);
 }
@@ -876,7 +876,8 @@ body[data-app-theme="light"] {
   .workbench-app-header { gap: 4px; padding-inline: 6px; }
 }
 @media (max-width: 359px) {
-  .workbench-app-header [data-testid="workbench-simulation-info-trigger-v3"] { display: none; }
+  .workbench-app-header [data-testid="workbench-simulation-info-trigger-v3"],
+  .workbench-app-header [data-testid="workbench-back-v1"] { width: 28px; }
   .workbench-app-header [data-testid="v3-header-information-playback-separator"] { display: none; }
   .workbench-save-action, .workbench-publication-trigger { padding-inline: 6px; gap: 4px; }
 }

@@ -2437,7 +2437,7 @@ export const WorkbenchSession = ({
           }>,
     ): Promise<ExperimentSnapshotV2 | null> => {
       if (!workbenchDurableContentAvailableV3({ modelLab })) return null;
-      setSnapshotPurpose(null);
+      setSnapshotPurpose(options.kind);
       if (
         options.kind === "publication" &&
         remoteContentRepository !== null &&
@@ -2497,7 +2497,6 @@ export const WorkbenchSession = ({
         return null;
       }
       exclusiveOperationRef.current = "snapshot";
-      setSnapshotPurpose(options.kind);
       setSnapshotState("creating");
       if (options.kind === "publication") setPublicationStage("checking");
       setSnapshotError(null);
@@ -2668,7 +2667,12 @@ export const WorkbenchSession = ({
   );
 
   const publishExperimentV3 = React.useCallback(async () => {
-    if (publicationStage !== null || exclusiveOperationRef.current !== null) return;
+    if (publicationStage !== null) return;
+    setSnapshotPurpose("publication");
+    if (exclusiveOperationRef.current !== null) {
+      setSnapshotError(t("workbench.editor.snapshotBusy"));
+      return;
+    }
     setSnapshotError(null);
     if (remoteContentRepository !== null && authIdentity.kind !== "account") {
       setSnapshotError(t("workbench.editor.publishRequiresLinkedAccount"));
@@ -2702,6 +2706,7 @@ export const WorkbenchSession = ({
   const unpublishExperimentV3 = React.useCallback(async () => {
     const current = experimentRef.current;
     if (!current || exclusiveOperationRef.current !== null || publicationStage !== null) return;
+    setSnapshotPurpose("publication");
     exclusiveOperationRef.current = "publication";
     setPublicationStage("unpublishing");
     setSnapshotError(null);
@@ -3444,7 +3449,7 @@ export const WorkbenchSession = ({
               stage={publicationStage}
               publishedAt={experimentRecord?.publishedAt ?? null}
               publicHref={experimentRecord?.publicSlug ? publishedExperimentHref({ publicSlug: experimentRecord.publicSlug, locale: resolvedLocale }) : experimentRecord?.publishedSnapshotId ? experimentSnapshotHref({ snapshotId: experimentRecord.publishedSnapshotId, locale: resolvedLocale }) : null}
-              error={snapshotError ?? saveError}
+              error={snapshotPurpose === "article" ? saveError : snapshotError ?? saveError}
               loginHref={remoteContentRepository !== null && authIdentity.kind !== "account" ? loginHref(resolvedLocale) : null}
               onPublish={publishExperimentV3}
               onUnpublish={unpublishExperimentV3}
