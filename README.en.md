@@ -50,4 +50,12 @@ Simulation results follow from the assumptions and inputs represented by the mod
 
 ## Project
 
-CircleHeart is an ongoing project for hemodynamic education, knowledge sharing, and continuous mathematical model development. Feedback and suggestions are welcome through [GitHub Issues](https://github.com/g960059/0DSimDemo/issues).
+CircleHeart is an ongoing project for hemodynamic education, knowledge sharing, and continuous mathematical model development. Feedback and suggestions are welcome through [GitHub Issues](https://github.com/g960059/CircleHeart/issues).
+
+Please discuss changes to code, tests, documentation, or translations in an issue first. PRs require prior agreement on scope and usage terms. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+## License
+
+Unless otherwise noted, original CircleHeart software is provided under the [PolyForm Noncommercial License 1.0.0](LICENSE). The software is source-available, not open source under the OSI definition.
+
+For uses beyond the permissions of this license, please contact the maintainer. See [LICENSING.md](LICENSING.md) for scope, educational materials, outputs, user content, third-party materials, and contact details.
