@@ -68,7 +68,7 @@ export function SiteHeaderV3() {
           if (isHome)
             document.querySelector(".home-page")?.scrollTo({ top: 0 });
         }}
-        className="site-brand-link rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+        className="site-brand-link rounded-md"
         aria-label={t("siteHeader.home")}
       >
         <CircleHeartLogoV1 />

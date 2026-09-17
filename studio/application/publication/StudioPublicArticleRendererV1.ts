@@ -5,7 +5,7 @@ import {
   type ArticleReadingIndexV1,
 } from "@/studio/application/article/StudioArticleReadingV1";
 import katex from "katex";
-import circleHeartWordmark from "@/studio/presentation/brand/circleheart-wordmark.svg?raw";
+import circleHeartWordmark from "@/assets/brand/circleheart-wordmark.svg?raw";
 import { articleHeadingPhrasesV1 } from "@/studio/application/article/StudioArticleHeadingPhrasesV1";
 
 import enTranslation from "@/locales/en/translation.json";
