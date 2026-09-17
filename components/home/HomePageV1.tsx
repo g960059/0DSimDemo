@@ -136,14 +136,9 @@ export function HomePageV1(props: HomePagePropsV1) {
           className="home-discovery"
           aria-labelledby="home-discovery-title"
         >
-          <div className="home-discovery-heading">
-            <h2 id="home-discovery-title">{ja ? "見つける" : "Discover"}</h2>
-            <p>
-              {ja
-                ? "コース・記事・シミュレーション。公式もコミュニティも、ひとつの一覧に。"
-                : "Courses, articles and simulations, from CircleHeart and the community."}
-            </p>
-          </div>
+          <h2 id="home-discovery-title" className="sr-only">
+            {ja ? "公開コンテンツ" : "Published content"}
+          </h2>
           <div className="home-browse">
             <div
               className="home-kinds"

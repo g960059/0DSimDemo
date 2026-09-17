@@ -346,10 +346,7 @@ export function HomeHeroV1({
       <p className="home-demo-note">
         {ja
           ? "時変エラスタンス＋Windkessel · 75拍/分"
-          : "Elastance + Windkessel · 75 bpm"}{" "}
-        <a href={`/${locale}/models`}>
-          {ja ? "数理モデルについて" : "About the models"}
-        </a>
+          : "Elastance + Windkessel · 75 bpm"}
       </p>
     </div>
   );

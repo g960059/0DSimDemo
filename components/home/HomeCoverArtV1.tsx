@@ -1,318 +1,317 @@
 import React from "react";
 import type { HomeItemV1 } from "./HomeDiscoveryV1";
 
-/** Editorial illustrations, not charts or calculated output from the content. */
+const subjects = [
+  ["equilibrium", /Guyton|循環平衡|equilibrium/i],
+  ["starling", /Starling|スターリング/i],
+  ["respiration", /呼吸|PEEP|respira/i],
+  ["filling", /EDPVR|硬さ|弛緩|充満圧|relaxation|stiffness/i],
+  ["afterload", /後負荷|抵抗|afterload|resistance|\bEa\b/i],
+  ["preload", /血液量|前負荷|preload|blood volume/i],
+  ["contractility", /ESPVR|Ees|収縮|能動張力|contractil/i],
+] as const;
+
+/** A title's main subject wins over incidental topics in its summary. */
 export function homeCoverSubjectV1(
   item: Pick<HomeItemV1, "kind" | "title" | "description">,
 ) {
   if (item.kind === "course") return "course";
-  const text = `${item.title} ${item.description}`;
-  if (/Guyton|循環平衡|equilibrium/i.test(text)) return "equilibrium";
-  if (/Starling|スターリング/i.test(text)) return "starling";
-  if (/呼吸|PEEP|respira/i.test(text)) return "respiration";
-  if (/硬さ|弛緩|充満圧|relaxation|stiffness/i.test(item.title))
-    return "filling";
-  if (/後負荷|抵抗|afterload|resistance/i.test(item.title)) return "afterload";
-  if (/収縮|contractil/i.test(item.title)) return "contractility";
-  if (/血液量|前負荷|preload|blood volume/i.test(text)) return "preload";
+  for (const text of [item.title, item.description]) {
+    const matches = subjects.flatMap(([subject, pattern]) => {
+      const match = pattern.exec(text);
+      return match ? [{ subject, index: match.index }] : [];
+    });
+    if (matches.length)
+      return matches.sort((a, b) => a.index - b.index)[0].subject;
+    if (/PV|一拍|心周期|圧.?容積|cardiac.?cycle|pressure.?volume/i.test(text))
+      return "cycle";
+  }
   return "cycle";
 }
-function Heart({
-  x = 200,
-  y = 108,
-  scale = 1,
+
+type Tone = "primary" | "secondary" | "baseline" | "axis";
+const color = (tone: Tone) => `var(--art-${tone})`;
+function Line({
+  d,
+  tone = "primary",
+  reference = false,
+  width = 4,
+  fill = false,
 }: {
-  x?: number;
-  y?: number;
-  scale?: number;
+  d: string;
+  tone?: Tone;
+  reference?: boolean;
+  width?: number;
+  fill?: boolean;
 }) {
   return (
-    <g transform={`translate(${x} ${y}) scale(${scale})`}>
-      <path
-        d="M0 53C-10 48-60 15-60-17C-60-46-23-56 0-30C23-56 60-46 60-17C60 15 10 48 0 53Z"
-        fill="var(--art-coral)"
-      />
-      <path
-        d="M0-30C23-56 60-46 60-17C60 15 10 48 0 53Z"
-        fill="var(--art-rose)"
-      />
-      <path
-        d="M-24-18C-34-18-39-12-38-3"
-        stroke="var(--art-paper)"
-        strokeWidth="8"
-        strokeLinecap="round"
-        fill="none"
-        opacity=".8"
-      />
+    <path
+      d={d}
+      fill={fill ? color(tone) : "none"}
+      fillOpacity={fill ? 0.09 : undefined}
+      stroke={color(tone)}
+      strokeWidth={width}
+      strokeDasharray={reference ? "6 7" : undefined}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  );
+}
+function Axes({ x = "V", y = "P" }: { x?: string; y?: string }) {
+  return (
+    <g fill="var(--art-label)" fontSize="12" fontWeight="500">
+      <Line d="M48 35V188H353" tone="axis" width={1.5} />
+      <text x="35" y="33" textAnchor="middle">
+        {y}
+      </text>
+      <text x="354" y="208" textAnchor="end">
+        {x}
+      </text>
     </g>
   );
 }
+function Label({ children }: { children: React.ReactNode }) {
+  return (
+    <text
+      x="351"
+      y="38"
+      textAnchor="end"
+      fill="var(--art-label)"
+      fontSize="13"
+      fontWeight="500"
+    >
+      {children}
+    </text>
+  );
+}
+function Point({
+  x,
+  y,
+  reference = false,
+}: {
+  x: number;
+  y: number;
+  reference?: boolean;
+}) {
+  return (
+    <circle
+      cx={x}
+      cy={y}
+      r="5"
+      fill={reference ? "var(--art-paper)" : color("primary")}
+      stroke={reference ? color("baseline") : "var(--art-paper)"}
+      strokeWidth="2.5"
+    />
+  );
+}
+
+// Dimensionless concept geometry, never simulated or measured output. Comparative
+// PV loops share V0; change one of Ees/Ea/EDV and keep the other two fixed. Their
+// end-systolic points lie on both construction lines, even after simplification.
+function pv({ edv = 314, ees = 1.15, ea = 0.67 } = {}) {
+  const v0 = 82,
+    floor = 188;
+  const esv = (ees * v0 + ea * edv) / (ees + ea);
+  const end = floor - ees * (esv - v0),
+    span = edv - esv;
+  const filling = 180 - (edv - 244) * 0.16;
+  return {
+    esv,
+    end,
+    loop: `M${edv} ${filling}V${end - 5}C${edv - span * 0.2} ${end - 32} ${esv + span * 0.16} ${end - 16} ${esv} ${end}V184C${esv + span * 0.35} 184 ${edv - span * 0.28} 184 ${edv} ${filling}Z`,
+    espvr: `M${v0} ${floor}L${v0 + (floor - 36) / ees} 36`,
+    ea: `M${edv} ${floor}L${edv - (floor - 42) / ea} 42`,
+  };
+}
+function PvComparison({
+  subject,
+}: {
+  subject: "contractility" | "afterload" | "preload";
+}) {
+  const base = pv(subject === "preload" ? { edv: 270 } : {});
+  const changed = pv(
+    subject === "contractility"
+      ? { ees: 1.9 }
+      : subject === "afterload"
+        ? { ea: 1.06 }
+        : {},
+  );
+  return (
+    <>
+      <Axes />
+      {subject === "contractility" ? (
+        <>
+          <Line d={base.espvr} tone="baseline" reference width={2.5} />
+          <Line d={changed.espvr} width={2.5} />
+          <Label>ESPVR</Label>
+        </>
+      ) : subject === "afterload" ? (
+        <>
+          <Line d={base.espvr} tone="axis" width={2} />
+          <Line d={base.ea} tone="baseline" reference width={2.5} />
+          <Line d={changed.ea} width={2.5} />
+          <Label>Ea</Label>
+        </>
+      ) : (
+        <Line d={base.espvr} tone="axis" width={2} />
+      )}
+      <Line d={base.loop} tone="baseline" reference width={3} />
+      <Line d={changed.loop} fill />
+      <Point x={base.esv} y={base.end} reference />
+      <Point x={changed.esv} y={changed.end} />
+    </>
+  );
+}
+function Cycle() {
+  const beat = pv();
+  return (
+    <>
+      <Axes />
+      <Line d={beat.loop} fill width={4.5} />
+      <Line
+        d={`M${beat.esv - 5} 133L${beat.esv} 140L${beat.esv + 5} 133M309 122L314 115L319 122`}
+        width={2.5}
+      />
+      <Point x={beat.esv} y={beat.end} />
+    </>
+  );
+}
+function curve(fn: (x: number) => number, from: number, to: number) {
+  return Array.from({ length: 49 }, (_, i) => {
+    const x = from + ((to - from) * i) / 48;
+    return `${i ? "L" : "M"}${x.toFixed(1)} ${fn(x).toFixed(1)}`;
+  }).join(" ");
+}
+const starling = (x: number) => 184 - 134 * (1 - Math.exp(-(x - 60) / 97));
+function Starling() {
+  return (
+    <>
+      <Axes x="EDV" y="SV" />
+      <Line
+        d={`M129 188V${starling(129)}M248 188V${starling(248)}`}
+        tone="axis"
+        reference
+        width={1.5}
+      />
+      <Line d={curve(starling, 66, 337)} />
+      <Point x={129} y={starling(129)} reference />
+      <Point x={248} y={starling(248)} />
+    </>
+  );
+}
+function Filling() {
+  const relaxed = (x: number) => 188 - 7 * (Math.exp((x - 65) / 100) - 1);
+  const stiff = (x: number) => 188 - 16.1 * (Math.exp((x - 65) / 100) - 1);
+  return (
+    <>
+      <Axes />
+      <Label>EDPVR</Label>
+      <Line
+        d={`M260 ${relaxed(260)}V${stiff(260)}`}
+        tone="axis"
+        reference
+        width={1.5}
+      />
+      <Line d={curve(relaxed, 66, 337)} tone="baseline" reference width={3} />
+      <Line d={curve(stiff, 66, 299)} />
+      <Point x={260} y={relaxed(260)} reference />
+      <Point x={260} y={stiff(260)} />
+    </>
+  );
+}
+const cardiac = (x: number) => 188 - 135 * (1 - Math.exp(-(x - 64) / 100));
+const venous = (x: number) => 61 + (Math.max(96, x) - 86) * 0.55;
+// Find the actual intersection of the two drawn concept curves.
+const equilibrium = (() => {
+  let low = 96,
+    high = 300;
+  for (let i = 0; i < 24; i++) {
+    const middle = (low + high) / 2;
+    if (cardiac(middle) > venous(middle)) low = middle;
+    else high = middle;
+  }
+  return (low + high) / 2;
+})();
+function Guyton() {
+  const y = cardiac(equilibrium);
+  return (
+    <>
+      <Axes x="RAP" y="Q" />
+      <Line
+        d={`M48 ${y}H${equilibrium}V188`}
+        tone="axis"
+        reference
+        width={1.5}
+      />
+      <Line d={curve(venous, 68, 316)} tone="secondary" />
+      <Line d={curve(cardiac, 68, 337)} />
+      <Point x={equilibrium} y={y} />
+      <g fontSize="12" fontWeight="500">
+        <text x="331" y="53" textAnchor="end" fill={color("primary")}>
+          CO
+        </text>
+        <text x="321" y="170" fill={color("secondary")}>
+          VR
+        </text>
+      </g>
+    </>
+  );
+}
+function Respiration() {
+  const pressure =
+    "M65 174H84Q91 174 91 165V98Q91 91 100 91H132Q144 91 149 100Q161 126 169 174H209Q216 174 216 165V98Q216 91 225 91H257Q269 91 274 100Q286 126 294 174H335";
+  return (
+    <>
+      <Axes x="t" y="Paw" />
+      <Label>PEEP</Label>
+      <Line d={pressure} tone="baseline" reference width={3} />
+      <g transform="translate(0 -30)">
+        <Line d={pressure} />
+      </g>
+    </>
+  );
+}
+
+/** Simplified editorial diagrams: topology and comparison, without data claims. */
 export function HomeCoverArtV1({ item }: { item: HomeItemV1 }) {
   const subject = homeCoverSubjectV1(item);
   return (
     <svg
       className={`home-cover-art home-art-${subject}`}
-      viewBox="0 0 400 240"
+      viewBox="0 0 400 225"
       preserveAspectRatio="xMidYMid meet"
       aria-hidden="true"
       focusable="false"
     >
-      <rect width="400" height="240" fill="var(--art-bg)" />
-      <circle cx="334" cy="36" r="112" fill="var(--art-wash)" />
-      <circle cx="51" cy="211" r="68" fill="var(--art-wash)" opacity=".7" />
+      <rect width="400" height="225" fill="var(--art-bg)" />
       {subject === "course" ? (
         <>
-          <path
-            d="M70 66Q142 48 200 77Q258 48 330 66V195Q260 177 200 205Q140 177 70 195Z"
-            fill="var(--art-blue)"
-            opacity=".28"
+          <g transform="translate(0 45) scale(.48)">
+            <Cycle />
+          </g>
+          <Line
+            d="M187 111H209M203 105L209 111L203 117"
+            tone="axis"
+            width={2}
           />
-          <path
-            d="M82 55Q145 42 200 70V190Q148 166 82 180Z"
-            fill="var(--art-paper)"
-          />
-          <path
-            d="M200 70Q255 42 318 55V180Q253 166 200 190Z"
-            fill="var(--art-paper)"
-          />
-          <path
-            d="M200 74V186"
-            stroke="var(--art-blue)"
-            strokeWidth="3"
-            opacity=".3"
-          />
-          <Heart x={202} y={99} scale={0.64} />
-          <path
-            d="M106 137H147M107 150H162M239 149H291M256 136H291"
-            stroke="var(--art-blue)"
-            strokeWidth="6"
-            strokeLinecap="round"
-            opacity=".35"
-          />
-          <circle cx="63" cy="66" r="10" fill="var(--art-coral)" />
-          <circle cx="330" cy="189" r="7" fill="var(--art-blue)" />
-        </>
-      ) : subject === "afterload" ? (
-        <>
-          <path
-            d="M54 72H137Q164 72 176 96H235Q247 72 270 72H346V168H270Q247 168 235 144H176Q164 168 137 168H54Z"
-            fill="var(--art-coral)"
-            opacity=".28"
-          />
-          <path
-            d="M54 94H133Q158 94 172 109H240Q254 94 274 94H346V146H274Q254 146 240 131H172Q158 146 133 146H54Z"
-            fill="var(--art-paper)"
-          />
-          {[83, 116, 195, 225, 283, 321].map((x, i) => (
-            <ellipse
-              key={x}
-              cx={x}
-              cy={i % 2 ? 126 : 115}
-              rx="10"
-              ry="6"
-              fill="var(--art-coral)"
-              transform={`rotate(-15 ${x} 120)`}
-            />
-          ))}
-          <path
-            d="M206 55V86M197 77L206 86L215 77M206 186V155M197 164L206 155L215 164"
-            stroke="var(--art-blue)"
-            strokeWidth="6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-        </>
-      ) : subject === "preload" ? (
-        <>
-          <rect
-            x="65"
-            y="51"
-            width="97"
-            height="132"
-            rx="20"
-            fill="var(--art-blue)"
-            opacity=".2"
-          />
-          <path
-            d="M75 107Q114 92 152 107V159Q152 173 138 173H89Q75 173 75 159Z"
-            fill="var(--art-blue)"
-          />
-          <path
-            d="M162 134H198V166H249"
-            stroke="var(--art-blue)"
-            strokeWidth="14"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-            opacity=".7"
-          />
-          <Heart x={273} y={107} scale={0.8} />
-          <path
-            d="M112 43C112 43 98 63 98 70A14 14 0 0 0 126 70C126 63 112 43 112 43Z"
-            fill="var(--art-blue)"
-          />
-          <path
-            d="M222 156L233 166L222 176"
-            stroke="var(--art-paper)"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-        </>
-      ) : subject === "contractility" ? (
-        <>
-          <circle cx="200" cy="119" r="85" fill="var(--art-paper)" />
-          <Heart y={113} scale={0.83} />
-          <g
-            stroke="var(--art-blue)"
-            strokeWidth="7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          >
-            <path d="M77 117H121L109 105M121 117L109 129M323 117H279L291 105M279 117L291 129M200 23V52L188 40M200 52L212 40M200 218V189L188 201M200 189L212 201" />
+          <g transform="translate(208 45) scale(.48)">
+            <Guyton />
           </g>
         </>
-      ) : subject === "filling" ? (
-        <>
-          <ellipse
-            cx="201"
-            cy="120"
-            rx="103"
-            ry="89"
-            fill="var(--art-blue)"
-            opacity=".19"
-          />
-          <ellipse cx="201" cy="120" rx="83" ry="70" fill="var(--art-paper)" />
-          <Heart y={115} scale={0.76} />
-          <path
-            d="M60 119H105M295 119H340M90 109L105 119L90 129M310 109L295 119L310 129"
-            fill="none"
-            stroke="var(--art-blue)"
-            strokeWidth="6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M131 54Q202 7 271 56"
-            fill="none"
-            stroke="var(--art-coral)"
-            strokeWidth="5"
-            strokeLinecap="round"
-            opacity=".65"
-          />
-        </>
+      ) : subject === "contractility" ||
+        subject === "afterload" ||
+        subject === "preload" ? (
+        <PvComparison subject={subject} />
       ) : subject === "starling" ? (
-        <>
-          <Heart x={110} y={121} scale={0.61} />
-          <Heart x={276} y={109} scale={1.05} />
-          <path
-            d="M163 126H202M189 114L202 126L189 138"
-            fill="none"
-            stroke="var(--art-blue)"
-            strokeWidth="6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M72 190H146M211 190H341"
-            stroke="var(--art-blue)"
-            strokeWidth="7"
-            strokeLinecap="round"
-            opacity=".3"
-          />
-          <circle cx="89" cy="51" r="7" fill="var(--art-blue)" />
-          <circle
-            cx="328"
-            cy="49"
-            r="10"
-            fill="var(--art-coral)"
-            opacity=".6"
-          />
-        </>
+        <Starling />
       ) : subject === "equilibrium" ? (
-        <>
-          <path
-            d="M174 60H101Q57 60 57 120Q57 180 101 180H174"
-            fill="none"
-            stroke="var(--art-blue)"
-            strokeWidth="18"
-            strokeLinecap="round"
-          />
-          <path
-            d="M226 60H299Q343 60 343 120Q343 180 299 180H226"
-            fill="none"
-            stroke="var(--art-coral)"
-            strokeWidth="18"
-            strokeLinecap="round"
-          />
-          <Heart y={112} scale={0.73} />
-          <path
-            d="M114 49L127 60L114 71M286 169L273 180L286 191"
-            fill="none"
-            stroke="var(--art-paper)"
-            strokeWidth="5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </>
+        <Guyton />
+      ) : subject === "filling" ? (
+        <Filling />
       ) : subject === "respiration" ? (
-        <>
-          <path
-            d="M183 69C173 36 122 54 100 110C77 168 123 197 168 173C184 164 180 101 183 69Z"
-            fill="var(--art-blue)"
-          />
-          <path
-            d="M217 69C227 36 278 54 300 110C323 168 277 197 232 173C216 164 220 101 217 69Z"
-            fill="var(--art-blue)"
-            opacity=".65"
-          />
-          <path
-            d="M200 38V99L146 137M200 99L254 137"
-            fill="none"
-            stroke="var(--art-paper)"
-            strokeWidth="11"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <Heart x={201} y={162} scale={0.38} />
-        </>
+        <Respiration />
       ) : (
-        <>
-          <path
-            d="M118 53C64 74 58 151 118 187"
-            fill="none"
-            stroke="var(--art-blue)"
-            strokeWidth="18"
-            strokeLinecap="round"
-          />
-          <path
-            d="M282 187C336 166 342 89 282 53"
-            fill="none"
-            stroke="var(--art-coral)"
-            strokeWidth="18"
-            strokeLinecap="round"
-          />
-          <Heart y={111} scale={0.97} />
-          <path
-            d="M101 176L118 187L120 166M299 64L282 53L280 74"
-            fill="none"
-            stroke="var(--art-paper)"
-            strokeWidth="5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <circle cx="204" cy="30" r="7" fill="var(--art-blue)" opacity=".6" />
-          <circle
-            cx="205"
-            cy="204"
-            r="6"
-            fill="var(--art-coral)"
-            opacity=".6"
-          />
-        </>
+        <Cycle />
       )}
     </svg>
   );
