@@ -96,6 +96,7 @@ import {
   articleEditorHref,
   experimentDetailHref,
   experimentSnapshotHref,
+  publishedExperimentHref,
   homeHref,
   loginHref,
   modelDocumentationHref,
@@ -3423,7 +3424,7 @@ export const WorkbenchSession = ({
               disabled={status.kind !== "live" || runtimeOperationPending || effectiveSaveState === "pristine"}
               stage={publicationStage}
               publishedAt={experimentRecord?.publishedAt ?? null}
-              publicHref={experimentRecord?.publishedSnapshotId ? experimentSnapshotHref({ snapshotId: experimentRecord.publishedSnapshotId, locale: resolvedLocale }) : null}
+              publicHref={experimentRecord?.publicSlug ? publishedExperimentHref({ publicSlug: experimentRecord.publicSlug, locale: resolvedLocale }) : experimentRecord?.publishedSnapshotId ? experimentSnapshotHref({ snapshotId: experimentRecord.publishedSnapshotId, locale: resolvedLocale }) : null}
               error={snapshotError ?? saveError}
               loginHref={remoteContentRepository !== null && authIdentity.kind !== "account" ? loginHref(resolvedLocale) : null}
               onPublish={publishExperimentV3}
@@ -3847,6 +3848,7 @@ function remoteExperimentRecordV3(
     createdAt: resource.createdAt,
     updatedAt: resource.updatedAt,
     publishedSnapshotId: resource.publishedSnapshotId,
+    publicSlug: resource.publicSlug,
     publishedVersion: resource.publishedVersion ?? null,
     publishedAt: resource.publishedAt ?? null,
   });

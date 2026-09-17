@@ -515,7 +515,8 @@
           "publishing": "Updating the publication…",
           "unpublishing": "Unpublishing…"
         },
-        "updateNotice": "You can update the publication with the current saved content."
+        "updateNotice": "You can update the publication with the current saved content.",
+        "unavailable": "This simulation is private or is no longer published."
       }
     }
   },

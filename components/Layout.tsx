@@ -22,7 +22,7 @@ import {
  */
 export function routeOwnsApplicationChrome(pathname: string): boolean {
   if (/^\/dev\/model-lab\/?$/.test(pathname)) return true;
-  if (pathname.startsWith("/snapshots/")) return true;
+  if (pathname.startsWith("/snapshots/") || pathname.startsWith("/experiments/published/")) return true;
   if (/^\/experiments\/(?:new|[^/]+)$/.test(pathname)) return true;
   return /^\/articles\/(?:new|[^/]+)\/edit$/.test(pathname);
 }

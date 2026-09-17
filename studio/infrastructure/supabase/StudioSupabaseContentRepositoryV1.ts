@@ -427,6 +427,11 @@ export class StudioSupabaseContentRepositoryV1 {
     );
   }
 
+  async readPublicExperimentSnapshot(publicSlug: string): Promise<ExperimentSnapshotV2 | null> {
+    const data = await this.#rpc("read_public_experiment_v1", { p_public_slug: publicSlug });
+    return data === null ? null : validateExperimentSnapshotV2(recordV1(data, "Public Experiment").snapshot);
+  }
+
   async readSnapshot(snapshotId: string): Promise<ExperimentSnapshotV2 | null> {
     const data = await this.#rpc("read_experiment_snapshot_v1", {
       p_snapshot_id: snapshotId,

@@ -169,8 +169,13 @@ test("@desktop @mobile @webkit @startup uses the resolved pane titles and keeps 
     await expect(pv.locator('[data-simulation-chart-status="true"]')).toHaveCount(0);
     const legendBox = (await legend.boundingBox())!;
     const indicatorBox = (await indicator.boundingBox())!;
-    expect(Math.abs(legendBox.x + legendBox.width - indicatorBox.x - indicatorBox.width)).toBeLessThanOrEqual(14);
-    expect(Math.abs(legendBox.y - indicatorBox.y)).toBeLessThanOrEqual(1);
+    const settings = legend.getByTestId("pane-settings-button-v3");
+    await expect(settings).toBeVisible();
+    const settingsBox = (await settings.boundingBox())!;
+    // The pane-specific Settings action now owns the far right of the legend row.
+    expect(Math.abs(legendBox.x + legendBox.width - settingsBox.x - settingsBox.width)).toBeLessThanOrEqual(14);
+    expect(indicatorBox.x + indicatorBox.width).toBeLessThanOrEqual(settingsBox.x + 1);
+    expect(Math.abs(indicatorBox.y + indicatorBox.height / 2 - settingsBox.y - settingsBox.height / 2)).toBeLessThanOrEqual(1);
     await page.screenshot({ path: testInfo.outputPath("legend-update-icon.png") });
     if ((page.viewportSize()?.width ?? 1440) >= 768) {
       const structural = root.locator('[data-analysis-pending="true"]');

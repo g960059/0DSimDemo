@@ -1,3 +1,4 @@
+import { describeStudioAuthoringProtocolV1 } from "@/studio/application/authoring/StudioAuthoringCommandV1";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -727,6 +728,20 @@ describe("Studio Supabase boundary V1", () => {
       displayName: "Circle Author",
       email: "author@example.com",
     });
+  });
+
+  it("keeps publication metadata in the advertised closed Experiment read contract", async () => {
+    const raw = { experiment: { schemaId: "circleheart-studio-experiment-v2", experimentId: "test-experiment", version: 2, content: experimentContentV1() }, title: "Saved",
+      createdAt: "2026-09-18T00:00:00.000Z", updatedAt: "2026-09-18T00:00:00.000Z", publishedSnapshotId: "test-snapshot", publicSlug: "test-publication", publishedVersion: 1, publishedAt: "2026-09-18T00:00:00.000Z" };
+    const rpc = vi.fn().mockResolvedValue({ data: raw, error: null });
+    const repository = new StudioSupabaseContentRepositoryV1({ rpc, auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { user: { id: "test-owner" } } }, error: null }) } } as unknown as SupabaseClient);
+    const result = await repository.readMyExperiment("test-experiment");
+    const schema = (describeStudioAuthoringProtocolV1("experiment.read").actions[0]!.resultSchema as any).oneOf.find((entry: any) => entry.type === "object");
+    expect(schema.additionalProperties).toBe(false);
+    for (const key of Object.keys(result!)) expect(schema.properties).toHaveProperty(key);
+    expect(result).toMatchObject({ publishedVersion: 1, publishedAt: raw.publishedAt });
+    expect(schema.properties.publishedVersion.type).toContain("null");
+    expect(schema.properties.publishedAt.type).toContain("null");
   });
 
   it("lets the backend issue the durable Experiment identity on first Save", async () => {

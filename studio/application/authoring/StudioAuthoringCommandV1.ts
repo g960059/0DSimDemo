@@ -983,6 +983,8 @@ export function describeStudioAuthoringProtocolV1(selectedAction?: string): Read
     updatedAt: { type: "string", format: "date-time" },
     publishedSnapshotId: nullableId,
     publicSlug: nullableId,
+    publishedVersion: { type: ["integer", "null"], minimum: 0 },
+    publishedAt: { type: ["string", "null"], format: "date-time" },
   });
   const operationReceiptResult = Object.freeze({ oneOf: [
     object(["experimentId", "version"], { experimentId: uuid, version }),

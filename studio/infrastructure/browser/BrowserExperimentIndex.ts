@@ -20,6 +20,7 @@ export type BrowserExperimentRecord = Readonly<{
   updatedAt: string;
   /** The immutable Snapshot currently exposed as this Experiment's release. */
   publishedSnapshotId: string | null;
+  publicSlug?: string | null;
   publishedVersion?: number | null;
   publishedAt?: string | null;
 }>;
@@ -240,7 +241,7 @@ export function validateBrowserExperimentRecord(
     "title",
     "updatedAt",
   ];
-  const keys = Object.keys(record).filter(key => key !== "publishedVersion" && key !== "publishedAt").sort();
+  const keys = Object.keys(record).filter(key => key !== "publishedVersion" && key !== "publishedAt" && key !== "publicSlug").sort();
   if (
     keys.length !== expected.length
     || keys.some((key, index) => key !== expected[index])
@@ -273,6 +274,7 @@ export function validateBrowserExperimentRecord(
     createdAt,
     updatedAt,
     publishedSnapshotId,
+    publicSlug: record.publicSlug == null ? null : requiredPortableIdV3(record.publicSlug, "publicSlug"),
     publishedVersion: publishedVersion as number | null,
     publishedAt,
   });

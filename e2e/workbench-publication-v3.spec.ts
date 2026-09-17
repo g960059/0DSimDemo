@@ -8,7 +8,7 @@ const experimentId = "40000000-0000-4000-8000-000000000001";
 
 async function authoringFixture(page: Page) {
   const user = { id: "40000000-0000-4000-8000-000000000002", aud: "authenticated", role: "authenticated", email: "publication@example.test", is_anonymous: false, user_metadata: {}, app_metadata: {}, created_at: "2026-09-18T00:00:00Z" };
-  const state = { resource: null as any, failSave: false, failPublish: false, saves: 0, publishes: 0, saveDelay: 0, snapshots: new Map<string, any>() };
+  const state = { resource: null as any, failSave: false, failPublish: false, saves: 0, publishes: 0, saveDelay: 0, lastResolvedSnapshotId: null as string | null, snapshots: new Map<string, any>() };
   await page.addInitScript(({ user }) => {
     const exp = Math.floor(Date.now() / 1000) + 3600;
     localStorage.setItem("sb-public-content-auth-token", JSON.stringify({
@@ -34,6 +34,11 @@ async function authoringFixture(page: Page) {
     if (rpc === "read_my_profile_v1" || rpc === "read_public_resource_author_v1") return reply(null);
     if (rpc === "read_my_experiment_v1") return reply(state.resource);
     const body = request.postDataJSON();
+    if (rpc === "read_public_experiment_v1") {
+      state.lastResolvedSnapshotId = state.resource?.publishedSnapshotId ?? null;
+      return reply(state.resource?.publicSlug === body.p_public_slug ? { experimentId, title: state.resource.title, snapshot: state.snapshots.get(state.resource.publishedSnapshotId) } : null);
+    }
+    if (rpc === "read_public_snapshot_title_v1") return reply(state.resource?.title ?? null);
     if (rpc === "save_experiment_v1") {
       state.saves++;
       if (state.saveDelay) await new Promise(resolve => setTimeout(resolve, state.saveDelay));
@@ -96,6 +101,9 @@ test("@desktop @mobile Workbench save and publication stay distinct through fail
   await expect(publish).toHaveText("公開中", { timeout: 90_000 });
   await expect(page).toHaveURL(new RegExp(`/experiments/${experimentId}$`));
   await expect(publish).toHaveAttribute("data-stale", "false");
+  const sharedHref = await menu.getByRole("link", { name: "公開ページ", exact: true }).getAttribute("href");
+  expect(sharedHref).toContain("/experiments/published/");
+  const originalSnapshotId = state.resource.publishedSnapshotId;
   await menu.getByRole("button", { name: "閉じる", exact: true }).click();
   await title.fill("公開後の編集");
   await expect(publish).toHaveAttribute("data-stale", "true");
@@ -135,12 +143,23 @@ test("@desktop @mobile Workbench save and publication stay distinct through fail
   await expect(save).toHaveText("保存済み");
   expect(state.resource.publishedVersion).toBe(2);
   await page.screenshot({ path: testInfo.outputPath("fable-publication-current.png") });
+  expect(state.resource.publishedSnapshotId).not.toBe(originalSnapshotId);
+  expect(await menu.getByRole("link", { name: "公開ページ", exact: true }).getAttribute("href")).toBe(sharedHref);
+  const reader = await page.context().newPage();
+  await reader.goto(sharedHref!);
+  await expect(reader.getByTestId("workbench-experiment-title-v3")).toHaveValue("公開更新後の追加編集");
+  expect(state.lastResolvedSnapshotId).toBe(state.resource.publishedSnapshotId);
+  await reader.close();
   await menu.getByRole("button", { name: "公開を解除", exact: true }).click();
   await expect(menu).toContainText("公開中の記事");
   await menu.getByRole("button", { name: "公開を解除", exact: true }).click();
   await expect(publish).toHaveText("公開");
   await expect(menu).toContainText("非公開");
   expect(state.resource.title).toBe("公開更新後の追加編集");
+  const unpublishedReader = await page.context().newPage();
+  await unpublishedReader.goto(sharedHref!);
+  await expect(unpublishedReader.getByTestId("page-load-failure-v1")).toContainText("非公開になったか");
+  await unpublishedReader.close();
 });
 
 test("@desktop edits during saving remain unsaved and prevent chained publication", async ({ page }) => {
