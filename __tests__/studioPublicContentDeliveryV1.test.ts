@@ -381,6 +381,7 @@ describe("Studio public content delivery V1", () => {
       'hreflang="x-default" href="https://www.circleheart.dev/"',
     );
     expect(html).toContain('<div id="root" hidden></div>');
+    expect(html).toContain('class="home-page public-static-shell"');
     expect(html.indexOf("</main>")).toBeLessThan(html.indexOf("<footer"));
     expect(html.slice(html.indexOf("<footer"))).toContain('href="/ja/models"');
     expect(html).toContain("本体の計算結果ではありません");

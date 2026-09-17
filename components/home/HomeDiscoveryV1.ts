@@ -126,12 +126,9 @@ export function selectHomeItemsV1(
     Date.parse(b.publishedAt) - Date.parse(a.publishedAt) ||
     a.key.localeCompare(b.key);
   if (filter.sort !== "recommended") return found.sort(recent);
-  const ordered = found.sort(
-    (a, b) => Number(b.featured) - Number(a.featured) || recent(a, b),
-  );
   // Keep editorial course order, then interleave formats without fake popularity.
-  const pinned = ordered.filter((i) => i.featured);
-  const rest = ordered.filter((i) => !i.featured);
+  const pinned = found.filter((i) => i.featured);
+  const rest = found.filter((i) => !i.featured).sort(recent);
   const queues = (["experiment", "article", "course"] as const).map((k) =>
     rest.filter((i) => i.kind === k),
   );
@@ -146,11 +143,13 @@ export function selectHomeItemsV1(
 export function readHomeBookmarksV1(
   accountId: string | null,
   storage?: Pick<Storage, "getItem">,
+  fallback: ReadonlySet<string> = new Set(),
 ): ReadonlySet<string> {
   if (!accountId) return new Set();
+  if (!storage) return fallback;
   try {
     const values: unknown = JSON.parse(
-      storage?.getItem("circleheart.home.saved.v1:" + accountId) ?? "[]",
+      storage.getItem("circleheart.home.saved.v1:" + accountId) ?? "[]",
     );
     return new Set(
       Array.isArray(values)
@@ -164,7 +163,7 @@ export function readHomeBookmarksV1(
         : [],
     );
   } catch {
-    return new Set();
+    return fallback;
   }
 }
 export function writeHomeBookmarksV1(

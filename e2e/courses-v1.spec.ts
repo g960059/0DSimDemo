@@ -1,5 +1,8 @@
 import { renderStudioPublicArticleBootstrapV1 } from "../studio/application/publication/StudioPublicArticleBootstrapV1";
 import { renderCourseBootstrapV1 } from "../studio/application/course/StudioCourseBootstrapV1";
+import { renderStudioPublicHomeBootstrapV1, type StudioPublicHomeBootstrapV1 } from "../studio/application/publication/StudioPublicHomeBootstrapV1";
+import { createServer } from "vite";
+import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import {
@@ -439,6 +442,10 @@ test("@desktop server Course navigation survives a failed client refresh", async
 test("@desktop @mobile @webkit public discovery stays consistent across themes and resumes a valid chapter", async ({
   page,
 }, testInfo) => {
+  let documentRequests = 0;
+  page.on("request", (request) => {
+    if (request.isNavigationRequest() && request.resourceType() === "document") documentRequests++;
+  });
   await publicFixtures(page);
   const author = {
     userId: course.ownerId,
@@ -503,44 +510,49 @@ test("@desktop @mobile @webkit public discovery stays consistent across themes a
   for (const theme of ["dark", "light"]) {
     await expect(page.locator("body")).toHaveAttribute("data-app-theme", theme);
     if (theme === "light")
-      await expect(page.locator(".course-discovery-card")).toHaveCSS(
+      await expect(page.locator(".home-card-wide")).toHaveCSS(
         "background-color",
         "rgb(255, 255, 255)",
       );
-    const headings = page.locator("main h2");
-    await expect(headings).toHaveText([
-      "コースで学ぶ",
-      "記事を読む",
-      "シミュレーションで試す",
-    ]);
-    const sizes = await headings.evaluateAll((es) =>
-      es.map((e) => getComputedStyle(e).fontSize),
-    );
-    expect(new Set(sizes).size).toBe(1);
-    await expect(page.locator("main .public-author-badge")).toHaveCount(4);
+    await expect(page.getByRole("group", { name: "コンテンツの種類" }).getByRole("button"))
+      .toHaveText(["すべて", "コース", "記事", "シミュレーション"]);
+    await expect(page.locator(".home-card")).toHaveCount(3);
+    await page.getByRole("button", { name: "記事", exact: true }).click();
+    await expect(page.locator(".home-card")).toHaveCount(2);
+    await expect(page.locator(".home-card h3")).toContainText(["一拍を読む", "循環をつなぐ"]);
+    await page.getByRole("button", { name: "すべて", exact: true }).click();
+    await page.getByRole("combobox", { name: "並び順", exact: true }).selectOption("new");
+    await expect(page.locator(".home-card")).toHaveCount(4);
+    await page.getByRole("combobox", { name: "並び順", exact: true }).selectOption("recommended");
+    await expect(page.locator("main .home-official")).toHaveCount(3);
     expect(
       await page
-        .locator("main")
+        .locator(".home-page")
         .evaluate((e) => e.scrollWidth <= e.clientWidth),
     ).toBe(true);
-    const courseBox = await page
-      .locator(".course-discovery-card")
-      .boundingBox();
-    const headingBox = await page
-      .locator("#home-courses-heading")
-      .evaluate((e) => e.parentElement!.getBoundingClientRect().width);
-    expect(Math.abs(courseBox!.width - headingBox)).toBeLessThan(2);
+    if (testInfo.project.name === "mobile-chromium")
+      await expect(page.locator(".home-mini-demo")).toBeHidden();
+    else await expect(page.locator(".home-mini-demo")).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath(`home-${theme}.png`) });
     if (theme === "dark")
       await page.getByRole("button", { name: "テーマを切り替え" }).click();
   }
   await expect(
     page.getByRole("link", { name: "シミュレーションを試す", exact: true }),
-  ).toHaveAttribute("href", "/ja/experiments");
-  await page.locator(".course-discovery-card").click();
+  ).toHaveAttribute("href", "/ja/experiments/new");
+  await page.getByRole("button", { name: "コンテンツを検索", exact: true }).click();
+  const query = page.getByRole("textbox", { name: "検索キーワード" });
+  await query.fill("一拍");
+  await query.press("ArrowDown");
+  await expect(page.locator(".home-search-results a").first()).toBeFocused();
+  await expect(page.locator(".home-search-results a").first()).toHaveCSS("outline-style", "solid");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.locator(".home-card h3").getByRole("link", { name: course.title, exact: true }).click();
   await expect(
     page.getByRole("link", { name: "読み始める", exact: true }),
   ).toBeVisible();
+  expect(documentRequests).toBe(1);
   await expect(page.locator("main ol")).toContainText("Author B");
   await expect(page.locator("main ol")).not.toContainText("CircleHeart");
   await page.getByRole("link", { name: "読み始める", exact: true }).click();
@@ -582,6 +594,91 @@ test("@desktop @mobile @webkit public discovery stays consistent across themes a
   await expect(
     page.getByRole("link", { name: "読み始める", exact: true }),
   ).toHaveAttribute("href", new RegExp(course.entries[0].publicSlug!));
+});
+
+const homeBootstrap: StudioPublicHomeBootstrapV1 = {
+  schemaId: "circleheart-public-home-bootstrap-v1",
+  locale: "ja",
+  articles: course.entries.filter((entry) => entry.available).map((entry) => ({
+    articleId: entry.articleId,
+    publicSlug: entry.publicSlug!,
+    title: entry.title!,
+    locale: "ja",
+    excerpt: null,
+    publishedAt: course.updatedAt,
+  })),
+  experiments: [],
+  courses: [],
+};
+
+test("@desktop @mobile @webkit Home keeps other-tab saves and clears the account filter on sign-out", async ({ page, context }) => {
+  const other = await context.newPage();
+  for (const tab of [page, other]) {
+    await signInFixture(tab);
+    await tab.route("**/rest/v1/rpc/read_my_profile_v1", (route) => route.fulfill({ json: null }));
+    await tab.route("**/auth/v1/logout*", (route) => route.fulfill({ status: 204 }));
+    await tab.route("**/ja", async (route) => {
+      const response = await route.fetch();
+      await route.fulfill({ response, body: (await response.text()).replace("</body>",
+        `${renderStudioPublicHomeBootstrapV1(homeBootstrap)}</body>`) });
+    });
+    await tab.goto("/ja");
+    await expect(tab.locator(".home-saved-filter")).toBeVisible();
+  }
+  await page.getByRole("button", { name: "保存: 一拍を読む", exact: true }).click();
+  await expect(other.getByRole("button", { name: "保存を解除: 一拍を読む", exact: true })).toBeVisible();
+  await other.getByRole("button", { name: "保存: 循環をつなぐ", exact: true }).click();
+  await expect(page.locator('.home-bookmark[aria-pressed="true"]')).toHaveCount(2);
+  await page.reload();
+  await expect(page.locator('.home-bookmark[aria-pressed="true"]')).toHaveCount(2);
+  await other.getByRole("button", { name: "保存を解除: 一拍を読む", exact: true }).click();
+  await expect(page.getByRole("button", { name: "保存: 一拍を読む", exact: true })).toBeVisible();
+  await page.locator(".home-saved-filter").click();
+  await expect(page.locator(".home-card")).toHaveCount(1);
+  await page.getByRole("button", { name: "プロフィールメニュー" }).click();
+  await page.getByRole("menuitem", { name: "ログアウト", exact: true }).click();
+  await expect(page.locator(".home-saved-filter")).toHaveCount(0);
+  await expect(page.locator(".home-card")).toHaveCount(2);
+  await expect(page.locator(".home-catalog-note")).toHaveCount(0);
+  await other.close();
+});
+
+test("@desktop @mobile @webkit static Home remains scrollable without JavaScript", async ({ browser, baseURL }, testInfo) => {
+  // Load the production SSR entry through Vite, as the server build does (JSON/TSX imports).
+  const root = fileURLToPath(new URL("..", import.meta.url));
+  const renderer = await createServer({ configFile: false, root,
+    envDir: `${root}/artifacts/no-home-test-env`,
+    server: { middlewareMode: true, hmr: false, ws: false },
+    resolve: { alias: { "@": root } },
+    ssr: { resolve: { externalConditions: ["node", "module-sync"] } },
+  });
+  const { renderStudioPublicHomeV1 } = await renderer.ssrLoadModule("/server/StudioPublicHomeRendererV1.ts");
+  const context = await browser.newContext({ javaScriptEnabled: false, baseURL,
+    viewport: testInfo.project.use.viewport });
+  const page = await context.newPage();
+  try {
+    await page.route("**/ja", async (route) => {
+      const response = await route.fetch();
+      const rendered = renderStudioPublicHomeV1({
+        bootstrap: { ...homeBootstrap, articles: Array.from({ length: 15 }, (_, index) => ({
+          ...homeBootstrap.articles[0], articleId: `article-${index}`, publicSlug: `article-${index}`,
+        })) },
+        canonicalOrigin: "https://www.circleheart.dev",
+        clientTemplate: await response.text(),
+      });
+      await route.fulfill({ response, body: rendered.documentHtml });
+    });
+    await page.goto("/ja");
+    await expect(page.locator("body")).toHaveCSS("overflow-y", "auto");
+    await page.mouse.move(200, 400);
+    await page.mouse.wheel(0, 10000);
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    await expect(page.locator(".home-footer")).toBeInViewport();
+    await expect(page.locator(".home-footer").getByRole("link", { name: "数理モデル・プリセット" })).toBeVisible();
+  } finally {
+    await context.close();
+    await renderer.close();
+  }
 });
 
 test("@desktop @mobile public display name saves through the owner RPC and survives reload", async ({

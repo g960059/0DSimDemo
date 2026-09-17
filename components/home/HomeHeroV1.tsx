@@ -144,6 +144,7 @@ export function HomeHeroV1({
   return (
     <div
       className="home-mini-demo"
+      role="group"
       ref={panel}
       aria-label={ja ? "循環動態の簡易デモ" : "Simplified hemodynamics demo"}
     >

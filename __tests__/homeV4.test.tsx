@@ -174,6 +174,20 @@ describe("Home discovery", () => {
       }),
     ).toThrow();
   });
+  it("preserves editorial course order in Recommended while Newest remains chronological", () => {
+    const older = { ...course, updatedAt: "2026-09-01T00:00:00Z" };
+    const newer = { ...course, courseId: "second-course", updatedAt: "2026-09-17T00:00:00Z" };
+    const items = homeItemsV1({
+      ...bootstrap,
+      courses: [older, newer],
+      featuredCourseIds: [older.courseId, newer.courseId],
+      articles: [],
+    });
+    expect(selectHomeItemsV1(items, HOME_FILTER_V1).map((item) => item.id))
+      .toEqual([older.courseId, newer.courseId]);
+    expect(selectHomeItemsV1(items, { ...HOME_FILTER_V1, sort: "new" }).map((item) => item.id))
+      .toEqual([newer.courseId, older.courseId]);
+  });
   it("isolates account saves and handles malformed or denied browser storage", () => {
     const store = new Map<string, string>(),
       storage = {
@@ -189,6 +203,11 @@ describe("Home discovery", () => {
     expect(readHomeBookmarksV1("b", storage).size).toBe(0);
     expect(readHomeBookmarksV1(null, storage).size).toBe(0);
     expect(readHomeBookmarksV1("a", { getItem: () => "{bad" }).size).toBe(0);
+    const pageOnly = new Set(["article:temporary"]);
+    expect(readHomeBookmarksV1("a", undefined, pageOnly)).toEqual(pageOnly);
+    expect(readHomeBookmarksV1("a", { getItem: () => { throw Error("denied"); } }, pageOnly))
+      .toEqual(pageOnly);
+    expect(readHomeBookmarksV1("b", storage, pageOnly).size).toBe(0);
     expect(
       writeHomeBookmarksV1("a", new Set(), {
         setItem: () => {

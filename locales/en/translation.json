@@ -75,19 +75,7 @@
   "home": {
     "headline": "Learn circulation by moving it.",
     "lead": "Learn how the circulation works through articles and interactive simulations. Move a parameter and watch pressures and cardiac output respond on the spot.",
-    "startExperiment": "Start a simulation",
-    "readArticles": "Learn from articles",
-    "sectionArticles": "Read articles",
-    "sectionSimulations": "Explore simulations",
-    "viewAll": "View all",
-    "loading": "Loading public content…",
-    "footerNavigation": "CircleHeart links",
-    "modelDocumentation": "Models & presets",
-    "noArticles": "No public articles yet.",
-    "noSimulations": "No public simulations yet.",
-    "startFirstSimulation": "Start your first simulation",
-    "simulationMeta": "{{count}} scenarios · Updated {{date}}",
-    "articleFallback": "An article about circulatory physiology"
+    "simulationMeta": "{{count}} scenarios · Updated {{date}}"
   },
   "publicExperiments": {
     "title": "Public simulations",

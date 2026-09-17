@@ -55,7 +55,7 @@ async function loadHome(locale: Locale): Promise<StudioPublicHomeBootstrapV1> {
 export function Home() {
   const { pathname, search } = useLocation(),
     locale = localeFromPathname(pathname),
-    { account } = useSiteAccountSessionV3();
+    { account, loading } = useSiteAccountSessionV3();
   const searchContext = useHomeSearchV1();
   const bootstrap = React.useMemo(
     () => readStudioPublicHomeBootstrapV1(locale),
@@ -75,7 +75,8 @@ export function Home() {
   const [bookmarkState, setBookmarkState] = React.useState<{
     accountId: string | null;
     values: ReadonlySet<string>;
-  }>({ accountId: null, values: new Set() });
+    stored: boolean;
+  }>({ accountId: null, values: new Set(), stored: true });
   const accountId = account?.accountId ?? null,
     saved =
       bookmarkState.accountId === accountId
@@ -88,10 +89,23 @@ export function Home() {
     } catch {
       /* optional storage */
     }
-    setBookmarkState({
+    const refresh = () => setBookmarkState({
       accountId,
       values: readHomeBookmarksV1(accountId, storage),
+      stored: true,
     });
+    refresh();
+    setFilter((current) => current.savedOnly
+      ? { ...current, savedOnly: false }
+      : current);
+    const onStorage = (event: StorageEvent) => {
+      if (storage && event.storageArea === storage &&
+        (event.key === null || event.key === "circleheart.home.saved.v1:" + accountId)) {
+        refresh();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, [accountId]);
   React.useEffect(() => {
     let current = true;
@@ -146,8 +160,18 @@ export function Home() {
       setLoginPrompt(true);
       return;
     }
-    const values = new Set(saved);
-    values.has(item.key) ? values.delete(item.key) : values.add(item.key);
+    let storage: Storage | undefined;
+    try {
+      storage = window.localStorage;
+    } catch {
+      /* optional storage */
+    }
+    // Merge into the latest other-tab saves; keep page-only changes if a
+    // previous write failed. The action follows the button's visible state.
+    const values = new Set(bookmarkState.stored
+      ? readHomeBookmarksV1(accountId, storage, saved)
+      : saved);
+    saved.has(item.key) ? values.delete(item.key) : values.add(item.key);
     if (values.size > 500) {
       setNotice(
         locale === "ja"
@@ -156,13 +180,8 @@ export function Home() {
       );
       return;
     }
-    let stored = false;
-    try {
-      stored = writeHomeBookmarksV1(accountId, values, localStorage);
-    } catch {
-      /* storage may be denied */
-    }
-    setBookmarkState({ accountId, values });
+    const stored = storage ? writeHomeBookmarksV1(accountId, values, storage) : false;
+    setBookmarkState({ accountId, values, stored });
     setNotice(
       stored
         ? locale === "ja"
@@ -189,7 +208,7 @@ export function Home() {
         setFilter(next);
         setLimit(9);
       }}
-      onSave={save}
+      onSave={loading ? undefined : save}
       onMore={() => setLimit((n) => n + 9)}
       onRetry={() => setRetry((n) => n + 1)}
     />

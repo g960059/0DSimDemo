@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { localeFromPathname } from "@/localeRouting";
+import { HomeLinkV1 } from "./HomeLinkV1";
 import type { StudioPublicHomeBootstrapV1 } from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
 import {
   HOME_FILTER_V1,
@@ -106,6 +107,7 @@ export function HomeSearchProviderV1({
         <div
           className="home-search-panel"
           onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
             if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
             const links = Array.from(
               dialog.current?.querySelectorAll<HTMLAnchorElement>(
@@ -173,7 +175,7 @@ export function HomeSearchProviderV1({
               const Icon = icons[item.kind];
               return (
                 <li key={item.key}>
-                  <a href={item.href} onClick={close}>
+                  <HomeLinkV1 href={item.href} onClick={close}>
                     <span className="home-search-kind">
                       <Icon aria-hidden="true" />
                     </span>
@@ -194,7 +196,7 @@ export function HomeSearchProviderV1({
                       )}
                     </span>
                     <ArrowUpRight aria-hidden="true" />
-                  </a>
+                  </HomeLinkV1>
                 </li>
               );
             })}

@@ -75,19 +75,7 @@
   "home": {
     "headline": "循環動態を、動かして学ぶ。",
     "lead": "循環動態のメカニズムを、記事とインタラクティブなシミュレーションで学べます。パラメータを動かすと、血圧や心拍出量の変化をその場で確かめられます。",
-    "startExperiment": "シミュレーションを始める",
-    "readArticles": "記事から学ぶ",
-    "sectionArticles": "記事を読む",
-    "sectionSimulations": "シミュレーションで試す",
-    "viewAll": "すべて見る",
-    "loading": "公開コンテンツを読み込んでいます…",
-    "footerNavigation": "CircleHeartのリンク",
-    "modelDocumentation": "数理モデル・プリセット",
-    "noArticles": "公開中の記事はまだありません。",
-    "noSimulations": "公開中のシミュレーションはまだありません。",
-    "startFirstSimulation": "最初のシミュレーションを始める",
-    "simulationMeta": "{{count}}シナリオ · {{date}}更新",
-    "articleFallback": "循環動態を学ぶ記事"
+    "simulationMeta": "{{count}}シナリオ · {{date}}更新"
   },
   "publicExperiments": {
     "title": "公開シミュレーション",

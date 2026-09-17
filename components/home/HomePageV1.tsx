@@ -21,6 +21,7 @@ import {
 } from "./HomeDiscoveryV1";
 import { HomeHeroV1 } from "./HomeHeroV1";
 import { HomeCoverArtV1, homeCoverSubjectV1 } from "./HomeCoverArtV1";
+import { HomeLinkV1 } from "./HomeLinkV1";
 export type HomePagePropsV1 = Readonly<{
   locale: "ja" | "en";
   data: StudioPublicHomeBootstrapV1 | null;
@@ -67,6 +68,7 @@ export function HomePageV1(props: HomePagePropsV1) {
   } = props;
   const ja = locale === "ja",
     items = data ? homeItemsV1(data) : [],
+    savedCount = items.filter((item) => saved.has(item.key)).length,
     visible = selectHomeItemsV1(items, filter, saved);
   const set = (patch: Partial<HomeFilterV1>) =>
     props.onFilter?.({ ...filter, ...patch });
@@ -81,14 +83,13 @@ export function HomePageV1(props: HomePagePropsV1) {
   return (
     <div
       className={
-        "home-page public-static-home" +
-        (props.staticRender ? " home-static-render" : "")
+        "home-page" + (props.staticRender ? " public-static-shell" : "")
       }
       data-public-static-scroll-host="true"
     >
-      <a className="home-skip-link" href="#home-discovery">
+      <HomeLinkV1 className="home-skip-link" href="#home-discovery">
         {ja ? "コンテンツ一覧へ" : "Skip to content"}
-      </a>
+      </HomeLinkV1>
       <main className="home-container">
         <section
           className="home-intro"
@@ -121,11 +122,11 @@ export function HomePageV1(props: HomePagePropsV1) {
                 : "Read an explanation, change the conditions, and see how pressure and volume respond. Turn observations into understanding."}
             </p>
             <div className="home-hero-actions">
-              <a className="home-primary" href={`/${locale}/experiments/new`}>
+              <HomeLinkV1 className="home-primary" href={`/${locale}/experiments/new`}>
                 <FlaskConical aria-hidden="true" />
                 {ja ? "シミュレーションを試す" : "Try a simulation"}
                 <ArrowRight aria-hidden="true" />
-              </a>
+              </HomeLinkV1>
             </div>
           </div>
           <HomeHeroV1 locale={locale} interactive={!props.staticRender} />
@@ -169,7 +170,7 @@ export function HomePageV1(props: HomePagePropsV1) {
                 >
                   <Bookmark aria-hidden="true" />
                   {ja ? "保存済み" : "Saved"}
-                  {saved.size > 0 && <small>{saved.size}</small>}
+                  {savedCount > 0 && <small>{savedCount}</small>}
                 </button>
               )}
               <label className="home-sort-select">
@@ -292,14 +293,14 @@ export function HomePageV1(props: HomePagePropsV1) {
           )}
           <div className="home-directory-links">
             {(["course", "article", "experiment"] as const).map((k) => (
-              <a
+              <HomeLinkV1
                 key={k}
                 href={`/${locale}/${k === "course" ? "courses" : k === "article" ? "articles" : "experiments"}`}
               >
                 {ja ? "すべての" : "All "}
                 {kindLabels[locale][k]}
                 <ArrowRight aria-hidden="true" />
-              </a>
+              </HomeLinkV1>
             ))}
           </div>
         </section>
@@ -315,16 +316,16 @@ export function HomePageV1(props: HomePagePropsV1) {
             </span>
           </div>
           <nav aria-label={ja ? "フッターナビゲーション" : "Footer navigation"}>
-            <a href={`/${locale}/courses`}>{kindLabels[locale].course}</a>
-            <a href={`/${locale}/articles`}>{kindLabels[locale].article}</a>
-            <a href={`/${locale}/experiments`}>
+            <HomeLinkV1 href={`/${locale}/courses`}>{kindLabels[locale].course}</HomeLinkV1>
+            <HomeLinkV1 href={`/${locale}/articles`}>{kindLabels[locale].article}</HomeLinkV1>
+            <HomeLinkV1 href={`/${locale}/experiments`}>
               {kindLabels[locale].experiment}
-            </a>
-            <a href={`/${locale}/models`}>
+            </HomeLinkV1>
+            <HomeLinkV1 href={`/${locale}/models`}>
               {ja ? "数理モデル・プリセット" : "Models & presets"}
-            </a>
-            <a href={`/${locale}/docs/authoring-cli`}>AI Authoring CLI</a>
-            <a href="https://github.com/g960059/0DSimDemo">GitHub</a>
+            </HomeLinkV1>
+            <HomeLinkV1 href={`/${locale}/docs/authoring-cli`}>AI Authoring CLI</HomeLinkV1>
+            <HomeLinkV1 href="https://github.com/g960059/0DSimDemo">GitHub</HomeLinkV1>
           </nav>
           <p>
             {ja
@@ -340,7 +341,7 @@ export function HomePageV1(props: HomePagePropsV1) {
               ? "ログインすると保存できます。"
               : "Sign in to save this for later."}
           </span>
-          <a href={`/${locale}/login`}>{ja ? "ログイン" : "Sign in"}</a>
+          <HomeLinkV1 href={`/${locale}/login`}>{ja ? "ログイン" : "Sign in"}</HomeLinkV1>
           <button
             type="button"
             aria-label={ja ? "通知を閉じる" : "Dismiss notification"}
@@ -383,15 +384,16 @@ function HomeCardV1({
     item.author?.displayName ?? item.authorName ?? (ja ? "作者" : "Author");
   return (
     <article className={"home-card" + (wide ? " home-card-wide" : "")}>
-      <a
+      <HomeLinkV1
         className={"home-cover home-cover-" + item.kind}
         data-cover-subject={homeCoverSubjectV1(item)}
         href={item.href}
         aria-label={item.title}
         tabIndex={-1}
+        aria-hidden="true"
       >
         <CoverV1 item={item} />
-      </a>
+      </HomeLinkV1>
       <div className="home-card-body">
         <div className="home-card-type">
           <Icon aria-hidden="true" />
@@ -401,7 +403,7 @@ function HomeCardV1({
           )}
         </div>
         <h3>
-          <a href={item.href}>{item.title}</a>
+          <HomeLinkV1 href={item.href}>{item.title}</HomeLinkV1>
         </h3>
         {item.description && (
           <p className="home-card-description">{item.description}</p>
@@ -429,13 +431,13 @@ function HomeCardV1({
           </span>
           {date && <span className="home-item-meta">{date}</span>}
           {wide && entries.length > 0 && (
-            <a
+            <HomeLinkV1
               className="home-course-start"
               href={courseArticleHrefV1(item.course!, entries[0])}
             >
               {ja ? "読み始める" : "Start reading"}
               <ArrowRight aria-hidden="true" />
-            </a>
+            </HomeLinkV1>
           )}
           <button
             type="button"
@@ -468,7 +470,7 @@ function ChapterListV1({ item }: { item: HomeItemV1 }) {
           e.available && (
             <li key={e.articleId}>
               <span>{String(index + 1).padStart(2, "0")}</span>
-              <a href={courseArticleHrefV1(item.course!, e)}>{e.title}</a>
+              <HomeLinkV1 href={courseArticleHrefV1(item.course!, e)}>{e.title}</HomeLinkV1>
             </li>
           ),
       )}
