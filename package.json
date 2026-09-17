@@ -2,6 +2,7 @@
   "name": "circleheart",
   "private": true,
   "version": "0.0.0",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "scripts": {
     "verify:registry:current": "vite-node --script tools/registry/verifyCurrentModelPublicationV1.ts",

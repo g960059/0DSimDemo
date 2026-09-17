@@ -50,4 +50,12 @@ CircleHeartは教育・研究支援を目的としており、医療機器では
 
 ## プロジェクトについて
 
-CircleHeartは、教育・ナレッジ共有と、継続的な循環動態の数理モデル開発のためのプロジェクトです。ご意見や改善案は[GitHub Issues](https://github.com/g960059/0DSimDemo/issues)で受け付けています。
+CircleHeartは、教育・ナレッジ共有と、継続的な循環動態の数理モデル開発のためのプロジェクトです。ご意見や改善案は[GitHub Issues](https://github.com/g960059/CircleHeart/issues)で受け付けています。
+
+コード・テスト・文書・翻訳の変更提案は、まずIssueでご相談ください。PRは変更範囲と利用条件の事前合意制です。詳しくは[CONTRIBUTING.md](CONTRIBUTING.md)を参照してください。
+
+## ライセンス
+
+自作ソフトウェアは、別途明記されたものを除き、[PolyForm Noncommercial License 1.0.0](LICENSE)で提供します。本ソフトウェアはsource-availableであり、OSI定義のオープンソースではありません。
+
+本ライセンスの許諾範囲を超える利用については、個別にご相談ください。適用範囲、教材・出力・投稿物・第三者素材の扱い、連絡先は[LICENSING.md](LICENSING.md)を参照してください。
