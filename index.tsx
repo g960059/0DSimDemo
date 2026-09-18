@@ -68,6 +68,9 @@ const ExperimentSnapshotPage = React.lazy(
     default: module.ExperimentSnapshotPage,
   })),
 );
+const PublishedExperimentPage = React.lazy(
+  () => import('./components/experiment/PublishedExperimentPage').then(module => ({ default: module.PublishedExperimentPage })),
+);
 const AccountAccessPage = React.lazy(
   () => import('./components/account/AccountAccessPage').then((module) => ({
     default: module.AccountAccessPage,
@@ -145,6 +148,11 @@ const appRoutes = () => (
         </React.Suspense>
       )}
     />
+    <Route path="experiments/published/:publicSlug" element={(
+      <React.Suspense fallback={<ProductPageLoading label="Loading simulation…" />}>
+        <PublishedExperimentPage />
+      </React.Suspense>
+    )} />
     <Route
       path="snapshots/:snapshotId"
       element={(

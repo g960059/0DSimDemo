@@ -161,6 +161,9 @@ test("@desktop Article Editor supports Notion-style block authoring", async ({
   await expect(closeComposer).toBeFocused();
   await closeComposer.click();
   await expect(briefButton).toBeFocused();
+  await page.getByTestId("workbench-back-v1").click();
+  await expect(page).toHaveURL(new RegExp(`/ja/articles/${ARTICLE_RESOURCE_ID}/edit$`));
+  await expect(page.getByRole("textbox", { name: "本文" }).first()).toHaveValue("循環動態を比較します。");
 });
 
 test("@desktop Article Editor persists equation, image, and divider blocks", async ({

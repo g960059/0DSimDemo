@@ -131,3 +131,9 @@ export const experimentSnapshotHref = ({
 );
 
 export const homeHref = (locale?: Locale) => prefixPath("/", locale);
+
+/** Stable publication URL; the backend resolves the currently published Snapshot. */
+export const publishedExperimentHref = ({ locale, publicSlug }: Readonly<{
+  locale?: Locale;
+  publicSlug: string;
+}>) => prefixPath(`/experiments/published/${encodeURIComponent(publicSlug)}`, locale);

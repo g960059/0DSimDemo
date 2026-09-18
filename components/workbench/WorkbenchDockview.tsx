@@ -1,5 +1,4 @@
 import React from "react";
-import { WorkbenchPaneSettingsButtonV3 } from "./WorkbenchPaneSettingsButtonV3";
 import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import {
@@ -378,13 +377,6 @@ function PaneMenuButtonV3({
       <span>{label}</span>
     </button>
   );
-}
-
-function WorkbenchDockItemActionV3(props: IDockviewHeaderActionsProps) {
-  const context = React.useContext(WorkbenchDockContextV3);
-  const pane = context?.paneById.get(props.activePanel?.id ?? "");
-  if (!pane || pane.role === "note" || !context?.onOpenPaneSettings) return null;
-  return <WorkbenchPaneSettingsButtonV3 title={pane.title} onOpen={anchor => context.onOpenPaneSettings?.(pane.paneId, "items", "manage", anchor)} />;
 }
 
 function WorkbenchDockAddPaneActionV3(props: IDockviewHeaderActionsProps) {
@@ -1093,7 +1085,6 @@ export function WorkbenchDockview({
           components={components}
           defaultTabComponent={WorkbenchDockTabV3}
           leftHeaderActionsComponent={WorkbenchDockAddPaneActionV3}
-          rightHeaderActionsComponent={WorkbenchDockItemActionV3}
           defaultRenderer="onlyWhenVisible"
           disableFloatingGroups
           getTabContextMenuItems={() => []}

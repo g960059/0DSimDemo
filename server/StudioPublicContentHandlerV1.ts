@@ -64,11 +64,12 @@ export async function handleStudioPublicContentRequestV1(
       request.method,
     );
   }
-  // Hosting serves existing generated files first. Missing files reach this
-  // route instead of the SPA fallback, so clients and crawlers receive a real 404.
-  if (url.pathname.startsWith("/model-documents/")) {
+  // Hosting serves existing files first (hashed assets remain immutable).
+  // Missing chunks from an older tab must never receive/cache the SPA HTML.
+  // Backend headers override Hosting's static asset cache rule.
+  if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/model-documents/")) {
     return responseV1(
-      "Model document asset not found\n",
+      "Asset not found\n",
       404,
       "text/plain; charset=utf-8",
       { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" },

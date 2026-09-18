@@ -480,7 +480,6 @@ export function createDefaultExperimentSurfaceV3(
       ? WORKBENCH_SYSTEMIC_ARTERIAL_PRESSURE_SUMMARY_OUTPUT_IDS_V3
       : WORKBENCH_LEGACY_AORTIC_PRESSURE_SUMMARY_OUTPUT_IDS_V3;
   const defaultOutputIds = Object.freeze([
-    "rhythm.heart-rate.instantaneous",
     ...defaultAorticPressureSummaryOutputIds,
     "hemodynamics.pressure.systolic.PA",
     "hemodynamics.pressure.diastolic.PA",
@@ -492,7 +491,6 @@ export function createDefaultExperimentSurfaceV3(
     "hemodynamics.pressure.absolute.end-systolic.LV-at-AoV-closure",
     "hemodynamics.stroke-volume.LV-event-defined",
     "hemodynamics.ejection-fraction.LV-event-defined",
-    "hemodynamics.valve-volume.net.AoV",
     "hemodynamics.output.effective-native-left",
     "myocardium.work.stroke.LV",
     "oxygen.delivery.systemic",

@@ -2,12 +2,12 @@ import React from "react";
 import {
   ArrowRight,
   BookOpenText,
-  FilePlus2,
   PencilLine,
   Trash2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
+import { ManagementPageHeaderV1 } from "@/components/management/ContentManagementV1";
 
 import {
   articleEditorHref,
@@ -94,6 +94,7 @@ export function ArticleLibraryPage() {
   }, [readArticleItems]);
 
   const deleteArticle = React.useCallback(async (article: ArticleLibraryItemV3) => {
+    if (deletingArticleId !== null) return;
     if (!window.confirm(t("articleLibrary.deleteConfirm"))) return;
     setActionError(null);
     setDeletingArticleId(article.articleId);
@@ -112,34 +113,19 @@ export function ArticleLibraryPage() {
     } finally {
       setDeletingArticleId(null);
     }
-  }, [readArticleItems, remoteRepository, store, t]);
+  }, [deletingArticleId, readArticleItems, remoteRepository, store, t]);
 
   return (
     <div
-      className="h-full overflow-y-auto bg-wb-app text-wb-text"
+      className="management-page"
       data-testid="article-library-v3"
     >
-      <main className="mx-auto w-full max-w-4xl px-5 py-10 sm:px-8 sm:py-14">
-        <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-wb-accent">
-              {t("articleLibrary.eyebrow")}
-            </p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-              {t("articleLibrary.heading")}
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-wb-muted">
-              {t("articleLibrary.description")}
-            </p>
-          </div>
-          <Link
-            to={newArticleEditorHref(locale)}
-            className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-wb-primary px-3 text-xs font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-          >
-            <FilePlus2 className="h-3.5 w-3.5" aria-hidden="true" />
-            {t("articleLibrary.new")}
-          </Link>
-        </div>
+      <main>
+        <ManagementPageHeaderV1
+          title={t("management.manageArticles")}
+          createHref={newArticleEditorHref(locale)}
+          createLabel={t("articleLibrary.new")}
+        />
 
         {actionError !== null && (
           <p
@@ -161,25 +147,27 @@ export function ArticleLibraryPage() {
         ) : state.items.length === 0 ? (
           <section className="mt-12 py-12 text-center">
             <BookOpenText className="mx-auto h-7 w-7 text-wb-subtle" aria-hidden="true" />
-            <h3 className="mt-4 text-sm font-semibold">
+            <h2 className="mt-4 text-sm font-semibold">
               {t("articleLibrary.emptyTitle")}
-            </h3>
+            </h2>
             <p className="mt-2 text-xs leading-6 text-wb-muted">
               {t("articleLibrary.emptyDescription")}
             </p>
           </section>
         ) : (
-          <ul className="mt-10 divide-y divide-wb-line" aria-label={t("articleLibrary.saved") }>
+          <ul className="management-list" aria-label={t("articleLibrary.saved") }>
             {state.items.map((article) => {
               const { updatedAt } = article;
               return (
-                <li key={article.articleId} className="group py-5 sm:py-6">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                <li key={article.articleId} className="management-row">
+                  <div className="management-row-content">
                     <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-base font-semibold tracking-tight">
-                        {article.title || t("articleEditor.untitled")}
-                      </h3>
-                      <p className="mt-1 truncate text-xs leading-5 text-wb-subtle">
+                      <h2 className="truncate text-base font-semibold tracking-tight">
+                        <Link to={articleEditorHref({ articleId: article.articleId, locale })} className="rounded hover:text-wb-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent">
+                          {article.title || t("articleEditor.untitled")}
+                        </Link>
+                      </h2>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-wb-subtle">
                         <span className={article.visibility === "public"
                           ? "text-wb-accent"
                           : "text-wb-muted"}
@@ -198,9 +186,17 @@ export function ArticleLibraryPage() {
                             })}
                           </time>
                         )}
-                      </p>
+                        <span aria-hidden="true">·</span>
+                        <Link
+                          to={articlePreviewHref({ articleId: article.articleId, locale })}
+                          className="inline-flex min-h-8 items-center gap-1 rounded text-wb-muted underline-offset-4 hover:text-wb-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                        >
+                          {t("management.preview")}
+                          <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                        </Link>
+                      </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
+                    <div className="management-row-actions">
                       <Link
                         to={articleEditorHref({ articleId: article.articleId, locale })}
                         className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
@@ -208,17 +204,10 @@ export function ArticleLibraryPage() {
                         <PencilLine className="h-3.5 w-3.5" aria-hidden="true" />
                         {t("articleLibrary.edit")}
                       </Link>
-                      <Link
-                        to={articlePreviewHref({ articleId: article.articleId, locale })}
-                        className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-wb-accent transition-[color,background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-                      >
-                        {t("articleLibrary.read")}
-                        <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                      </Link>
                       <button
                         type="button"
                         onClick={() => void deleteArticle(article)}
-                        disabled={deletingArticleId === article.articleId}
+                        disabled={deletingArticleId !== null}
                         className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-danger-soft hover:text-wb-danger active:scale-[0.97] disabled:cursor-wait disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-danger"
                         aria-label={t("articleLibrary.delete")}
                         title={t("articleLibrary.delete")}

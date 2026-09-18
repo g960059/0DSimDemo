@@ -255,15 +255,19 @@ function ArticleReaderV3Resource({
   }, [articleId, content, locale, navigate, search, hash]);
   const openExperimentSessionV3 = React.useCallback((snapshotId: string, placementId: string, continuation?: StudioReaderContinuationV3) => {
     const sessionToken = createExperimentSessionTokenV3();
+    const returnHref = `${pathname}${search}#${encodeURIComponent(`placement-${placementId}`)}`;
     experimentSessionHandoff.begin({
       sessionToken,
       snapshotId,
-      returnHref: `${pathname}${search}#${encodeURIComponent(`placement-${placementId}`)}`,
+      returnHref,
       ...(continuation ? { continuation } : {}),
     });
     const query = new URLSearchParams({ sessionToken, snapshotId });
+    // Preserve the embedded simulation's reading position for both the header
+    // arrow and browser Back, including after a reload or the first Save.
+    navigate(returnHref, { replace: true });
     navigate(`${newExperimentHref(locale)}?${query.toString()}`);
-  }, [experimentSessionHandoff, hash, locale, navigate, pathname, search]);
+  }, [experimentSessionHandoff, locale, navigate, pathname, search]);
 
   const scrollAnchorRef = React.useRef<{ element: Element; top: number; host: HTMLElement } | null>(null);
   const rememberReadingPosition = React.useCallback(() => {

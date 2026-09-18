@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(28);
+select plan(39);
 
 insert into auth.users (
   id,
@@ -331,6 +331,16 @@ select public.publish_experiment_v1(
 select is(public.read_public_snapshot_title_v1(((select value->>'snapshotId' from rpc_state where key='snapshot'))::uuid),'Integration baseline'::text,'Public Snapshot resolves its Experiment title');
 
 select is(
+  public.read_my_experiment_v1(((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid) ->> 'publishedVersion',
+  '0'::text,
+  'Workbench publication remembers the saved version without changing Snapshot identity'
+);
+select ok(
+  public.read_my_experiment_v1(((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid) ->> 'publishedAt' is not null,
+  'Workbench can display the current publication time'
+);
+
+select is(
   public.read_public_experiment_v1('integration-public-experiment')
     #>> '{snapshot,snapshotId}',
   (select value ->> 'snapshotId' from rpc_state where key = 'snapshot'),
@@ -481,6 +491,12 @@ select is(
 );
 select is(public.read_public_snapshot_title_v1(((select value->>'snapshotId' from rpc_state where key='snapshot'))::uuid),null::text,'Unpublishing hides the source title even during Snapshot retention');
 
+select is(
+  public.read_my_experiment_v1(((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid) ->> 'publishedVersion',
+  null::text,
+  'Unpublishing clears the publication comparison metadata'
+);
+
 select ok(
   (
     select r.retain_until between
@@ -565,6 +581,55 @@ select ok(
   ) ? 'experimentId',
   'Anonymous Save crosses the polymorphic storage-quota trigger'
 );
+
+-- A publication's compared version belongs to its admitted source, not the
+-- mutable version used to authorize a later publication request.
+select pg_catalog.set_config('request.jwt.claims',
+  '{"sub":"10000000-0000-0000-0000-000000000001","role":"authenticated","is_anonymous":false}', true);
+select public.publish_experiment_v1('20000000-0000-0000-0000-000000000020',
+  ((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid, 0,
+  ((select value ->> 'snapshotId' from rpc_state where key = 'snapshot'))::uuid, 'integration-public-experiment');
+select public.save_experiment_v1(
+  '20000000-0000-0000-0000-000000000021',
+  ((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid,
+  0, 'Changed baseline', 'model/integration-test-v1',
+  jsonb_set(public.read_my_experiment_v1(((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid)#>'{experiment,content}',
+    '{scenarios,0,capture,fixture,control}', '2'::jsonb)
+);
+select is(public.read_public_experiment_v1('integration-public-experiment')->>'title', 'Integration baseline',
+  'Saving a new title leaves the public route title unchanged');
+select is(public.read_public_snapshot_title_v1(((select value->>'snapshotId' from rpc_state where key='snapshot'))::uuid), 'Integration baseline',
+  'Saving a new title leaves the public Snapshot title unchanged');
+select is(public.list_public_experiment_summaries_v1()#>>'{items,0,title}', 'Integration baseline',
+  'Saving a new title leaves the public directory title unchanged');
+select public.publish_experiment_v1('20000000-0000-0000-0000-000000000022',
+  ((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid, 1,
+  ((select value ->> 'snapshotId' from rpc_state where key = 'snapshot'))::uuid, 'integration-public-experiment');
+select is(public.read_public_experiment_v1('integration-public-experiment')->>'title', 'Changed baseline',
+  'Explicit publication makes the saved title public');
+select is(public.read_my_experiment_v1(((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid)->>'publishedVersion',
+  '0', 'Publishing an older admitted Snapshot does not claim the new saved version');
+insert into rpc_state(key,value) select 'updated-snapshot', public.commit_admitted_experiment_snapshot_v1(
+  '20000000-0000-0000-0000-000000000023', null, 'model/integration-test-v1',
+  public.read_my_experiment_v1(((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid)#>'{experiment,content}',
+  'surface/integration-test-v1', ((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid, 1);
+select public.publish_experiment_v1('20000000-0000-0000-0000-000000000024',
+  ((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid, 1,
+  ((select value ->> 'snapshotId' from rpc_state where key = 'updated-snapshot'))::uuid, 'integration-public-experiment');
+select is(public.read_my_experiment_v1(((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid)->>'publishedVersion',
+  '1', 'A new admitted capture records the saved version it actually used');
+select pg_catalog.set_config('request.jwt.claims', '{"role":"anon"}', true);
+select is(public.read_public_experiment_v1('integration-public-experiment')#>>'{snapshot,snapshotId}',
+  (select value->>'snapshotId' from rpc_state where key='updated-snapshot'), 'The unchanged public slug resolves the replacement Snapshot for anonymous readers');
+select pg_catalog.set_config('request.jwt.claims',
+  '{"sub":"10000000-0000-0000-0000-000000000001","role":"authenticated","is_anonymous":false}', true);
+update studio.experiment_snapshot_sources set source_experiment_version = null
+where snapshot_id = ((select value->>'snapshotId' from rpc_state where key='snapshot'))::uuid;
+select public.publish_experiment_v1('20000000-0000-0000-0000-000000000025',
+  ((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid, 1,
+  ((select value ->> 'snapshotId' from rpc_state where key = 'snapshot'))::uuid, 'integration-public-experiment');
+select is(public.read_my_experiment_v1(((select value ->> 'experimentId' from rpc_state where key = 'save'))::uuid)->>'publishedVersion',
+  null::text, 'Legacy Snapshot provenance remains unknown rather than being inferred from the mutable head');
 
 select * from finish();
 

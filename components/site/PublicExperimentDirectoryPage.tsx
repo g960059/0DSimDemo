@@ -4,7 +4,7 @@ import { FlaskConical } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
-import { experimentSnapshotHref, newExperimentHref } from "@/homeLinks";
+import { experimentSnapshotHref, newExperimentHref, publishedExperimentHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import { readPublicCatalogAsyncV3 } from "@/components/site/PublicCatalogV3";
 
@@ -78,7 +78,7 @@ export function PublicExperimentDirectoryPage() {
             {state.experiments.map((experiment) => (
               <li key={experiment.record.experimentId}>
                 <Link
-                  to={experimentSnapshotHref({
+                  to={experiment.record.publicSlug ? publishedExperimentHref({ locale, publicSlug: experiment.record.publicSlug }) : experimentSnapshotHref({
                     locale,
                     snapshotId: experiment.snapshotId,
                   })}

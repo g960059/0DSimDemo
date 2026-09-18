@@ -9,7 +9,7 @@ import {
   ExperimentOutputGridV3,
   ExperimentPaneAddItemButtonV3,
 } from "@/components/workbench/ExperimentPanePresentationV3";
-import { WorkbenchPaneBindingButtonV3 } from "@/components/workbench/WorkbenchPaneBindingV3";
+import { WorkbenchPaneBindingButtonV3, WorkbenchPaneContextRowV3 } from "@/components/workbench/WorkbenchPaneBindingV3";
 import {
   resolveWorkbenchControlPaneScenarioIdsV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
@@ -71,6 +71,7 @@ export function OutputPaneBodyV3({
   periodicPvaAnalysisError,
   scrollMode = "contained",
   showBinding,
+  settingsAction,
   scenarioLabel,
   lastMeasurements,
 }: Readonly<{
@@ -85,6 +86,7 @@ export function OutputPaneBodyV3({
   periodicPvaAnalysisError?: string;
   scrollMode?: "contained" | "parent" | "section";
   showBinding: boolean;
+  settingsAction?: React.ReactNode;
   scenarioLabel: string;
   lastMeasurements: WorkbenchLastMeasuredOutputsV1;
 }>) {
@@ -117,20 +119,25 @@ export function OutputPaneBodyV3({
         scrollMode === "section" ? "" : "h-full"
       }`}
     >
-      <WorkbenchPaneBindingButtonV3
-        label={bindingLabel}
-        modeLabel={bindingModeLabel}
-        onClick={onOpenBindingSettings}
-        targetLabel={scenarioLabel}
-        testId={`output-pane-binding-${pane.paneId}`}
-        visible={showBinding}
-      />
+      <WorkbenchPaneContextRowV3
+        addItem={selected.length > 0 ? { label: t("workbench.editor.addCatalogItem"), onClick: onAddItem } : undefined}
+        settings={settingsAction}
+      >
+        <WorkbenchPaneBindingButtonV3
+          label={bindingLabel}
+          modeLabel={bindingModeLabel}
+          onClick={onOpenBindingSettings}
+          targetLabel={scenarioLabel}
+          testId={`output-pane-binding-${pane.paneId}`}
+          visible={showBinding}
+        />
+      </WorkbenchPaneContextRowV3>
       <ExperimentOutputGridV3
-        addItemAction={{
+        addItemAction={selected.length === 0 ? {
           label: t("workbench.editor.addCatalogItem"),
           onClick: onAddItem,
-          prominent: selected.length === 0,
-        }}
+          prominent: true,
+        } : undefined}
         variant="pane"
         scrollMode={scrollMode === "contained" ? "contained" : "parent"}
         emptyMessage={t("workbench.live.noSelectedOutputs")}
@@ -153,6 +160,7 @@ export const ControlPaneBodyV3 = React.memo(function ControlPaneBodyV3({
   pendingControlId,
   scenarios,
   scrollMode = "contained",
+  settingsAction,
 }: Readonly<{
   activeScenarioId: string | null;
   contract: ModelContractV2;
@@ -172,6 +180,7 @@ export const ControlPaneBodyV3 = React.memo(function ControlPaneBodyV3({
   pendingControlId: string | null;
   scenarios: readonly StudioSimulationWorkerScenarioDescriptorV2[];
   scrollMode?: "contained" | "parent" | "section";
+  settingsAction?: React.ReactNode;
 }>) {
   const { t } = useTranslation();
   incrementWorkbenchPerformanceCounterV3("react.control-pane.render");
@@ -233,14 +242,19 @@ export const ControlPaneBodyV3 = React.memo(function ControlPaneBodyV3({
             : "h-full min-h-0"
       }`}
     >
-      <WorkbenchPaneBindingButtonV3
-        label={bindingLabel}
-        modeLabel={bindingModeLabel}
-        onClick={() => onOpenSettings(pane.paneId, "binding")}
-        targetLabel={bindingTargetLabel}
-        testId={`control-pane-binding-${pane.paneId}`}
-        visible={scenarios.length > 1}
-      />
+      <WorkbenchPaneContextRowV3
+        addItem={selectedControls.length > 0 ? { label: t("workbench.editor.addCatalogItem"), onClick: () => onOpenSettings(pane.paneId, "items", "add") } : undefined}
+        settings={settingsAction}
+      >
+        <WorkbenchPaneBindingButtonV3
+          label={bindingLabel}
+          modeLabel={bindingModeLabel}
+          onClick={() => onOpenSettings(pane.paneId, "binding")}
+          targetLabel={bindingTargetLabel}
+          testId={`control-pane-binding-${pane.paneId}`}
+          visible={scenarios.length > 1}
+        />
+      </WorkbenchPaneContextRowV3>
       <div
         className={`min-h-0 flex-1 px-2 pb-2 ${
           scrollMode === "contained" ? "overflow-y-auto" : "overflow-visible"
@@ -307,11 +321,11 @@ export const ControlPaneBodyV3 = React.memo(function ControlPaneBodyV3({
             {controlError}
           </p>
         )}
-        <ExperimentPaneAddItemButtonV3
+        {selectedControls.length === 0 && <ExperimentPaneAddItemButtonV3
           label={t("workbench.editor.addCatalogItem")}
           onClick={() => onOpenSettings(pane.paneId, "items", "add")}
-          prominent={selectedControls.length === 0}
-        />
+          prominent
+        />}
       </div>
     </section>
   );

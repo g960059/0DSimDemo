@@ -2,6 +2,7 @@
   "common": {
     "appName": "CircleHeart",
     "close": "Close",
+    "back": "Back to previous page",
     "unsavedChanges": "You have unsaved changes. Leave without saving them?",
     "theme": {
       "toggle": "Toggle theme"
@@ -11,6 +12,13 @@
       "en": "EN",
       "switchTo": "Switch to {{language}}"
     }
+  },
+  "pageFailure": {
+    "title": "This page could not be loaded",
+    "moduleDescription": "The site may have been updated, or the connection interrupted. Reload the page to try again.",
+    "description": "Something went wrong while displaying this page. Reload the page to try again.",
+    "reload": "Reload page",
+    "details": "Error details"
   },
   "nav": {
     "home": "Home",
@@ -23,9 +31,7 @@
     "startSimulation": "Start simulation",
     "create": "Create",
     "newSimulation": "New simulation",
-    "newSimulationDescription": "Explore circulatory physiology interactively",
     "newArticle": "New article",
-    "newArticleDescription": "Combine writing with interactive simulations",
     "login": "Log in",
     "profile": "Profile menu",
     "manageExperiments": "Manage simulations",
@@ -116,28 +122,23 @@
     "waitingForPvData": "Waiting for data…",
     "pvDataPaused": "Play to start drawing the trajectory",
     "selector": {
-      "title": "Simulations",
-      "eyebrow": "MY SIMULATIONS",
-      "newTitle": "New simulation",
-      "newDescription": "Start an unsaved simulation on the latest available mathematical model. It appears here only after you explicitly save.",
       "newAction": "New simulation",
       "savedTitle": "Saved simulations",
-      "savedCount": "{{count}}",
       "loading": "Loading simulations…",
       "errorTitle": "Simulations could not be read",
       "retry": "Try again",
       "emptyTitle": "No saved simulations",
       "emptyDescription": "Start a new simulation, then save it when you want to keep it.",
       "untitled": "Untitled simulation",
-      "exactModel": "Pinned mathematical model",
       "unavailable": "The mathematical model required by this simulation is currently unavailable. Its saved content remains intact.",
       "delete": "Delete simulation",
       "deleteConfirm": "Delete this saved simulation? Content already pinned in articles remains available. This cannot be undone.",
-      "open": "Open",
       "inspect": "View recovery",
-      "openPublished": "Open published Snapshot",
+      "openPublished": "View published version",
       "statusDraft": "Draft",
-      "statusPublished": "Published"
+      "statusPublished": "Published",
+      "updated": "Updated {{date}}",
+      "edit": "Edit"
     },
     "unavailable": {
       "title": "This simulation cannot be opened right now",
@@ -421,7 +422,11 @@
       "notePlaceholder": "Add interpretation, limitations, or references for this simulation…",
       "pinnedPreview": "Pinned preview",
       "panePicker": {
-        "add": { "graph": "Add graph", "output": "Add output pane", "control": "Add controller pane" },
+        "add": {
+          "graph": "Add graph",
+          "output": "Add output pane",
+          "control": "Add controller pane"
+        },
         "selectItems": "Select items",
         "editItems": "Edit items",
         "search": "Search names or abbreviations",
@@ -474,6 +479,45 @@
         "scenarios": "Scenarios",
         "showScenario": "Show in graphs",
         "title": "Scenario inspector"
+      },
+      "publication": {
+        "settings": "Publication",
+        "private": "Private",
+        "published": "Published",
+        "staleStatus": "Published. There are unpublished changes.",
+        "publish": "Publish",
+        "saveAndPublish": "Save and publish",
+        "update": "Update publication",
+        "saveAndUpdate": "Save and update publication",
+        "processing": "Working…",
+        "unpublishing": "Unpublishing…",
+        "publishedAt": "Published {{date}}",
+        "privateNotice": "Only you can view the saved simulation.",
+        "publicNotice": "Anyone with the link can open this simulation.",
+        "dirtyNotice": "There are unsaved changes. They will be saved before publishing.",
+        "staleNotice": "Saved changes have not been applied to the publication.",
+        "currentNotice": "The publication matches the latest saved version.",
+        "fixedNotice": "Later changes stay private until you update the publication.",
+        "unpublishTitle": "Unpublish this simulation?",
+        "unpublish": "Unpublish",
+        "unpublishNotice": "Remove this simulation from public listings. Your saved work remains. Captures placed in published articles remain accessible through those articles.",
+        "view": "View",
+        "copy": "Copy link",
+        "copied": "Copied",
+        "copyError": "Could not copy. Open the public page and copy its URL.",
+        "noChanges": "No changes",
+        "changedDuringSave": "New edits were made during saving. Review them, then save and publish again.",
+        "cancel": "Cancel",
+        "retry": "Retry",
+        "stage": {
+          "saving": "Saving changes…",
+          "checking": "Checking the captured state…",
+          "publishing": "Updating the publication…",
+          "unpublishing": "Unpublishing…"
+        },
+        "updateNotice": "You can update the publication with the current saved content.",
+        "unavailableTitle": "Simulation unavailable",
+        "unavailable": "This simulation is private or is no longer published."
       }
     }
   },
@@ -671,12 +715,20 @@
     },
     "readingMarker": "Reference marker for body text"
   },
+  "management": {
+    "navigation": "Manage content",
+    "articles": "Articles",
+    "courses": "Courses",
+    "experiments": "Simulations",
+    "manageArticles": "Manage articles",
+    "manageCourses": "Manage courses",
+    "manageExperiments": "Manage simulations",
+    "create": "Create new",
+    "preview": "Preview"
+  },
   "articleLibrary": {
     "title": "Articles",
     "new": "New article",
-    "eyebrow": "GUIDED EXPLORATION",
-    "heading": "Articles",
-    "description": "Combine writing with pinned simulations to communicate circulatory physiology.",
     "loading": "Loading your articles…",
     "emptyTitle": "No articles yet",
     "emptyDescription": "Create an article, then add simulations when they help the explanation.",
@@ -686,7 +738,6 @@
     "savedLocally": "Saved on this device",
     "updated": "Updated {{date}}",
     "edit": "Edit",
-    "read": "Read",
     "delete": "Delete",
     "deleteConfirm": "Delete this article? If it is published, its public page will also be removed. This cannot be undone.",
     "deleteFailed": "The article could not be deleted: {{message}}"

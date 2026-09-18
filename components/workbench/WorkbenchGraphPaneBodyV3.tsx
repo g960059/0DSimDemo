@@ -122,8 +122,9 @@ export function GraphPaneBodyV3({
   );
   if (graph === undefined) {
     return (
-      <div className="p-4 text-xs text-wb-danger">
-        {t("workbench.live.unknownGraph")}
+      <div className="flex h-full min-h-0 flex-col">
+        {legendActions != null && <WorkbenchChartLegendRowV3 actions={legendActions} />}
+        <p className="p-4 text-xs text-wb-danger">{t("workbench.live.unknownGraph")}</p>
       </div>
     );
   }

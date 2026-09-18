@@ -7,7 +7,7 @@ const baseline = JSON.parse(readFileSync(new URL(
   "../data/model-baselines/standard74-baseline-v1.json", import.meta.url,
 ), "utf8")) as { modelId: string; surfaceReleaseId: string; capture: ScenarioCaptureV2 };
 
-async function openColdPeek(page: Page) {
+async function openColdPeek(page: Page, search = "") {
   const snapshot: ExperimentSnapshotV2 = {
     schemaId: "circleheart-studio-experiment-snapshot-v2",
     snapshotId: "snapshot-reader-peek-test", createdAt: "2026-09-13T00:00:00.000Z",
@@ -53,7 +53,7 @@ async function openColdPeek(page: Page) {
   }));
   await page.route("**/rest/v1/rpc/read_article_v1", route => route.fulfill({ json: article }));
   await page.route("**/rest/v1/rpc/read_experiment_snapshot_v1", route => route.fulfill({ json: snapshot }));
-  await page.goto(`/ja/articles/${article.articleId}/preview`);
+  await page.goto(`/ja/articles/${article.articleId}/preview${search}`);
   const placement = page.locator('[data-reader-placement-id="peek-test"]');
   await expect(placement).toHaveAttribute("data-reader-presentation", "peek");
   await expect(placement).toHaveAttribute("data-reader-placement-live", "false");
@@ -123,4 +123,15 @@ test("@desktop @mobile @webkit Peek speed settings support keyboard navigation a
   await expect(trigger).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);
+});
+
+test("@desktop @mobile Workbench Back restores the article placement and query string", async ({ page }) => {
+  const { panel } = await openColdPeek(page, "?from=reading");
+  await panel.getByRole("button", { name: "その他の操作" }).click();
+  await panel.getByRole("button", { name: "Workbenchで編集" }).click();
+  const workbench = page.getByTestId("v3-dockview-workbench");
+  await expect(workbench).toHaveAttribute("data-model-id", baseline.modelId);
+  await page.getByTestId("workbench-back-v1").click();
+  await expect(page).toHaveURL(/\/ja\/articles\/article-reader-peek-test\/preview\?from=reading#placement-peek-test$/);
+  await expect(page.locator('[id="placement-peek-test"]')).toBeInViewport();
 });

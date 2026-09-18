@@ -14,6 +14,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
+import { isContentManagementRouteV1 } from "@/components/management/ContentManagementV1";
 import { useAppTheme } from "@/appTheme";
 import {
   accountSettingsHref,
@@ -59,7 +60,7 @@ export function SiteHeaderV3() {
 
   return (
     <header
-      className={`${isHome ? "home-site-header " : ""}site-header z-50 flex h-14 shrink-0 items-center gap-1 bg-wb-header/95 px-3 shadow-[inset_0_-1px_0_color-mix(in_srgb,var(--wb-border)_72%,transparent)] backdrop-blur-xl sm:gap-3 sm:px-5`}
+      className={`${isHome ? "home-site-header " : isContentManagementRouteV1(location.pathname) ? "management-site-header " : ""}site-header z-50 flex h-[62px] shrink-0 items-center gap-1 bg-wb-header/95 px-3 shadow-[inset_0_-1px_0_color-mix(in_srgb,var(--wb-border)_72%,transparent)] backdrop-blur-xl sm:gap-4 sm:px-5`}
       data-testid="site-header-v3"
     >
       <Link
@@ -130,12 +131,12 @@ export function SiteHeaderV3() {
         aria-label={t("common.theme.toggle")}
         title={t("common.theme.toggle")}
         data-testid="site-theme-toggle-v3"
-        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
       >
         {appTheme === "light" ? (
-          <Moon className="h-4 w-4" aria-hidden="true" />
+          <Moon className="h-[23px] w-[23px]" aria-hidden="true" />
         ) : (
-          <Sun className="h-4 w-4" aria-hidden="true" />
+          <Sun className="h-[23px] w-[23px]" aria-hidden="true" />
         )}
       </button>
 
@@ -144,10 +145,10 @@ export function SiteHeaderV3() {
           to={newExperimentHref(locale)}
           aria-label={t("siteHeader.startSimulation")}
           data-testid="site-start-simulation-v3"
-          className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg bg-wb-primary px-2.5 text-xs font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:px-3"
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-wb-primary px-2 text-[13.5px] font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:h-9 sm:px-3 sm:text-[15px]"
         >
-          <FlaskConical className="h-3.5 w-3.5" aria-hidden="true" />
-          <span className="hidden sm:inline">
+          <FlaskConical className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden md:inline">
             {t("siteHeader.startSimulation")}
           </span>
         </Link>
@@ -159,9 +160,9 @@ export function SiteHeaderV3() {
         <Link
           to={loginHref(locale)}
           aria-label={t("siteHeader.login")}
-          className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+          className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg px-2 text-[13.5px] font-semibold text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:h-9 sm:min-w-20 sm:text-[15px]"
         >
-          <LogIn className="h-3.5 w-3.5 sm:hidden" aria-hidden="true" />
+          <LogIn className="h-4 w-4 sm:hidden" aria-hidden="true" />
           <span className="hidden sm:inline">{t("siteHeader.login")}</span>
         </Link>
       ) : (
@@ -206,12 +207,12 @@ function SiteCreateMenuV3({ locale }: Readonly<{ locale: Locale }>) {
         title={t("siteHeader.create")}
         data-testid="site-create-trigger-v3"
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex h-9 w-9 items-center justify-center gap-1.5 rounded-lg bg-wb-primary text-xs font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent min-[400px]:w-auto min-[400px]:px-3"
+        className="inline-flex h-8 w-8 items-center justify-center gap-1.5 rounded-lg bg-wb-primary text-[13.5px] font-semibold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent min-[400px]:w-auto min-[400px]:px-3 sm:h-9 sm:text-[15px]"
       >
-        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+        <Plus className="h-4 w-4" aria-hidden="true" />
         <span className="hidden min-[400px]:inline">{t("siteHeader.create")}</span>
         <ChevronDown
-          className={`hidden h-3.5 w-3.5 transition-transform duration-150 motion-reduce:transition-none min-[400px]:block ${
+          className={`hidden h-4 w-4 transition-transform duration-150 motion-reduce:transition-none min-[400px]:block ${
             open ? "rotate-180" : ""
           }`}
           aria-hidden="true"
@@ -223,31 +224,24 @@ function SiteCreateMenuV3({ locale }: Readonly<{ locale: Locale }>) {
           role="menu"
           aria-label={t("siteHeader.create")}
           data-testid="site-create-menu-v3"
-          className="absolute right-0 top-11 z-[70] w-72 max-w-[calc(100vw-1.5rem)] origin-top-right rounded-xl border border-wb-line bg-wb-panel p-1.5 shadow-2xl"
+          className="absolute right-0 top-11 z-[70] w-64 max-w-[calc(100vw-4rem)] origin-top-right rounded-xl border border-wb-line bg-wb-panel p-1.5 shadow-2xl"
         >
           <SiteCreateMenuLinkV3
             to={newExperimentHref(locale)}
             icon={<FlaskConical className="h-4 w-4" aria-hidden="true" />}
             title={t("siteHeader.newSimulation")}
-            description={t("siteHeader.newSimulationDescription")}
             onSelect={() => setOpen(false)}
           />
           <SiteCreateMenuLinkV3
             to={`/${locale}/courses/new`}
             icon={<BookOpenText className="h-4 w-4" aria-hidden="true" />}
             title={locale === "ja" ? "新しいコース" : "New course"}
-            description={
-              locale === "ja"
-                ? "記事を束ねて、読む順序を作る"
-                : "Arrange articles into a reading path"
-            }
             onSelect={() => setOpen(false)}
           />
           <SiteCreateMenuLinkV3
             to={newArticleEditorHref(locale)}
             icon={<BookOpenText className="h-4 w-4" aria-hidden="true" />}
             title={t("siteHeader.newArticle")}
-            description={t("siteHeader.newArticleDescription")}
             onSelect={() => setOpen(false)}
           />
         </div>
@@ -257,13 +251,11 @@ function SiteCreateMenuV3({ locale }: Readonly<{ locale: Locale }>) {
 }
 
 function SiteCreateMenuLinkV3({
-  description,
   icon,
   onSelect,
   title,
   to,
 }: Readonly<{
-  description: string;
   icon: React.ReactNode;
   onSelect(): void;
   title: string;
@@ -274,19 +266,12 @@ function SiteCreateMenuLinkV3({
       to={to}
       role="menuitem"
       onClick={onSelect}
-      className="flex min-h-14 items-start gap-3 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-wb-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+      className="flex min-h-11 items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-wb-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
     >
-      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-wb-soft text-wb-accent">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-wb-soft text-wb-accent">
         {icon}
       </span>
-      <span className="min-w-0">
-        <span className="block text-xs font-semibold text-wb-text">
-          {title}
-        </span>
-        <span className="mt-0.5 block text-[11px] leading-5 text-wb-muted">
-          {description}
-        </span>
-      </span>
+      <span className="min-w-0 text-[13px] font-semibold text-wb-text">{title}</span>
     </Link>
   );
 }
@@ -331,7 +316,7 @@ function SiteProfileMenuV3({ locale }: Readonly<{ locale: Locale }>) {
         aria-label={t("siteHeader.profile")}
         data-testid="site-profile-trigger-v3"
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-wb-soft text-xs font-semibold text-wb-text transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+        className="inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-wb-soft text-xs font-semibold text-wb-text transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
       >
         {account.avatarUrl === undefined ? (
           <span aria-hidden="true">{initial}</span>
@@ -367,7 +352,7 @@ function SiteProfileMenuV3({ locale }: Readonly<{ locale: Locale }>) {
             icon={<BookOpenText className="h-4 w-4" aria-hidden="true" />}
             onSelect={() => setOpen(false)}
           >
-            {locale === "ja" ? "自分のコース" : "My courses"}
+            {t("management.manageCourses")}
           </ProfileMenuLinkV3>
           <ProfileMenuLinkV3
             to={myArticlesHref(locale)}

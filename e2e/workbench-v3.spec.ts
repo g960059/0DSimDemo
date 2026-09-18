@@ -91,12 +91,14 @@ test("@desktop selector stays ID-less until the first explicit Save", async ({
     `/ja/experiments/${EXPERIMENT_RESOURCE_ID}$`,
   ));
 
-  await page.goto("/ja/me/experiments");
+  // The first Save replaces /new but must preserve the management entry.
+  await page.getByTestId("workbench-back-v1").click();
+  await expect(page).toHaveURL(/\/ja\/me\/experiments$/);
   const experimentRow = page.getByRole("listitem").filter({
     hasText: "Acute afterload comparison",
   });
   await expect(experimentRow).toContainText("未公開");
-  await expect(experimentRow.getByRole("link", { name: "開く" })).toBeVisible();
+  await expect(experimentRow.getByRole("link", { name: "編集", exact: true })).toBeVisible();
   await expect(experimentRow.getByRole("button", {
     name: "シミュレーションを削除",
   })).toBeVisible();
@@ -1248,6 +1250,11 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
     name: "HR (現在値)",
     exact: true,
   });
+  await expect(selectedHeartRate).toHaveCount(0);
+  await settings.getByRole("button", { name: "項目を追加", exact: true }).click();
+  await settings.getByRole("searchbox").fill("心拍数");
+  await settings.getByRole("checkbox", { name: "HR", exact: true }).check();
+  await settings.getByRole("tab", { name: "項目", exact: true }).click();
   await expect(selectedHeartRate).toBeVisible();
   await settings.getByRole("button", { name: "Paneから外す: HR", exact: true }).click();
   await expect(selectedHeartRate).toHaveCount(0);
@@ -1267,7 +1274,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
     page
       .getByTestId("workbench-pane-picker-v3")
       .getByRole("button", { name: "HR (現在値)", exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "キャンセル" }).click();
 
   await page.getByRole("button", { name: "Paneメニュー: Outputs" }).click();

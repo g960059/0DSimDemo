@@ -192,6 +192,7 @@ function publicCatalogFromPublicSummariesV3(input: Pick<
         createdAt: resource.publishedAt,
         updatedAt: resource.publishedAt,
         publishedSnapshotId: resource.snapshotId,
+        publicSlug: resource.publicSlug,
       }),
       ...(resource.author ? { author: resource.author } : {}),
       snapshotId: resource.snapshotId,

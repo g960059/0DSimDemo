@@ -106,18 +106,24 @@ describe("Studio public content delivery V1", () => {
       .toBe(false);
   });
 
-  it("returns a real uncached 404 for missing generated document assets", async () => {
+  it.each([
+    ["/model-documents/**", "/model-documents/v1/missing.json"],
+    ["/assets/**", "/assets/WorkbenchSelectorPage-retired.js"],
+    ["/assets/**", "/assets/WorkbenchPage-retired.css"],
+    ["/assets/**", "/assets/StudioSimulationWorker-retired.js"],
+  ])("returns an uncached 404 instead of SPA HTML for %s (%s)", async (source, path) => {
     const firebase = JSON.parse(readFileSync(new URL("../firebase.json", import.meta.url), "utf8"));
     const rules = firebase.hosting.rewrites;
-    const index = rules.findIndex(rule => rule.source === "/model-documents/**");
+    const index = rules.findIndex(rule => rule.source === source);
     expect(index).toBeGreaterThanOrEqual(0);
     expect(index).toBeLessThan(rules.findIndex(rule => rule.source === "**"));
     expect(rules[index].run.serviceId).toBe("circleheart-public-content");
     for (const method of ["GET", "HEAD"]) {
-      const response = await handleStudioPublicContentRequestV1(new Request("https://www.circleheart.dev/model-documents/v1/missing.json", { method }), dependenciesV1());
+      const response = await handleStudioPublicContentRequestV1(new Request(`https://www.circleheart.dev${path}`, { method }), dependenciesV1());
       expect(response.status).toBe(404);
       expect(response.headers.get("cache-control")).toBe("no-store");
       expect(response.headers.get("content-type")).toContain("text/plain");
+      expect(response.headers.get("x-content-type-options")).toBe("nosniff");
       if (method === "HEAD") expect(await response.text()).toBe("");
     }
   });
@@ -370,7 +376,7 @@ describe("Studio public content delivery V1", () => {
       "/ja/articles/what-determines-blood-pressure",
     );
     expect(html).toContain(
-      "/ja/snapshots/44444444-4444-4444-8444-444444444444",
+      "/ja/experiments/published/public-simulation",
     );
     expect(html).toContain(`id="${STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_ELEMENT_ID}"`);
     expect(html).toContain('"@type":"WebSite"');

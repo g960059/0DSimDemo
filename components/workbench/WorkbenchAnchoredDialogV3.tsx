@@ -114,6 +114,7 @@ export function WorkbenchAnchoredDialogV3({
   footer,
   testId,
   focusKey,
+  mobileBackdrop = false,
   width: preferredWidth = 384,
 }: Readonly<{
   anchor: WorkbenchPopoverAnchorV3;
@@ -126,6 +127,7 @@ export function WorkbenchAnchoredDialogV3({
   footer?: React.ReactNode;
   testId?: string;
   focusKey?: string;
+  mobileBackdrop?: boolean;
   width?: number;
 }>) {
   const dialogRef = React.useRef<HTMLDivElement>(null);
@@ -241,7 +243,7 @@ export function WorkbenchAnchoredDialogV3({
   if (typeof document === "undefined") return null;
   return createPortal(
     <div
-      className="fixed inset-0 z-[90]"
+      className={`fixed inset-0 z-[90]${mobileBackdrop ? " bg-black/30 sm:bg-transparent" : ""}`}
       onMouseDown={(event) => {
         if (event.currentTarget === event.target) onClose();
       }}

@@ -2,7 +2,11 @@ import React from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
+import { ContentManagementLayoutV1, isContentManagementRouteV1 } from "@/components/management/ContentManagementV1";
 import { useAppTheme } from "@/appTheme";
+import { homeHref } from "@/homeLinks";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { usePreviousPageV1 } from "@/components/usePreviousPageV1";
 import { HomeSearchProviderV1 } from "@/components/home/HomeSearchV1";
 import { SiteHeaderV3 } from "@/components/site/SiteHeaderV3";
 import { WorkbenchPerformanceReportV3 } from "@/components/workbench/runtime/WorkbenchPerformanceReportV3";
@@ -18,7 +22,7 @@ import {
  */
 export function routeOwnsApplicationChrome(pathname: string): boolean {
   if (/^\/dev\/model-lab\/?$/.test(pathname)) return true;
-  if (pathname.startsWith("/snapshots/")) return true;
+  if (pathname.startsWith("/snapshots/") || pathname.startsWith("/experiments/published/")) return true;
   if (/^\/experiments\/(?:new|[^/]+)$/.test(pathname)) return true;
   return /^\/articles\/(?:new|[^/]+)\/edit$/.test(pathname);
 }
@@ -30,12 +34,19 @@ export const Layout = () => {
   const normalizedPath = stripLocaleFromPathname(location.pathname);
   const pageOwnsChrome = routeOwnsApplicationChrome(normalizedPath);
   const { appTheme } = useAppTheme();
+  const returnToPreviousPage = usePreviousPageV1(homeHref(locale));
 
   React.useEffect(() => {
     if (i18n.language !== locale) void i18n.changeLanguage(locale);
     document.documentElement.lang = locale;
     setPreferredLocale(locale);
   }, [i18n, locale]);
+
+  const content = (
+    <ErrorBoundary resetKey={location.key} onBack={returnToPreviousPage}>
+      <Outlet />
+    </ErrorBoundary>
+  );
 
   return (
     <div
@@ -45,7 +56,9 @@ export const Layout = () => {
       <HomeSearchProviderV1>
         {!pageOwnsChrome && <SiteHeaderV3 />}
         <div className="relative min-h-0 flex-1 overflow-hidden">
-          <Outlet />
+          {isContentManagementRouteV1(location.pathname)
+            ? <ContentManagementLayoutV1>{content}</ContentManagementLayoutV1>
+            : content}
         </div>
       </HomeSearchProviderV1>
       <WorkbenchPerformanceReportV3 />

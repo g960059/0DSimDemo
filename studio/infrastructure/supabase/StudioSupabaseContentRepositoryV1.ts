@@ -49,6 +49,8 @@ export type StudioRemoteExperimentResourceV1 = Readonly<{
   updatedAt: string;
   publishedSnapshotId: string | null;
   publicSlug: string | null;
+  publishedVersion?: number | null;
+  publishedAt?: string | null;
 }>;
 
 export type StudioSummaryCursorV1 = Readonly<{
@@ -425,6 +427,11 @@ export class StudioSupabaseContentRepositoryV1 {
     );
   }
 
+  async readPublicExperimentSnapshot(publicSlug: string): Promise<ExperimentSnapshotV2 | null> {
+    const data = await this.#rpc("read_public_experiment_v1", { p_public_slug: publicSlug });
+    return data === null ? null : validateExperimentSnapshotV2(recordV1(data, "Public Experiment").snapshot);
+  }
+
   async readSnapshot(snapshotId: string): Promise<ExperimentSnapshotV2 | null> {
     const data = await this.#rpc("read_experiment_snapshot_v1", {
       p_snapshot_id: snapshotId,
@@ -648,6 +655,8 @@ function validateExperimentResourceV1(value: unknown): StudioRemoteExperimentRes
       "publishedSnapshotId",
     ),
     publicSlug: nullableStringV1(record.publicSlug, "publicSlug"),
+    publishedVersion: record.publishedVersion == null ? null : nonnegativeIntegerV1(record.publishedVersion, "publishedVersion"),
+    publishedAt: record.publishedAt == null ? null : isoTimestampV1(record.publishedAt, "publishedAt"),
   });
 }
 

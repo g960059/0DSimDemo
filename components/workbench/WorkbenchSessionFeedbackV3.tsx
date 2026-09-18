@@ -9,7 +9,10 @@ import { Link } from "react-router-dom";
 
 export function WorkbenchSaveErrorBannerV3({
   message,
-}: Readonly<{ message: string }>) {
+  retryLabel,
+  onRetry,
+  retryDisabled,
+}: Readonly<{ message: string; retryLabel?: string; onRetry?: () => void; retryDisabled?: boolean }>) {
   return (
     <div
       role="alert"
@@ -20,7 +23,8 @@ export function WorkbenchSaveErrorBannerV3({
         className="mt-0.5 h-3.5 w-3.5 shrink-0 text-wb-warning"
         aria-hidden="true"
       />
-      <span className="min-w-0 break-words">{message}</span>
+      <span className="min-w-0 flex-1 break-words">{message}</span>
+      {onRetry && <button type="button" className="shrink-0 font-semibold text-wb-accent disabled:opacity-40" disabled={retryDisabled} onClick={onRetry}>{retryLabel}</button>}
     </div>
   );
 }
