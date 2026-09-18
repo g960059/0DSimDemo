@@ -17,6 +17,7 @@ import {
 import {
   experimentDetailHref,
   experimentSnapshotHref,
+  publishedExperimentHref,
   newExperimentHref,
 } from "@/homeLinks";
 import { isLocale, type Locale } from "@/localeRouting";
@@ -83,6 +84,7 @@ export function WorkbenchSelectorPage() {
             createdAt: resource.createdAt,
             updatedAt: resource.updatedAt,
             publishedSnapshotId: resource.publishedSnapshotId,
+            publicSlug: resource.publicSlug,
           }),
           modelId: resource.modelId,
           surfaceSeriesId: resource.surfaceSeriesId,
@@ -261,7 +263,7 @@ export function WorkbenchSelectorPage() {
                           <>
                             <span aria-hidden="true">·</span>
                             <Link
-                              to={experimentSnapshotHref({ locale, snapshotId: record.publishedSnapshotId })}
+                              to={record.publicSlug ? publishedExperimentHref({ locale, publicSlug: record.publicSlug }) : experimentSnapshotHref({ locale, snapshotId: record.publishedSnapshotId })}
                               className="inline-flex min-h-8 items-center gap-1 rounded text-wb-muted underline-offset-4 hover:text-wb-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                             >
                               {t("workbench.selector.openPublished")}

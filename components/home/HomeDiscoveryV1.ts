@@ -1,6 +1,7 @@
 import type { PublicAuthorV1 } from "@/studio/application/profile/StudioPublicProfileV1";
 import type { PublicCourseV1 } from "@/studio/application/course/StudioCourseV1";
 import type { StudioPublicHomeBootstrapV1 } from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
+import { publishedExperimentHref } from "@/homeLinks";
 
 export type HomeKindV1 = "course" | "article" | "experiment";
 export type HomeItemV1 = Readonly<{
@@ -58,7 +59,7 @@ export function homeItemsV1(
         kind: "experiment",
         title: e.title,
         description: "",
-        href: `/${locale}/snapshots/${encodeURIComponent(e.snapshotId)}`,
+        href: publishedExperimentHref({ locale, publicSlug: e.publicSlug }),
         publishedAt: e.publishedAt,
         author: e.author,
         featured: false,

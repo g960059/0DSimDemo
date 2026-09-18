@@ -140,6 +140,7 @@ describe("public catalog V3", () => {
       record: {
         experimentId: "experiment/bootstrap",
         publishedSnapshotId: "snapshot/bootstrap",
+        publicSlug: "ssr-simulation",
       },
     });
     expect(readPublicHomeCatalogBootstrapV3("en", documentLike)).toBeNull();

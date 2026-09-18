@@ -18,6 +18,7 @@ import {
   myExperimentsHref,
   newArticleEditorHref,
   newExperimentHref,
+  publishedExperimentHref,
 } from '../homeLinks';
 import {
   allocateOpaqueExperimentIdV3,
@@ -82,6 +83,8 @@ describe('homeLinks', () => {
       snapshotId: 'snapshot/exact-one',
       locale: 'ja',
     })).toBe('/ja/snapshots/snapshot%2Fexact-one');
+    expect(publishedExperimentHref({ publicSlug: 'published-simulation', locale: 'en' }))
+      .toBe('/en/experiments/published/published-simulation');
   });
 
   it('allocates URL-safe opaque identities and retries collisions', () => {

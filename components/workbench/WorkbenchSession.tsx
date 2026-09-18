@@ -400,6 +400,7 @@ export const WorkbenchSession = ({
     "article" | "publication" | null
   >(null);
   const [snapshotError, setSnapshotErrorValue] = React.useState<string | null>(null);
+  const [snapshotErrorFromArticle, setSnapshotErrorFromArticle] = React.useState(false);
   const snapshotErrorRef = React.useRef<string | null>(null);
   const inheritedPublicationErrorRef = React.useRef<string | null>(null);
   const setSnapshotError = React.useCallback((error: string | null) => {
@@ -411,6 +412,7 @@ export const WorkbenchSession = ({
     const inherited = location.state?.workbenchPublicationError;
     if (typeof inherited !== "string") return;
     inheritedPublicationErrorRef.current = inherited;
+    setSnapshotErrorFromArticle(false);
     setSnapshotError(inherited);
     const state = { ...location.state };
     delete state.workbenchPublicationError;
@@ -2437,7 +2439,9 @@ export const WorkbenchSession = ({
           }>,
     ): Promise<ExperimentSnapshotV2 | null> => {
       if (!workbenchDurableContentAvailableV3({ modelLab })) return null;
+      setSnapshotErrorFromArticle(options.kind === "article");
       setSnapshotPurpose(options.kind);
+      setSnapshotState("idle");
       if (
         options.kind === "publication" &&
         remoteContentRepository !== null &&
@@ -2668,7 +2672,7 @@ export const WorkbenchSession = ({
 
   const publishExperimentV3 = React.useCallback(async () => {
     if (publicationStage !== null) return;
-    setSnapshotPurpose("publication");
+    setSnapshotErrorFromArticle(false);
     if (exclusiveOperationRef.current !== null) {
       setSnapshotError(t("workbench.editor.snapshotBusy"));
       return;
@@ -2706,7 +2710,7 @@ export const WorkbenchSession = ({
   const unpublishExperimentV3 = React.useCallback(async () => {
     const current = experimentRef.current;
     if (!current || exclusiveOperationRef.current !== null || publicationStage !== null) return;
-    setSnapshotPurpose("publication");
+    setSnapshotErrorFromArticle(false);
     exclusiveOperationRef.current = "publication";
     setPublicationStage("unpublishing");
     setSnapshotError(null);
@@ -3449,7 +3453,7 @@ export const WorkbenchSession = ({
               stage={publicationStage}
               publishedAt={experimentRecord?.publishedAt ?? null}
               publicHref={experimentRecord?.publicSlug ? publishedExperimentHref({ publicSlug: experimentRecord.publicSlug, locale: resolvedLocale }) : experimentRecord?.publishedSnapshotId ? experimentSnapshotHref({ snapshotId: experimentRecord.publishedSnapshotId, locale: resolvedLocale }) : null}
-              error={snapshotPurpose === "article" ? saveError : snapshotError ?? saveError}
+              error={snapshotErrorFromArticle ? saveError : snapshotError ?? saveError}
               loginHref={remoteContentRepository !== null && authIdentity.kind !== "account" ? loginHref(resolvedLocale) : null}
               onPublish={publishExperimentV3}
               onUnpublish={unpublishExperimentV3}

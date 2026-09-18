@@ -40,7 +40,7 @@ async function loadHome(locale: Locale): Promise<StudioPublicHomeBootstrapV1> {
       author: e.author,
       experimentId: e.record.experimentId,
       title: e.record.title,
-      publicSlug: e.record.experimentId,
+      publicSlug: e.record.publicSlug ?? e.record.experimentId,
       publishedAt: e.record.updatedAt,
       snapshotId: e.snapshotId,
       modelId: e.modelId,

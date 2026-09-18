@@ -62,6 +62,17 @@ async function expectWorkbench(page: Page) {
   await expect.poll(async () => Number(await workbench.getAttribute("data-accepted-revision"))).toBeGreaterThan(0);
 }
 
+test("@desktop Home publication links resolve the browser-local publication pointer", async ({ page }) => {
+  await seedManagement(page);
+  await page.goto("/ja");
+  const link = page.getByRole("link", { name: savedTitle, exact: true }).first();
+  await expect(link).toHaveAttribute("href", `/ja/experiments/published/${savedId}`);
+  await link.click();
+  await expectWorkbench(page);
+  await page.getByTestId("workbench-back-v1").click();
+  await expect(page).toHaveURL(/\/ja$/);
+});
+
 test("@desktop @mobile @webkit a failed route module offers explicit reload and recovers", async ({ page }, info) => {
   let blocked = true;
   let failures = 0;

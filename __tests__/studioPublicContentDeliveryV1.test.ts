@@ -376,7 +376,7 @@ describe("Studio public content delivery V1", () => {
       "/ja/articles/what-determines-blood-pressure",
     );
     expect(html).toContain(
-      "/ja/snapshots/44444444-4444-4444-8444-444444444444",
+      "/ja/experiments/published/public-simulation",
     );
     expect(html).toContain(`id="${STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_ELEMENT_ID}"`);
     expect(html).toContain('"@type":"WebSite"');

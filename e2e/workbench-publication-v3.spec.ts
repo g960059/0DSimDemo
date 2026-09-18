@@ -163,7 +163,8 @@ test("@desktop @mobile Workbench save and publication stay distinct through fail
   expect(state.resource.title).toBe("公開更新後の追加編集");
   const unpublishedReader = await page.context().newPage();
   await unpublishedReader.goto(sharedHref!);
-  await expect(unpublishedReader.getByTestId("page-load-failure-v1")).toContainText("非公開になったか");
+  await expect(unpublishedReader.getByTestId("publication-unavailable-v1").getByText(/非公開になったか/)).toBeVisible();
+  await expect(unpublishedReader.getByRole("button", { name: "再読み込み", exact: true })).toHaveCount(0);
   await unpublishedReader.close();
 });
 
